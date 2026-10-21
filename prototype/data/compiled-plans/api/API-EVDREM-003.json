@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-003",
+  "title": "After the round has fully closed there is nothing left to remind",
+  "compiledAt": "2026-10-15T12:46:17.631Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The reminders endpoint and its resource_type parameter are not available.",
+   "The empty null response body cannot be checked.",
+   "The drawer text \"No Pending Actions to Remind\" cannot be checked.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, read the pricing round and check that the read succeeds; “ending at” is a Unix timestamp in seconds; “extra closing time” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “ending at” is a Unix timestamp in seconds; “extra closing time” is a Unix timestamp in seconds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDREM-003",
+  "title": "After the round has fully closed there is nothing left to remind",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "extra_closing_time",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

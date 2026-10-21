@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "EVI-SAV-002",
+  "title": "Each vendor's own line savings in the quote view",
+  "compiledAt": "2026-10-15T12:42:14.371Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields do not expose each vendor's unit price or line savings, so Reference − that vendor's unit price cannot be checked.",
+   "The available operations read the pricing round rather than opening a vendor-specific quote view."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor reads the pricing round.",
+    "A second QA vendor reads the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that the read succeeds.",
+    "As a second QA vendor, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-SAV-002",
+  "title": "Each vendor's own line savings in the quote view",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "vendor"
+   },
+   {
+    "op": "read_round",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "vendor2",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

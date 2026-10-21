@@ -4,7 +4,7 @@
  * A senior QA prepares the test data the quickest way and then exercises only
  * the screen under test. This module builds a case's starting state through the
  * API journey (src/checks/eventJourney.ts — the same calls, guarded senders and
- * QA test vendors the API runs use) and returns what the browser needs to open
+ * vendors the API runs use) and returns what the browser needs to open
  * the right screen already in that state: the event's ids and the values the
  * API sent, so a screen assertion can compare against them.
  *
@@ -12,14 +12,17 @@
  *   none        nothing is built — the screen is the events list or a new create screen
  *   draft       a draft event with one pricing round (RFQ)
  *   live        that event published, bidding open for an hour
- *   bid         live, and the client's QA vendor has submitted a bid
+ *   bid         live, and one invited vendor has submitted a bid
  *   closed      the bidding window has ended after the vendor's bid
  *   proposal    closed, and the buyer has a DRAFT award proposal with the line allocated
  *   awarded     closed, and the buyer has awarded it
  * With `technical: true` the event also carries a technical (RFP) round first.
  *
- * Safety: only the client's QA test vendor (qa_…@example.com) is ever invited —
- * the build refuses otherwise. Every event is titled QA_Platform_UI_….
+ * Vendors: the journeys' rule (Aanya, 2026-10-09; for these states 2026-10-20):
+ * the event goes to the vendors Procol suggests for its product — each gets
+ * Procol's invitation email — and the first of them who can sign in bids. With
+ * SPINE_QA_VENDORS_ONLY=1 only the client's QA test vendor (qa_…@example.com),
+ * and the build refuses without one. Every event is titled QA_Platform_UI_….
  * Bounded: the whole build has a time limit; a build that does not finish is
  * reported as "could not build the state" (a couldn't-tell, never a failure).
  */
@@ -27,6 +30,7 @@ import { openClientContext } from "../executor.js";
 import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
+import { qaVendorsOnly } from "../checks/eventVendors.js";
 
 export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
 export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded"];
@@ -43,7 +47,7 @@ export interface UiSetupContext {
   technicalStageUuid?: string;
   title?: string;
   vendorName?: string;
-  /** the QA test vendor's address (qa_…@example.com) — for a vendor-portal step */
+  /** the bidding vendor's login email — for a vendor-portal step */
   vendorEmail?: string;
   /** every id the journey produced, by name */
   made: Record<string, string>;
@@ -91,10 +95,10 @@ export async function qaVendorOf(companyId: number): Promise<{ name: string; ema
 }
 
 /** Pull the values a screen should show out of what the journey sent. */
-function valuesFrom(journey: any, client: any): Record<string, string> {
+function valuesFrom(journey: any, client: any, vendorName?: string): Record<string, string> {
   const v: Record<string, string> = {};
   if (journey?.title) v.title = String(journey.title);
-  const vendor = client?.ctx?.vendor?.name;
+  const vendor = vendorName ?? client?.ctx?.vendor?.name;
   if (vendor) v.vendorName = String(vendor);
   for (const s of journey?.steps ?? []) {
     const body = s?.call?.body;
@@ -142,8 +146,10 @@ export async function buildUiState(
     clients.delete(companyId);
     return { ok: false, why: `could not sign in to client ${companyId}: ${(e as Error).message}` };
   }
+  // The event's own vendors unless the run is QA-only (eventVendors.ts qaVendorsOnly).
+  const eventVendors = !qaVendorsOnly();
   const email = String(client?.ctx?.vendor?.email ?? "");
-  if (!/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) {
+  if (!eventVendors && !/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) {
     return { ok: false, why: `client ${companyId} has no QA test vendor to bid with (${client?.ctx?.noQaVendor ?? "none configured"}) — refusing to build with a real supplier` };
   }
   // an auction case gets a live auction round (behind a technical round when it needs one)
@@ -163,6 +169,7 @@ export async function buildUiState(
         // dialog shows that field and its "start on or before delivery" rule can be checked
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
+        eventVendors,
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
         onLine: (l: string) => opts.onLine?.(l),
       }),
@@ -179,6 +186,10 @@ export async function buildUiState(
     return { ok: false, why: `the API build of the ${state} state stopped: ${j?.outcome ?? "no outcome"}${failed ? ` (at ${failed.kind}: ${String(failed.actual ?? failed.why ?? "").slice(0, 160)})` : ""}` };
   }
   const stageUuid = made.pricingTradeUuid;
+  // Who the screen should find on the event: the vendor that bid (or, before a bid, the one that would).
+  const bidder = eventVendors ? r?.bidder : undefined;
+  if (bidder) opts.onLine?.(`the event went to ${r?.invited ?? "the"} vendor(s) Procol suggests; ${bidder.name} is the one that ${["live", "upcoming", "draft"].includes(state) ? "can bid" : "bid"}`);
+  const vendorName = bidder?.name ?? client?.ctx?.vendor?.name;
   return {
     ok: true,
     context: {
@@ -189,10 +200,10 @@ export async function buildUiState(
       stageUuid,
       technicalStageUuid: made.technicalTradeUuid,
       title: j.title,
-      vendorName: client?.ctx?.vendor?.name,
-      vendorEmail: email,
+      vendorName,
+      vendorEmail: bidder ? bidder.email : email,
       made,
-      values: valuesFrom(j, client),
+      values: valuesFrom(j, client, vendorName),
       builtInMs: Date.now() - t0,
     },
   };

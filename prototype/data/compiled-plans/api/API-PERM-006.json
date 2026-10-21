@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-PERM-006",
+  "title": "Vendor-onboarding-v2 stage updates need the onboarding permission",
+  "compiledAt": "2026-10-15T13:06:18.238Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send PATCH /trade/{{tradeId}}, but the supplier app may not call PATCH /trade/:id (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "The setup cannot explicitly create a vendor-onboarding-v2 stage or a user with a specifically absent onboarding permission; it covers the closest available vendor stage-update authorization case.",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the request that updates the round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-006",
+  "title": "Vendor-onboarding-v2 stage updates need the onboarding permission",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-067",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

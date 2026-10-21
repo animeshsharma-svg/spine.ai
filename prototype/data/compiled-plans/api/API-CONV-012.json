@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-CONV-012",
+  "title": "The RFQ's bids survive the conversion",
+  "compiledAt": "2026-10-15T13:03:57.528Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No available operation or library case performs RFQ conversion.",
+   "The plan verifies that two bids are readable before conversion, but cannot verify that they survive conversion."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that “bid count” has at least 2 entries."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “bid count” has at least 2 entries."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-CONV-012",
+  "title": "The RFQ's bids survive the conversion",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "count_gte",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

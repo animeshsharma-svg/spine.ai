@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-062",
+  "title": "A surrogate reference note with an outside-host file leaves a saved bid behind a server error",
+  "compiledAt": "2026-10-15T12:18:39.214Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the case reads as “the app answers without a server error”, but the plan checks “it is refused”",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “pdf” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [
+   "error code 472 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) with the remarks set to “QA_Platform_ref_…”, with 1 attachments.",
+    "As the buyer, read the pricing round and check that “bid count” equals 0."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “bid count” equals 0."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-062",
+  "title": "A surrogate reference note with an outside-host file leaves a saved bid behind a server error",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "surrogate_remarks.remarks",
+      "set": "QA_Platform_ref_{{stamp}}"
+     },
+     {
+      "path": "surrogate_remarks.attachments",
+      "set": [
+       "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+      ]
+     }
+    ],
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "472"
+  }
+ }
+}

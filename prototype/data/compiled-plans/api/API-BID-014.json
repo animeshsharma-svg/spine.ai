@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-BID-014",
+  "title": "Rebidding is refused where the seller is barred from it",
+  "compiledAt": "2026-10-15T13:01:04.417Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer",
+   "No operation or field configures an event to bar rebidding.",
+   "The available revision library case tests a tick-size violation and expects code 214, not a rebidding restriction with code 101.",
+   "The plan cannot verify that the seller is barred specifically from rebidding.",
+   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/revise_bid/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-BID-014",
+  "title": "Rebidding is refused where the seller is barred from it",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-084",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

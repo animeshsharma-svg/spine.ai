@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-053",
+  "title": "Editing only the T&C files wipes the written terms",
+  "compiledAt": "2026-10-15T12:17:54.704Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available operations and library cases cannot send a pricing-round PATCH with only attachments and no terms_and_conditions.",
+   "read_round has no T&C fields, so retention of the written clause cannot be verified.",
+   "The plan only verifies the available live-round terms update, not the attachment-only update or clause-preservation behavior."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates the round, exactly as the matching library case writes it.",
+    "As the buyer, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-053",
+  "title": "Editing only the T&C files wipes the written terms",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAMD-043",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

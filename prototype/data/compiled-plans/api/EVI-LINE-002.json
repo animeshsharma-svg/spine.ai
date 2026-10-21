@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-002",
+  "title": "Line total = unit price × quantity, plus GST on it",
+  "compiledAt": "2026-10-15T12:38:45.858Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)",
+   "Cannot set the line quantity to 7.5 KG or configure 18% GST with the available fields.",
+   "Cannot read or assert the bid's calculated line total, its company-specific decimal places, or the total displayed in the comparison."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-LINE-002",
+  "title": "Line total = unit price × quantity, plus GST on it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 123.4567
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

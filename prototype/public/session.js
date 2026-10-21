@@ -964,9 +964,21 @@
   ];
 
   // ── a browser journey (/api/ui-run) ──────────────────────────────────────
-  function journeyEnd({ label, code, runId, error, took }) {
+  function journeyEnd({ label, code, runId, error, took, byHand = 0 }) {
     if (!S.on) return;
     const ok = code === 0 && !error;
+    // Steps the tester did in the browser (take control): the run did not test them.
+    if (ok && byHand > 0) {
+      end({
+        tone: "skip",
+        tag: "Partly tested",
+        key: label || "Journey",
+        title: `Partly tested: ${byHand === 1 ? "one step was" : `${byHand} steps were`} done by you in the browser, so the run did not test ${byHand === 1 ? "it" : "them"}.`,
+        lines: [took ? `Took ${took}.` : ""],
+        links: runId ? [{ label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" }, ...bugLinks(runId)] : [],
+      });
+      return;
+    }
     const links = runId
       ? [
           { label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" },

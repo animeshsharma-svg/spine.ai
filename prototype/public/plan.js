@@ -659,12 +659,20 @@
         `<button type="button" class="pl-mi" role="menuitem" data-mode="${mode}" tabindex="-1"${why ? ` disabled title="${h(why)}"` : ""}>` +
         `<span class="pl-mi-label">${label}</span><span class="pl-mi-n">${h(detail)}</span>${icon("chevron-right")}</button>`;
       const rows = [item("api", "API", `${plural(N, "feature", "features")} · ${EST.api}`, apiOff)];
-      // Browser and Both only when a ticked feature has a browser test (or that is still being found out).
+      // All three, always. Browser and Both used to vanish when no ticked feature
+      // had a browser test, which read as the options having gone missing; now
+      // they stay, greyed, and say why.
       if (!known) {
         rows.push(item("ui", "Browser", "checking…", "Still checking which features have a browser test"));
+        rows.push(item("both", "Both", "checking…", "Still checking which features have a browser test"));
       } else if (M > 0) {
         rows.push(item("ui", "Browser", `${plural(M, "feature", "features")} · ${EST.ui}`, ""));
         rows.push(item("both", "Both", `${fmt(N)} + ${fmt(M)} · ${EST.both}`, apiOff));
+      } else {
+        const none = N === 1 ? "No browser test for this feature yet" : `None of these ${fmt(N)} has a browser test yet`;
+        const why = `${none}: ${list.map((f) => f.label).join(", ")}. Their API test cases run under API.`;
+        rows.push(item("ui", "Browser", none, why));
+        rows.push(item("both", "Both", none, why));
       }
       menu.innerHTML = rows.join("");
     }

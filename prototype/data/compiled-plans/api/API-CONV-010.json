@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-CONV-010",
+  "title": "Rank-based tenants validate the start and end prices",
+  "compiledAt": "2026-10-15T13:03:46.165Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact invalid start/end pair is not represented; the available library case checks a start price that is not below the current L1.",
+   "The rfx_project_enabled rank-based tenant gate cannot be configured or verified with the available vocabulary."
+  ],
+  "warnings": [
+   "error code 966 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-CONV-010",
+  "title": "Rank-based tenants validate the start and end prices",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AUC-PRICE-002",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "966"
+  }
+ }
+}

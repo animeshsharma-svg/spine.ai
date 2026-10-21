@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-056",
+  "title": "T&C files are locked once bidding has closed with a bid in",
+  "compiledAt": "2026-10-15T13:17:19.335Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case"
+  ],
+  "warnings": [
+   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-056",
+  "title": "T&C files are locked once bidding has closed with a bid in",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33"
+  }
+ }
+}

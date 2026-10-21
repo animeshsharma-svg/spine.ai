@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-XBID-061",
+  "title": "A price below the configured floor is refused",
+  "compiledAt": "2026-10-15T12:13:20.721Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-BID-061 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a floor (min) price”)",
+   "The available setup and body fields do not configure the line item's floor price; EDGE-BID-061 assumes that the floor is already configured.",
+   "library case EDGE-BID-061 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a floor (min) price”)"
+  ],
+  "warnings": [
+   "error code 41 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Price cannot be less than the allowed price”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-061",
+  "title": "A price below the configured floor is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-061",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "41",
+   "message": "Price cannot be less than the allowed price"
+  }
+ }
+}

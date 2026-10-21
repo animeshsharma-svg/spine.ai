@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-004",
+  "title": "Every vendor's bid takes the extended end time",
+  "compiledAt": "2026-10-15T12:33:21.418Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "The invited QA vendor reads the pricing round.",
+    "A second QA vendor reads the pricing round."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAUX-004",
+  "title": "Every vendor's bid takes the extended end time",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+600}}"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "read_round",
+    "as": "vendor"
+   },
+   {
+    "op": "read_round",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

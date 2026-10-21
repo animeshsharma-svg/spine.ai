@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-SUR-013",
+  "title": "The approval-flow lookup applies the surrogate permission checks too",
+  "compiledAt": "2026-10-15T13:02:47.822Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "API-SUR-005 is not available as a library case, so the buyer's refused surrogate-permission state cannot be created or reproduced.",
+   "The available approval-flow case uses GET rather than the requested POST endpoint and may return code 2 for insufficient parameters instead of the same permission refusal."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/approval_workflows_for_surrogate_bid_create"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-SUR-013",
+  "title": "The approval-flow lookup applies the surrogate permission checks too",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAPR-043",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "codeInferred": true
+  }
+ }
+}

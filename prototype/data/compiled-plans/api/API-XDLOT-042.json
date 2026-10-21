@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-042",
+  "title": "A lot with no items is published",
+  "compiledAt": "2026-10-15T12:16:10.613Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing round whose template carries no line items.",
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that “status” equals draft."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XDLOT-042",
+  "title": "A lot with no items is published",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data",
+      "set": []
+     }
+    ],
+    "expect": "no-5xx",
+    "ifRefused": "pass",
+    "say": "The buyer adds a pricing round whose template carries no line items."
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

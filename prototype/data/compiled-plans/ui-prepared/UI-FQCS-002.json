@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "UI-FQCS-002",
+  "title": "After the first bid a vendor column appears with rank and amounts",
+  "compiledAt": "2026-10-20T02:38:55.438Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "state": "bid",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [
+   "UI-AWD-001",
+   "UI-AWD-004"
+  ],
+  "crossCheckAdded": [
+   "quantity",
+   "bidTotal"
+  ]
+ },
+ "plan": {
+  "title": "Master QCS first bid values",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live RFQ directly on Master QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Assert that the comparison grid with the submitted bid rendered."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify exactly one vendor column appears and uses a real company name."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": 1,
+     "key": "quantity"
+    },
+    "note": "Verify the displayed quantity matches the API-held bid quantity."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 1
+    },
+    "note": "Verify the first bidder is ranked 1."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Verify the per-unit RFQ rate matches the API-held bid price."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": 1,
+     "key": "bidTotal"
+    },
+    "note": "Verify the displayed RFQ amount matches the API-held bid total."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 1,
+     "key": "bidTotal"
+    },
+    "note": "Verify the Final section's Sum Total matches the API-held bid total."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Verify the amount equals rate multiplied by quantity and the Sum Total equals the line amount."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   }
+  ]
+ }
+}

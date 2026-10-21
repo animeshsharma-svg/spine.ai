@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-PERM-015",
+  "title": "Live-auction audience edits need view access",
+  "compiledAt": "2026-10-15T13:07:11.183Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send PATCH /v1/trade/add_audience, but the vendor's session may not call PATCH /v1/trade/add_audience (trade#add_audience_live_auction is not on that app's list in config/app_auth_config.yml)",
+   "The available operation does not express both audience-edit variants: allowed with view access and refused without view access.",
+   "The plan does not verify the allowed-then-refused sequence or the refusal code for the without-view-access case.",
+   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the request that invites vendors to a round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-015",
+  "title": "Live-auction audience edits need view access",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-041",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

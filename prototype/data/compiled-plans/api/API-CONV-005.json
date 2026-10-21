@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-CONV-005",
+  "title": "Converting an already-auctioning trade is refused",
+  "compiledAt": "2026-10-15T13:03:13.464Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case AUC-CONV-002 needs a starting state no recipe builds (“{{tradeId}} is an active TradeRequest that is already auctioning (current_status auctioning) and whose event group is th”)",
+   "The setup recipe does not explicitly create an already-auctioning trade; this precondition is required by the library case.",
+   "library case AUC-CONV-002 needs a starting state no recipe builds (“{{tradeId}} is an active TradeRequest that is already auctioning (current_status auctioning) and whose event group is th”)"
+  ],
+  "warnings": [
+   "error code 93 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-CONV-005",
+  "title": "Converting an already-auctioning trade is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AUC-CONV-002",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "93"
+  }
+ }
+}

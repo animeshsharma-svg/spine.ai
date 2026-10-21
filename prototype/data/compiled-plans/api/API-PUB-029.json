@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-PUB-029",
+  "title": "Activation fires invitation mails exactly once",
+  "compiledAt": "2026-10-15T12:58:36.201Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Invitation mail delivery and exact mail count are not exposed by the available operations or read-back fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id/get_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer publishes the event.",
+    "As the buyer, list the event's invited vendors and check that the read succeeds; the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the reply is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-029",
+  "title": "Activation fires invitation mails exactly once",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

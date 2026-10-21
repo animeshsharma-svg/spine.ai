@@ -1,0 +1,52 @@
+{
+ "meta": {
+  "caseId": "API-AUTH-006",
+  "title": "A vendor session cannot call buyer endpoints",
+  "compiledAt": "2026-10-15T12:55:48.037Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send POST /event_groups, but the supplier app may not call POST /event_groups (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "The create_draft operation requires productUuid and productQualityUuid, but the none setup provides no such values.",
+   "The exact authorization error code for this request is not specified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups"
+  ],
+  "llm": {
+   "calls": 1,
+   "promptTokens": 4422,
+   "completionTokens": 505,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The invited QA vendor creates a draft event."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AUTH-006",
+  "title": "A vendor session cannot call buyer endpoints",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

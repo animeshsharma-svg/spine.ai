@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-AUD-016",
+  "title": "A successful rejection is written by bypassing callbacks, and still consistent",
+  "compiledAt": "2026-10-15T12:59:55.876Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot assert that the rejected company is listed as rejected everywhere it appears because no rejected-participant field is available in the read-back fields.",
+   "Bypassing callbacks is not expressible in the available vocabulary.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id/reject_participant",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the event groups reject participant request, exactly as the matching library case writes it.",
+    "The buyer reads the event.",
+    "As the buyer, read the event and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AUD-016",
+  "title": "A successful rejection is written by bypassing callbacks, and still consistent",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-055",
+    "decisive": true
+   },
+   {
+    "op": "read_event",
+    "as": "buyer"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

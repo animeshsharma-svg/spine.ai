@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-052",
+  "title": "A T&C attachment with no value makes the round page unreadable",
+  "compiledAt": "2026-10-15T12:17:43.996Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "PATCH /trade/{{tradeId}} with attachments field (no value) cannot be expressed with available operations",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "error code 500 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that “status” is present."
+   ],
+   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: “status” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-052",
+  "title": "A T&C attachment with no value makes the round page unreadable",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "500"
+  }
+ }
+}

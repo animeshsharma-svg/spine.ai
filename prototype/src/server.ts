@@ -263,6 +263,8 @@ const capCache = new Map<string, any>();
 /** Feature trees, keyed by company. Ten minutes: a config change is rare, and
  * a stale tree for that long is a smaller problem than a 36-second wait. */
 const featureCache = new Map<string, { at: number; payload: unknown }>();
+/** /api/ui-flows: each company's line-item limit, eRFX mode and BOQ setting, by company + base. */
+const uiFlowsCfg = new Map<string, { at: number; limits: any; erfx: boolean | null; boqAllowed: boolean | null }>();
 const FEATURE_CACHE_MS = 10 * 60 * 1000;
 
 const MIME: Record<string, string> = {
@@ -1104,18 +1106,29 @@ const server = createServer(async (req, res) => {
             : (tokenAccount.browserNote ?? "Browser journeys are not available for this account."),
         });
       }
-      let limits: any = null;
-      let erfx: boolean | null = null;
-      let boqAllowed: boolean | null = null;
-      const client = await openClientContext(c, baseOverride(url)).catch(() => null);
-      if (client) {
-        const cfg = await loadCompanyConfig(client, c);
-        limits = cfg.flags?.allowed_maximum_line_items ?? null;
-        erfx = cfg.loaded ? isFlagOn(cfg.flags?.rfx_project_enabled) : null;
-        boqAllowed = cfg.loaded ? isFlagOn(cfg.flags?.boq_in_erfx_allowed) : null;
-        await client.dispose().catch(() => {});
+      /**
+       * The company's settings, read once per 10 minutes. Signing in to read
+       * them takes ~20 s, and Run tests marks every feature "API tests only"
+       * while it waits — so the slow part is kept, not repeated per page load.
+       * A read that could not sign in is not kept (it would pin nulls).
+       */
+      const cfgKey = `${c}|${baseOverride(url) ?? ""}`;
+      let cfgNow = uiFlowsCfg.get(cfgKey);
+      if (!cfgNow || Date.now() - cfgNow.at > 10 * 60_000) {
+        const client = await openClientContext(c, baseOverride(url)).catch(() => null);
+        if (client) {
+          const cfg = await loadCompanyConfig(client, c);
+          cfgNow = {
+            at: Date.now(),
+            limits: cfg.flags?.allowed_maximum_line_items ?? null,
+            erfx: cfg.loaded ? isFlagOn(cfg.flags?.rfx_project_enabled) : null,
+            boqAllowed: cfg.loaded ? isFlagOn(cfg.flags?.boq_in_erfx_allowed) : null,
+          };
+          if (cfg.loaded) uiFlowsCfg.set(cfgKey, cfgNow);
+          await client.dispose().catch(() => {});
+        }
       }
-      return json(res, { flows: uiFlowsFor(c), limits, erfxMode: erfx, boqAllowed });
+      return json(res, { flows: uiFlowsFor(c), limits: cfgNow?.limits ?? null, erfxMode: cfgNow?.erfx ?? null, boqAllowed: cfgNow?.boqAllowed ?? null });
     }
 
     // ── API: run ONE browser journey, streaming Playwright's output (SSE) ──
@@ -1598,8 +1611,10 @@ const server = createServer(async (req, res) => {
        * instead of a blank card until the first call fires.
        */
       // "Bids from 2 vendors": the journey signs in and bids as each, one after another.
-      const wantBidders = Math.max(1, Math.min(MAX_BIDDERS, Math.floor(Number(url.searchParams.get("bidders")) || 1)));
+      let wantBidders = Math.max(1, Math.min(MAX_BIDDERS, Math.floor(Number(url.searchParams.get("bidders")) || 1)));
       const plan = journeyPlan(ids, { stopAtTicked: true, bidders: wantBidders });
+      // A vendor's own bid and a surrogate one for another vendor: the plan asks for two.
+      wantBidders = Math.max(wantBidders, plan.features.bidders ?? 1);
       if (plan.wanted) {
         send("journey-plan", {
           plan,
@@ -1788,6 +1803,8 @@ const server = createServer(async (req, res) => {
             lineItemCount: journeyLineItems,
             extraBidders,
             eventVendors,
+            // "invite 3 vendors" named in the request: that many of Procol's suggestion.
+            ...(Number(url.searchParams.get("invite")) > 0 ? { inviteCount: Math.min(50, Math.floor(Number(url.searchParams.get("invite")))) } : {}),
             alsoInvite,
             onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),

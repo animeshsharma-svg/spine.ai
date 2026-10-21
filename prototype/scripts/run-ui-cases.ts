@@ -10,6 +10,7 @@
  *     --case-min 12                 limit for one case's browser run (default 12)
  *     --bugs <file>                 where candidate product bugs go (default data/ui-bug-candidates.json)
  *     --recompile                   compile again even when a plan is stored
+ *     --compile-only                compile and store the plans; build no state, open no browser
  *
  * For each case:
  *   1. the layer decider (src/agents/layerDecider.ts) splits it into assertions;
@@ -20,7 +21,7 @@
  *      the compiler writes one (fast tier) with the screen assertions, the API
  *      values it can compare and the closest UI exemplars as worked examples;
  *      stored in data/compiled-plans/ui-prepared/<id>.json;
- *   4. the state is built through the API (uiSetup.ts, QA vendors only), fresh
+ *   4. the state is built through the API (uiSetup.ts — the event's own vendors; QA-only with SPINE_QA_VENDORS_ONLY=1), fresh
  *      for every run, and the browser opens the screen on it (open_prepared);
  *   5. one browser, one case at a time; a failure is run again on a SECOND fresh
  *      state before it can be anything but "couldn't tell";
@@ -82,6 +83,7 @@ const { saveRun, newRunId, whenRunsSaved } = await import("../src/runStore.js");
 const { closeSpineDb } = await import("../src/db/spineDb.js");
 const { usageReport } = await import("../src/ai/llm.js");
 const { withWatchdog } = await import("../src/checks/resilience.js");
+const { qaVendorsOnly } = await import("../src/checks/eventVendors.js");
 type CatalogCase = ReturnType<typeof allCases>[number];
 
 const arg = (n: string) => {
@@ -96,6 +98,8 @@ const BUDGET_MS = (Number(arg("budget-min")) || 240) * 60_000;
 const CASE_MS = (Number(arg("case-min")) || 12) * 60_000;
 const RECOMPILE = flag("recompile");
 const DRY = flag("dry");
+/** compile (and store) each case's prepared plan, but build no state and open no browser */
+const COMPILE_ONLY = flag("compile-only");
 const SKIP_RAN = flag("skip-ran");
 const BUGS = arg("bugs") ?? join(here, "..", "data", "ui-bug-candidates.json");
 const T0 = Date.now();
@@ -373,26 +377,29 @@ async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promi
     log(`   state ${p.state}${p.technical ? " (+technical)" : ""}${p.auction ? " (auction)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
     if (!fresh) stateCache.set(key, { context, at: Date.now() });
   }
-  // A vendor-portal step signs in as the QA test vendor the API invited — never the
-  // profile's default vendor. Its one-time code is resolved by the same UAT rule the
-  // API journey uses and handed to the child through the environment (never printed).
+  // A vendor-portal step signs in as the vendor the API set-up made bid — one of the event's
+  // own vendors (QA-only: the client's QA test vendor) — never the profile's default vendor.
+  // Its one-time code is resolved by the same UAT rule the API journey uses and handed to the
+  // child through the environment (never printed). A plan that builds its own event on screen
+  // leaves the choice to place_bid, which signs in as a vendor on that event (runPlan.ts
+  // bidderEmail) — unless the run is QA-only, which invites and bids as the QA vendor.
   if (plan.steps.some((st: any) => ["place_bid", "accept_counter_offer"].includes(st.step))) {
-    // A plan that builds its own event on screen invites and bids as the client's QA vendor.
-    const qa = context?.vendorEmail ? null : await qaVendorOf(COMPANY);
+    const qaOnly = qaVendorsOnly();
+    const qa = !qaOnly || context?.vendorEmail ? null : await qaVendorOf(COMPANY);
     if (qa) {
       for (const st of plan.steps) if (st.step === "invite_vendor" && !st.args?.vendors) st.args = { ...(st.args ?? {}), vendors: [qa.name] };
       for (const st of plan.steps) if (st.step === "place_bid" && !st.args?.vendor) st.args = { ...(st.args ?? {}), vendor: qa.name };
     }
     const email = context?.vendorEmail ?? qa?.email ?? "";
-    if (!/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: "the plan signs into the vendor portal, and no QA test vendor was built for it" };
-    try {
+    if (qaOnly && !/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: "the plan signs into the vendor portal, and no QA test vendor was built for it" };
+    if (email) try {
       const { loginOtpCandidates } = await import(join(here, "..", "..", "procol test", "src", "auth", "uatOtp.ts"));
       const otps = await withWatchdog<Array<{ otp: string }>>(loginOtpCandidates({ email }, COMPANY), 30_000, "resolving the vendor's code");
       if (!otps.length) throw new Error("no code");
       process.env.VENDOR_EMAIL = email;
       process.env.VENDOR_OTP = otps[0].otp;
     } catch (e) {
-      return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: `the QA vendor's one-time code could not be resolved (${(e as Error).message.slice(0, 80)})` };
+      return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: `the vendor's one-time code could not be resolved (${(e as Error).message.slice(0, 80)})` };
     }
   }
   if (!(await waitForBrowserFree())) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: "another browser run held this machine for 10 minutes" };
@@ -481,13 +488,21 @@ for (const c of pick) {
     continue;
   }
   log(`   plan: ${comp.plan?.steps?.length ?? 0} step(s), coverage ${comp.coverage}, ${comp.stored ? "stored" : comp.source}`);
+  if (COMPILE_ONLY) {
+    // Store the plan and its coverage (what routing reads) without building a state or opening a browser.
+    log(`   steps: ${(comp.plan?.steps ?? []).map((st: any) => st.step).join(" → ") || "(none)"}`);
+    if (comp.gaps.length) log(`   gaps: ${comp.gaps.join("; ").slice(0, 300)}`);
+    summary.push({ id: c.id, ran: false, why: `compiled only — coverage ${comp.coverage}`, coverage: comp.coverage });
+    continue;
+  }
   if (comp.coverage === "none" || !comp.plan?.steps?.length) {
     summary.push({ id: c.id, ran: false, why: `no step can test what this case is about: ${comp.gaps.join("; ").slice(0, 200)}` });
     appendFileSync(LEDGER, JSON.stringify({ id: c.id, ran: false, coverage: "none", at: new Date().toISOString() }) + "\n");
     log(`   not run — the plan covers none of the case`);
     continue;
   }
-  const removed = keepQaVendorsOnly(comp.plan);
+  // Vendor names a case gives are dropped only when the run is QA-only; by default they are the event's own.
+  const removed = qaVendorsOnly() ? keepQaVendorsOnly(comp.plan) : [];
   if (removed.length) log(`   removed vendor(s) that are not QA test vendors: ${removed.join(", ")}`);
 
   const first = await runOnce(c, p, comp.plan);

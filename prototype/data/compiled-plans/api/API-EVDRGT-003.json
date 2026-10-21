@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-003",
+  "title": "Undoing a regret before submitting gives a normal bid",
+  "compiledAt": "2026-10-15T12:22:08.448Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The regret_status undo operation and the initial regretted draft state cannot be expressed with the available vocabulary.",
+   "The exact HTTP 200 response and status value/label fields cannot be verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid.",
+    "The invited QA vendor submits the bid.",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-003",
+  "title": "Undoing a regret before submitting gives a normal bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-004",
+  "title": "Prices with many decimals and tiny prices total correctly",
+  "compiledAt": "2026-10-15T12:39:07.636Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available operations and read-back fields cannot set or verify the 5% GST rate.",
+   "The available read-backs cannot verify the stored line total ₹432.055240155 or its displayed rounding as ₹432.0552 and ₹432.06.",
+   "The available fields do not explicitly set the round line item's unit to KG."
+  ],
+  "warnings": [
+   "act 3: the vendor is not invited to this setup — it acts as an outsider"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "PATCH /event_groups/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the value 1234.567.",
+    "The buyer publishes the event.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-LINE-004",
+  "title": "Prices with many decimals and tiny prices total correctly",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data[0].creator_quantity.value",
+      "set": 1234.567
+     }
+    ]
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 0.3333
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

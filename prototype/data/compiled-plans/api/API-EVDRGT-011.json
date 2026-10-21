@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-011",
+  "title": "One-round event: the vendor can quote again on a regretted line, but the line stays flagged",
+  "compiledAt": "2026-10-15T12:23:03.197Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no operation to mark a line as regretted, so the starting state is not fully created.",
+   "The vocabulary cannot verify that the line remains flagged or that the new bid carries no regret.",
+   "The vocabulary cannot verify the absence of price-check or submit-check errors 736 and 800."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-011",
+  "title": "One-round event: the vendor can quote again on a regretted line, but the line stays flagged",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

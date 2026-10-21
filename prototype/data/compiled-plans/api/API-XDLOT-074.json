@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-074",
+  "title": "Zero, negative and non-numeric rates are refused",
+  "compiledAt": "2026-10-15T12:16:18.812Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "sending three separate invalid rates (0, -5, 'abc') – library case covers a generic invalid rate but does not allow multiple distinct payloads",
+   "verifying that the USD rate remains unchanged after each rejected attempt",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XDLOT-074",
+  "title": "Zero, negative and non-numeric rates are refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DLOT-067",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

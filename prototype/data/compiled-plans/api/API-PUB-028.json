@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-PUB-028",
+  "title": "Auto-routing to the auction team forces the stage to `draft`",
+  "compiledAt": "2026-10-15T12:58:31.295Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The routeAuctionsToAuctionTeam gate cannot be set or verified with the available vocabulary.",
+   "The stage's assigned auction team cannot be verified because no assignment field is available."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that “stages › status” equals draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “stages › status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-028",
+  "title": "Auto-routing to the auction team forces the stage to `draft`",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

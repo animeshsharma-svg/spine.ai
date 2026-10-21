@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-001",
+  "title": "While others bid, a vendor's views carry nothing of them",
+  "compiledAt": "2026-10-15T12:51:02.795Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)",
+   "The available setup creates only one initially invited vendor and can add only QA vendor 2, not four QA vendors.",
+   "The before- and after-vendor-2-bid checkpoints cannot both be verified within the available operation limit.",
+   "The available read-back fields do not support searching every response for other vendors' names, company IDs, prices, or totals.",
+   "Only the absence of QA vendor 2's indicators data is directly asserted; other vendors' data cannot be checked.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live round for a second QA vendor.",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "As the invited QA vendor, read the pricing round and check that the read succeeds.",
+    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2” is absent.",
+    "As the invited QA vendor, read the event and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “auction identifiers data › QA vendor 2” is absent; the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDLEK-001",
+  "title": "While others bid, a vendor's views carry nothing of them",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}",
+      "op": "absent"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

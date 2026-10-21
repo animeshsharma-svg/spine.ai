@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-TECH-007",
+  "title": "A vendor cannot read another vendor's response",
+  "compiledAt": "2026-10-15T13:00:15.816Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "There is no operation or library case for GET /template_responses/:B_uuid, so the decisive cross-vendor response-read refusal cannot be checked.",
+   "The available technical-response operation only starts vendor B's response; it cannot submit or read the response."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /template_responses"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live technical round.",
+    "A second QA vendor starts a technical response on the RFP round."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-TECH-007",
+  "title": "A vendor cannot read another vendor's response",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "technical"
+    }
+   },
+   {
+    "op": "start_tech_response",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

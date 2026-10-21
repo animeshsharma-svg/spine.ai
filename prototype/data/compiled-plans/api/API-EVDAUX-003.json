@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-003",
+  "title": "A second late lead change extends again",
+  "compiledAt": "2026-10-15T12:49:22.706Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no operation for an automatic lead-change extension caused by a bid.",
+   "QA vendor 3 is not available; only vendor and vendor2 are supported.",
+   "The setup does not directly represent a state after a first extension; the plan arranges one with extend_round.",
+   "The vocabulary cannot place the bid specifically below QA vendor 3.",
+   "The vocabulary cannot wait until the last minute without waiting until the round closes.",
+   "An exact additional two-minute extension cannot be asserted because no numeric dynamic comparison or matching time token is available."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer makes the first extension.",
+    "QA vendor 1 places a late bid.",
+    "As the buyer, read the pricing round and check that “ending at” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “ending at” is a Unix timestamp in seconds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAUX-003",
+  "title": "A second late lead change extends again",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     }
+    ],
+    "expect": "accept",
+    "say": "The buyer makes the first extension."
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 1
+    },
+    "decisive": true,
+    "say": "QA vendor 1 places a late bid."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

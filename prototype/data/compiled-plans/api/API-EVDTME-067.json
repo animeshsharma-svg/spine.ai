@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-067",
+  "title": "A draft opened before the end was pulled in cannot be priced after it",
+  "compiledAt": "2026-10-15T12:29:32.135Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not assert the alternative rejection codes 33 or 508 that may occur instead of code 32."
+  ],
+  "warnings": [
+   "error code 32 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /trade/:id",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "Wait until the round's bid end time has passed.",
+    "The invited QA vendor prices the line on the bid."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-067",
+  "title": "A draft opened before the end was pulled in cannot be priced after it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+90}}"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    },
+    "expect": "accept"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "32"
+  }
+ }
+}

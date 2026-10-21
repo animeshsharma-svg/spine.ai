@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-PERM-009",
+  "title": "Vendor self-participation requires show access and open tenders",
+  "compiledAt": "2026-10-15T13:06:37.395Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-PUB-049 is written for the buyer, but the plan sends it as vendor",
+   "The setup recipes do not create a non-open-tender event, so the non-open-tender refusal precondition is configuration-dependent.",
+   "No available operation or library case verifies that an invited vendor can participate successfully on an open-tender event.",
+   "No available operation or library case verifies participation by an uninvited vendor.",
+   "library case EDGE-PUB-049 is written for the buyer, but the plan sends it as vendor",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/:id/participants"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the event groups participants request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-009",
+  "title": "Vendor self-participation requires show access and open tenders",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-049",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455"
+  }
+ }
+}

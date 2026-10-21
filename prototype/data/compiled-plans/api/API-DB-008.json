@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-DB-008",
+  "title": "A withdrawn event's status and remark are persisted",
+  "compiledAt": "2026-10-15T13:08:40.755Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that “status” equals the status sent in step 1; “withdraw details” is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals the status sent in step 1; “withdraw details” is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-DB-008",
+  "title": "A withdrawn event's status and remark are persisted",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-076",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "{{act1.body.status}}"
+     },
+     {
+      "path": "withdraw_details",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

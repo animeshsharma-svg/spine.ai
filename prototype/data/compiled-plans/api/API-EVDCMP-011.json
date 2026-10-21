@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-011",
+  "title": "Two lines: each line's best bidder and L1 price are worked out per line",
+  "compiledAt": "2026-10-15T12:36:25.271Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available recipes support only one line item, not two lines.",
+   "The available recipes support at most two QA vendors, not three.",
+   "The bid prices and cheapest vendor per line cannot be configured with the available setup.",
+   "L1 prices are not available in the read_indicators read-back fields.",
+   "The plan cannot verify separate comparison results for line 1 and line 2."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-011",
+  "title": "Two lines: each line's best bidder and L1 price are worked out per line",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

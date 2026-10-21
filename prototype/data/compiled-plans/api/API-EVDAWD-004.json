@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-004",
+  "title": "Vendors tied at the best price count as best-price (L1) awards",
+  "compiledAt": "2026-10-15T12:49:53.051Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup does not create QA vendor 3 or establish the specific API-EVDAWD-001 award state.",
+   "No available read-back field exposes awarded-to-L1 and awarded-to-others amounts.",
+   "The plan does not verify that the whole line was awarded to one of the tied vendors."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAWD-004",
+  "title": "Vendors tied at the best price count as best-price (L1) awards",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 1
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

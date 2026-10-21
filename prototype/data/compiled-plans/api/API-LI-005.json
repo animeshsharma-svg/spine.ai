@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-LI-005",
+  "title": "Deleting the last remaining *active* line item is refused",
+  "compiledAt": "2026-10-15T12:58:52.312Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup recipe does not create three line items with two already deleted; the library case verifies refusal when deleting the only active line item. HTTP 422 is not directly asserted."
+  ],
+  "warnings": [
+   "error code 711 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot delete this line item from the project”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-LI-005",
+  "title": "Deleting the last remaining *active* line item is refused",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DBOQ-027",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "711",
+   "message": "You cannot delete this line item from the project"
+  }
+ }
+}

@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-003",
+  "title": "A third, higher own bid leaves the leader unchanged",
+  "compiledAt": "2026-10-15T12:50:19.726Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup already has both QA vendors bid, and no supported operation clearly creates a third own bid for a vendor that has already bid.",
+   "The available vocabulary does not expose the existing bid prices, so the new bid cannot be guaranteed to be higher than both existing bids.",
+   "The comparison read-back does not expose an explicit L1 label; the plan checks that QA vendor 1 remains the best bidder and QA vendor 2 is not a best bidder."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "A second QA vendor opens a bid on the pricing round.",
+    "A second QA vendor prices the line on the bid.",
+    "A second QA vendor submits the bid.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is not true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is not true."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-003",
+  "title": "A third, higher own bid leaves the leader unchanged",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor2"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 300
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": true
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "not_equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

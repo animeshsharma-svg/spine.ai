@@ -77,7 +77,8 @@ function add(map: Map<string, ResultTally>, id: string, o: Outcome, at: string) 
   }
   t.runs += 1;
   t[o] += 1;
-  if (at >= t.lastAt) {
+  // Two results of one run under one id (a template case's field checks): a fail is the verdict.
+  if (at > t.lastAt || (at === t.lastAt && (o === "fail" || t.last === "inconclusive"))) {
     t.lastAt = at;
     t.last = o;
   }
@@ -95,6 +96,17 @@ function resultKey(caseId: string, feature: string | null | undefined): string {
   return caseId;
 }
 
+/**
+ * The template field check (model/templateCheck.ts) records each field check of
+ * catalog case API-XTPL-005 as API-XTPL-005.01, .02… — the case listens for its
+ * own id, so until 15 Oct no template check ever counted for its case. A field
+ * check's result is ALSO counted under its case: ran once any of them ran, and
+ * failed when any of them failed.
+ */
+function caseOfFieldCheck(caseId: string): string | null {
+  return /^(API-XTPL-\d+)\.\d+$/.exec(caseId)?.[1] ?? null;
+}
+
 /** Results by result id, from the spine database (or the run files when it is down). */
 async function resultsFromHistory(companyId?: number, asOf?: string): Promise<{ map: Map<string, ResultTally>; source: "database" | "files" }> {
   const map = new Map<string, ResultTally>();
@@ -110,7 +122,11 @@ async function resultsFromHistory(companyId?: number, asOf?: string): Promise<{ 
       );
       for (const row of r.rows) {
         const o = foldVerdict(row.verdict);
-        if (o) add(map, resultKey(row.case_id, row.feature), o, new Date(row.created_at).toISOString());
+        if (!o) continue;
+        const at = new Date(row.created_at).toISOString();
+        add(map, resultKey(row.case_id, row.feature), o, at);
+        const parent = caseOfFieldCheck(row.case_id);
+        if (parent) add(map, parent, o, at);
       }
       return { map, source: "database" };
     } catch {
@@ -127,7 +143,10 @@ async function resultsFromHistory(companyId?: number, asOf?: string): Promise<{ 
         if (asOf && rec.ts > asOf) continue;
         for (const row of resultRows(rec)) {
           const o = foldVerdict(row.verdict);
-          if (o) add(map, resultKey(row.case_id, row.feature), o, rec.ts);
+          if (!o) continue;
+          add(map, resultKey(row.case_id, row.feature), o, rec.ts);
+          const parent = caseOfFieldCheck(row.case_id);
+          if (parent) add(map, parent, o, rec.ts);
         }
       } catch {
         /* a damaged file is skipped */

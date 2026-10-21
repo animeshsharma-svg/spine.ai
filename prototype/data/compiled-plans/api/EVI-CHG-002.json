@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "EVI-CHG-002",
+  "title": "Line totals without line tax on a charges template",
+  "compiledAt": "2026-10-15T12:39:59.877Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The S2 stage and charges template cannot be created with the available setup recipes.",
+   "The available read-back fields do not expose line total, price, quantity, or line tax, so the exact calculation line total = price × quantity cannot be asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer lists the event's line items.",
+    "As the buyer, list the event's line items and check that the read succeeds; the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the reply is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-CHG-002",
+  "title": "Line totals without line tax on a charges template",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

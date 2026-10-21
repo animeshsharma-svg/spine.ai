@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-001",
+  "title": "A late bid that changes the leader extends the auction by the configured minutes",
+  "compiledAt": "2026-10-15T12:48:17.581Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No setup recipe creates a rank auction with three QA vendors, tied bids, dynamic closing, a one-minute trigger, a two-minute extension, and rank limit 1.",
+   "Only two vendors are available through the supplied recipes and tokens; vendor 3 cannot be created or invited.",
+   "The acts do not place the decisive bid inside the last minute or guarantee that it changes the leader.",
+   "The available read-back fields do not expose dynamic-closing settings or provide an assertion comparing the ending_at values before and after the bid, so the exact two-minute extension cannot be verified.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "The buyer reads the pricing round.",
+    "The buyer reads the pricing round."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAUX-001",
+  "title": "A late bid that changes the leader extends the auction by the configured minutes",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 10
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 1
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer"
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

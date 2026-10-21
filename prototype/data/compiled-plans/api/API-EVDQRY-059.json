@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-059",
+  "title": "An invited vendor's line-item picker",
+  "compiledAt": "2026-10-15T13:17:21.106Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds the pricing (RFQ) round.",
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDQRY-059",
+  "title": "An invited vendor's line-item picker",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "expect": "accept",
+    "say": "The buyer adds the pricing (RFQ) round."
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

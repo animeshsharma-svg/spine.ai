@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "API-BID-006",
+  "title": "A bid on a withdrawn event is refused",
+  "compiledAt": "2026-10-15T13:00:29.941Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "error code 95 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event with the remarks set to “QA_Platform_withdraw_…”, with the status set to “withdrawn”.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the event and check that “status” equals withdrawn."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals withdrawn."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-BID-006",
+  "title": "A bid on a withdrawn event is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "withdraw_remark.remarks",
+      "set": "QA_Platform_withdraw_{{stamp}}"
+     },
+     {
+      "path": "status",
+      "set": "withdrawn"
+     }
+    ]
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "withdrawn"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "codeInferred": true
+  }
+ }
+}

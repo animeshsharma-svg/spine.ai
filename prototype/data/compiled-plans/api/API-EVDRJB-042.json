@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-042",
+  "title": "A submitted bid cannot be discarded as a draft",
+  "compiledAt": "2026-10-15T12:27:52.008Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The draft-discard operation is not available, so the plan cannot perform or verify the refusal of discarding the submitted bid."
+  ],
+  "warnings": [
+   "error code 250 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the invited QA vendor, read the pricing round and check that “bid count” is at least 1."
+   ],
+   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: “bid count” is at least 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-042",
+  "title": "A submitted bid cannot be discarded as a draft",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "250"
+  }
+ }
+}

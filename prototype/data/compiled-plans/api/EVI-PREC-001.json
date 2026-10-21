@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "EVI-PREC-001",
+  "title": "Money columns use the company's decimal places",
+  "compiledAt": "2026-10-15T12:42:50.194Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not expose the company's decimal-place setting or read-back fields for widget precision, price, GST, or line total, so their matching cannot be verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/schema"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer reads the pricing round's schema.",
+    "As the buyer, read the pricing round's schema and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-PREC-001",
+  "title": "Money columns use the company's decimal places",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "read_round_schema",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round_schema",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

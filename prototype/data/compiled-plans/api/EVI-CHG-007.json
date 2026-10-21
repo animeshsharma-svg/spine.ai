@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "EVI-CHG-007",
+  "title": "No NaN, Infinity or negative totals with charges and discounts",
+  "compiledAt": "2026-10-15T12:40:16.635Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary exposes no buyer-readable total, charge, discount, NaN, Infinity, or negative-value fields, so those figures cannot be scanned or asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the event and check that the read succeeds.",
+    "As the buyer, read the pricing round and check that “bid count” equals 2; the read succeeds.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that the read succeeds.",
+    "As the buyer, list the event's line items and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “bid count” equals 2; the read succeeds; the read succeeds; the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-CHG-007",
+  "title": "No NaN, Infinity or negative totals with charges and discounts",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     },
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

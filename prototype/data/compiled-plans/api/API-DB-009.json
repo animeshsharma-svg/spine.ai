@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "API-DB-009",
+  "title": "A voided stage is marked void and stays out of every read",
+  "compiledAt": "2026-10-15T13:08:51.563Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup creates only two stages, so publishing two of three stages cannot be represented.",
+   "The available operations do not provide an assertion for a stage being absent from every API read; only the technical round's void status and the event/pricing round read-backs are checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /trade/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event with 1 draft trade request uuids.",
+    "As the buyer, read the technical round and check that “status” equals void.",
+    "As the buyer, read the pricing round and check that “status” equals active.",
+    "As the buyer, read the event and check that “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals void; “status” equals active; “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-DB-009",
+  "title": "A voided stage is marked void and stays out of every read",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "draft_trade_request_uuids",
+      "set": [
+       "{{tradeId}}"
+      ]
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "void"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "EVI-TOT-006",
+  "title": "A vendor's app that sends wrong totals cannot change the figures",
+  "compiledAt": "2026-10-15T12:40:38.121Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available operations cannot send incorrect line totals or bid totals while using real prices and quantities.",
+   "The available read-back fields do not expose line totals or bid totals, so recomputation and the absence of ₹1 cannot be verified.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "The buyer reads the pricing round."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-TOT-006",
+  "title": "A vendor's app that sends wrong totals cannot change the figures",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

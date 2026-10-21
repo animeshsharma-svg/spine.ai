@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-PERM-017",
+  "title": "A vendor cannot call any buyer write endpoint",
+  "compiledAt": "2026-10-15T13:07:29.308Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send PATCH /event_groups/{{eventGroupUuid}}, but the supplier app may not call PATCH /event_groups/:id (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "the plan has the vendor send POST /proposal, but the supplier app may not call POST /proposal (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "Vendor create event is not fully expressible because create_draft requires productUuid and productQualityUuid values not provided by the vocabulary.",
+   "Vendor stage creation is not expressible because add_rfq_round and add_rfp_round are buyer-only operations.",
+   "close_bid is not available as an operation."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /proposal"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The invited QA vendor updates the event.",
+    "The invited QA vendor sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-017",
+  "title": "A vendor cannot call any buyer write endpoint",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "vendor",
+    "ifRefused": "pass"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-AWD-091",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

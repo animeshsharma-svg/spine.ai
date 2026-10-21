@@ -381,10 +381,10 @@ export function runUiExplore(
  * run or the question is not one this server could have asked.
  */
 export function writeExploreAnswer(runId: string, n: number, answer: { option: string | null; text: string }): boolean {
-  if (!/^plan-[a-z0-9]+$/i.test(runId) || !Number.isInteger(n) || n < 1 || n > 500) return false;
+  if (!/^(?:plan|ui)-[a-z0-9]+$/i.test(runId) || !Number.isInteger(n) || n < 1 || n > 500) return false;
   const dir = join(UI_TESTS_DIR, ".plans");
-  // An explorer run, or a plan run (its plan file) — both can ask.
-  if (!existsSync(join(dir, `${runId}-explore.json`)) && !existsSync(join(dir, `${runId}.json`))) return false;
+  // An explorer run, a plan run (its plan file) or a browser journey (its ask marker) can ask.
+  if (!existsSync(join(dir, `${runId}-explore.json`)) && !existsSync(join(dir, `${runId}.json`)) && !existsSync(join(dir, `${runId}-ask.json`))) return false;
   writeFileSync(join(dir, `${runId}-answer-${n}.json`), JSON.stringify({ option: answer.option, text: answer.text, at: new Date().toISOString() }));
   return true;
 }
@@ -523,7 +523,16 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   // The capability map lists every journey on every run, which makes it look
   // like everything is executing. We only want the one we picked.
   env.UI_QUIET_MAP = "1";
-  if (opts.runId) env.QA_RUN_ID = opts.runId;
+  if (opts.runId) {
+    env.QA_RUN_ID = opts.runId;
+    // A journey can ask the tester when it is stuck (the vendor's technical
+    // sheet will not submit): the explorer's question channel, same folder.
+    // The marker lets /api/explore/answer accept this run's answers.
+    const asks = join(UI_TESTS_DIR, ".plans");
+    mkdirSync(asks, { recursive: true });
+    writeFileSync(join(asks, `${opts.runId}-ask.json`), JSON.stringify({ flow: flow.key, at: new Date().toISOString() }));
+    env.UI_EXPLORE_DIR = asks;
+  }
   // Every step the journey can vary is an env parameter, so a new one becomes
   // AI-drivable without touching the runner or the flow.
   if (opts.template) env.UI_TEMPLATE = opts.template;

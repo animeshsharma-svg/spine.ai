@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-045",
+  "title": "An encoded slash defeats the company-id pattern",
+  "compiledAt": "2026-10-15T12:17:18.710Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the part about “pdf” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [
+   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event with 1 attachments."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-045",
+  "title": "An encoded slash defeats the company-id pattern",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "attachments",
+      "set": [
+       {
+        "url": "https://procol.s3.amazonaws.com/trade_files/terms_and_conditions%2FQA_Platform_999999999/QA_Platform_{{stamp}}.pdf",
+        "name": "QA_Platform_{{stamp}}.pdf"
+       }
+      ]
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101"
+  }
+ }
+}

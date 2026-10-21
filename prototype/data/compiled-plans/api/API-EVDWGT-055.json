@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-055",
+  "title": "Script text in a weight name is stripped before it is stored",
+  "compiledAt": "2026-10-15T12:47:41.813Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary has no operation for editing or reading a weight name or label.",
+   "This checks script sanitization on the event title, not on the weight name.",
+   "It does not verify HTTP 200 or the stored value \"QA_Platform_alert(1)_…\".",
+   "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-055",
+  "title": "Script text in a weight name is stripped before it is stored",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-027",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

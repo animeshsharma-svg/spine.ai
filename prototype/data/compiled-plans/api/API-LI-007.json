@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "API-LI-007",
+  "title": "Replacing BOQ line items deletes the old set and creates the new",
+  "compiledAt": "2026-10-15T12:59:12.228Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read_line_items assertions do not expose individual line-item identities or fields, so the plan cannot verify that the old line item was deleted and specifically these new line items were created."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer updates the event with 2 line items.",
+    "As the buyer, list the event's line items and check that the read succeeds; the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the reply is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-LI-007",
+  "title": "Replacing BOQ line items deletes the old set and creates the new",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "line_items",
+      "add": true,
+      "set": [
+       {
+        "product_uuid": "{{productUuid}}",
+        "product_quality_uuid": "{{productQualityUuid}}",
+        "quantity": {
+         "unitSymbol": "Nos",
+         "value": 10
+        }
+       },
+       {
+        "product_uuid": "{{productUuid}}",
+        "product_quality_uuid": "{{productQualityUuid}}",
+        "quantity": {
+         "unitSymbol": "Nos",
+         "value": 20
+        }
+       }
+      ]
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

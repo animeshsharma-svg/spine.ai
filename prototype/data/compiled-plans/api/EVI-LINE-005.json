@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-005",
+  "title": "A ₹0 unit price is not a quote and never becomes L1",
+  "compiledAt": "2026-10-15T12:51:26.400Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The bid amount is not exposed by a read-back field, so ₹50 is not directly verified.",
+   "The vocabulary does not expose an explicit unquoted state for vendor 1's line; the plan verifies that vendor 2 remains L1.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-LINE-005",
+  "title": "A ₹0 unit price is not a quote and never becomes L1",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 50
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 0
+    },
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

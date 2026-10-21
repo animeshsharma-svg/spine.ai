@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-NFR-006",
+  "title": "Errors follow one shape across the module",
+  "compiledAt": "2026-10-15T12:44:45.743Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Only one refusal is exercised; the vocabulary does not provide a way to collect twenty refusals across the module in one plan.",
+   "The vocabulary does not expose error-response fields for assertions, so the numeric-code and human-message shape is represented only by the known library-case expectation.",
+   "Uniform error shape across all refusals is not checked."
+  ],
+  "warnings": [
+   "error code 561 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot select bid with more than requested quantity.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-NFR-006",
+  "title": "Errors follow one shape across the module",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AWD-PART-004",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "561",
+   "message": "You cannot select bid with more than requested quantity."
+  }
+ }
+}

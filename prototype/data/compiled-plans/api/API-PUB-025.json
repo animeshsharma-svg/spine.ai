@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "API-PUB-025",
+  "title": "Adding a draft stage to an already-live event publishes just that stage",
+  "compiledAt": "2026-10-15T12:58:18.204Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary does not provide the new draft stage's uuid as a token or a field path, so the update cannot be limited to only that stage.",
+   "The existing stage cannot be identified separately from the newly added stage for verification, so its status and bids are not independently confirmed.",
+   "The setup uses an event with an existing bid, but the vocabulary does not expose a token to distinguish the existing round's tradeId from the newly added round's tradeId."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event.",
+    "The buyer updates the event with the status set to “active”.",
+    "As the buyer, read the pricing round and check that “status” equals active.",
+    "As the buyer, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals active; “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-025",
+  "title": "Adding a draft stage to an already-live event publishes just that stage",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer"
+   },
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "set": "active",
+      "add": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

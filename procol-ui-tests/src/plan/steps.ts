@@ -21,6 +21,7 @@
 
 import { GENERIC_STEPS } from "./generic/catalog.js";
 import { EXPECTATION_STEPS } from "./expectCatalog.js";
+import { QCS_AUDIENCE_STEPS } from "./qcsAudienceCatalog.js";
 import type { PlanContext } from "./screens.js";
 
 export type StageKeyLike = "rfp" | "rfq" | "auction";
@@ -375,6 +376,9 @@ STEP_CATALOG.push(...GENERIC_STEPS);
 // Prepared-state + expectation steps (expectCatalog.ts / expectations.ts): open the
 // screen on the state the API built, and the expectations a screen case needs.
 STEP_CATALOG.push(...EXPECTATION_STEPS);
+// Master QCS cell / arithmetic / rank checks and the published Participants list
+// (qcsAudienceCatalog.ts / qcsAudienceSteps.ts): the two screens the gap ledger asked for most.
+STEP_CATALOG.push(...QCS_AUDIENCE_STEPS);
 
 export const STEP_NAMES = STEP_CATALOG.map((s) => s.name);
 

@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-006",
+  "title": "A winning vendor sees its own award, not its co-winners'",
+  "compiledAt": "2026-10-15T12:37:55.879Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no QA vendor 2 or QA vendor 3 in the awarded_rfq setup.",
+   "The vocabulary has no operation for opening the three views or searching for other vendors.",
+   "The available read-back fields cannot verify that the award belongs to the requesting vendor or that co-winners are absent."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "As the invited QA vendor, read the event and check that the read succeeds; “proposals” is not empty.",
+    "As the invited QA vendor, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “proposals” is not empty; the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDLEK-006",
+  "title": "A winning vendor sees its own award, not its co-winners'",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "proposals",
+      "op": "non_empty"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

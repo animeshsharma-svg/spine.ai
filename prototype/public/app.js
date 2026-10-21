@@ -1856,6 +1856,8 @@ function runSelectedFeatures(ask, onEnd) {
     qs.set("edges", "0");
     if (ask.qty) qs.set("qty", ask.qty);
     qs.set("vendors", String(ask.vendors));
+    // The sentence named a number: invite that many, not Procol's whole suggestion.
+    if (ask.vendorsNamed) qs.set("invite", String(ask.vendors));
     if (ask.bidders > 1) qs.set("bidders", String(ask.bidders));
   } else {
     // Main flow (no edge cases) is sent for every selection. It used to ride
@@ -2193,26 +2195,36 @@ function journeyAsk(text) {
     return m ? (/^\d+$/.test(m[1]) ? Number(m[1]) : COUNT_WORDS[m[1]]) : undefined;
   };
   const lineItems = count("line[ -]?items?|items?|products?|lines?") ?? 1;
-  let vendors = count("vendors?|suppliers?|sellers?") ?? 1;
+  // "invite 3 vendors": a number the sentence names is how many are invited
+  // (the first ones Procol suggests); unnamed, the event goes to its whole suggestion.
+  const vendorsNamed = count("vendors?|suppliers?|sellers?");
+  let vendors = vendorsNamed ?? 1;
   if (!(lineItems >= 1 && lineItems <= 50) || !(vendors >= 1 && vendors <= 50)) return null;
   // "bids from 2 vendors", "2 vendors bid": that many vendors sign in and bid, one after another.
   const vw = "(?:vendors?|suppliers?|sellers?)";
   const bm =
     t.match(new RegExp(`\\bbids?\\s+(?:from|by|as|of)\\s+${N}\\s+${vw}`)) ||
     t.match(new RegExp(`\\b${N}\\s+${vw}\\s+(?:each\\s+)?(?:place\\s+|submit\\s+)?(?:a\\s+)?bids?\\b`));
-  const bidders = bm ? Math.min(4, /^\d+$/.test(bm[1]) ? Number(bm[1]) : COUNT_WORDS[bm[1]] || 1) : 1;
+  let bidders = bm ? Math.min(4, /^\d+$/.test(bm[1]) ? Number(bm[1]) : COUNT_WORDS[bm[1]] || 1) : 1;
   vendors = Math.max(vendors, bidders);
   const qm = t.match(/\b(?:quantity|qty)\s*(?:of|=|:|is)?\s*(\d+(?:\.\d+)?)\b/) || t.match(/\b(\d+(?:\.\d+)?)\s*(?:units?|nos|pcs|pieces|kgs?)\b/);
   if (qm && !(Number(qm[1]) > 0)) return null;
   // How far: the journey stops at the last stage the sentence names.
   const features = [type.feature];
-  if (/\bsurrogate\b/.test(t)) features.push("bids.surrogate");
-  else if (/\b(bid|bids|bidding)\b/.test(t)) features.push("bids.place");
+  // "a bid from 1 vendor, and a surrogate bid from another": both — the
+  // vendor bids for itself, then the buyer enters another vendor's bid. Only
+  // the surrogate used to be kept, and the vendor's own bid never happened.
+  const surrogate = /\bsurrogate\b/.test(t);
+  const ownBid = /\b(bid|bids|bidding)\b/.test(t.replace(/\bsurrogate\s+(bid|bids|bidding)\b/g, " "));
+  if (surrogate) features.push("bids.surrogate");
+  if (ownBid) features.push("bids.place");
+  if (surrogate && ownBid) bidders = Math.min(4, bidders + 1);
   if (/\bcounter[ -]?offers?\b/.test(t)) features.push("bids.counter_offer");
   if (/\b(evaluat\w*|scor(e|es|ed|ing))\b/.test(t)) features.push("evaluation.score");
   if (/\baward\w*\b/.test(t)) features.push("award.proposal");
   if (bidders > 1 && !features.some((f) => f.startsWith("bids."))) features.push("bids.place");
-  return { features, label: type.label, lineItems, vendors, bidders, qty: qm ? qm[1] : "" };
+  vendors = Math.max(vendors, bidders);
+  return { features, label: type.label, lineItems, vendors, vendorsNamed: vendorsNamed !== undefined, bidders, qty: qm ? qm[1] : "" };
 }
 
 function runInstruction(mode) {
@@ -2845,6 +2857,7 @@ const UI_PHASES = {
   "create-event": { label: "Creating the event", icon: "receipt" },
   "event-detail": { label: "On the event", icon: "search" },
   award: { label: "Awarding", icon: "trophy" },
+  "by-hand": { label: "Done by you, not tested", icon: "circle-minus" },
   plan: { label: "Running the plan", icon: "map" },
   healer: { label: "Healing a broken step", icon: "bot" },
   learned: { label: "Learned a locator", icon: "brain" },
@@ -3096,6 +3109,9 @@ function renderUiSteps() {
 let uiFlows = [];
 /** Whether this account's browser journeys have been read yet (Plan a run waits for it). */
 let uiFlowsLoaded = false;
+/** Failed loads in a row (the list is asked for again a few times), and which load is the latest. */
+let uiFlowsRetries = 0;
+let uiFlowsSeq = 0;
 let uiLimits = null;
 let uiRunning = null; // EventSource of the active run
 let apiRunning = null; // EventSource of the active Run (API) instruction match
@@ -3455,13 +3471,18 @@ function runPoAutomation() {
 
 async function loadUiFlows() {
   const box = $("#ui-tree");
+  const mine = ++uiFlowsSeq;
   uiFlowsLoaded = false;
   try {
     const { flows, limits, erfxMode, boqAllowed, note } = await (
       await fetch("/api/ui-flows?c=" + currentClient + baseParam())
     ).json();
+    // A newer load (another account picked meanwhile) owns the page now.
+    if (mine !== uiFlowsSeq) return;
+    if (!Array.isArray(flows)) throw new Error("no journey list");
     uiFlows = flows;
     uiFlowsLoaded = true;
+    uiFlowsRetries = 0;
     setNavCount("ui", flows.length);
     uiLimits = limits;
     uiBoqAllowed = boqAllowed ?? null;
@@ -3508,10 +3529,17 @@ async function loadUiFlows() {
     }
     planChanged();
   } catch {
+    if (mine !== uiFlowsSeq) return;
+    // A failed load is not "no browser tests": marked loaded with an empty list,
+    // every feature on Run tests read "API tests only" until the page was
+    // reloaded — and the list fails whenever the server restarts mid-request.
+    // The tags wait instead, and the list is asked for again.
     box.innerHTML = "";
-    box.appendChild(el("div", "empty", "Could not load browser journeys."));
-    uiFlowsLoaded = true;
+    uiFlowsRetries++;
+    box.appendChild(el("div", "empty", uiFlowsRetries <= 5 ? "Could not load browser journeys — trying again…" : "Could not load browser journeys."));
+    uiFlowsLoaded = false;
     planChanged();
+    if (uiFlowsRetries <= 5) setTimeout(() => mine === uiFlowsSeq && loadUiFlows(), 3000 * uiFlowsRetries);
   }
 }
 
@@ -3631,7 +3659,20 @@ function runUiJourney(flow, onDone, opts = {}) {
   // the result here — reusing that instead of re-parsing the raw line means
   // the live view and the report opened below can never disagree about what
   // happened or where the run stopped.
-  es.addEventListener("step", (ev) => pushJourneyStep(JSON.parse(ev.data)));
+  // Steps the tester did in the browser ("[by-hand] …"): the journey ends Partly tested.
+  let byHand = 0;
+  es.addEventListener("step", (ev) => {
+    const step = JSON.parse(ev.data);
+    if (step?.phase === "by-hand") byHand++;
+    pushJourneyStep(step);
+  });
+  // Stuck: the journey asks in the chat (procol-ui-tests/src/explore/ask.ts).
+  es.addEventListener("ask", (ev) => {
+    const { ask } = JSON.parse(ev.data);
+    if (!ask) return;
+    write(`? ${ask.question}`, "note");
+    window.spineSession?.ask(ask);
+  });
   // The Oracle's verdict is the point of the run: a journey that failed because
   // the API returned 500 means something entirely different from one that failed
   // because a selector moved, and the console alone cannot say which.
@@ -3672,11 +3713,11 @@ function runUiJourney(flow, onDone, opts = {}) {
   });
   es.addEventListener("done", (ev) => {
     const { exitCode: code, runId } = JSON.parse(ev.data);
-    write(code === 0 ? "✓ The journey passed" : "✗ The journey failed — the report shows where it stopped", code === 0 ? "ok" : "bad");
+    write(code !== 0 ? "✗ The journey failed — the report shows where it stopped" : byHand ? "◐ Partly tested — some steps were done by you in the browser" : "✓ The journey passed", code === 0 && !byHand ? "ok" : code === 0 ? "note" : "bad");
     btn.classList.remove("running");
     btn.classList.add(code === 0 ? "ok" : "bad");
     es.close();
-    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code, runId, took: elapsedInWords(Date.now() - runStartedAt) });
+    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code, runId, took: elapsedInWords(Date.now() - runStartedAt), byHand });
     if (!opts.partOfSequence) runFinished();
     uiRunning = null;
     loadFindings();

@@ -1,0 +1,124 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-005",
+  "title": "A late bid that does not reach the top rank does not extend",
+  "compiledAt": "2026-10-15T12:49:45.155Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available wait operation cannot pause inside the last minute; the bid is not verified as late.",
+   "The vocabulary provides no read-back token for the first ending_at value, so the post-bid ending_at cannot be compared with its prior value to prove it was unchanged."
+  ],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "The buyer reads the pricing round.",
+    "A second QA vendor prices the line on the bid.",
+    "A second QA vendor submits the bid.",
+    "As the buyer, read the pricing round and check that the read succeeds; “ending at” is a Unix timestamp in seconds.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank” is at least 2."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “ending at” is a Unix timestamp in seconds; “auction identifiers data › QA vendor 2 › inline › the line › rank” is at least 2."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAUX-005",
+  "title": "A late bid that does not reach the top rank does not extend",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 10
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 20
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 15
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "gte",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

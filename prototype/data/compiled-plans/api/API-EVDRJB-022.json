@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-022",
+  "title": "A rejection through the status endpoint never blocks re-bidding",
+  "compiledAt": "2026-10-15T12:26:42.676Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The buyer's status-endpoint rejection cannot be expressed because no matching operation or recipe is available.",
+   "The plan does not verify HTTP 200 explicitly.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit)."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-022",
+  "title": "A rejection through the status endpoint never blocks re-bidding",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

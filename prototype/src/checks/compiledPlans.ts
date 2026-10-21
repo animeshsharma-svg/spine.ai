@@ -85,6 +85,47 @@ export function hasStoredFullPlan(caseId: string): boolean {
   return !!sp && sp.meta.validated && sp.meta.coverage === "full";
 }
 
+/**
+ * Gaps that are about the case's own point. A partial plan with one of these
+ * runs, but its pass or fail says nothing about the case: it expects another
+ * outcome than the case does ("the case reads as refused, the plan checks
+ * accepted"), checks only that the app does not crash where the case wants a
+ * refusal, needs a caller or a starting state no run builds, sends a request
+ * the actor's app may not send, or was compiled by a fixed rule nobody read.
+ */
+const GAP_ABOUT_THE_POINT =
+  /the case reads as|documented correct behaviour is a refusal|not a super admin|lacks a permission|needs a starting state|may not call|session, but the plan sends it as|decisive step|cannot be executed|compiled by a fixed rule/i;
+
+/** A case that is itself about the app not erroring — the one kind a "no server error" plan speaks for. */
+const ABOUT_NO_SERVER_ERROR = /server error|\b5\d\d\b|5xx|crash|handled (safely|cleanly)|gracefully|robust|answers cleanly/i;
+
+/**
+ * True when a run of the case's plan speaks for the case: the plan is full, or
+ * partial only at the edges (it does not read the record back, it checks the
+ * data and not the page, a part about a PDF or an e-mail is out of its reach).
+ *
+ * A plan that checks only "the app answers without a server error" speaks for
+ * a case about exactly that and no other — even when the compiler calls it
+ * full. 15 Oct: API-BID-036 "two vendors' bids coexist and rank correctly"
+ * compiled "full" from its library case as a no-5xx check; a pass said nothing
+ * about the ranking.
+ *
+ * The stored plan is judged; a case with none (a full plan built by rules,
+ * never stored) is judged by `compiled`, its compile without the model.
+ */
+export function planSpeaksForCase(caseId: string, caseText: string, compiled?: { plan: any; coverage: string; gaps?: string[] } | null): boolean {
+  const sp = load().get(caseId);
+  const p = sp
+    ? { ok: sp.meta.validated, plan: sp.plan, coverage: sp.meta.coverage, gaps: sp.meta.gaps ?? [] }
+    : compiled?.plan
+      ? { ok: true, plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps ?? [] }
+      : null;
+  if (!p || !p.ok) return false;
+  if (p.plan?.expected?.outcome === "no-5xx" && !ABOUT_NO_SERVER_ERROR.test(caseText)) return false;
+  if (p.coverage === "full") return true;
+  return p.coverage === "partial" && !p.gaps.some((g: string) => GAP_ABOUT_THE_POINT.test(g));
+}
+
 /** Every stored plan. */
 export function allStoredApiPlans(): StoredPlan[] {
   return [...load().values()];

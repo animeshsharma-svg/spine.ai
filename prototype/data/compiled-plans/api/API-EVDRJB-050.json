@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-050",
+  "title": "The rejected-bids list answers after a rejection",
+  "compiledAt": "2026-10-15T12:28:02.566Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No operation is available to reject a bid.",
+   "No operation is available to read the rejected-bids list.",
+   "The rejected bid, QA vendor 1, and rejection reason cannot be asserted.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that the read succeeds; “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-050",
+  "title": "The rejected-bids list answers after a rejection",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

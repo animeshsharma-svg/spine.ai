@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-006",
+  "title": "A started technical round cannot be rescheduled",
+  "compiledAt": "2026-10-15T12:28:38.010Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The requested PATCH to the technical round with bid_start_time and bid_end_time is not expressible: no operation supports rescheduling both fields or the corresponding request body.",
+   "The decisive reschedule attempt and confirmation that it leaves the technical round unchanged are not checked."
+  ],
+  "warnings": [
+   "error code 258 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the event and check that “status” equals active."
+   ],
+   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-006",
+  "title": "A started technical round cannot be rescheduled",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "258"
+  }
+ }
+}

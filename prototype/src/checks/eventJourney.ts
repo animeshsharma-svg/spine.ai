@@ -172,6 +172,12 @@ export interface JourneyRunOptions {
    * QA test vendor (eventVendors.ts). Off: the QA vendors, as before.
    */
   eventVendors?: boolean;
+  /**
+   * The request named how many vendors to invite ("invite 3 vendors"): that
+   * many of Procol's suggestion, the ones who can sign in first. Unset, the
+   * event goes to the whole suggestion (Aanya, 2026-10-09).
+   */
+  inviteCount?: number;
 }
 
 /** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees and bidders. */
@@ -201,7 +207,12 @@ async function ensureEventVendors(j: Journey): Promise<void> {
       .map((v) => ({ v, email: logins.get(v.name.toLowerCase()) }))
       .filter((x): x is { v: SuggestedVendor; email: string } => !!x.email && !QA_LOGIN.test(x.email))
       .slice(0, want);
-    j.audience = suggested.map((v) => v.uuid);
+    // A named number is honoured: "invite 3 vendors" went to all 195 suggested,
+    // and the run still said it worked. The vendors who can sign in come first,
+    // so the ones bidding are among those invited.
+    const cap = j.opts.inviteCount && j.opts.inviteCount > 0 ? Math.max(j.opts.inviteCount, bidders.length) : 0;
+    const ordered = [...bidders.map((b) => b.v), ...suggested.filter((v) => !bidders.some((b) => b.v.uuid === v.uuid))];
+    j.audience = (cap ? ordered.slice(0, cap) : ordered).map((v) => v.uuid);
     if (bidders.length) {
       j.vendorCompanyUuid = bidders[0].v.uuid;
       j.catalog.vendorBidCompanyUuid = bidders[0].v.uuid;
@@ -215,7 +226,9 @@ async function ensureEventVendors(j: Journey): Promise<void> {
         : "Procol suggests no vendors for this product, so nobody is invited to bid";
     }
     j.opts.onLine?.(
-      `Invited the ${suggested.length} vendor${suggested.length === 1 ? "" : "s"} Procol suggests for this product — each gets Procol's invitation email. ` +
+      (cap
+        ? `Invited ${j.audience.length} of the ${suggested.length} vendors Procol suggests for this product, as asked — each gets Procol's invitation email. `
+        : `Invited the ${suggested.length} vendor${suggested.length === 1 ? "" : "s"} Procol suggests for this product — each gets Procol's invitation email. `) +
         (bidders.length
           ? `Bidding as ${bidders.map((b) => `${b.v.name} (${b.email})`).join(", ")}${bidders.length < want ? ` — asked for ${want}, only ${bidders.length} of them can sign in` : ""}.`
           : "Nobody bids: " + j.noBidder + "."),
@@ -246,6 +259,12 @@ export interface JourneyRunResult {
    * failed check is a FINDING to re-confirm on a fresh event, never a step failure.
    */
   integrity?: unknown;
+  /** who bid on the pricing round (the first bidder), for the screen-case set-up (src/ui/uiSetup.ts) */
+  bidder?: { name: string; email?: string; companyUuid?: string };
+  /** how many vendors the event went to, when the audience is Procol's suggestion (opts.eventVendors) */
+  invited?: number;
+  /** why nobody bids, when none of the invited vendors can sign in */
+  noBidder?: string;
 }
 
 // ── the sibling framework, loaded once ─────────────────────────────────────
@@ -1335,10 +1354,27 @@ const surrogateRfq: StepSpec = {
   kind: "surrogate_rfq",
   needs: (j, ev, done) => first(needBuyer(j, done), needPricing(j, ev, done), needDraft(j, ev, done), needPublished(j, ev, done)),
   expected: (j) =>
-    `The buyer enters a price of ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} on ${j.vendorName}'s behalf and the app accepts it.`,
+    `The buyer enters a price of ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit}${(j.opts.lineItemCount ?? 1) > 1 ? " on every line item" : ""} on ${j.vendorName}'s behalf and the app accepts it.`,
   run: async (j, ev) => {
     const pricing = tradeOf(ev, "pricing")!;
     const alsoCalled: JourneyCall[] = [];
+    // Every line item's product ids, read as the buyer when no vendor has read them yet.
+    if (!j.tradeProducts?.length && (ev.lineItems?.length ?? 1) > 1) {
+      const read = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(pricing));
+      if (read.reply.ok) {
+        const details: any[] = Array.isArray(read.reply.data?.order_details) ? read.reply.data.order_details : [];
+        j.tradeProducts = details
+          .filter((d) => d?.product?.trade_product_uuid)
+          .map((d, i) => ({
+            lineItemUuid: String(d.product.event_group_line_item_uuid ?? ev.lineItems?.[i]?.uuid ?? ev.lineItemUuid),
+            tradeProduct: { trade_product_uuid: d.product.trade_product_uuid, trade_product_id: d.product.trade_product_id, trade_product_category_uuid: d.product.trade_product_category_uuid, product_id: d.product.id, product_code: d.product.product_code },
+            productUuid: d.product.uuid ? String(d.product.uuid) : undefined,
+            qualityUuid: d.variant?.uuid ? String(d.variant.uuid) : undefined,
+          }));
+        if (j.tradeProducts[0]) j.tradeProduct = j.tradeProducts[0].tradeProduct;
+        alsoCalled.push(read.call);
+      }
+    }
     if (!j.tradeProduct) {
       const read = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(pricing));
       if (!read.reply.ok) return { call: read.call, reply: read.reply };
@@ -1353,28 +1389,41 @@ const surrogateRfq: StepSpec = {
       };
       alsoCalled.push(read.call);
     }
-    const body = j.s.bodies.buildSurrogateRfqBody({
-      pricingTradeUuid: pricing,
-      vendorCompanyUuid: j.vendorCompanyUuid,
-      productUuid: j.catalog.productUuid,
-      productQualityUuid: j.catalog.productQualityUuid,
-      locationUuid: j.catalog.locationUuid,
-      lineItemUuid: ev.lineItemUuid,
-      quantityValue: j.qty,
-      quantityUnit: j.unit,
-      price: j.price,
-      tradeProduct: j.tradeProduct,
+    const lines = j.tradeProducts?.length ? j.tradeProducts : [{ lineItemUuid: ev.lineItemUuid!, tradeProduct: j.tradeProduct }];
+    let body: any;
+    const rows: any[] = [];
+    lines.forEach((l: any, i: number) => {
+      const li = ev.lineItems?.find((x) => x.uuid === l.lineItemUuid);
+      const one = j.s.bodies.buildSurrogateRfqBody({
+        pricingTradeUuid: pricing,
+        vendorCompanyUuid: j.vendorCompanyUuid,
+        productUuid: l.productUuid ?? li?.productUuid ?? j.catalog.productUuid,
+        productQualityUuid: l.qualityUuid ?? li?.qualityUuid ?? j.catalog.productQualityUuid,
+        locationUuid: j.catalog.locationUuid,
+        lineItemUuid: l.lineItemUuid,
+        quantityValue: j.qty,
+        quantityUnit: j.unit,
+        price: j.price,
+        tradeProduct: l.tradeProduct,
+      });
+      const row = one.sheets.inline_components.data[j.vendorCompanyUuid][0];
+      rows.push({ ...row, serial_number: { ...row.serial_number, value: i + 1 } });
+      body ??= one;
     });
+    body.sheets.inline_components.data[j.vendorCompanyUuid] = rows;
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.surrogateRfqBid(), body);
     if (!reply.ok) return { call, alsoCalled, reply };
     j.bidPlaced = true;
-    j.bidTotal = j.price * j.qty;
+    j.bidTotal = j.price * j.qty * lines.length;
     const uuid = reply.data?.bid_uuid ?? reply.data?.uuid;
     return {
       call,
       alsoCalled,
       reply,
-      actual: `Entered ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} on ${j.vendorName}'s behalf — ${rupees(j.price * j.qty)} before tax.`,
+      actual:
+        lines.length > 1
+          ? `Entered ${rupees(j.price)} per ${j.unit} on all ${lines.length} line items (${j.qty} ${j.unit} each) on ${j.vendorName}'s behalf — ${rupees(j.bidTotal)} before tax.`
+          : `Entered ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} on ${j.vendorName}'s behalf — ${rupees(j.price * j.qty)} before tax.`,
       produced: uuid ? { surrogateBidUuid: String(uuid) } : undefined,
     };
   },
@@ -2387,7 +2436,10 @@ async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: Journey
     if (wo.mode === "journey" && isStage(kind) && !j.closeTimes.length) j.closeTimes.push(ev.timing.ect);
     if (STEP_CHOICES[kind] && !j.altsLoaded) await ensureAlternatives(j);
     // The other vendors have bid: every later step acts as the first vendor again.
-    if (j.firstVendor && !VENDOR_TURN.has(kind)) restoreFirstVendor(j);
+    // A surrogate bid after the switch is the next vendor's turn too — restored
+    // first, it was entered for vendor 1, who had just bid ("A bid has already
+    // been placed by your team").
+    if (j.firstVendor && !VENDOR_TURN.has(kind) && !(j.plan.features.vendorBids && (kind === "surrogate_rfq" || kind === "surrogate_tech"))) restoreFirstVendor(j);
 
     // ── run, retrying the same request on an environment failure ──
     let rec: JourneyStepRecord;
@@ -2810,6 +2862,11 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     ...(forCases ? { forCases } : {}),
     ...(rebuildForCases ? { rebuildForCases } : {}),
     ...(integrity ? { integrity } : {}),
+    ...((j.firstVendor?.vendorCompanyUuid ?? j.vendorCompanyUuid)
+      ? { bidder: { name: j.firstVendor?.vendorName ?? j.vendorName, email: j.firstVendor?.vendorEmail ?? j.vendorEmail, companyUuid: j.firstVendor?.vendorCompanyUuid ?? j.vendorCompanyUuid } }
+      : {}),
+    ...(j.audience ? { invited: j.audience.length } : {}),
+    ...(j.noBidder ? { noBidder: j.noBidder } : {}),
   };
 }
 

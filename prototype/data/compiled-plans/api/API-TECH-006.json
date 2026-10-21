@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-TECH-006",
+  "title": "A vendor cannot start a response on a stage they are not on",
+  "compiledAt": "2026-10-15T13:00:09.457Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The refusal error code and message are not known."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/remove_audience",
+   "POST /template_responses"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The buyer removes the invited vendor from the live technical round.",
+    "The invited QA vendor starts a technical response on the RFP round."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-TECH-006",
+  "title": "A vendor cannot start a response on a stage they are not on",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "remove_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "technical"
+    }
+   },
+   {
+    "op": "start_tech_response",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

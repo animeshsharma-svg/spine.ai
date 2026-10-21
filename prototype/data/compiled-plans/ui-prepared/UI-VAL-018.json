@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "UI-VAL-018",
+  "title": "A failed request does not leave the screen in a dead state",
+  "compiledAt": "2026-10-15T12:48:13.196Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
+   "dropped expect_published — expect_publish_blocked presses Publish itself and judges the refusal"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Recover and Retry Refused Publish",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open a new event creation form."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VAL-018 Retry Recovery"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose a pricing template so line items and publishing can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before attempting publication."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "invite_vendor",
+     "reason": "Deliberately omit participants to create the refused-publish state."
+    },
+    "note": "The missing participant prerequisite is the intentional refusal condition."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "participants"
+    },
+    "note": "Verify the first publish attempt is refused for the missing participant prerequisite."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Correct the refused state by adding one participant without reloading the form."
+   }
+  ]
+ }
+}

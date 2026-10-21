@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-XSTG-022",
+  "title": "A live technical round with no bid end must not crash the timing rule",
+  "compiledAt": "2026-10-15T12:15:29.539Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-STG-033 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
+   "The available library case does not set status to active or configurations.bid_end_time to null for a technical round.",
+   "The expected HTTP 422 response is not asserted because the available assertion vocabulary has no HTTP-status assertion for 422 and no known application error code applies.",
+   "The evaluator userUuid, permission state, and exact /trade/template_input request body are not expressible.",
+   "library case EDGE-STG-033 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the read succeeds."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XSTG-022",
+  "title": "A live technical round with no bid end must not crash the timing rule",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-STG-033",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

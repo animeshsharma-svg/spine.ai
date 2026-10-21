@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDNFA-001",
+  "title": "Submitting the award puts it into approval, no longer a draft",
+  "compiledAt": "2026-10-15T12:38:06.401Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "There is no operation or library case for submitting the award while choosing an applicable approval flow.",
+   "There is no readable award-status field or operation to verify that the award is requested (waiting for approval) rather than draft."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDNFA-001",
+  "title": "Submitting the award puts it into approval, no longer a draft",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

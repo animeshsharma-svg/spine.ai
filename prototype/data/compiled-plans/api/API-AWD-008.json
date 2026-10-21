@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-AWD-008",
+  "title": "Awarding is blocked before the close window is reached",
+  "compiledAt": "2026-10-15T13:04:08.813Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The config.should_allow_awarding flag cannot be read or verified with the available fields and operations."
+  ],
+  "warnings": [
+   "error code 720 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to award in bidding time”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AWD-008",
+  "title": "Awarding is blocked before the close window is reached",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AWD-PROP-003",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "720",
+   "message": "You are not allowed to award in bidding time"
+  }
+ }
+}

@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-XBID-076",
+  "title": "A locked event refuses a second submitted quote",
+  "compiledAt": "2026-10-15T12:13:43.292Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not independently verify that lock_quote_after_submission is enabled or that {{bidUuid}} is a new draft."
+  ],
+  "warnings": [
+   "error code 875 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Revise bid is locked. You cannot edit your quote after submission.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-076",
+  "title": "A locked event refuses a second submitted quote",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-076",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "875",
+   "message": "Revise bid is locked. You cannot edit your quote after submission."
+  }
+ }
+}

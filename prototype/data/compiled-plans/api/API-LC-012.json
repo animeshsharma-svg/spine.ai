@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-LC-012",
+  "title": "An amendment publish requires non-blank remarks",
+  "compiledAt": "2026-10-15T13:06:05.877Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary cannot set amendment_remarks.remarks to a non-blank value for the second publish attempt.",
+   "The available EDGE-PUB-108 case expects blank amendment remarks to be accepted/no-5xx, not refused.",
+   "The setup vocabulary has no amendment-draft recipe; new_version is used to arrange the closest available state.",
+   "The successful second publish is not checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /item_versions",
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer issues a new version of the event.",
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-LC-012",
+  "title": "An amendment publish requires non-blank remarks",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "new_version",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-108",
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

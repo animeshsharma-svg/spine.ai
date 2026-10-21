@@ -3,6 +3,7 @@ import { BasePage } from "./BasePage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError, vendorLogins } from "../db/qaVendors.js";
+import { failedVendorEmails, learnedVendorLogins } from "../support/learnedStore.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
 import { templateChoice, scheduleMinutes, vendorCount } from "../master/params.js";
@@ -1620,7 +1621,7 @@ export class CreateEventPage extends BasePage {
    * and the auto-populated audience is only a fallback for tests that just need
    * somebody to bid.
    */
-  async inviteVendors(opts: { names?: string[]; count?: number } = {}): Promise<string[]> {
+  async inviteVendors(opts: { names?: string[]; count?: number; exact?: boolean } = {}): Promise<string[]> {
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
       const asked = opts.names ?? [];
@@ -1643,39 +1644,43 @@ export class CreateEventPage extends BasePage {
       console.log(`[create-event] invited by name: ${invited.join(", ")}`);
       return invited;
     }
+    // The case names how many: exactly that many, each one this run can bid as.
+    if (opts.exact && opts.count && allowRealVendors()) return this.inviteExactly(opts.count);
     // No names given (or none matched) — fall back to whoever is there.
     await this.inviteVendor();
-    // "Two vendors bid": each bid signs in to the vendor portal as a different
-    // vendor on the event, so the event needs that many vendors WITH a login.
-    // When the audience brought fewer, add this client's vendors that have one.
+    // "Invite 3 vendors" is met by the vendors Procol already invited. Aanya,
+    // 15 Oct: "if 166 vendors are already invited and I asked to invite 3, you
+    // need not invite 3 more, 3 are included in that only". The step used to
+    // add vendors it could sign in as until three were VISIBLE — but the chips
+    // show four names and "+162", so it kept adding. Who bids is chosen later
+    // from everyone invited (runPlan place_bid, db/eventAudience.ts), so a
+    // vendor is added here only when the audience is really short.
+    const added: string[] = [];
     if (opts.count && opts.count > 1) {
-      const logins = await vendorLogins();
-      const withLogin = (names: string[]) => names.filter((n) => logins.some((v) => isQaVendorName(n, [v.name]))).length;
-      let present = await this.participantNames();
-      // At most as many as the bids need. With a big audience the chips show
-      // four names and "+172": a vendor added here vanishes into the "+N", so
-      // counting the chips never reached the number, and the loop added every
-      // vendor with a login — 160 invited became 190+.
-      let ensured = withLogin(present);
-      for (const v of logins) {
-        if (ensured >= opts.count) break;
-        if (this.leftCreateScreen()) {
-          console.log("[create-event] the page has left the create screen (published from the browser?) — stopping the invite here");
-          return [];
-        }
-        if (present.some((n) => isQaVendorName(n, [v.name]))) continue;
-        const how = await this.addParticipantByName(v.name);
-        if (how === "present") {
-          ensured++;
-          console.log(`[create-event] ${v.name} is already on the event — a vendor that can sign in to the vendor portal`);
-        } else if (how) {
-          ensured++;
-          console.log(`[create-event] added ${v.name} — a vendor that can sign in to the vendor portal`);
-          present = await this.participantNames();
+      let have = await this.participantCount();
+      if (have >= opts.count) {
+        console.log(`[create-event] ${have} vendors are already invited — the ${opts.count} asked for are among them, so none are added`);
+      } else {
+        const logins = await vendorLogins();
+        let present = await this.participantNames();
+        for (const v of logins) {
+          if (have >= opts.count) break;
+          if (this.leftCreateScreen()) {
+            console.log("[create-event] the page has left the create screen (published from the browser?) — stopping the invite here");
+            return added;
+          }
+          if (present.some((n) => isQaVendorName(n, [v.name]))) continue;
+          const how = await this.addParticipantByName(v.name);
+          if (how && how !== "present") {
+            added.push(v.name);
+            console.log(`[create-event] added ${v.name} — the audience had ${have} of the ${opts.count} vendors asked for`);
+            present = await this.participantNames();
+            have = await this.participantCount();
+          }
         }
       }
     }
-    if (this.leftCreateScreen()) return [];
+    if (this.leftCreateScreen()) return added;
     const have = await this.participantCount();
     if (opts.count && have < opts.count) {
       throw new Error(
@@ -1683,7 +1688,79 @@ export class CreateEventPage extends BasePage {
           "audience did not supply enough, and no vendor names were given to add explicitly.",
       );
     }
-    return [];
+    return added;
+  }
+
+  /**
+   * EXACTLY n VENDORS, EACH ONE THIS RUN CAN BID AS.
+   *
+   * Aanya, 15 Oct: "u can invite only 3, its best for u, but i want u to place
+   * the bid for them". Procol pre-fills an event with its suggested vendors
+   * (about 190 on PROCOL DEMO, each emailed on publish), and the run used to
+   * keep them all and then add more. Now the participants box's Clear empties
+   * it, and n vendors this run can sign in to the vendor portal as are added by
+   * name: those whose login worked before first (learnedStore), then the
+   * client's vendors with a login on file (vendorLogins), minus logins that
+   * failed before. Who bids is then chosen from exactly these.
+   */
+  private async inviteExactly(n: number): Promise<string[]> {
+    await this.dismissDistractions();
+    await this.waitForParticipants(3_000);
+    const before = await this.participantCount();
+    if (before > 0) {
+      const clear = this.participantsRegion().getByRole("button", { name: /^clear$/i }).first();
+      await clear.click({ timeout: 5_000 }).catch(() => clear.click({ force: true, timeout: 3_000 }).catch(() => {}));
+      await this.pause(600);
+      let left = await this.participantCount();
+      // No Clear on this build: the chips one by one (bounded).
+      if (left) await this.removeNonQaParticipants([]);
+      left = await this.participantCount();
+      console.log(`[create-event] cleared the ${before} vendor(s) Procol suggested${left ? ` — ${left} could not be removed` : ""}`);
+    }
+    const cid = Number(process.env.COMPANY_ID) || null;
+    const failed = failedVendorEmails(cid);
+    const known = [...learnedVendorLogins(cid).map((v) => ({ name: v.name, email: v.email })), ...(await vendorLogins())].filter(
+      (v, i, all) => !failed.has(v.email.toLowerCase()) && all.findIndex((x) => x.name.trim().toLowerCase() === v.name.trim().toLowerCase()) === i,
+    );
+    const added: string[] = [];
+    for (const v of known) {
+      if (added.length >= n) break;
+      if (this.leftCreateScreen()) return added;
+      const how = await this.addParticipantByName(v.name);
+      if (how) {
+        added.push(v.name);
+        console.log(`[create-event] invited ${v.name} — a vendor this run can sign in to the vendor portal as`);
+      }
+    }
+    if (added.length < n) {
+      throw new Error(
+        `invited ${added.length} of the ${n} vendors asked for — only ${added.length} of this client's vendors with a login could be added to the event`,
+      );
+    }
+    this.exactInvite = added;
+    return added;
+  }
+
+  /** The vendors inviteExactly put on the event, so a late pre-fill can be undone before publish. */
+  private exactInvite: string[] | null = null;
+
+  /**
+   * Procol's suggested vendors can land after the invite step — the audience
+   * is fetched in the background — and publishing would then email all of
+   * them. Just before publish: if the event carries more vendors than the
+   * exact invite put on it, clear them and put back exactly those.
+   */
+  async keepExactInvite(): Promise<void> {
+    const want = this.exactInvite;
+    if (!want?.length) return;
+    const have = await this.participantCount();
+    if (have <= want.length) return;
+    const clear = this.participantsRegion().getByRole("button", { name: /^clear$/i }).first();
+    await clear.click({ timeout: 5_000 }).catch(() => clear.click({ force: true, timeout: 3_000 }).catch(() => {}));
+    await this.pause(600);
+    if (await this.participantCount()) await this.removeNonQaParticipants([]);
+    for (const name of want) await this.addParticipantByName(name);
+    console.log(`[create-event] Procol added its suggested vendors after the invite (${have} on the event) — cleared them again; the event goes to ${want.join(", ")}`);
   }
 
   /**

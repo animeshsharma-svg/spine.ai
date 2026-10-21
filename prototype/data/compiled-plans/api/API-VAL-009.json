@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-VAL-009",
+  "title": "Emoji and multi-byte text round-trip byte for byte",
+  "compiledAt": "2026-10-15T12:44:09.111Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "create_draft does not support setting a line-item description",
+   "No read-back field or assertion verifies byte-level identity or encoding; the plan verifies title value equality only"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft event with the title set to “QA_Platform_😀_漢字_…”.",
+    "As the buyer, read the event and check that “title” equals the title sent in step 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “title” equals the title sent in step 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-009",
+  "title": "Emoji and multi-byte text round-trip byte for byte",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_😀_漢字_{{stamp}}",
+      "add": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "{{act1.body.title}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

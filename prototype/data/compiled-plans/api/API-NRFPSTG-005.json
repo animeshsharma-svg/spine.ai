@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "API-NRFPSTG-005",
+  "title": "Add the technical round (RFP): configurations.bid_start_time is omitted",
+  "compiledAt": "2026-10-16T05:00:49.535Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The specific HTTP 4xx status and error message are not known.",
+   "The plan verifies that the event remains a draft with no stages, but cannot verify every field was unchanged."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event without the bid start time.",
+    "As the buyer, read the event and check that “status” equals draft; “stages” has exactly 0 entries."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals draft; “stages” has exactly 0 entries."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-NRFPSTG-005",
+  "title": "Add the technical round (RFP): configurations.bid_start_time is omitted",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_start_time",
+      "remove": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     },
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

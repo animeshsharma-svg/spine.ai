@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-084",
+  "title": "A buyer cannot read another buyer's draft",
+  "compiledAt": "2026-10-15T12:13:52.477Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that reads the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XPUB-084",
+  "title": "A buyer cannot read another buyer's draft",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-084",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455"
+  }
+ }
+}

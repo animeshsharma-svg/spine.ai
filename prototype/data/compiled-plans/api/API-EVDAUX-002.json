@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-002",
+  "title": "Bids well before the last minute do not move the end time",
+  "compiledAt": "2026-10-15T12:32:49.370Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary supports only two QA vendors, so the third vendor bid cannot be created.",
+   "There is no supported way to capture the initial ending_at value and compare it with the ending_at value after the bids; the plan only verifies that the end time is returned and that at least two bids exist."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that “ending at” is a Unix timestamp in seconds; “bid count” is at least 2."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “ending at” is a Unix timestamp in seconds; “bid count” is at least 2."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAUX-002",
+  "title": "Bids well before the last minute do not move the end time",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2"
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

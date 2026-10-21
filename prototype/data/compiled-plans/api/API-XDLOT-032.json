@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-032",
+  "title": "Smart lots cannot be regenerated after a lot is published",
+  "compiledAt": "2026-10-15T12:15:58.811Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available library case covers resetting smart lots on a published active RFQ but expects success, not rejection after a lot has already been published.",
+   "No setup recipe expresses that a lot has already been published or that the sandbox has no twin.",
+   "The request's unchanged plan state cannot be verified with the available read-back fields.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "error code 815 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id/reset_to_smart_lots"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the event groups reset to smart lots request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XDLOT-032",
+  "title": "Smart lots cannot be regenerated after a lot is published",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DLOT-031",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "815"
+  }
+ }
+}

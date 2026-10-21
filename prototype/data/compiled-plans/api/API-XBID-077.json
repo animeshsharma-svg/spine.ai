@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-XBID-077",
+  "title": "Submitting a commercial bid that skips technically-qualified lines is refused",
+  "compiledAt": "2026-10-15T12:13:50.217Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "error code 748 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Please enter bid for all line items that are not regretted in technical stage.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-077",
+  "title": "Submitting a commercial bid that skips technically-qualified lines is refused",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "params": {
+     "trade_request_uuid": "{{tradeId}}",
+     "company_uuid": "{{vendorUuid}}"
+    }
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-077",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "748",
+   "message": "Please enter bid for all line items that are not regretted in technical stage."
+  }
+ }
+}

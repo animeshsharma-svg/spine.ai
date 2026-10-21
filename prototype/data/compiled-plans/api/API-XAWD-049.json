@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-049",
+  "title": "Only the requester can withdraw a re-evaluation",
+  "compiledAt": "2026-10-15T12:12:10.300Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [
+   "error code 5 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /additional_request/revoke_additional_requests"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the additional request revoke additional requests request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-049",
+  "title": "Only the requester can withdraw a re-evaluation",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-049",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "5"
+  }
+ }
+}

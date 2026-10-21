@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-043",
+  "title": "With audience modification disabled on the stage, a buyer cannot add vendors",
+  "compiledAt": "2026-10-15T12:13:52.474Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [
+   "error code 685 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that invites vendors to a round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XPUB-043",
+  "title": "With audience modification disabled on the stage, a buyer cannot add vendors",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-043",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "685"
+  },
+  "dependsOnSetting": "stage {{tradeId}} has config is_user_allowed_to_modify_audience: false"
+ }
+}

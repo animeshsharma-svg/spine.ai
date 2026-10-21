@@ -247,6 +247,14 @@ function collectJourney(
   companyId: number | undefined,
 ): void {
   for (const step of journey.steps) {
+    // A step whose action worked but whose RESPONSE failed a check
+    // (apiAssertions.ts): the run report says Failed on it, so the sheet files
+    // it too. It said "No bugs found" over the surrogate bid's rank price
+    // coming back as text ("3211.0"; a number, 63, the day before) — 15 Oct.
+    if (step.verdict === "worked") {
+      collectStepChecks(groups, runId, ts, journey, step, companyId);
+      continue;
+    }
     // Only steps that were attempted and went wrong. A not-run step is the
     // consequence of one of these, never a defect of its own.
     if (step.verdict !== "broken" && step.verdict !== "refused") continue;
@@ -298,6 +306,64 @@ function collectJourney(
             ? "The message describes the state of the record rather than a wrong answer, so this is filed as an " +
               "environment problem to clear before the journey is run again."
             : "A clean refusal of a step the collection expects to work is a product defect until the message explains otherwise."),
+      flows: [flow],
+      runs: [runId],
+      occurrences: 1,
+      firstSeen: ts,
+      lastSeen: ts,
+      evidence: [evidence],
+      reproduction: step.call ? toCurl(step.call, companyId).split("\n") : [evidence],
+      actionable: true,
+    });
+  }
+}
+
+/** One defect per failed response check of a step that worked: same check, same field, same endpoint. */
+function collectStepChecks(
+  groups: Map<string, DefectGroup>,
+  runId: string,
+  ts: string,
+  journey: JourneyRecord,
+  step: JourneyStepRecord,
+  companyId: number | undefined,
+): void {
+  const endpoint = step.call ? `${step.call.method.toUpperCase()} ${routeWithIdsBlanked(step.call.path)}` : `step ${step.kind}`;
+  const flow = `journey.${journey.eventType}`;
+  for (const a of step.assertions?.results ?? []) {
+    if (a.pass !== false) continue;
+    const key = `${endpoint} -> check ${a.op} ${a.path || "(response)"}`;
+    const check = a.humanTitle || a.title;
+    const got = a.humanActual || a.actual || "";
+    const evidence = `Step ${step.n} · ${step.title} · ${endpoint} → HTTP ${step.status ?? "?"}; ${a.id} “${a.title}”: got ${a.actual ?? "?"}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.occurrences++;
+      if (!existing.flows.includes(flow)) existing.flows.push(flow);
+      if (!existing.runs.includes(runId)) existing.runs.push(runId);
+      if (existing.evidence.length < 8) existing.evidence.push(evidence);
+      existing.firstSeen = ts < existing.firstSeen ? ts : existing.firstSeen;
+      existing.lastSeen = ts > existing.lastSeen ? ts : existing.lastSeen;
+      continue;
+    }
+    const human: HumanBug = {
+      title: `${journey.label} journey, step ${step.n} “${step.title}” — check failed: ${check.replace(/\.$/, "")}. ${got}`,
+      what: `The step itself worked (HTTP ${step.status ?? "?"}), but its response failed a check: ${check}. ${got}`,
+      where: `The ${journey.label} journey, step ${step.n} of ${journey.steps.length} (as the ${step.actor}), ${endpoint}`,
+      steps: journey.steps.filter((s0) => s0.n <= step.n).map((s0) => `${s0.n === step.n ? "Now: " : ""}${s0.title}`),
+      expected: a.humanExpected || a.expected,
+      actual: got,
+      caseIds: [a.id],
+    };
+    groups.set(key, <WithHuman<DefectGroup>>{
+      human,
+      defectFingerprint: key,
+      kind: "product_defect",
+      // The check's own weight: critical → high, major → medium, minor → low.
+      severity: a.severity === "critical" ? "high" : a.severity === "minor" ? "low" : "medium",
+      title: `Step ${step.n} — ${step.title}: ${check} — got ${a.actual ?? "?"}`,
+      rationale:
+        `Step ${step.n} of the ${journey.label} journey worked (HTTP ${step.status ?? "?"}), but its response failed ${a.id} “${a.title}”. ` +
+        `Expected: ${a.expected}. Actual: ${a.actual ?? "?"}.`,
       flows: [flow],
       runs: [runId],
       occurrences: 1,

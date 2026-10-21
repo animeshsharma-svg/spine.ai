@@ -179,13 +179,15 @@ export function frictionDefects(runId?: string): DefectGroup[] {
           `ui-retry:${stepKey(step)}`,
           () => ({
             defectFingerprint: `ui-retry:${stepKey(step)}`,
-            kind: "product_defect",
-            severity: "medium",
-            title: `"${short}" only settles after ${step.repeats} attempts`,
+            // The automation's own retry loop (setting up stages, waiting for a
+            // tab): how the robot gets the screen right, not something Procol
+            // did wrong. Filed with the test's problems, not as a Procol bug.
+            kind: "automation_defect",
+            severity: "low",
+            title: `The test needed ${step.repeats} tries at: ${short}`,
             rationale:
-              `The screen did not start in the state it reports, so the automation asked again ` +
-              `${step.repeats} times until it matched. A person does this by clicking until it ` +
-              `looks right. The run passed, so no pass/fail count anywhere shows this.`,
+              `The automation had to try this ${step.repeats} times before the screen matched what it wanted. ` +
+              `The run passed. This is about the test, not a Procol bug.`,
             flows: [trail.flowKey],
             runs: [trail.runId],
             occurrences: 1,
@@ -297,7 +299,12 @@ export function frictionDefects(runId?: string): DefectGroup[] {
   }
 
   const order: DefectGroup["severity"][] = ["critical", "high", "medium", "low"];
-  return [...retries.values(), ...heals.values(), ...waits.values()]
+  // No "waits" (15 Oct, Aanya: "nothing is understandable… then why these bugs
+  // in the exported file?"). The gap between two log lines is the robot's own
+  // time (typing a sheet, waiting for a button, looking a vendor up), not a
+  // screen keeping a person waiting, so every "keeps the user waiting" row
+  // was a false bug. They stay out of the sheet, past runs included.
+  return [...retries.values(), ...heals.values()]
     .map((s) => s.group)
     .sort(
       (a, b) =>

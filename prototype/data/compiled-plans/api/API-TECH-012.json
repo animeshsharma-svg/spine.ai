@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-TECH-012",
+  "title": "A non-evaluator cannot submit an evaluation",
+  "compiledAt": "2026-10-15T13:00:26.394Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available library case checks scoring an evaluation by a non-assigned evaluator, not POST /evaluations/submit specifically."
+  ],
+  "warnings": [
+   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /evaluations"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event where the invited QA vendor submitted its technical response, and both windows are over (evaluation time).",
+   "steps": [
+    "The buyer sends the evaluation call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-TECH-012",
+  "title": "A non-evaluator cannot submit an evaluation",
+  "setup": {
+   "recipe": "closed_rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVAL-SCORE-005",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101"
+  }
+ }
+}

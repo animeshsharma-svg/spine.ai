@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-137",
+  "title": "PO forms on an empty award are refused",
+  "compiledAt": "2026-10-15T12:45:31.496Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not independently verify that a PO template exists.",
+   "the part about “po” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [
+   "error code 684 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/create_po_form"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Please award for at least one Vendor”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-137",
+  "title": "PO forms on an empty award are refused",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-137",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "684",
+   "message": "Please award for at least one Vendor"
+  }
+ }
+}

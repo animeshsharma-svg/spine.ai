@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-SUR-007",
+  "title": "A surrogate bid is accepted on an Upcoming event",
+  "compiledAt": "2026-10-15T13:02:13.634Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The requested acceptance outcome cannot be expressed: the available Upcoming-event surrogate-bid case expects rejection with code 33 (Order not active).",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [
+   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-SUR-007",
+  "title": "A surrogate bid is accepted on an Upcoming event",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-096",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33"
+  }
+ }
+}

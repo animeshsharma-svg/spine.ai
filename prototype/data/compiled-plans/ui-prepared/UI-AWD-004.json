@@ -2,30 +2,34 @@
  "meta": {
   "caseId": "UI-AWD-004",
   "title": "Bid Selection Proposal re-enters the flow once a draft proposal exists",
-  "compiledAt": "2026-10-04T10:22:58.176Z",
+  "compiledAt": "2026-10-15T12:52:24.885Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "state": "proposal",
-  "screen": "master_qcs",
+  "screen": "proposal",
   "technical": false,
-  "exemplars": [
-   "UI-AWD-001",
-   "UI-AWD-003"
-  ],
+  "exemplars": [],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-AWD-004 Bid Selection Proposal re-enters the flow",
+  "title": "Bid Selection Proposal re-entry",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the API-prepared event's draft proposal as required by the prepared state."
+   },
+   {
+    "step": "go_to",
+    "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event directly on Master QCS where a draft proposal exists"
+    "note": "Return to Master QCS, the screen whose awarding entry control is under test."
    },
    {
     "step": "expect_visible",
@@ -34,7 +38,7 @@
      "name": "Bid Selection Proposal",
      "visible": true
     },
-    "note": "Assert the Bid Selection Proposal control is present"
+    "note": "Assert the re-entry control exists."
    },
    {
     "step": "expect_text",
@@ -42,7 +46,16 @@
      "text": "Draft",
      "present": true
     },
-    "note": "Assert the Draft tag is shown on the proposal entry"
+    "note": "Assert the proposal entry is marked Draft."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Start Awarding",
+     "visible": false
+    },
+    "note": "Assert the initial Start Awarding control is absent once a draft proposal exists."
    },
    {
     "step": "click",
@@ -50,14 +63,14 @@
      "role": "button",
      "name": "Bid Selection Proposal"
     },
-    "note": "Click the entry control to re-enter the awarding flow"
+    "note": "Activate the draft proposal entry to re-enter the awarding flow."
    },
    {
     "step": "expect_url_contains",
     "args": {
-     "text": "/award"
+     "text": "/awarding/"
     },
-    "note": "Assert navigation into the awarding flow succeeded"
+    "note": "Assert that activating the control navigates into the awarding flow."
    }
   ]
  }

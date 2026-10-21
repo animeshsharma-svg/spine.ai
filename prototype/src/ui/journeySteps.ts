@@ -37,6 +37,8 @@ export const JOURNEY_PHASES: Record<string, { label: string; icon: string }> = {
   award: { label: "Awarding", icon: "🏆" },
   bid: { label: "The vendors bid", icon: "💬" },
   control: { label: "You had the browser", icon: "🖐" },
+  /** A step the tester did in the browser after a journey asked: not tested by the run. */
+  "by-hand": { label: "Done by you, not tested", icon: "🖐" },
   plan: { label: "Running the plan", icon: "🗺" },
   pick: { label: "Choosing an event", icon: "🎯" },
   healer: { label: "Healing a broken step", icon: "🤖" },
@@ -196,6 +198,7 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
   if (tag === "learned") return "ok";
   // The tester's own clicks and typing while they held the browser (liveControl.ts).
   if (tag === "control") return /could not/i.test(rest) ? "warn" : "info";
+  if (tag === "by-hand") return "warn";
   // The vendors' bids on the event the journey published (vendorBids.ts).
   if (tag === "bid") {
     if (/none of them|could not/i.test(rest)) return "bad";

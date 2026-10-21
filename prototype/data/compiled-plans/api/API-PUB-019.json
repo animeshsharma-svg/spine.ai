@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-PUB-019",
+  "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
+  "compiledAt": "2026-10-15T12:07:00.727Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No setup recipe creates an active event with no draft stages, no line items, and no config.",
+   "The plan cannot verify that no service ran or distinguish an unchanged state from a silent state change.",
+   "The operation vocabulary does not expose response-body assertions for a coherent non-500 response."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer updates the event with the status set to “active”.",
+    "As the buyer, read the event and check that “status” equals active."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-019",
+  "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "set": "active",
+      "add": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-PUB-030",
+  "title": "The activation response carries the full published shape",
+  "compiledAt": "2026-10-15T12:07:09.622Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "stage_vs_participants_data is not available in read_event responses",
+   "config and config.should_allow_awarding are not available in the read-back fields",
+   "is_bid_placed_globally is not available in read_event responses"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that “stages” is present; “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “stages” is present; “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-030",
+  "title": "The activation response carries the full published shape",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "exists"
+     },
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

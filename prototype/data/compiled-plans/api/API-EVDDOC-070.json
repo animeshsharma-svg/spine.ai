@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-070",
+  "title": "A live event lists its stage reports",
+  "compiledAt": "2026-10-15T12:18:50.434Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The requested get_all_attachments operation is not available.",
+   "The plan does not check the RFQ report or RFQ Counter Offer Report.",
+   "The plan does not check report round UUIDs, item_type trade_request, absence of QCS-Purchase, or absence of Approval Note.",
+   "The setup's invited vendor is not explicitly verified as non-participating.",
+   "the part about “report” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer reads the event.",
+    "As the buyer, read the event and check that “status” is one of active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” is one of active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-070",
+  "title": "A live event lists its stage reports",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "one_of",
+      "value": [
+       "active"
+      ]
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

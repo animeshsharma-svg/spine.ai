@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-STG-010",
+  "title": "A non-existent product is refused with \"Product not found\"",
+  "compiledAt": "2026-10-15T12:05:54.875Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "error code 80 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft event with the product uuid set to “FAKE_PRODUCT_UUID_…”."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-010",
+  "title": "A non-existent product is refused with \"Product not found\"",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "line_items[0].product_uuid",
+      "set": "FAKE_PRODUCT_UUID_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "80"
+  }
+ }
+}

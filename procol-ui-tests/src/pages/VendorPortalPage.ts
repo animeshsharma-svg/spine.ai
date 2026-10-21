@@ -1,6 +1,7 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { controlHeld, released } from "../support/liveControl.js";
+import { askTester, SAYS_STOP } from "../explore/ask.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { uatLoginCodes, type UatCode } from "../db/uatOtp.js";
@@ -12,6 +13,14 @@ import { uatLoginCodes, type UatCode } from "../db/uatOtp.js";
  * Live/History tabs and per-event cards. The app already points at the right
  * backend via localStorage, so no API injection needed.
  */
+
+/** The event is not among the signed-in vendor's events: the vendor is not invited, or it is not live for them. */
+export class NotOnEventError extends Error {
+  constructor(public title: string, url: string) {
+    super(`“${title}” is not among this vendor's events on the vendor portal (${url.replace(/^https?:\/\/[^/]+/, "")}) — the vendor is not invited, or the event is not live for them yet`);
+  }
+}
+
 export class VendorPortalPage extends BasePage {
   constructor(page: Page) {
     super(page);
@@ -29,6 +38,8 @@ export class VendorPortalPage extends BasePage {
   private price = 100;
   /** The technical stage was answered on the way to the price bid (a 2-stage event). */
   answeredTechnical = false;
+  /** Specification cells the sheet's Quick Fill filled on the last technical sheet. */
+  private quickFilled = 0;
 
   async goto(): Promise<void> {
     await this.page.goto(`${CONFIG.vendorUrl.replace(/\/$/, "")}/login`, NAV);
@@ -127,6 +138,15 @@ export class VendorPortalPage extends BasePage {
   }
 
   /** Open a Live event whose card contains the given title/ref. */
+  /**
+   * Open the event on this vendor's Events page. A title that is not there
+   * means the vendor is not invited (or it is not live for them): that is said
+   * as NotOnEventError, never covered by opening something else. The old
+   * fallback clicked the first event or link: an uninvited vendor stayed on
+   * /events and the step failed at Submit 40 s later with "no candidate was
+   * clickable" — and a vendor with other live events would have quoted on the
+   * WRONG event (15 Oct). Without a title, the first live event is still used.
+   */
   async openEvent(match: string): Promise<void> {
     await this.page.goto(`${CONFIG.vendorUrl.replace(/\/$/, "")}/events`, NAV);
     await this.page.waitForLoadState("domcontentloaded").catch(() => {});
@@ -150,6 +170,7 @@ export class VendorPortalPage extends BasePage {
       ],
       { label: "open-event-by-title", timeout: TIMEOUTS.MEDIUM },
     );
+    if (!matched && match) throw new NotOnEventError(match, this.page.url());
     if (!matched) {
       await this.click(
         [
@@ -234,6 +255,7 @@ export class VendorPortalPage extends BasePage {
    * price cell isn't an <input> until activated, so we click/dbl-click the cell
    * in the Price column, then type into the revealed input.
    */
+  /** How many price cells the last fillBid filled (0: the sheet had no Price column to fill). */
   async fillBid(price = 100): Promise<number> {
     this.price = price;
     if (this.stage === "technical") return this.fillTechnical();
@@ -365,11 +387,77 @@ export class VendorPortalPage extends BasePage {
     await p.locator("textarea").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
     await this.pause(600);
     // "Specifications Provided": a sheet column (required where the row says
-    // "Specs*"). Quick Fill did not fill it on 15 Oct — the cell stayed empty and
-    // red, and Submit refused — so each empty cell in that column is typed into,
-    // as the buyer's pricing sheet is: select the cell, type, Enter.
-    const marked = await p
-      .evaluate(() => {
+    // "Specs*"). The sheet's own "Quick Fill" copies the requested
+    // specifications into it, so it is pressed first, as a vendor would
+    // (Aanya, 15 Oct). It did not fill the cell on an earlier run that day, so
+    // whatever it leaves empty is then typed into, as the buyer's pricing sheet
+    // is: select the cell, type, Enter.
+    const before = await this.markEmptySpecs();
+    let quickFilled = 0;
+    const quick = p.getByRole("button", { name: /quick\s*fill/i }).or(p.getByText(/^\s*quick\s*fill\s*$/i)).first();
+    if (before > 0 && (await quick.isVisible().catch(() => false))) {
+      // Quick Fill opens a small menu: "Same as Requested" copies each row's
+      // requested specification into the cell (seen 15 Oct). Without the pick,
+      // nothing is filled. A click can land as "select the column" instead
+      // and open no menu (seen the same day), so it is pressed again.
+      const same = p.getByRole("menuitem", { name: /same as requested/i }).or(p.getByText(/^\s*same as requested\s*$/i)).first();
+      for (let t = 0; t < 3 && !(await same.isVisible().catch(() => false)); t++) {
+        await quick.click({ timeout: 5_000 }).catch(() => {});
+        await same.waitFor({ state: "visible", timeout: 2_000 }).catch(() => {});
+      }
+      if (await same.isVisible().catch(() => false)) await same.click({ timeout: 3_000 }).catch(() => {});
+      else console.log("[vendor] Quick Fill opened no menu after 3 presses");
+      await this.pause(1_500);
+      const after = await this.markEmptySpecs();
+      quickFilled = Math.max(0, before - after);
+      console.log(
+        quickFilled === before
+          ? `[vendor] Quick Fill → Same as Requested filled all ${before} specification(s)`
+          : `[vendor] Quick Fill → Same as Requested filled ${quickFilled} of ${before} specification(s); typing the other ${after}`,
+      );
+    }
+    const marked = quickFilled ? await this.markEmptySpecs() : before;
+    let specs = 0;
+    for (let i = 0; i < Math.min(marked, 30); i++) {
+      const cell = p.locator(`[data-spine-spec="${i}"]`).first();
+      await cell.scrollIntoViewIfNeeded().catch(() => {});
+      // Short waits: a cell that will not take a click must not hold the vendor for 15 s a try.
+      await cell.click({ timeout: 3_000 }).catch(() => {});
+      await cell.dblclick({ timeout: 3_000 }).catch(() => {});
+      const box = cell.locator("input, textarea, [contenteditable='true']").first();
+      if (await box.count().catch(() => 0)) await box.fill("As requested", { timeout: 3_000 }).catch(() => {});
+      else await p.keyboard.type("As requested", { delay: 15 });
+      await p.keyboard.press("Enter").catch(() => {});
+      await this.pause(300);
+      specs++;
+    }
+    specs += quickFilled;
+    this.quickFilled = quickFilled;
+    // The questions: every empty answer box on the sheet.
+    let answers = 0;
+    const boxes = p.locator("textarea");
+    const nBoxes = Math.min(await boxes.count().catch(() => 0), 30);
+    for (let i = 0; i < nBoxes; i++) {
+      const b = boxes.nth(i);
+      if (!(await b.isVisible().catch(() => false)) || (await b.isDisabled().catch(() => true))) continue;
+      if ((await b.inputValue().catch(() => "x")).trim()) continue;
+      await b.fill("spine.ai test response").catch(() => {});
+      answers++;
+    }
+    this.lastFill = `answered the Technical Stage's submission sheet — ${answers} question(s)${specs ? ` and ${specs} specification(s)${quickFilled ? ` (${quickFilled} by Quick Fill)` : ""}` : ""}`;
+    console.log(`[vendor] ${this.lastFill}`);
+    return answers + specs;
+  }
+
+  /**
+   * Mark each empty cell of the sheet's "Specifications Provided" column
+   * (data-spine-spec="0", "1", …) and say how many there are. Marks from an
+   * earlier look are cleared first, so the numbers always start at 0.
+   */
+  private async markEmptySpecs(all = false): Promise<number> {
+    return this.page
+      .evaluate((all) => {
+        for (const old of document.querySelectorAll("[data-spine-spec]")) old.removeAttribute("data-spine-spec");
         let n = 0;
         // A <table>, or an ARIA grid (role=row / columnheader / gridcell) — the portal uses the grid.
         for (const table of document.querySelectorAll("table, [role='grid']")) {
@@ -383,40 +471,39 @@ export class VendorPortalPage extends BasePage {
           for (const r of rows) {
             if (r === head) continue;
             const cell = cellsOf(r)[col] as HTMLElement | undefined;
-            if (!cell || (cell.innerText || "").trim()) continue;
+            if (!cell || (!all && (cell.innerText || "").trim())) continue;
             cell.setAttribute("data-spine-spec", String(n++));
           }
         }
         return n;
-      })
+      }, all)
       .catch(() => 0);
-    let specs = 0;
-    for (let i = 0; i < Math.min(marked, 30); i++) {
+  }
+
+  /**
+   * Type each specification cell's own value back in (select, type, Enter).
+   * Quick Fill fills the cells on screen, but on 15 Oct Procol then kept
+   * Submit disabled; typing into a cell is what makes the sheet save.
+   */
+  private async retypeSpecs(): Promise<number> {
+    const p = this.page;
+    const n = await this.markEmptySpecs(true);
+    for (let i = 0; i < Math.min(n, 30); i++) {
       const cell = p.locator(`[data-spine-spec="${i}"]`).first();
+      const value = ((await cell.innerText().catch(() => "")) || "").trim() || "As requested";
       await cell.scrollIntoViewIfNeeded().catch(() => {});
-      await cell.click().catch(() => {});
-      await cell.dblclick().catch(() => {});
+      await cell.click({ timeout: 3_000 }).catch(() => {});
+      await cell.dblclick({ timeout: 3_000 }).catch(() => {});
       const box = cell.locator("input, textarea, [contenteditable='true']").first();
-      if (await box.count().catch(() => 0)) await box.fill("As requested").catch(() => {});
-      else await p.keyboard.type("As requested", { delay: 15 });
+      if (await box.count().catch(() => 0)) await box.fill(value, { timeout: 3_000 }).catch(() => {});
+      else {
+        await p.keyboard.press("ControlOrMeta+a").catch(() => {});
+        await p.keyboard.type(value, { delay: 15 });
+      }
       await p.keyboard.press("Enter").catch(() => {});
       await this.pause(300);
-      specs++;
     }
-    // The questions: every empty answer box on the sheet.
-    let answers = 0;
-    const boxes = p.locator("textarea");
-    const nBoxes = Math.min(await boxes.count().catch(() => 0), 30);
-    for (let i = 0; i < nBoxes; i++) {
-      const b = boxes.nth(i);
-      if (!(await b.isVisible().catch(() => false)) || (await b.isDisabled().catch(() => true))) continue;
-      if ((await b.inputValue().catch(() => "x")).trim()) continue;
-      await b.fill("spine.ai test response").catch(() => {});
-      answers++;
-    }
-    this.lastFill = `answered the Technical Stage's submission sheet — ${answers} question(s)${specs ? ` and ${specs} specification(s)` : ""}`;
-    console.log(`[vendor] ${this.lastFill}`);
-    return answers + specs;
+    return n;
   }
 
   /** Submit the bid and confirm any modal. */
@@ -510,6 +597,8 @@ export class VendorPortalPage extends BasePage {
     const p = this.page;
     const draft = p.getByText(/saved as draft\.?\s*submit to proceed/i).first();
     await draft.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    let retyped = false;
+    let asked = false;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const inBar = draft.locator("xpath=ancestor::*[.//button][1]").getByRole("button", { name: /^\s*submit\s*$/i }).first();
       const submit = (await inBar.isVisible().catch(() => false)) ? inBar : p.getByRole("button", { name: /^\s*submit\s*$/i }).last();
@@ -524,7 +613,24 @@ export class VendorPortalPage extends BasePage {
               .slice(0, 6),
           )
           .catch(() => [] as string[]);
-        throw new Error(`the Technical Stage's "Submit" stays disabled after the sheet was answered${required.length ? ` — required on the sheet: ${required.join(", ")}` : ""}`);
+        const why = `the Technical Stage's "Submit" stays disabled after the sheet was answered${required.length ? ` — required on the sheet: ${required.join(", ")}` : ""}`;
+        // Quick Fill filled the cells but the sheet did not save: type them in once.
+        if (!retyped && this.quickFilled > 0) {
+          retyped = true;
+          const n = await this.retypeSpecs();
+          console.log(`[vendor] Procol kept Submit disabled after Quick Fill; typed the ${n} specification(s) in again so the sheet saves`);
+          await draft.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+          attempt--;
+          continue;
+        }
+        // Stuck: ask the tester rather than fail on our own (Aanya, 15 Oct).
+        // Once per sheet; with nobody to ask, the run stops and says why.
+        const hand = asked ? "no" : await this.askToFinishTechnical(why);
+        asked = true;
+        if (hand === "no") throw new Error(why);
+        if (hand === "submitted") return;
+        attempt--;
+        continue;
       }
       await submit.scrollIntoViewIfNeeded().catch(() => {});
       await submit.click({ timeout: TIMEOUTS.MEDIUM });
@@ -570,6 +676,51 @@ export class VendorPortalPage extends BasePage {
       }
     }
     throw new Error("the Technical Stage response stayed a draft — the page still says “saved as draft. Submit to proceed” after Submit was pressed twice");
+  }
+
+  /**
+   * The Technical Stage will not submit: ask the tester. They can finish the
+   * sheet themselves in the live browser (take control, hand back) or stop.
+   * What they do by hand is said as a [by-hand] step, so the run ends
+   * "Partly tested", never Passed: the run did not test that part.
+   *   "retry"     — handed back; press Submit again
+   *   "submitted" — they submitted it themselves
+   *   "no"        — stop (or nobody to ask)
+   */
+  private async askToFinishTechnical(why: string): Promise<"retry" | "submitted" | "no"> {
+    const p = this.page;
+    // The ask can take minutes: the test's own clock must not run out while it waits.
+    try {
+      const { test } = await import("@playwright/test");
+      test.info().setTimeout(test.info().timeout + 20 * 60_000);
+    } catch {
+      /* not inside a test */
+    }
+    const a = await askTester({
+      kind: "stuck",
+      question: "The vendor's Technical Stage sheet won't submit. Can you finish it in the browser?",
+      detail: `${why.charAt(0).toUpperCase()}${why.slice(1)}. Quick Fill and typing did not fill everything Procol needs.`,
+      options: [
+        { id: "self", label: "I'll fill it in myself, then hand back" },
+        { id: "stop", label: "Stop here" },
+      ],
+    });
+    if (!a || a.option === "stop" || (!a.option && SAYS_STOP.test(a.text))) return "no";
+    // The card's "self" presses Take control; wait for it, then for the hand-back.
+    for (let t = 0; t < 50 && !controlHeld(); t++) await this.pause(200);
+    await released();
+    const draft = p.getByText(/saved as draft\.?\s*submit to proceed/i).first();
+    const tabs = await p.getByRole("tab").allInnerTexts().catch(() => [] as string[]);
+    const submitted = tabs.some((n) => /technical|^rfp/i.test(n) && /submitted/i.test(n)) && !(await draft.isVisible().catch(() => false));
+    if (submitted) {
+      this.answeredTechnical = true;
+      this.lastFill = "the Technical Stage's sheet was finished and submitted by you in the browser";
+      console.log("[by-hand] you finished and submitted the vendor's Technical Stage sheet in the browser — not tested by the run");
+      return "submitted";
+    }
+    console.log("[by-hand] you finished the vendor's Technical Stage sheet in the browser — not tested by the run; pressing Submit again");
+    this.lastFill = "the Technical Stage's sheet was finished by you in the browser";
+    return "retry";
   }
 
   /** True if a bid-submitted confirmation/state is visible. */

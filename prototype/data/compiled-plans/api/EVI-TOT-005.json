@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "EVI-TOT-005",
+  "title": "No impossible numbers on the comparison",
+  "compiledAt": "2026-10-15T12:40:27.179Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Savings and L1 reads are not available as read-back fields or operations.",
+   "The vocabulary does not define which numeric values are impossible, so only field presence and a non-negative bid count are checked."
+  ],
+  "warnings": [
+   "verify 3: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 3: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the event and check that “stages › status” is present.",
+    "As the buyer, read the pricing round and check that “bid count” is at least 0.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “stages › status” is present; “bid count” is at least 0; “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-TOT-005",
+  "title": "No impossible numbers on the comparison",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].status",
+      "op": "exists"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 0
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

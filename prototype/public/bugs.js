@@ -1113,7 +1113,12 @@
     placeClientBar();
     readHash();
     render();
-    if (st.groups == null || st.stale) load();
+    // "Bugs from this run", opened from a run that just ended: a list loaded
+    // before the run was saved does not know it, and read "no bugs in this run"
+    // while the export (loaded later) had its rows (15 Oct). Load it again.
+    const unknownRun = !!st.run && st.groups != null && st.runChecked !== st.run && !(st.groups ?? []).some((g) => (g.runs ?? []).includes(st.run));
+    if (st.run) st.runChecked = st.run;
+    if (st.groups == null || st.stale || unknownRun) load();
     else syncDrawer();
   }
 

@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-055",
+  "title": "An auction reminder on an event without an auction returns an error inside a success reply",
+  "compiledAt": "2026-10-15T13:17:22.089Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case",
+   "the part about “email” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer publishes the event with no draft trade request uuids.",
+    "As the buyer, read the event and check that “status” equals draft."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDREM-055",
+  "title": "An auction reminder on an event without an auction returns an error inside a success reply",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "draft_trade_request_uuids",
+      "set": []
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

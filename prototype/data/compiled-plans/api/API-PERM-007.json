@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-PERM-007",
+  "title": "Event-group update accepts either policy branch and refuses outside both",
+  "compiledAt": "2026-10-15T13:06:24.788Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The CSM Procol employee policy branch cannot be tested because the available actors do not include a Procol employee.",
+   "The user in neither category and the expected refusal cannot be tested because the available actors do not include an outside user category.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”.",
+    "As the buyer, read the event and check that “title” equals the title sent in step 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “title” equals the title sent in step 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-007",
+  "title": "Event-group update accepts either policy branch and refuses outside both",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_Renamed_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "{{act1.body.title}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

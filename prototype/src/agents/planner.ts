@@ -5,6 +5,7 @@ import { chat, llmMode } from "../ai/llm.js";
 import { recall } from "../rag/knowledgeBase.js";
 import { caseById, caseAsProse } from "../checks/testCatalog.js";
 import { recordVocabularyGaps } from "./vocabularyGaps.js";
+import { qaVendorsOnly } from "../checks/eventVendors.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(here, "..", "..", "..", "procol-ui-tests", "plan-catalog.json");
@@ -160,6 +161,8 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
 - Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE: accept_counter_offer{vendor} (vendor side, supplier portal) then expect_counter_offer_accepted (buyer grid).
 - A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
+- READING MASTER QCS cell by cell (after open_master_qcs, or open_prepared master_qcs): expect_qcs_vendors (how many vendor columns, which, real names not placeholders), expect_qcs_cell{row, vendor, product, number|equals|key} (one figure: Qty Offer, Rank, the rate, the amount, Sum Total; key compares with the API's bidPrice / bidTotal / quantity), expect_qcs_amounts (amount = rate × quantity on every line, Sum Total = the sum), expect_qcs_ranks (lowest amount is Rank 1 on a buy event). These ARE the steps for "Rank 1", "Amount = price × quantity", "figures equal the bid the API holds", "correct per-line and total amounts" — never list those as inexpressible.
+- A PUBLISHED event's Participants list: search_participants{vendor}, expect_participant{vendor, present, selected, addBid} (the vendor's own row), expect_participant_count{count|atLeast} (the round's vendors, every page), select_participant{vendor} (adds a vendor from the product's own list to the round; name a vendor only if the case does). invite_vendor is the CREATE screen's step; on a published event use these.
 - BOQ events: open_create path "boq"; line items are BOQ rows; still template-first.
 
 Ordering the product enforces (violating any of these makes the run fail):
@@ -784,7 +787,13 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // The test case says which, so honour the words rather than the model's pick.
   const wantsSurrogate = /surrogate|on (their|the vendor's|his|her) behalf|on behalf of/i.test(testCase);
   const wantsVendorSide = /vendor portal|supplier hub|as the vendor|vendor logs? in|vendor (themselves|submits)/i.test(testCase);
-  if (wantsSurrogate && has("place_bid")) {
+  // "a bid from 1 vendor, and a surrogate bid from another": both kinds are
+  // asked for. Swapping then turned the vendor's own bid into a second
+  // surrogate bid, so the case was never what it said.
+  const ownBidText = testCase.replace(/\bsurrogate\s+(bid|bids)\b/gi, " ");
+  const wantsOwnBidToo = /\bbids?\s+from\s+(a|an|one|\d+|the|another)?\s*vendors?\b|\bvendors?\s+(bids?|places?\s+a\s+bid|submits?\s+a\s+bid)\b/i.test(ownBidText);
+  const wantsBoth = wantsSurrogate && (wantsOwnBidToo || wantsVendorSide);
+  if (wantsSurrogate && has("place_bid") && !wantsBoth && !has("place_surrogate_bid")) {
     steps[indexOf("place_bid")] = { step: "place_surrogate_bid", note: "the test asks the buyer to bid on the vendor's behalf" };
     repairs.push("swapped place_bid for place_surrogate_bid — the test asks the BUYER to bid for the vendor, which never leaves the console");
   }
@@ -1153,13 +1162,14 @@ export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record
 /** The prompt section for a case whose state the API builds (CompileOptions.prepared). */
 function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
   return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
-- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and the QA vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; awarded = closed and the proposal submitted).
-- The built event has exactly ONE line item, ONE invited QA vendor (whose bid, when there is one, is the only bid) and default settings. A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
+- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; awarded = closed and the proposal submitted).
+- The built event has exactly ONE line item, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings. A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
 - The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".
 - After a click that opens a proposal, the URL is /project/<id>/proposal/<id>; the awarding screen is /awarding/<id>.
-- The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event. Do NOT open_create, set_title, compose_stages, publish, invite or search the list: the event exists. Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
+- The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event. Do NOT open_create, set_title, compose_stages, publish, invite_vendor or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
 - Write ONLY the steps the case is about, then an assertion for EACH screen expectation${p.screenAssertions?.length ? ` — these are the ones a screen must show:\n${p.screenAssertions.map((a) => `  • ${a}`).join("\n")}` : "."}
 - A value the API holds and the screen must show (title, vendor name, quantity, bid price…) → expect_api_value{key} with key one of: ${p.valueKeys.join(", ") || "(none for this state)"}.
+- On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
 - Use expect_toast for a toast, expect_field_error for an error at a field, expect_navigated after a click that should move the screen, expect_order for order/sorting, expect_disabled/expect_enabled for control state, expect_visible/expect_text/expect_count for presence and absence, expect_screen_clean when the case is about the screen rendering correctly.
 - If the case needs a state this one is not (e.g. a second vendor, a setting flipped, a different event type), say so in cannotExpress and set coverage "partial" or "none".${p.examples ? `\n\n${p.examples}` : ""}`;
 }

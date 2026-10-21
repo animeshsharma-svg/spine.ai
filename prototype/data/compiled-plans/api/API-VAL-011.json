@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-VAL-011",
+  "title": "Epoch times outside a sane range are refused",
+  "compiledAt": "2026-10-15T13:07:46.345Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Negative bid_start_time and a value 100 years out are not tested; each requires a fresh draft event because add_rfq_round creates the round only once.",
+   "An accepted response with a documented clamp cannot be verified because no documentation or clamped-time assertion field is available."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the bid start time 0."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-011",
+  "title": "Epoch times outside a sane range are refused",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_start_time",
+      "set": 0
+     }
+    ],
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

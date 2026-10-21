@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-012",
+  "title": "Two-round event: a submitted regret blocks quoting that line again",
+  "compiledAt": "2026-10-15T12:23:13.794Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no operation for regretting or declining a line item, so the setup does not create the required submitted-regret state.",
+   "The plan cannot verify that the fresh bid opens before pricing is refused."
+  ],
+  "warnings": [
+   "error code 736 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid."
+   ],
+   "expected": "The app refuses the step the case is about with “You have declined to provide this line item; therefore, you are not permitted to quote for it commercially”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-012",
+  "title": "Two-round event: a submitted regret blocks quoting that line again",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    },
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "736",
+   "message": "You have declined to provide this line item; therefore, you are not permitted to quote for it commercially"
+  }
+ }
+}

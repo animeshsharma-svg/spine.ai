@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-061",
+  "title": "A surrogate-bid reference note without a files list crashes after the bid is saved",
+  "compiledAt": "2026-10-15T12:18:33.501Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The surrogate_bid operation does not expose surrogate_remarks.remarks or the ability to omit attachments, so the reference note without a files list is not directly tested.",
+   "The plan cannot distinguish an accepted response from a valid 422 refusal.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-061",
+  "title": "A surrogate-bid reference note without a files list crashes after the bid is saved",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "expect": "no-5xx",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

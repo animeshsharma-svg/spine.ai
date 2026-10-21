@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-007",
+  "title": "A price round can be moved to auction only once",
+  "compiledAt": "2026-10-15T13:20:03.069Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event.",
+    "The invited QA vendor places a complete bid (open, price, submit)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVRMTR-007",
+  "title": "A price round can be moved to auction only once",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "expect": "accept"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-022",
+  "title": "Weights do not stop the vendor from bidding",
+  "compiledAt": "2026-10-15T12:30:43.433Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Saving the happy-path weight cannot be expressed because no weight field or operation is provided.",
+   "The read-back fields do not expose whether the round remains weighted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid.",
+    "The invited QA vendor submits the bid.",
+    "As the buyer, read the pricing round and check that the read succeeds; “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-022",
+  "title": "Weights do not stop the vendor from bidding",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    },
+    "expect": "accept"
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

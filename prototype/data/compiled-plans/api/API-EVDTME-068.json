@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-068",
+  "title": "A vendor who already bid cannot revise after the end is pulled in",
+  "compiledAt": "2026-10-15T12:29:42.729Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot verify the original bid's exact quote or explicitly confirm that counter_offer_modification_enabled is off."
+  ],
+  "warnings": [
+   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "Wait until the round's bid end time has passed.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the invited QA vendor, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-068",
+  "title": "A vendor who already bid cannot revise after the end is pulled in",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+90}}"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "33"
+  }
+ }
+}

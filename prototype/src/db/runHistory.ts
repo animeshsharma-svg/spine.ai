@@ -24,6 +24,9 @@ type Row = {
   duration_ms: number | null;
 };
 
+/** The verdict text of a check that never ran (caseDisplay.ts reads it the same way). */
+const NEVER_RAN = /^not run yet|^never ran/i;
+
 /** Flatten a run record into one row per verdict. */
 export function resultRows(rec: RunRecord): Row[] {
   const rows: Row[] = [];
@@ -33,7 +36,10 @@ export function resultRows(rec: RunRecord): Row[] {
       case_id: c.id,
       feature: c.flowId ?? null,
       title: c.scenario ?? null,
-      verdict: c.inconclusive ? "inconclusive" : c.pass ? "pass" : "fail",
+      // A check that never ran (an API plan that could not open a session, a
+      // step skipped after an earlier failure) is no verdict — not a fail.
+      // 15 Oct: 199 plans that hit a network outage were counted as 182 fails.
+      verdict: NEVER_RAN.test(String(c.verdict ?? "")) ? "not-run" : c.inconclusive ? "inconclusive" : c.pass ? "pass" : "fail",
       http_status: c.httpStatus ?? null,
       reason: (c.verdict ?? c.message ?? null)?.slice(0, 2000) ?? null,
       duration_ms: c.durationMs ?? null,

@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-LC-011",
+  "title": "A planner cannot clone",
+  "compiledAt": "2026-10-15T13:05:58.777Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send POST /event_groups/{{eventGroupUuid}}/create_clone, but the supplier app may not call POST /event_groups/:id/create_clone (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "The planner role and create permission are not expressible; the closest available case uses the invited vendor."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/:id/create_clone"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the event groups create clone request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-LC-011",
+  "title": "A planner cannot clone",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-113",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

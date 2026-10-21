@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-007",
+  "title": "A closed technical round answers the same \"cannot re-schedule\"",
+  "compiledAt": "2026-10-15T12:28:48.929Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact PATCH with both bid_start_time and bid_end_time fields is not available; extend_round only moves the technical round's bid end time."
+  ],
+  "warnings": [
+   "error code 258 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event where the invited QA vendor submitted its technical response, and both windows are over (evaluation time).",
+   "steps": [
+    "The buyer moves the technical round's bid end time."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot re-schedule this event!”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-007",
+  "title": "A closed technical round answers the same \"cannot re-schedule\"",
+  "setup": {
+   "recipe": "closed_rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "params": {
+     "round": "technical"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "258",
+   "message": "You cannot re-schedule this event!"
+  }
+ }
+}

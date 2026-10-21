@@ -2,50 +2,89 @@
  "meta": {
   "caseId": "UI-PUB-003",
   "title": "Save as draft writes a draft and nothing more",
-  "compiledAt": "2026-10-04T10:50:13.045Z",
+  "compiledAt": "2026-10-15T12:44:46.186Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "No vendor can see it (cross-tenant portal verification requires switching company/portal sessions which is not supported by single-tenant console steps)"
+   "Verify that the saved draft is absent from the invited vendor's portal or otherwise invisible to vendors.",
+   "Verify that exactly one matching row exists in the events list."
   ],
   "warnings": [
-   "can only test part of this — no step for: No vendor can see it (cross-tenant portal verification requires switching company/portal sessions which is not supported by single-tenant console steps)"
+   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Verify that the saved draft is absent from the invited vendor's portal or otherwise invisible to vendors.; Verify that exactly one matching row exists in the events list."
   ],
-  "state": "draft",
-  "screen": "drafts_list",
+  "state": "none",
+  "screen": "create",
   "technical": false,
-  "exemplars": [],
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-LI-002"
+  ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-PUB-003 Save as draft writes a draft and nothing more",
+  "title": "Save event as draft",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "drafts_list"
+     "path": "erfx"
     },
-    "note": "Open the drafts list for the prepared event"
+    "note": "Open the event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA Save Draft Event"
+    },
+    "note": "Provide the title used to find the saved draft."
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the partially configured event without publishing it."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the events list to search for the saved event."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab"
+    "note": "Limit the list to draft events."
    },
    {
     "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert the draft event is present in the list"
+    "args": {
+     "title": "QA Save Draft Event"
+    },
+    "note": "Verify the saved event appears in the Drafts list."
    },
    {
     "step": "expect_event_status",
     "args": {
+     "title": "QA Save Draft Event",
      "status": "Draft"
     },
-    "note": "Assert the status label reads Draft"
+    "note": "Verify the event row has Draft status."
    }
   ]
  }

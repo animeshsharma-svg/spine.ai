@@ -99,7 +99,25 @@ a { color: var(--accent); }
   table.steps thead { display: none; } table.steps tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; }
   table.steps td { display: block; border: 0; padding: 3px 0; width: auto; } table.steps td.n { display: inline; }
 }
-@media print { .print, details, .copy, .foot a { display: none !important; } .wrap { padding: 0; max-width: none; } .bug, tr { break-inside: avoid; } }
+/* a step's response checks (stepChecks) */
+.checks { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 8px; }
+.ck { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--line); background: #fff; white-space: nowrap; }
+.ck.ok { color: var(--ok); border-color: var(--ok-line); } .ck.bad { color: var(--bad); border-color: var(--bad-line); background: var(--bad-bg); }
+.ck small { color: var(--muted); font-size: 11.5px; }
+ul.ckfail { margin: 6px 0 0; padding-left: 18px; color: var(--bad); font-size: 13.5px; }
+ul.ckfail b { font-weight: 600; }
+table.cks { margin-top: 6px; font-size: 13px; table-layout: fixed; }
+table.cks td, table.cks th { padding: 5px 6px; }
+table.cks th { font-size: 11px; }
+table.cks col.cr { width: 104px; } table.cks col.cc { width: 34%; }
+/* the full check list sits in its own full-width row under its step */
+tr.has-ck > td { border-bottom: 0; padding-bottom: 2px; }
+tr.ckrow > td { padding-top: 0; }
+tr.ckrow details.cklist { margin-top: 0; }
+table.cks tr.g td { background: var(--soft); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+table.cks tr.bad td { background: var(--bad-bg); }
+p.cksum { margin: -12px 0 22px; color: var(--muted); font-size: 13.5px; }
+@media print { .print, details, .copy, .foot a { display: none !important; } details.cklist { display: block !important; } details.cklist summary { display: none; } .wrap { padding: 0; max-width: none; } .bug, tr { break-inside: avoid; } }
 `;
 
 function page(o: { kind: string; title: string; meta: string; body: string; foot: string }): string {
@@ -112,6 +130,8 @@ ${o.body}
 <footer class="foot"><span>spine.ai · ${o.foot}</span></footer>
 </main>
 <script>
+// The PDF carries every check: open the lists before printing.
+window.addEventListener("beforeprint", () => document.querySelectorAll("details.cklist").forEach((d) => (d.open = true)));
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-copy]");
   if (!b) return;
@@ -166,14 +186,109 @@ const STEP_RESULT: Record<string, ["ok" | "bad" | "skip", string]> = {
   "not-run": ["skip", "Not run"],
 };
 
+/**
+ * EVERY CHECK A STEP'S RESPONSE WENT THROUGH, NOT ONLY THE STEP'S VERDICT.
+ *
+ * Aanya, 15 Oct: "the api run report only logged the steps that they passed,
+ * what about validations? the response time, the status code, data
+ * validation, schema validation". Each journey step already carries them
+ * (src/checks/apiAssertions.ts) — 173 on a six-step RFQ run — and the report
+ * showed none, and said "Passed — all 6 steps worked" over a failed one: the
+ * surrogate bid's rank price came back as text ("3211.0"), not a number.
+ * Grouped the way a tester reads a response:
+ *   Status code    status_2xx
+ *   Response time  max_ms, against the step's limit
+ *   Schema         json_body, exists, type_is, non_empty, format, one_of, gte, value_matches
+ *   Data           equals_request (echoes what was sent), equals_made (matches what earlier steps made)
+ * A check that could not be evaluated (pass null: the field is empty for this
+ * kind of event) is listed as "did not apply", never as passed.
+ */
+type CheckGroup = "status" | "time" | "schema" | "data";
+const GROUP_OF: Record<string, CheckGroup> = { status_2xx: "status", max_ms: "time", equals_request: "data", equals_made: "data" };
+const groupOf = (op: string): CheckGroup => GROUP_OF[op] ?? "schema";
+const GROUP_LABEL: Record<CheckGroup, string> = { status: "Status code", time: "Response time", schema: "Schema", data: "Data" };
+const GROUPS: CheckGroup[] = ["status", "time", "schema", "data"];
+type StepCheck = NonNullable<JourneyStepRecord["assertions"]>["results"][number];
+const checksOf = (s: JourneyStepRecord): StepCheck[] => (s.assertions?.results ?? []) as StepCheck[];
+const failedChecks = (s: JourneyStepRecord) => checksOf(s).filter((c) => c.pass === false);
+
+/** "10 s" from "≤ 10000 ms (slowest observed: …)". */
+function limitOf(expected: string): string {
+  const ms = Number(expected.match(/≤\s*(\d+)\s*ms/)?.[1]);
+  if (!ms) return "";
+  return ms >= 1000 ? `${Math.round(ms / 100) / 10} s` : `${ms} ms`;
+}
+
+function stepChecks(s: JourneyStepRecord): { inline: string; list: string } {
+  const all = checksOf(s);
+  if (!all.length) return { inline: "", list: "" };
+  const by = (g: CheckGroup) => all.filter((c) => groupOf(c.op) === g);
+  const mark = (ok: boolean) => (ok ? "✓" : "✗");
+  const chips: string[] = [];
+  const status = by("status")[0];
+  if (status || s.status) {
+    const ok = status ? status.pass !== false : true;
+    chips.push(`<span class="ck ${ok ? "ok" : "bad"}">${mark(ok)} HTTP ${escapeHtml(String(s.status ?? status?.actual ?? "?").replace(/^HTTP\s*/, ""))}</span>`);
+  }
+  const time = by("time")[0];
+  if (time || s.ms) {
+    const ok = time ? time.pass !== false : true;
+    const lim = time ? limitOf(time.expected) : "";
+    chips.push(`<span class="ck ${ok ? "ok" : "bad"}">${mark(ok)} ${escapeHtml(String(s.ms ?? time?.actual ?? ""))}${s.ms ? " ms" : ""}${lim ? ` <small>limit ${escapeHtml(lim)}</small>` : ""}</span>`);
+  }
+  for (const g of ["schema", "data"] as CheckGroup[]) {
+    const xs = by(g);
+    if (!xs.length) continue;
+    const judged = xs.filter((c) => c.pass !== null);
+    const passed = judged.filter((c) => c.pass === true).length;
+    const ok = passed === judged.length;
+    const na = xs.length - judged.length;
+    chips.push(`<span class="ck ${ok ? "ok" : "bad"}">${mark(ok)} ${GROUP_LABEL[g]} ${passed} of ${judged.length}${na ? ` <small>${na} did not apply</small>` : ""}</span>`);
+  }
+  const bad = all.filter((c) => c.pass === false);
+  const failures = bad.length
+    ? `<ul class="ckfail">${bad.map((c) => `<li><b>${GROUP_LABEL[groupOf(c.op)]}</b> — ${escapeHtml(c.humanTitle || c.title)}. Got: ${escapeHtml(c.humanActual || c.actual || "")}</li>`).join("")}</ul>`
+    : "";
+  const rows = GROUPS.flatMap((g) => {
+    const xs = by(g);
+    if (!xs.length) return [];
+    return [
+      `<tr class="g"><td colspan="4">${GROUP_LABEL[g]}</td></tr>`,
+      ...xs.map((c) => {
+        const [cls, word]: ["ok" | "bad" | "skip", string] = c.pass === true ? ["ok", "Passed"] : c.pass === false ? ["bad", "Failed"] : ["skip", "Did not apply"];
+        return `<tr class="${cls === "bad" ? "bad" : ""}"><td>${escapeHtml(c.humanTitle || c.title)}</td><td>${escapeHtml(c.humanExpected || c.expected)}</td><td>${escapeHtml(c.humanActual || c.actual || "")}</td><td>${pill(cls, word)}</td></tr>`;
+      }),
+    ];
+  });
+  const list = `<details class="cklist"><summary>All ${all.length} checks on this response</summary><table class="cks"><colgroup><col class="cc"><col><col><col class="cr"></colgroup><thead><tr><th>Check</th><th>Expected</th><th>Actual</th><th>Result</th></tr></thead><tbody>${rows.join("")}</tbody></table></details>`;
+  return { inline: `<div class="checks">${chips.join("")}</div>${failures}`, list };
+}
+
 function stepRow(s: JourneyStepRecord, companyId: number): string {
-  const [cls, word] = STEP_RESULT[s.verdict] ?? ["skip", s.verdict];
+  let [cls, word] = STEP_RESULT[s.verdict] ?? ["skip", s.verdict];
+  // The step's action worked, but its response failed a check: the step failed.
+  if (cls === "ok" && failedChecks(s).length) [cls, word] = ["bad", "Failed"];
   const actual = s.verdict === "not-run" ? s.reason || s.actual || "It did not run." : s.actual;
-  return `<tr class="${cls === "bad" ? "bad" : ""}"><td class="n">${s.n}</td>
+  const ck = stepChecks(s);
+  const rowCls = [cls === "bad" ? "bad" : "", ck.list ? "has-ck" : ""].filter(Boolean).join(" ");
+  return `<tr class="${rowCls}"><td class="n">${s.n}</td>
 <td><div class="step-t">${escapeHtml(s.title)}</div></td>
 <td>${escapeHtml(s.expected)}</td>
-<td>${escapeHtml(actual)}${curlFold(s.call, companyId)}</td>
-<td class="r">${pill(cls, word)}</td></tr>`;
+<td>${escapeHtml(actual)}${ck.inline}${curlFold(s.call, companyId)}</td>
+<td class="r">${pill(cls, word)}</td></tr>${ck.list ? `\n<tr class="ckrow${cls === "bad" ? " bad" : ""}"><td class="n"></td><td colspan="4">${ck.list}</td></tr>` : ""}`;
+}
+
+/** The run's response checks, per group: "Status code 6 of 6 · … · 2 did not apply". */
+function checksSummary(steps: JourneyStepRecord[]): string {
+  const all = steps.flatMap(checksOf);
+  if (!all.length) return "";
+  const parts = GROUPS.map((g) => {
+    const judged = all.filter((c) => groupOf(c.op) === g && c.pass !== null);
+    if (!judged.length) return "";
+    return `${GROUP_LABEL[g]} ${judged.filter((c) => c.pass === true).length} of ${judged.length}`;
+  }).filter(Boolean);
+  const na = all.filter((c) => c.pass === null).length;
+  return `<p class="cksum">Response checks: ${escapeHtml(parts.join(" · "))}${na ? ` · ${na} did not apply` : ""}.</p>`;
 }
 
 const EXPECT_WORDS: Record<string, string> = {
@@ -181,6 +296,30 @@ const EXPECT_WORDS: Record<string, string> = {
   reject: "The app refuses it with a clear message (4xx).",
   "no-5xx": "The app answers without a server error.",
 };
+
+/**
+ * What the app did with a scenario's request, in words. "HTTP 200 · 608 ms"
+ * under "A negative quantity is refused" did not say that the app ACCEPTED
+ * the bad value and saved it (Aanya, 15 Oct: "what do they mean? i dont get it").
+ */
+function outcomeWords(c: { httpStatus?: number | null; message?: string | null; expected?: string | null; durationMs?: number | null }): string {
+  const s = c.httpStatus ?? 0;
+  const msg = String(c.message ?? "").trim();
+  const said = msg && !/^internal server error$/i.test(msg) && !/^HTTP \d{3}\b/.test(msg) ? `: “${msg.replace(/\.$/, "")}”` : "";
+  const took = c.durationMs ? ` Took ${c.durationMs >= 1000 ? `${(c.durationMs / 1000).toFixed(1)} s` : `${c.durationMs} ms`}.` : "";
+  const what = !s
+    ? "No answer from the app"
+    : s >= 500
+      ? `The app crashed: server error (HTTP ${s})${said}`
+      : s < 300
+        ? c.expected === "reject"
+          ? `The app accepted it (HTTP ${s}) — it should have refused it, so the bad value was saved`
+          : `The app accepted it (HTTP ${s})`
+        : c.expected === "accept"
+          ? `The app refused it (HTTP ${s})${said} — it should have accepted it`
+          : `The app refused it (HTTP ${s})${said}`;
+  return `${what}.${took}`;
+}
 
 export function renderSimpleApiReport(run: RunRecord, fullHref: string): string {
   const journey = readJourney(run);
@@ -191,6 +330,11 @@ export function renderSimpleApiReport(run: RunRecord, fullHref: string): string 
   const steps = journey?.steps ?? [];
 
   const stepsFailed = steps.filter((s) => s.verdict === "refused" || s.verdict === "broken");
+  // Steps whose action worked but whose response failed a check (stepChecks).
+  const stepsCheckFailed = steps.filter((s) => s.verdict === "worked" && failedChecks(s).length);
+  const allChecks = steps.flatMap(checksOf);
+  const checksFailed = allChecks.filter((c) => c.pass === false).length;
+  const checksJudged = allChecks.filter((c) => c.pass !== null).length;
   const stepsNotRun = steps.filter((s) => s.verdict === "not-run");
   const casesFailed = checks.filter((c) => !c.pass && !c.inconclusive);
   if (planCase && !planCase.pass && !planCase.inconclusive && !casesFailed.length) casesFailed.push(planCase);
@@ -202,12 +346,16 @@ export function renderSimpleApiReport(run: RunRecord, fullHref: string): string 
   const firstBad = stepsFailed[0];
   let verdict: string;
   if (nothing) verdict = verdictBox("warn", "Not tested", "Nothing was sent to the API in this run.");
-  else if (stepsFailed.length || casesFailed.length) {
+  else if (stepsFailed.length || casesFailed.length || stepsCheckFailed.length) {
+    const firstCheckBad = stepsCheckFailed[0];
+    const badCheck = firstCheckBad ? failedChecks(firstCheckBad)[0] : undefined;
     const why = firstBad
       ? `Stopped at step ${firstBad.n}, “${firstBad.title}”: ${firstBad.message || firstBad.actual}`
-      : planCase
+      : planCase && !planCase.pass && !planCase.inconclusive
         ? planCase.verdict.replace(/^api plan failed\s*[—-]\s*/i, "")
-        : `${casesFailed.length} of ${checks.length} scenario${checks.length === 1 ? "" : "s"} failed.`;
+        : casesFailed.length
+          ? `${casesFailed.length} of ${checks.length} scenario${checks.length === 1 ? "" : "s"} failed.`
+          : `${checksFailed} of ${checksJudged} response check${checksJudged === 1 ? "" : "s"} failed — step ${firstCheckBad!.n}, “${firstCheckBad!.title}”: ${badCheck!.humanTitle || badCheck!.title}. Got: ${badCheck!.humanActual || badCheck!.actual}`;
     verdict = verdictBox("bad", "Failed", why);
   } else if (stepsNotRun.length || casesUnknown.length) {
     verdict = verdictBox(
@@ -215,7 +363,15 @@ export function renderSimpleApiReport(run: RunRecord, fullHref: string): string 
       "Partly tested",
       `${steps.length - stepsNotRun.length + checks.length - casesUnknown.length} passed; ${stepsNotRun.length + casesUnknown.length} could not be checked.`,
     );
-  } else verdict = verdictBox("ok", "Passed", steps.length ? `All ${steps.length} steps worked${checks.length ? `, and all ${checks.length} scenarios passed` : ""}.` : `All ${checks.length} scenarios passed.`);
+  } else
+    verdict = verdictBox(
+      "ok",
+      "Passed",
+      steps.length
+        ? `All ${steps.length} steps worked${checksJudged ? `, and all ${checksJudged} response checks passed` : ""}${checks.length ? `; all ${checks.length} scenarios passed` : ""}.`
+        : `All ${checks.length} scenarios passed.`,
+    );
+  verdict += checksSummary(steps);
 
   const stepTable = steps.length
     ? `<h2>Steps</h2><table class="steps"><colgroup><col class="n"><col class="s"><col><col><col class="r"></colgroup><thead><tr><th>#</th><th>Step</th><th>Expected</th><th>Actual</th><th>Result</th></tr></thead><tbody>
@@ -244,7 +400,7 @@ ${checks
       ? "Not tested: the server answered 404 with no message — no route for this method and path, so the request never reached the rule."
       : hollow
       ? "Not tested as written: the request sent did not include what this scenario tests, so it only showed the server did not crash."
-      : planStep && c.verdict ? c.verdict : `${c.httpStatus ? `HTTP ${c.httpStatus}` : "No answer"}${c.message ? ` — ${c.message}` : ""}`;
+      : planStep && c.verdict ? c.verdict : outcomeWords(c);
     return `<tr class="${cls === "bad" ? "bad" : ""}"><td class="n">${i + 1}</td><td><div class="step-t">${escapeHtml(humanText(c.scenario))}</div></td>
 <td>${escapeHtml(expected)}</td><td>${escapeHtml(actual)}${curlFold(c.request, run.companyId)}</td><td class="r">${pill(cls, word)}</td></tr>`;
   })
@@ -253,7 +409,7 @@ ${checks
 
   const event = journey?.made?.eventGroupUuid ? `Event ${journey.made.eventGroupUuid}` : "";
   const body = `${verdict}${stepTable}${caseTable}
-<h2>Bugs</h2><p>${stepsFailed.length || casesFailed.length ? "" : "None from this run. "}<a href="/api/bug-report?run=${encodeURIComponent(run.id)}">Open the bug report for this run</a></p>`;
+<h2>Bugs</h2><p>${stepsFailed.length || casesFailed.length || stepsCheckFailed.length ? "" : "None from this run. "}<a href="/api/bug-report?run=${encodeURIComponent(run.id)}">Open the bug report for this run</a></p>`;
   return page({
     kind: "API test report",
     title,

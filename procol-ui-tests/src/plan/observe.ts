@@ -57,8 +57,22 @@ interface ObsState {
 const state = new WeakMap<Page, ObsState>();
 
 export function installObserver(page: Page, runId: string): void {
+  attachObserver(page, join(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
+}
+
+/**
+ * Watch a second page of the same run — the vendor's, in its own browser
+ * context — into the same evidence folder as `from`. A failed bid then shows
+ * the vendor's screen; the step's screenshot used to be the buyer's project
+ * page, which said nothing about why the bid failed (15 Oct).
+ */
+export function shareObserver(from: Page, to: Page): void {
+  const dir = state.get(from)?.dir;
+  if (dir) attachObserver(to, dir);
+}
+
+function attachObserver(page: Page, dir: string): void {
   if (state.has(page)) return;
-  const dir = join(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_"));
   const s: ObsState = { responses: [], pageErrors: [], consoleErrors: [], lastLookAt: Date.now(), lastUrl: "", dir, looks: 0 };
   state.set(page, s);
   page.on("response", (r) => {

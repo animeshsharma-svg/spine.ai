@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-002",
+  "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
+  "compiledAt": "2026-10-15T12:35:42.961Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "QA vendor 3 is not available in the vocabulary; vendor2 is used instead.",
+   "The available assertions do not expose the submitted bid price or directly verify that the surrogate price is higher than QA vendor 1's price.",
+   "The available assertions do not directly verify that L1 is unchanged beyond checking that QA vendor 1 remains the best bidder.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /bids/template_input",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for a second QA vendor.",
+    "The buyer reads the round's comparison (ranks, best bidder)."
+   ],
+   "expected": "The app accepts it."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-002",
+  "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2",
+     "price": 101
+    },
+    "decisive": true
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

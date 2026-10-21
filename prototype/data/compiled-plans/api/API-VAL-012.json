@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "API-VAL-012",
+  "title": "Epoch times as strings are handled consistently",
+  "compiledAt": "2026-10-15T13:07:57.705Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not provide a way to distinguish an epoch token supplied as a numeric value from the same token supplied as a string value.",
+   "The plan cannot assert that both forms are accepted identically or that a refused string includes a readable error message.",
+   "The second extension may overwrite the first rather than expose a comparable response from both forms.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer moves the pricing round's bid end time with the increase auction time moved later.",
+    "The buyer moves the pricing round's bid end time with the increase auction time moved later.",
+    "As the buyer, read the pricing round and check that “ending at” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “ending at” is a Unix timestamp in seconds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-012",
+  "title": "Epoch times as strings are handled consistently",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+600}}"
+     }
+    ],
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+600}}"
+     }
+    ],
+    "params": {
+     "round": "pricing"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

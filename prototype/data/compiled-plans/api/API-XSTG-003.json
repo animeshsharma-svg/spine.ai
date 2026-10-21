@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-XSTG-003",
+  "title": "An RFQ-then-auction round next to an RFQ round on the same draft is not blocked",
+  "compiledAt": "2026-10-15T12:14:51.856Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-STG-003 needs a starting state no recipe builds (“Draft event group {{eventGroupUuid}} that already has a draft RFQ round whose bid end time is earlier than 2030-01-01 01”)",
+   "The available read-back fields do not expose the resulting rfx_mode or the added round's mode, so the RFQ-then-auction configuration is not directly asserted.",
+   "library case EDGE-STG-003 needs a starting state no recipe builds (“Draft event group {{eventGroupUuid}} that already has a draft RFQ round whose bid end time is earlier than 2030-01-01 01”)",
+   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it.",
+    "The buyer reads the event."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XSTG-003",
+  "title": "An RFQ-then-auction round next to an RFQ round on the same draft is not blocked",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-STG-003",
+    "decisive": true
+   },
+   {
+    "op": "read_event",
+    "as": "buyer"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

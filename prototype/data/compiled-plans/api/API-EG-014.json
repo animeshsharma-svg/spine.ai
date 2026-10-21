@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EG-014",
+  "title": "A line item with a product from another company is refused",
+  "compiledAt": "2026-10-15T12:56:02.507Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan relies on productUuid being a product from another company; company ownership cannot be asserted with the available fields or tokens.",
+   "The application's rejection code is not known."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft event with the product uuid set to “…”."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EG-014",
+  "title": "A line item with a product from another company is refused",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "line_items[0].product_uuid",
+      "set": "{{productUuid}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

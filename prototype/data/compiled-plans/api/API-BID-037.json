@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-BID-037",
+  "title": "Anomaly detection flags a wildly out-of-band bid",
+  "compiledAt": "2026-10-15T13:01:54.479Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup recipes provide at most two comparable bids, not three plus a fourth outlier.",
+   "No operation exposes a bid price for surrogate_bid, so a wildly out-of-band value cannot be supplied.",
+   "No read-back field or assertion op is available to verify an anomaly flag, message, or suggested price.",
+   "The available surrogate-bid library case describes exemption from anomaly detection, which conflicts with this expected behavior.",
+   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-BID-037",
+  "title": "Anomaly detection flags a wildly out-of-band bid",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

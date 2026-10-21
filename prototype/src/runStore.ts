@@ -13,7 +13,7 @@ import type { AgentEvent, Report, CheckResult } from "./ai/types.js";
 import type { TestCaseRecord } from "./checks/caseLibrary.js";
 import type { JourneyRecord } from "./checks/journeyModel.js";
 import { recordRun, removeRun } from "./db/runHistory.js";
-import { relevantStepAssertions } from "./checks/apiAssertions.js";
+import { lineItemCheckOnOldRecord, relevantStepAssertions } from "./checks/apiAssertions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS_DIR = join(here, "..", "data", "runs");
@@ -148,7 +148,10 @@ export function getRun(id: string): RunRecord | null {
   if (!existsSync(file)) return null;
   const run = JSON.parse(readFileSync(file, "utf8")) as RunRecord;
   // Runs saved before the field-check relevance rule are held to it on the way out.
-  if (run.journey?.steps) run.journey = { ...run.journey, steps: run.journey.steps.map(relevantStepAssertions) };
+  if (run.journey?.steps) {
+    const made = (run.journey as { made?: Record<string, unknown> }).made;
+    run.journey = { ...run.journey, steps: run.journey.steps.map((st) => lineItemCheckOnOldRecord(relevantStepAssertions(st), made)) };
+  }
   return run;
 }
 
@@ -221,7 +224,8 @@ export function listRuns(limit = 20): RunSummary[] {
               ...(r.journey.stoppedAt ? { stoppedAt: r.journey.stoppedAt } : {}),
               // Postman-style field checks on every request, when the run made any.
               ...(() => {
-                const fc = (r.journey.steps ?? []).map(relevantStepAssertions).reduce(
+                const made = (r.journey as { made?: Record<string, unknown> }).made;
+                const fc = (r.journey.steps ?? []).map((st) => lineItemCheckOnOldRecord(relevantStepAssertions(st), made)).reduce(
                   (t, st: any) => (st.assertions ? { total: t.total + st.assertions.total, passed: t.passed + st.assertions.passed, failed: t.failed + st.assertions.failed } : t),
                   { total: 0, passed: 0, failed: 0 },
                 );

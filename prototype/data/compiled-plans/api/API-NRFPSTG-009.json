@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-NRFPSTG-009",
+  "title": "Add the technical round (RFP): configurations.extra_closing_time is omitted",
+  "compiledAt": "2026-10-16T05:13:46.635Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The add_rfp_round operation cannot express removing configurations.extra_closing_time from the request body; the decisive request is therefore not reproduced exactly.",
+   "The expected HTTP 4xx status and error message are not expressible because no specific error code or message was provided."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event.",
+    "As the buyer, read the event and check that “status” equals draft; “stages” has exactly 0 entries."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals draft; “stages” has exactly 0 entries."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-NRFPSTG-009",
+  "title": "Add the technical round (RFP): configurations.extra_closing_time is omitted",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     },
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

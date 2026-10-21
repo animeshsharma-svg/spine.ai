@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-AWD-014",
+  "title": "Awarding more than a vendor offered is refused",
+  "compiledAt": "2026-10-15T13:04:53.124Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available library case checks awarding more than the remaining quantity, not specifically awarding 60 when the vendor offered 40."
+  ],
+  "warnings": [
+   "error code 561 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot select bid with more than requested quantity.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AWD-014",
+  "title": "Awarding more than a vendor offered is refused",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AWD-PART-003",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "561",
+   "message": "You cannot select bid with more than requested quantity."
+  }
+ }
+}

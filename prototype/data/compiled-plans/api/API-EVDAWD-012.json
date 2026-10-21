@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-012",
+  "title": "Once the award is final, every awarded vendor's bid is marked awarded",
+  "compiledAt": "2026-10-15T12:50:06.748Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The awarded_rfq recipe states that the award was submitted for approval, not fully approved and final.",
+   "The available read-back fields do not expose individual bids, awarded vendors, or a bid's selected/unawarded status.",
+   "The available vocabulary cannot verify that a non-awarded vendor retains an active, unawarded bid."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAWD-012",
+  "title": "Once the award is final, every awarded vendor's bid is marked awarded",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

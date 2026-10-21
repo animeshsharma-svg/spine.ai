@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-009",
+  "title": "An awarded round cannot be rescheduled",
+  "compiledAt": "2026-10-15T12:29:10.680Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot send the requested PATCH with both bid_start_time and bid_end_time using the available operations.",
+   "The extend_round operation only changes the bid end time and does not reproduce the exact request.",
+   "The conditional error code cannot be determined from the available setup: 769, 4, or 258 may apply.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer moves the round's bid end time."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-009",
+  "title": "An awarded round cannot be rescheduled",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

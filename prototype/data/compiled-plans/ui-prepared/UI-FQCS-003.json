@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "UI-FQCS-003",
+  "title": "Ranks follow the amounts: lowest total is rank 1 on a buy event",
+  "compiledAt": "2026-10-19T11:49:09.712Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event has only one QA vendor, so a second vendor with a different total cannot be added or asserted.",
+   "The comparison that the lower total is Rank 1 and the other vendor is Rank 2 cannot be observed without two bids with different totals."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared event has only one QA vendor, so a second vendor with a different total cannot be added or asserted.; The comparison that the lower total is Rank 1 and the other vendor is Rank 2 cannot be observed without two bids with different totals."
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [
+   "UI-AWD-001",
+   "UI-AWD-003"
+  ],
+  "crossCheckAdded": [
+   "bidTotal"
+  ]
+ },
+ "plan": {
+  "title": "Master QCS ranks lowest amount first",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS on the API-prepared event as required."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Verify that the Master QCS comparison grid renders with the available bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert the prepared grid has exactly its one real vendor column."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the displayed line amount and total are calculated from the available bid and quantity."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify the available vendor is ranked consistently with the lowest-amount rule; the second rank cannot be checked in this state."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   }
+  ]
+ }
+}

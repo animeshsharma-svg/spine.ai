@@ -908,6 +908,34 @@ function renamedTitleIsAsSent(r: AssertionResult): AssertionResult {
   return { ...r, pass: true, actual: `"${got}" — the name it was sent with (the API client gives test events this name as it sends them)`, humanActual: `It came back as “${got}”, the name it was sent with.` } as AssertionResult;
 }
 
+/**
+ * "Each order detail's line item is the line item created" compared EVERY
+ * line item of a multi-line-item event with the FIRST one, on records made
+ * before the journey kept all of its line item ids (made.lineItemUuids, 15
+ * Oct): the second line item could only fail, and the bug sheet would have
+ * filed it as a product defect. Such a record cannot tell now which ids were
+ * the event's own, so the result reads "could not be checked" — not a pass,
+ * not a bug.
+ */
+export function lineItemCheckOnOldRecord<T extends { assertions?: StepAssertions }>(step: T, made: Record<string, unknown> | undefined): T {
+  const a = step.assertions;
+  if (!a?.results || !made || made.lineItemUuids || !(Number(made.lineItems) > 1)) return step;
+  let changed = false;
+  const results = a.results.map((r) => {
+    if (r.op !== "equals_made" || r.pass !== false || !/line_item_uuid/.test(r.path) || !/\blineItemUuid\b/.test(r.expected ?? "")) return r;
+    changed = true;
+    return {
+      ...r,
+      pass: null,
+      humanActual: `Not checked — this run made ${made.lineItems} line items, and the check then compared each one with the first.`,
+    } as AssertionResult;
+  });
+  if (!changed) return step;
+  const passed = results.filter((r) => r.pass === true).length;
+  const failed = results.filter((r) => r.pass === false).length;
+  return { ...step, assertions: { ...a, results, passed, failed, skipped: results.length - passed - failed } };
+}
+
 export function relevantStepAssertions<T extends { kind?: string; assertions?: StepAssertions }>(step: T): T {
   const a = step.assertions;
   if (!a?.results || !step.kind) return step;

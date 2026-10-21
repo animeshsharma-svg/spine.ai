@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-003",
+  "title": "Fractional and very large quantities do not lose precision",
+  "compiledAt": "2026-10-15T12:38:56.777Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)",
+   "The setup creates only one line item, so the three specified quantities cannot be quoted.",
+   "The available vocabulary cannot set the requested quantities and prices for three lines.",
+   "No read-back field exposes line totals, bid totals, GST calculations, shown decimal places, or scientific-notation formatting.",
+   "API-BID-003 checks the submitted total against price multiplied by quantity at template precision, but does not check GST or the specific expected values."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-LINE-003",
+  "title": "Fractional and very large quantities do not lose precision",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "API-BID-003",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

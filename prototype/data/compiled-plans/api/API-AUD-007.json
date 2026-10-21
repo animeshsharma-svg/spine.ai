@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-AUD-007",
+  "title": "Removing a vendor who has not participated succeeds",
+  "compiledAt": "2026-10-15T12:59:36.022Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The inactive/invisible state of the vendor row cannot be asserted because the read_audience response shape is not sampled."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/remove_audience",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer removes the invited vendor from the live round for the invited QA vendor.",
+    "As the invited QA vendor, read the event and check that the read answers HTTP 536."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read answers HTTP 536."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AUD-007",
+  "title": "Removing a vendor who has not participated succeeds",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "remove_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status",
+      "value": 536
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

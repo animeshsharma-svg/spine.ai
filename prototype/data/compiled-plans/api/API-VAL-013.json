@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "API-VAL-013",
+  "title": "A script payload in a text field is stored inert",
+  "compiledAt": "2026-10-15T13:08:04.611Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan verifies that the payload is stored and returned as text, but cannot verify whether script execution occurred."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer updates the event with the title set to “<img src=x onerror=alert(1)>”.",
+    "As the buyer, read the event and check that “title” equals the title sent in step 1.",
+    "As the invited QA vendor, read the event and check that “title” equals the title sent in step 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “title” equals the title sent in step 1; “title” equals the title sent in step 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-013",
+  "title": "A script payload in a text field is stored inert",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "<img src=x onerror=alert(1)>"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "{{act1.body.title}}"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "{{act1.body.title}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

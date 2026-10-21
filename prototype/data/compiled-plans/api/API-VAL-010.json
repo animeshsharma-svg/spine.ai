@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "API-VAL-010",
+  "title": "Numeric edge values are handled or refused explicitly",
+  "compiledAt": "2026-10-15T12:44:26.389Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Quantity values cannot be changed through the available operations for this setup.",
+   "The read-back fields do not expose bid prices or quantities, so exact value preservation cannot be asserted.",
+   "The plan cannot encode the acceptable alternative outcome where each individual value is refused with a readable message; it only sends the values and permits refusal without stopping subsequent attempts.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid.",
+    "The invited QA vendor prices the line on the bid.",
+    "The invited QA vendor prices the line on the bid.",
+    "The invited QA vendor prices the line on the bid.",
+    "As the invited QA vendor, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-010",
+  "title": "Numeric edge values are handled or refused explicitly",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 0
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 999999999999.99
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 10000000000
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 0.000001
+    },
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

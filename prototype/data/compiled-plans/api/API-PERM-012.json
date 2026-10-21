@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-PERM-012",
+  "title": "Surrogate approval-flow reads need approval-flow read permission",
+  "compiledAt": "2026-10-15T12:08:22.149Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available recipes do not guarantee a sandbox stage or configurable approval-flow read permission, so the allowed buyer call cannot be verified reliably.",
+   "The response cannot be asserted as a non-empty array because no read-back fields are defined for library operations."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/approval_workflows_for_surrogate_bid_create"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-012",
+  "title": "Surrogate approval-flow reads need approval-flow read permission",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAPR-044",
+    "ifRefused": "pass"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-DAPR-044",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "codeInferred": true
+  }
+ }
+}

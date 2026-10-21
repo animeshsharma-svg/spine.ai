@@ -111,10 +111,14 @@ async function localEmbedOne(text: string): Promise<number[]> {
  */
 async function slingringEmbedOnce(texts: string[]): Promise<Array<number[] | undefined>> {
   const key = process.env[AI.slingring.apiKeyEnvVar]!;
+  // Bounded: a request the gateway never answered held a store rebuild for
+  // 49 minutes on one open connection (15 Oct). A timeout is retried like a
+  // dropped connection (no status) by slingringEmbed.
   const res = await fetch(`${AI.slingring.baseUrl}/embeddings`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: AI.slingring.models.embed, input: texts, dimensions: AI.slingring.embedDims }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
     const err = new Error(`Slingring embeddings ${res.status}: ${(await res.text()).slice(0, 300)}`) as Error & { status?: number };

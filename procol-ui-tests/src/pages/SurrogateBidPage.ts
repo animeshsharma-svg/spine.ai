@@ -130,11 +130,19 @@ export class SurrogateBidPage extends BasePage {
       const sw = p.getByText(/show only selected vendors/i).first().locator("xpath=following::*[@role='switch'][1]");
       if ((await sw.count().catch(() => 0)) && (await sw.getAttribute("aria-checked").catch(() => null)) !== "true") {
         await sw.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        await p.getByTestId("add-bid-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+        // The filtered list refills from the server. With a couple of hundred
+        // vendors invited it took well over 5 s: the run read "No vendors to
+        // show" and stopped, while the same list showed ten Add Bid rows later.
+        await p.getByTestId("add-bid-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
         console.log("[surrogate] showing only the event's own vendors");
       }
     }
-    const count = await p.getByTestId("add-bid-button").count();
+    let count = await p.getByTestId("add-bid-button").count();
+    // Rows can still be on their way: wait for them once before saying there are none.
+    if (arrived && !count) {
+      await p.getByTestId("add-bid-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      count = await p.getByTestId("add-bid-button").count();
+    }
     console.log(`[surrogate] participant list ${arrived ? "open" : "not found"} · ${count} vendor(s) offer Add Bid on this page`);
     return arrived || count > 0;
   }

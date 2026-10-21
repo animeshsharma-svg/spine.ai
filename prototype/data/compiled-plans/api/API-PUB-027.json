@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-PUB-027",
+  "title": "An approval-gated stage becomes `requested`, not `active`",
+  "compiledAt": "2026-10-15T12:58:27.371Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)",
+   "The setup recipe cannot configure publish approval gating.",
+   "The plan does not check that an approval record exists.",
+   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the pricing round and check that “status” equals requested."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “status” equals requested."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-027",
+  "title": "An approval-gated stage becomes `requested`, not `active`",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-015",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "requested"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

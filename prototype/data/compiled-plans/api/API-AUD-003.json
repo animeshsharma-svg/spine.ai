@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-AUD-003",
+  "title": "A vendor with no visible stage cannot read the event",
+  "compiledAt": "2026-10-15T12:59:27.123Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "error code 536 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "act 1: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "A second QA vendor reads the event."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AUD-003",
+  "title": "A vendor with no visible stage cannot read the event",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "536",
+   "codeInferred": true
+  }
+ }
+}

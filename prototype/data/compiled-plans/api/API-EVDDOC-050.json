@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-050",
+  "title": "A javascript: T&C link is served back to the vendor",
+  "compiledAt": "2026-10-15T12:17:36.726Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields cannot verify the vendor-facing public_url or confirm that the T&C link was returned unchanged.",
+   "EDGE-PUB-025 is documented as no-5xx rather than a known rejection, and no rejection code is provided.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "The invited QA vendor reads the pricing round."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-050",
+  "title": "A javascript: T&C link is served back to the vendor",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-025",
+    "decisive": true
+   },
+   {
+    "op": "read_round",
+    "as": "vendor"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

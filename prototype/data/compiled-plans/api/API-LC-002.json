@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-LC-002",
+  "title": "Withdrawing with blank remarks is refused",
+  "compiledAt": "2026-10-15T12:07:44.327Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event with the remarks left blank.",
+    "As the buyer, read the event and check that “status” equals active."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-LC-002",
+  "title": "Withdrawing with blank remarks is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "withdraw_remark.remarks",
+      "set": ""
+     }
+    ],
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

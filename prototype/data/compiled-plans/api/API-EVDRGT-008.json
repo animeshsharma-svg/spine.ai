@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-008",
+  "title": "Regretting every line on a new draft withdraws an already-submitted bid",
+  "compiledAt": "2026-10-15T12:22:39.767Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Opening a new draft from the live bid is not available as an operation.",
+   "Regretting a line is not available as an operation or field.",
+   "Re-pricing and submitting the revised bid cannot be arranged without a draft bid or regret operation.",
+   "The available read-backs do not expose bid status, revised bids, live-bid absence, or line regret state.",
+   "The setup does not expose or configure lock_quote_after_submission or price-change approval."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-008",
+  "title": "Regretting every line on a new draft withdraws an already-submitted bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

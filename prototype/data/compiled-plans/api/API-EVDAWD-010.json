@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-010",
+  "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
+  "compiledAt": "2026-10-15T12:35:10.219Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields do not expose the awarded amount, total awarded quantity, or vendor 2's bid price, so the equality of 30 × vendor 2's price cannot be checked.",
+   "The recipe does not explicitly expose or assert that partial awarding is disabled."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
+    "As the buyer, read the event and check that “proposals” is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “proposals” is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAWD-010",
+  "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-072",
+  "title": "The reports list is refused for an uninvited vendor",
+  "compiledAt": "2026-10-15T12:18:58.359Z",
+  "planVersion": 1,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "compiled by a fixed rule, not read in full — check the steps match the case",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "error code 536 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "act 1: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "A second QA vendor reads the pricing round."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-072",
+  "title": "The reports list is refused for an uninvited vendor",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "vendor2",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "536"
+  }
+ }
+}

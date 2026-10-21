@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "EVI-SAV-005",
+  "title": "Savings and every figure stay the same after the close",
+  "compiledAt": "2026-10-15T12:51:26.736Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-backs do not expose savings or every bid figure, and assertion operations cannot compare post-close values with values captured before the close.",
+   "The setup provides a closed event but does not provide a six-minute-window-specific state."
+  ],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, read the pricing round and check that the read succeeds; “bid count” equals 2; “participants” is not empty.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that the read succeeds; “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is not empty; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is not empty.",
+    "As the buyer, read the event and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; “bid count” equals 2; “participants” is not empty; the read succeeds; “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is not empty; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is not empty; the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-SAV-005",
+  "title": "Savings and every figure stay the same after the close",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     },
+     {
+      "path": "participants",
+      "op": "non_empty"
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "non_empty"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "non_empty"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

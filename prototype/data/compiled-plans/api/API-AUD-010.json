@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-AUD-010",
+  "title": "Live-auction audience addition requires view access",
+  "compiledAt": "2026-10-15T12:59:43.813Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send PATCH /v1/trade/add_audience, but the vendor's session may not call PATCH /v1/trade/add_audience (trade#add_audience_live_auction is not on that app's list in config/app_auth_config.yml)",
+   "The available setup does not create a user without view access; EDGE-PUB-041 uses an invited vendor, so the no-view-access precondition is not directly established."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the request that invites vendors to a round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AUD-010",
+  "title": "Live-auction audience addition requires view access",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-041",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455"
+  }
+ }
+}

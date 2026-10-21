@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "API-PERM-013",
+  "title": "Proposal endpoints all sit behind `add_response?`",
+  "compiledAt": "2026-10-15T13:06:49.825Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /proposal/{{proposalUuid}}, but the supplier app may not call GET /proposal/:id (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "The vocabulary provides only one proposal-endpoint case, so the other three endpoints are not checked.",
+   "The available case covers a vendor reader rather than all callers outside the allowed companies."
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /proposal/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The invited QA vendor sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-013",
+  "title": "Proposal endpoints all sit behind `add_response?`",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-AWD-051",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455"
+  }
+ }
+}

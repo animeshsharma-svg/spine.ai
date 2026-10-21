@@ -383,6 +383,11 @@ export interface JourneyFeatures {
   version: boolean;
   /** how many vendors bid from the portal, one after another (default 1) */
   bidders?: number;
+  /**
+   * With the surrogate on: some vendors also bid for themselves (Place a bid /
+   * Submit ticked too), and the surrogate bid is entered for the next vendor.
+   */
+  vendorBids?: boolean;
 }
 
 export interface JourneyPlan {
@@ -479,10 +484,12 @@ export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean
   const { label, stages } = EVENT_TYPES[eventType];
   const features: JourneyFeatures = {
     surrogate: ids.has("bids.surrogate"),
+    vendorBids: ids.has("bids.surrogate") && (ids.has("bids.place") || ids.has("bids.submit")),
     counterOffer: ids.has("bids.counter_offer") || ids.has("negotiation.counter_offer"),
     convertToAuction: ids.has("auction.convert"),
     version: ids.has("events.versioning"),
-    bidders: Math.max(1, Math.min(MAX_BIDDERS, Math.floor(opts.bidders ?? 1))),
+    // A vendor's own bid and a surrogate one: two vendors, at least.
+    bidders: Math.max(ids.has("bids.surrogate") && (ids.has("bids.place") || ids.has("bids.submit")) ? 2 : 1, Math.min(MAX_BIDDERS, Math.floor(opts.bidders ?? 1))),
   };
   const reach = opts.stopAtTicked ? reachFor(featureIds) : "award";
   return { wanted, eventType, label, stages, features, reach, steps: stepsFor(stages, features, reach) };
@@ -523,7 +530,7 @@ export function stepsFor(stages: StageKind[], features: JourneyFeatures, reach: 
     return steps;
   }
 
-  if (features.surrogate) {
+  if (features.surrogate && !features.vendorBids) {
     if (hasRfp) steps.push("surrogate_tech");
     if (hasPricing) steps.push("surrogate_rfq");
   } else {
@@ -534,8 +541,17 @@ export function stepsFor(stages: StageKind[], features: JourneyFeatures, reach: 
       ...(hasPricing ? (["bid_create", "bid_products", "bid_submit"] as const) : []),
     ];
     steps.push(...vendorTurn);
-    // More vendors, one after another: each signs in and bids for itself.
-    for (let k = 2; k <= (features.bidders ?? 1); k++) steps.push("switch_vendor", ...vendorTurn);
+    // More vendors, one after another: each signs in and bids for itself —
+    // and, with a surrogate bid asked for too, the last one's bid is entered
+    // by the buyer on its behalf instead ("a bid from 1 vendor, and a
+    // surrogate bid from another").
+    const own = features.vendorBids ? Math.max(1, (features.bidders ?? 2) - 1) : features.bidders ?? 1;
+    for (let k = 2; k <= own; k++) steps.push("switch_vendor", ...vendorTurn);
+    if (features.vendorBids) {
+      steps.push("switch_vendor");
+      if (hasRfp) steps.push("surrogate_tech");
+      if (hasPricing) steps.push("surrogate_rfq");
+    }
   }
   if (features.counterOffer && hasPricing && !features.surrogate) steps.push("counter_offer");
   if (features.convertToAuction && stages.includes("rfq")) steps.push("convert_auction");

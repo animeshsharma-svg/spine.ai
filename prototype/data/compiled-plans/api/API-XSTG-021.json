@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-XSTG-021",
+  "title": "A live technical round that ends after the RFQ is refused",
+  "compiledAt": "2026-10-15T12:15:18.906Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The evaluator cannot be configured with the available operations or fields.",
+   "The case's single template_input request with status=active cannot be represented; the plan creates the RFQ and then attempts to add the invalid technical round separately.",
+   "The plan does not verify that nothing was created after the rejection.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "error code 712 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the bid end time set to “2030-01-01T00:00:00Z”.",
+    "The buyer adds a technical (RFP) round to the event with the bid end time set to “2030-01-01T01:00:00Z”."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XSTG-021",
+  "title": "A live technical round that ends after the RFQ is refused",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_end_time",
+      "set": "2030-01-01T00:00:00Z"
+     }
+    ]
+   },
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_end_time",
+      "set": "2030-01-01T01:00:00Z"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "712"
+  }
+ }
+}

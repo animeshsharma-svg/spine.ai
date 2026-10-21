@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "EVI-REP-002",
+  "title": "The report after the close matches the screen after the close",
+  "compiledAt": "2026-10-15T12:43:15.775Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No report operation or report read-back fields are available, so the report cannot be compared with the post-close screen.",
+   "EVI-REP-001 is not a supported role or token; the plan uses buyer.",
+   "The matching of ranks and best bidder between the report and screen cannot be asserted with the available assertion operations.",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “report” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-REP-002",
+  "title": "The report after the close matches the screen after the close",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

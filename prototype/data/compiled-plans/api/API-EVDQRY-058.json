@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-058",
+  "title": "The buyer's line-item picker lists the event's line items",
+  "compiledAt": "2026-10-15T12:20:33.142Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact get_reference_options operation is not available; read_line_items is the closest available operation.",
+   "The option fields label, value, info, and assignee_uuid, including the exact label format and empty assignee_uuid, cannot be checked with the available read-back fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer lists the event's line items.",
+    "As the buyer, list the event's line items and check that the read succeeds; the reply has exactly 1 entries."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the reply has exactly 1 entries."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDQRY-058",
+  "title": "The buyer's line-item picker lists the event's line items",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "count",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "EVI-ISO-002",
+  "title": "Isolation holds on a charges template",
+  "compiledAt": "2026-10-15T12:42:54.093Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "S2 and the EVI-ISO-001 vendor identity are not represented by available setup recipes or tokens",
+   "The available read-back fields do not expose the charges template contents or vendor-specific data, so absence of another vendor's data cannot be asserted"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/schema"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor reads the pricing round's schema.",
+    "As the invited QA vendor, read the pricing round's schema and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-ISO-002",
+  "title": "Isolation holds on a charges template",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_round_schema",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round_schema",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-BID-027",
+  "title": "A bid in a terminal state cannot be revised",
+  "compiledAt": "2026-10-15T13:01:33.152Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The rejected-bid revision attempt is not covered because no available setup recipe or operation provides a rejected bid state."
+  ],
+  "warnings": [
+   "error code 32 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/revise_bid/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-BID-027",
+  "title": "A bid in a terminal state cannot be revised",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-088",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "32",
+   "message": "Bid not found"
+  }
+ }
+}

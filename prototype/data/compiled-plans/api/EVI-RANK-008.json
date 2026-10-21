@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "EVI-RANK-008",
+  "title": "A lower price with a higher tax: screen L1 and report \"best net price\" may differ",
+  "compiledAt": "2026-10-15T12:41:52.907Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup provides one line item, not line 2.",
+   "Only two vendors are available; vendor C cannot be represented.",
+   "Bid tax rates and tax-inclusive net prices cannot be set or read.",
+   "The report's best net price is not exposed by any operation or read-back field.",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “report” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals {{vendorUuid}}."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals {{vendorUuid}}."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-RANK-008",
+  "title": "A lower price with a higher tax: screen L1 and report \"best net price\" may differ",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": "{{vendorUuid}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

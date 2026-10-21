@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDDRF-003",
+  "title": "A remark alone sent to a draft technical round does not break the server",
+  "compiledAt": "2026-10-15T12:19:26.485Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact PATCH /trade/{{rfpTradeId}} request with only remarks cannot be represented: extend_round may include its default increase_auction_time and the available tradeId token does not explicitly provide rfpTradeId.",
+   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer moves the technical round's bid end time with the remarks set to “QA_Platform_extend_…”."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDRF-003",
+  "title": "A remark alone sent to a draft technical round does not break the server",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "remarks",
+      "set": "QA_Platform_extend_{{stamp}}"
+     }
+    ],
+    "params": {
+     "round": "technical"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}
