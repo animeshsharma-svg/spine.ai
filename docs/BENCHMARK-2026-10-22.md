@@ -38,8 +38,26 @@ All rows (n = 112): **recall 87.3%, precision 70.8%, top-1 84.5%, top-3 97.2%**;
 ### 2.4 The orchestrator from the run record — ✅ `orchestrator-2026-10-21T21-38`
 53 browser plans since 20 Oct: **plans passed 41/53 (77%, 64–87%)**; **steps that did what they should 622/634 (98%, 97–99%)**; time to verdict **p50 51 s, p90 86 s**; failed plans stopped at an app refusal 1, an automation fault 5, other 6; plans starting from an API-built event 7, from a fresh create 40, by searching the list 0; **1,915 spotlight pictures, 36 per plan**. The automation faults are the ones fixed on 21 Oct (invented vendor name, single-stage evaluator, two-stage schedule, BOQ items, counter offer on a surrogate bid).
 
-### 2.5 The bugs it finds (agent eval) — ⏳ rerun in progress; first pass (22 Oct 00:01 UTC, partly in the outage)
-31 cases, k = 3: precision on real bugs 4/6 (66.7%), recall 6/7 (85.7%), known-bug recall 4/5, planted bugs 2/2, pass^3 4/6, flaky 0/7, couldn't tell 15/37 (the outage), bug re-check coverage 6/86, verify depth 28/110. Composite 0.72. Gates: precision ≥ 0.85 fail, pass^3 ≥ 0.9 fail, flaky ≤ 0.05 pass.
+### 2.5 The bugs it finds (agent eval) — ✅ `2026-10-22T11-07-08-c94eb1f` (Slingring only, k = 3)
+31 cases from the stored-plan dataset (9 known-bug cases, 2 traced clean controls, 20 candidates carrying planted bugs), every case run 3 times on fresh records; 85 baseline runs, 44 counted.
+
+| Metric | Value | k/n | 95% |
+| --- | ---: | ---: | --- |
+| Precision, all reports (planted included) | **84.6%** | 11/13 | 58–96% |
+| Precision on real bugs (the gate, ≥ 85%) | 66.7% | 4/6 | 30–90% — **fail** |
+| Recall, all bugs | 73.3% | 11/15 | 48–89% |
+| Known-bug recall | 66.7% | 4/6 | caught BUG-14, 39, 63, 70; missed BUG-61, 69 (their plans do not read the broken value back) |
+| Planted-bug catch rate (mutation score) | **77.8%** | 7/9 | 45–94% — server errors 5/5, flipped outcome 1/1, wrong data 0/2 |
+| False alarms | 2 | API-EG-007, API-EVDTME-001 | both from faulty compiled plans, not the product |
+| pass^3 (same correct verdict 3 of 3) | 50.0% | 4/8 | gate ≥ 90% — **fail** |
+| Flaky (verdict flipped between runs) | **0.0%** | 0/16 | gate ≤ 5% — pass |
+| Couldn't tell (counted apart, never a pass) | 20.5% | 9/44 | down from 40.5% in the outage pass |
+| Bug re-check coverage | 7.0% | 6/86 | verified bugs a stored plan can re-check |
+| Verify depth | 25.5% | 28/110 | plans that read data back, not only a status |
+| Time to verdict | p50 34 s · p90 167 s | n = 85 | |
+| Cost per run | $0 | | stored plans need no model at run time |
+
+Composite 0.74. What the gates say: the two false alarms are the whole precision shortfall (fix the two plans and precision on real bugs is 4/4); pass^3 fails on cases that sometimes end "couldn't tell" on a slow UAT, not on verdict flips (flaky 0/16); wrong-data plants are missed because 82 of 110 plans check only the HTTP status.
 
 ### 2.6 The bug reports it writes — ✅ `bug-reports-2026-10-21T21-56`
 86 verified bugs, 84 judged cold by a model acting as a Procol developer: **completeness 95%** of ten fields (steps, expected, actual, where, severity, kind, verification, date, test case); **clarity 4.65/5, reproducibility 3.31/5, actionability 3.90/5**; **fixable from the report alone 69/84 (82%)**. Weakest: reproducibility — the judge wants the exact event/template and the vendor's state spelled out in more reports.
