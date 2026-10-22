@@ -50,8 +50,17 @@ All rows (n = 112): **recall 87.3%, precision 70.8%, top-1 84.5%, top-3 97.2%**;
 ### 2.8 Reading the case and testing what was asked — ⏳ `eval-prompts` (rerun)
 (filled when the rerun finishes: compile fidelity, honesty on trap prompts, run pass/fail, infra share, run fidelity, time to verdict)
 
-### 2.9 Against production — ⏳ `eval-prod-bugs`
-(filled when the classification finishes: defects among 115 tickets, events defects, share covered by a catalog case, share a stored plan can re-check, share already on the bug sheet)
+### 2.9 Against production — ✅ `prod-bugs-2026-10-22T06-59`
+115 RCA'd support tickets (Dec 2025 → Aug 2026), classified by a model from the CS and engineering descriptions, the triage checks and the RCA: **config 27 · real defect 25 · user error 25 · data 18 · unclear 14 · feature request 6**. Of the 25 real defects, **22 are in the events flow** (events 8, bidding 7, awarding 5, QCS 2); by class: state 5, calculation 4, validation 3, data 3, config 2, UI 2, visibility 1, permission 1.
+
+| Of the 22 events defects customers reported | Share (95%) |
+| --- | --- |
+| A written case in the catalog is about it (same or partial) | **8/22 — 36%** (20–57%) |
+| … exactly (a case asserting that behaviour) | 3/22 — 14% (5–33%) |
+| A stored plan can re-check it today | **2/22 — 9%** (3–28%) |
+| Already on the verified bug sheet (found by spine.ai on UAT first) | 1/22 — 5% (1–22%) — BUG-03 (surrogate prices accepted without technical participation) |
+
+This is the honest ceiling of today's detection against production: the defects customers hit are mostly **awarding and QCS arithmetic** (awarded DDP/landed amount with global charges and zero-quantity awards, QCS totals, award e-mail using requested quantities, proposal totals) and **state after an edge action** (BOQ closed after a partial award, best-offer request past its deadline, rejected counter offers, a rejected bid deleting its technical score) — the same areas the coverage report (`docs/rule-coverage.md`) marks weakest and where runnable cases are fewest (every-bid-number 5/127, award outcomes 0/35). The 14 uncovered defect summaries are the next cases to write; each needs a multi-vendor, multi-charge awarding state that the API builder does not build yet.
 
 ## 3. Against the other platforms
 
