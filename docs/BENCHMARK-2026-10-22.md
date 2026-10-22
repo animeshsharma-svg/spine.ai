@@ -17,7 +17,7 @@ Definitions: `docs/METRICS.md`.
 | Product knowledge | Does the memory return the right fact first? | 110 questions with known answers, hit@1 / hit@5 / MRR, deterministic | `eval-memory` ✅ |
 | Recognising a case | Is a typed case matched to the catalog case it already is, or flagged new? | 112-row labelled corpus (paraphrase, typo, Hinglish) | `eval-matcher` ✅ |
 | Orchestrator: routing | Is a free-text instruction routed to the right journey? | 102 labelled instructions | `eval-routing` ✅ |
-| Orchestrator: planning | Is a compiled plan statically runnable (steps exist, order the product enforces)? | 15 catalog cases (cost cap) | `eval-planner` ⏳ |
+| Orchestrator: planning | Is a compiled plan statically runnable (steps exist, order the product enforces)? | 15 catalog cases (cost cap) | `eval-planner` ✅ |
 | Orchestrator: running | Pass rate, step reliability, time to verdict, app refusal vs automation stop, self-repair, pictures | every browser run kept since 20 Oct | `eval-orchestrator` ✅ |
 | Bugs it finds | Precision on real bugs, recall of known bugs, planted-bug catch rate, repeatability, flakiness | the agent eval (k = 3, planted bugs) | `eval-agent` ⏳ (rerun) |
 | Bugs it writes | Are the bug reports complete, clear, reproducible, fixable? | 86 verified bugs, measured + a developer-judge | `eval-bug-reports` ✅ |
@@ -34,6 +34,9 @@ All rows (n = 112): **recall 87.3%, precision 70.8%, top-1 84.5%, top-3 97.2%**;
 
 ### 2.3 Routing a free-text instruction — ✅ `bench-routing`
 **102/102 (100%)** right journey; line-item and template extraction 100%; caveat precision 100% (12/12).
+
+### 2.3b Compiling a catalog case into a runnable plan (planner) — ✅ `bench-planner` (Slingring only)
+15 catalog cases under the cost cap: **14/15 (93.3%) compile into statically runnable plans** (every step exists, the order the product enforces holds). The miss: tc005 "publish an RFQ without selecting a template" — the plan added line items with no template, which the product never allows.
 
 ### 2.4 The orchestrator from the run record — ✅ `orchestrator-2026-10-21T21-38`
 53 browser plans since 20 Oct: **plans passed 41/53 (77%, 64–87%)**; **steps that did what they should 622/634 (98%, 97–99%)**; time to verdict **p50 51 s, p90 86 s**; failed plans stopped at an app refusal 1, an automation fault 5, other 6; plans starting from an API-built event 7, from a fresh create 40, by searching the list 0; **1,915 spotlight pictures, 36 per plan**. The automation faults are the ones fixed on 21 Oct (invented vendor name, single-stage evaluator, two-stage schedule, BOQ items, counter offer on a surrogate bid).
