@@ -16,7 +16,7 @@
  * Report: data/eval/reports/prompts-<date>.json and .md
  */
 import { config } from "dotenv";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,12 +28,16 @@ const { compileTestCase } = await import("../src/agents/planner.js");
 const { wilson, percentile } = await import("../src/eval/metrics.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
 
+/** What each step DOES, so the judge does not mistake an assertion that presses Publish and expects the refusal for "never attempting to publish". */
+const CATALOG = JSON.parse(readFileSync(join(here, "..", "..", "procol-ui-tests", "plan-catalog.json"), "utf8")) as { steps: Array<{ name: string; purpose: string }> };
+const GLOSSARY = CATALOG.steps.map((st) => `- ${st.name}: ${st.purpose.replace(/\s+/g, " ").slice(0, 170)}`).join("\n");
 const argv = process.argv.slice(2);
 const arg = (k: string) => {
   const i = argv.indexOf(`--${k}`);
   return i >= 0 ? argv[i + 1] : undefined;
 };
-const RUN = argv.includes("--run");
+const REJUDGE = arg("rejudge");
+const RUN = argv.includes("--run") || !!REJUDGE;
 const only = arg("only")?.split(",").map((s) => Number(s.trim())).filter(Boolean);
 const limit = Number(arg("limit") ?? 0) || Infinity;
 const companyId = Number(arg("c") ?? 198678);
@@ -61,13 +65,70 @@ interface Row {
   run?: { passed: boolean | null; ok: number; steps: number; stoppedAt?: string; pictures: number; ms: number; infra: boolean; runFidelity: number | null; runNote: string };
 }
 const rows: Row[] = [];
-for (const p of prompts) {
+const PLANS_DIR = join(here, "..", "..", "procol-ui-tests", ".plans");
+const latestResult = (n: number): any => {
+  const files = readdirSync(PLANS_DIR).filter((f) => f.startsWith(`prompt-${n}-`) && f.endsWith("-result.json")).sort((a, b) => statSync(join(PLANS_DIR, b)).mtimeMs - statSync(join(PLANS_DIR, a)).mtimeMs);
+  if (!files.length) return null;
+  try {
+    return JSON.parse(readFileSync(join(PLANS_DIR, files[0]), "utf8"));
+  } catch {
+    return null;
+  }
+};
+/** --rejudge <report.json>: no compile, no browser — the stored plans and the latest run of each prompt, judged again with the glossary. */
+if (REJUDGE) {
+  const prev = JSON.parse(readFileSync(REJUDGE, "utf8")) as { rows: Row[] };
+  for (const r of prev.rows) {
+    const steps = r.steps;
+    const judgeRaw = await chat(
+      [
+        { role: "system", content: `You judge a QA compiler. A tester typed ONE sentence; the compiler produced browser steps (a plan) with a coverage label (full / partial / none) and gaps. Score fidelity 1–5: the plan tests exactly what the sentence asks — right flow, right order, an assertion for the outcome asked, nothing substituted (a plan that opens a different screen, skips the hard step, or asserts something easier is 1–2). Judge steps by WHAT THEY DO (glossary below), not by their names: expect_publish_blocked PRESSES Publish and asserts the app refused — it IS the publish attempt for a "try to publish without X" case; attempt{step} performs that step expecting the app's refusal; expect_error reads the app's own error. If the TRAP note says the request must be refused, partial or 'cannot be expressed', set honesty true only when the coverage label or gaps say so; if there is no trap note, honesty is true when the compiler did not over-claim. Return ONLY JSON {"fidelity":n,"honesty":true|false,"note":"one sentence"}.\n\nSTEP GLOSSARY:\n${GLOSSARY}` },
+        { role: "user", content: `SENTENCE: ${r.text}\nTRAP NOTE (what this prompt is built to catch): ${r.intent || "none"}\nCOVERAGE LABEL: ${r.coverage}\nGAPS: ${r.gaps.join(" | ") || "none"}\nPLAN:\n${steps.map((x, i) => `${i + 1}. ${x}`).join("\n") || "(no steps)"}` },
+      ],
+      { tier: "reason", temperature: 0, maxTokens: 300 },
+    ).catch(() => "");
+    try {
+      const j = JSON.parse(judgeRaw.slice(judgeRaw.indexOf("{"), judgeRaw.lastIndexOf("}") + 1));
+      r.fidelity = Number.isFinite(Number(j.fidelity)) ? Math.min(5, Math.max(1, Number(j.fidelity))) : null;
+      r.honesty = typeof j.honesty === "boolean" ? j.honesty : null;
+      r.judgeNote = String(j.note ?? "").slice(0, 160);
+    } catch {
+      r.judgeNote = "unparseable judge answer";
+    }
+    const result = latestResult(r.n);
+    if (result?.steps?.length) {
+      const st: any[] = result.steps;
+      const failed = st.find((x) => x.status === "failed");
+      const infra = !!failed && /not evidence about the product|automation needs update|no candidate was clickable|Timeout|timed out|did not open|not a QA test vendor|needs a QA test vendor/i.test(String(failed.detail ?? ""));
+      const runRaw = await chat(
+        [
+          { role: "system", content: `You judge whether a browser run tested what a tester asked. You get the sentence, then each executed step with what the runner reported. Score runFidelity 1–5: the run exercised the asked flow and checked the asked outcome (a run that passed by never reaching the asked step is 1–2; a run that reached the asked step and was refused by the APP with its own message is 4–5 when that refusal is the expected outcome; a run stopped by an automation fault — "not evidence about the product", a timeout, a missing locator — is 1–2). Judge steps by what they do (glossary below): expect_publish_blocked presses Publish and asserts the refusal. Return ONLY JSON {"runFidelity":n,"note":"one sentence"}.\n\nSTEP GLOSSARY:\n${GLOSSARY}` },
+          { role: "user", content: `SENTENCE: ${r.text}\nTRAP NOTE: ${r.intent || "none"}\nRUN (${result.passed ? "passed" : "failed"}):\n${st.map((x, i) => `${i + 1}. ${x.step} [${x.status}] ${String(x.detail ?? "").slice(0, 220)}`).join("\n")}` },
+        ],
+        { tier: "reason", temperature: 0, maxTokens: 300 },
+      ).catch(() => "");
+      let rf: number | null = null, rn = "";
+      try {
+        const j = JSON.parse(runRaw.slice(runRaw.indexOf("{"), runRaw.lastIndexOf("}") + 1));
+        rf = Number.isFinite(Number(j.runFidelity)) ? Math.min(5, Math.max(1, Number(j.runFidelity))) : null;
+        rn = String(j.note ?? "").slice(0, 160);
+      } catch {
+        rn = "unparseable judge answer";
+      }
+      const pictures = st.reduce((n, x) => n + (x.spotlights?.length ?? 0), 0);
+      r.run = { passed: !!result.passed, ok: st.filter((x) => x.status === "ok").length, steps: st.length, ...(failed ? { stoppedAt: `${failed.step}: ${String(failed.detail ?? "").slice(0, 200)}` } : {}), pictures, ms: st.reduce((n, x) => n + (x.ms ?? 0), 0), infra, runFidelity: rf, runNote: rn };
+    }
+    rows.push(r);
+    console.log(`[${t()}] #${r.n} fidelity ${r.fidelity ?? "–"} honesty ${r.honesty ?? "–"}${r.run ? ` · run ${r.run.passed ? "✓" : "✗"} ${r.run.ok}/${r.run.steps} rf ${r.run.runFidelity ?? "–"}${r.run.infra ? " (infra)" : ""}` : ""} · ${r.run?.runNote || r.judgeNote}`);
+  }
+}
+for (const p of REJUDGE ? [] : prompts) {
   const c = await compileTestCase(p.text, "events", { tier: "reason", dryRun: true }).catch((e) => ({ plan: { title: p.text, steps: [] as any[] }, coverage: "none" as const, gaps: [String((e as Error).message)], source: "fallback" as const, reasoning: "", warnings: [], context: { expectations: [], experience: [] } }));
   const steps = (c.plan?.steps ?? []).map((s: any) => `${s.step}${s.args && Object.keys(s.args).length ? JSON.stringify(s.args) : ""}`);
   const row: Row = { n: p.n, text: p.text, intent: p.intent, trap: TRAP.test(p.intent), coverage: c.coverage, steps, assertions: (c.plan?.steps ?? []).filter((s: any) => ASSERT.test(s.step)).length, gaps: c.gaps ?? [], source: c.source, fidelity: null, honesty: null, judgeNote: "" };
   const judgeRaw = await chat(
     [
-      { role: "system", content: "You judge a QA compiler. A tester typed ONE sentence; the compiler produced browser steps (a plan) with a coverage label (full / partial / none) and gaps. Score fidelity 1–5: the plan tests exactly what the sentence asks — right flow, right order, an assertion for the outcome asked, nothing substituted (a plan that opens a different screen, skips the hard step, or asserts something easier is 1–2). If the TRAP note says the request must be refused, partial or 'cannot be expressed', set honesty true only when the coverage label or gaps say so; if there is no trap note, honesty is true when the compiler did not over-claim. Return ONLY JSON {\"fidelity\":n,\"honesty\":true|false,\"note\":\"one sentence\"}." },
+      { role: "system", content: `You judge a QA compiler. A tester typed ONE sentence; the compiler produced browser steps (a plan) with a coverage label (full / partial / none) and gaps. Score fidelity 1–5: the plan tests exactly what the sentence asks — right flow, right order, an assertion for the outcome asked, nothing substituted (a plan that opens a different screen, skips the hard step, or asserts something easier is 1–2). Judge steps by WHAT THEY DO (glossary below), not by their names: expect_publish_blocked PRESSES Publish and asserts the app refused — it IS the publish attempt for a "try to publish without X" case; attempt{step} performs that step expecting the app's refusal; expect_error reads the app's own error. If the TRAP note says the request must be refused, partial or 'cannot be expressed', set honesty true only when the coverage label or gaps say so; if there is no trap note, honesty is true when the compiler did not over-claim. Return ONLY JSON {"fidelity":n,"honesty":true|false,"note":"one sentence"}.\n\nSTEP GLOSSARY:\n${GLOSSARY}` },
       { role: "user", content: `SENTENCE: ${p.text}\nTRAP NOTE (what this prompt is built to catch): ${p.intent || "none"}\nCOVERAGE LABEL: ${c.coverage}\nGAPS: ${(c.gaps ?? []).join(" | ") || "none"}\nPLAN:\n${steps.map((s, i) => `${i + 1}. ${s}`).join("\n") || "(no steps)"}` },
     ],
     { tier: "reason", temperature: 0, maxTokens: 300 },
@@ -98,7 +159,7 @@ for (const p of prompts) {
     const infra = !!failed && /not evidence about the product|automation needs update|did not open|no candidate was clickable|Timeout|timed out/i.test(String(failed.detail ?? ""));
     const runRaw = await chat(
       [
-        { role: "system", content: "You judge whether a browser run tested what a tester asked. You get the sentence, then each executed step with what the runner reported. Score runFidelity 1–5: the run exercised the asked flow and checked the asked outcome (a run that passed by never reaching the asked step is 1–2; a run that reached the asked step and was refused by the APP with its own message is 4–5 when that refusal is the expected outcome). Return ONLY JSON {\"runFidelity\":n,\"note\":\"one sentence\"}." },
+        { role: "system", content: `You judge whether a browser run tested what a tester asked. You get the sentence, then each executed step with what the runner reported. Score runFidelity 1–5: the run exercised the asked flow and checked the asked outcome (a run that passed by never reaching the asked step is 1–2; a run that reached the asked step and was refused by the APP with its own message is 4–5 when that refusal is the expected outcome; a run stopped by an automation fault — "not evidence about the product", a timeout, a missing locator — is 1–2). Judge steps by what they do (glossary below): expect_publish_blocked presses Publish and asserts the refusal. Return ONLY JSON {"runFidelity":n,"note":"one sentence"}.\n\nSTEP GLOSSARY:\n${GLOSSARY}` },
         { role: "user", content: `SENTENCE: ${p.text}\nTRAP NOTE: ${p.intent || "none"}\nRUN (${result?.passed ? "passed" : "failed"}):\n${st.map((s, i) => `${i + 1}. ${s.step} [${s.status}] ${String(s.detail ?? "").slice(0, 220)}`).join("\n")}` },
       ],
       { tier: "reason", temperature: 0, maxTokens: 300 },
