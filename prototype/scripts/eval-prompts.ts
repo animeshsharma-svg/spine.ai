@@ -27,6 +27,7 @@ const { chat } = await import("../src/ai/llm.js");
 const { compileTestCase } = await import("../src/agents/planner.js");
 const { wilson, percentile } = await import("../src/eval/metrics.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
+const { contextForPlan } = await import("../src/ui/prepareForPlan.js");
 
 /** What each step DOES, so the judge does not mistake an assertion that presses Publish and expects the refusal for "never attempting to publish". */
 const CATALOG = JSON.parse(readFileSync(join(here, "..", "..", "procol-ui-tests", "plan-catalog.json"), "utf8")) as { steps: Array<{ name: string; purpose: string }> };
@@ -148,8 +149,12 @@ for (const p of REJUDGE ? [] : prompts) {
     const runId = `prompt-${p.n}-${Date.now().toString(36)}`;
     const t0 = Date.now();
     let pictures = 0;
+    // a case that starts from an existing event: build that event first (as Run tests now does)
+    const prep = await contextForPlan(p.text, c.plan, companyId, (l) => console.log(`[${t()}]      ${l}`));
+    if (prep.why) console.log(`[${t()}]      ${prep.why}`);
+    const planToRun = prep.context ? { ...c.plan, context: prep.context } : c.plan;
     const result: any = await new Promise((resolve) => {
-      runUiPlan({ plan: c.plan, companyId, runId, headed: false }, (e: any) => {
+      runUiPlan({ plan: planToRun, companyId, runId, headed: false }, (e: any) => {
         if (e.type === "spot") pictures++;
         if (e.type === "done" || e.type === "run-error") resolve(readPlanResult(runId));
       });

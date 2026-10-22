@@ -49,6 +49,7 @@ import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
+import { contextForPlan } from "./ui/prepareForPlan.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -1213,8 +1214,17 @@ const server = createServer(async (req, res) => {
         }
 
         const runId = `plan-${Date.now().toString(36)}`;
+        // A case that starts from an existing event gets that event built by API first.
+        const prep = await contextForPlan(testCase, compiled.plan, c, (l) => send("stage", { name: "setup", line: l }));
+        if (prep.why) {
+          send("run-error", { line: prep.why });
+          send("done", { exitCode: 1 });
+          res.end();
+          return;
+        }
+        const planToRun = prep.context ? { ...compiled.plan, context: prep.context } : compiled.plan;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
-        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+        const { stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
           const ending = e.type === "done" || e.type === "run-error";
           if (ending) {
             // The result and the verdict go out before the end event: the
@@ -2297,8 +2307,14 @@ const server = createServer(async (req, res) => {
           }
           const partial = compiled.coverage === "partial";
           const runId = `case-${k.id}-${Date.now().toString(36)}`;
+          const prep = await contextForPlan(`${k.title}. ${k.setup ?? ""} ${k.steps ?? ""} ${k.expected ?? ""}`, compiled.plan, c, (l) => send("note", { id: k.id, line: l }));
+          if (prep.why) {
+            send("note", { id: k.id, line: prep.why });
+            continue;
+          }
+          const planToRun = prep.context ? { ...compiled.plan, context: prep.context } : compiled.plan;
           await new Promise<void>((resolve) => {
-            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+            const { stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
               if (e.type === "queued") send("queued", { id: k.id, line: e.line });
               if (e.type === "done" || e.type === "run-error") {
