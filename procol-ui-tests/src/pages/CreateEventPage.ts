@@ -318,8 +318,23 @@ export class CreateEventPage extends BasePage {
         await this.page.waitForTimeout(300);
         continue;
       }
-      clickedOnce = await list
-        .first()
+      // The drawer MERGES the same product + variant into one line (a UAT build change seen
+      // 2026-10-22: three adds of the first result left ONE line with the last quantity). So the
+      // option to click is the first one NOT already in the drawer; the first result only when
+      // every option is already there.
+      const already = ((await scope.innerText().catch(() => "")) || "").toLowerCase();
+      const texts = (await list.allTextContents().catch(() => [] as string[])).map((x) => x.replace(/\s+/g, " ").trim());
+      let pick = list.first();
+      for (let k = 0; k < texts.length; k++) {
+        const code = texts[k].match(/[A-Z0-9_]{6,}/i)?.[0]?.toLowerCase();
+        const name = texts[k].toLowerCase().slice(0, 40);
+        if ((code && !already.includes(code)) || (!code && name && !already.includes(name))) {
+          pick = list.nth(k);
+          if (k > 0) console.log(`[create-event] line item ${(before ?? 0) + 1}: "${texts[k].slice(0, 50)}" (result ${k + 1}) — the first result is already in the drawer`);
+          break;
+        }
+      }
+      clickedOnce = await pick
         .click({ timeout: 5_000, force: attempt >= 1 })
         .then(() => true)
         .catch(() => false);
