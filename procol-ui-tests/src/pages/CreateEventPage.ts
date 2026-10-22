@@ -306,16 +306,30 @@ export class CreateEventPage extends BasePage {
     // Signals to compare against after the click.
     const before = await this.lineItemCountBadge();
     const chipsBefore = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
+    // The drawer lists what it holds as numbered rows ("1. <code> | <name>"): the one signal that
+    // cannot lie about whether the pick landed.
+    const drawerRows = () => scope.getByText(/^\s*\d+\.\s+\S/).count().catch(() => 0);
+    const rowsBefore = await drawerRows();
     let picked = false;
     // The CLICK is what retries — up to 3 tries at getting a row to actually
     // register. Confirming it is a SEPARATE, best-effort question asked only
     // once a click has genuinely landed.
     let clickedOnce = false;
     for (let attempt = 0; attempt < 3 && !clickedOnce; attempt++) {
-      // Wait for a populated list before reaching for a row.
+      // Wait for a populated list before reaching for a row — and for the search to have
+      // ANSWERED: on a slow day (2026-10-22) the dropdown showed only its spinner for 10 s+,
+      // the click landed on nothing, and "1 line item(s)" was reported with Items still 0.
       const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.SHORT });
       if (!list) {
         await this.page.waitForTimeout(300);
+        continue;
+      }
+      const named = list.filter({ hasText: /\S/ });
+      const spinner = p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-spin, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .anticon-loading").first();
+      const until = Date.now() + TIMEOUTS.LONG;
+      while (Date.now() < until && ((await spinner.isVisible().catch(() => false)) || !(await named.count().catch(() => 0)))) await this.page.waitForTimeout(250);
+      if (!(await named.count().catch(() => 0))) {
+        console.log(`[create-event] the product search for "${searchText}" showed no result within ${Math.round(TIMEOUTS.LONG / 1000)}s`);
         continue;
       }
       // The drawer MERGES the same product + variant into one line (a UAT build change seen
@@ -368,6 +382,17 @@ export class CreateEventPage extends BasePage {
     // to ignore warnings. Only a click that never landed is worth saying.
     if (!clickedOnce) {
       console.log(`[create-event] could not click a line-item option for "${searchText}" after 3 tries`);
+    }
+    // The pick must show as a new numbered row in the drawer; otherwise nothing was added and
+    // saying "1 line item" would be a lie that expect_line_items catches four steps later.
+    const rowsDeadline = Date.now() + 8_000;
+    let rowsAfter = await drawerRows();
+    while (Date.now() < rowsDeadline && rowsAfter <= rowsBefore) {
+      await this.page.waitForTimeout(250);
+      rowsAfter = await drawerRows();
+    }
+    if (rowsAfter <= rowsBefore) {
+      throw new Error(`no line item was added for "${searchText}": the drawer still lists ${rowsAfter} row(s) — the product search answered nothing usable within ${Math.round(TIMEOUTS.LONG / 1000)}s (not evidence about the product)`);
     }
     await this.page.waitForTimeout(250);
 
