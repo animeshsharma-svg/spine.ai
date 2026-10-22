@@ -1690,12 +1690,12 @@ export class CreateEventPage extends BasePage {
       await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        // Wait for the search RESULTS, not two seconds: the options appear when
-        // the vendor search returns, which is usually well under a second.
+        // Wait for the search RESULTS: usually under a second, but UAT's vendor search took
+        // 10 s+ on 2026-10-22, and a 4 s wait reported "no participants" on a healthy event.
         await p
           .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item")
           .first()
-          .waitFor({ state: "visible", timeout: 4_000 })
+          .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
           .catch(() => {});
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
@@ -1703,6 +1703,13 @@ export class CreateEventPage extends BasePage {
       // The participant chip renders once the add request returns; wait for
       // it rather than for a fixed number of quarter-seconds.
       count = await this.waitForParticipants(3_000);
+      // Still nobody: the client's QA test vendors by name, one after another.
+      if (count === 0) {
+        for (const name of await qaVendorNames().catch(() => [] as string[])) {
+          if (await this.addParticipantByName(name).catch(() => false)) break;
+        }
+        count = await this.waitForParticipants(3_000);
+      }
     }
 
     await this.dismissDistractions();
