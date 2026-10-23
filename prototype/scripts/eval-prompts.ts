@@ -100,7 +100,7 @@ if (REJUDGE) {
     if (result?.steps?.length) {
       const st: any[] = result.steps;
       const failed = st.find((x) => x.status === "failed");
-      const infra = !!failed && /not evidence about the product|automation needs update|no candidate was clickable|Timeout|timed out|did not open|not a QA test vendor|needs a QA test vendor/i.test(String(failed.detail ?? ""));
+      const infra = !!failed && /not evidence about the product|automation needs update|no candidate was clickable|Timeout|timed out|did not open|not a QA test vendor|needs a QA test vendor|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ERR_NETWORK_CHANGED|DNS resolution|fetch failed|Target page, context or browser has been closed/i.test(String(failed.detail ?? ""));
       const runRaw = await chat(
         [
           { role: "system", content: `You judge whether a browser run tested what a tester asked. You get the sentence, then each executed step with what the runner reported. Score runFidelity 1–5: the run exercised the asked flow and checked the asked outcome (a run that passed by never reaching the asked step is 1–2; a run that reached the asked step and was refused by the APP with its own message is 4–5 when that refusal is the expected outcome; a run stopped by an automation fault — "not evidence about the product", a timeout, a missing locator — is 1–2). Judge steps by what they do (glossary below): expect_publish_blocked presses Publish and asserts the refusal. Return ONLY JSON {"runFidelity":n,"note":"one sentence"}.\n\nSTEP GLOSSARY:\n${GLOSSARY}` },
