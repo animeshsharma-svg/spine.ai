@@ -5,24 +5,23 @@ and a 95% Wilson interval beside every proportion. Every number here can be reco
 report named next to it (`prototype/data/eval/reports/`, `prototype/data/evals/results/`).
 Definitions: `docs/METRICS.md`.
 
-> Status: sections marked ⏳ are being re-run at the time of writing (the first overnight pass
-> hit a network outage on the Mac between ~05:30 and ~12:00 IST; those results are discarded).
+> Completed 23 Oct 2026, 15:10 IST. Every model call after 14:19 on 22 Oct went to Slingring only (Groq and Gemini disabled), so the compiler, judge and description numbers are the primary model's. The Mac lost its network three times during the runs (22 Oct ~05:30–12:00 and ~17:30–18:00, 23 Oct ~13:00–13:20); runs broken that way are counted as infrastructure failures, never as the product's or the plan's, and are listed.
 
 ## 1. What the benchmark covers
 
 | Layer | Question | How it is measured | Report |
 | --- | --- | --- | --- |
-| Reading the test case | Does the compiler turn a typed sentence into the right steps, and refuse what it cannot test? | 66 stress prompts, compiled, judged for fidelity; trap prompts for honesty | `eval-prompts` ⏳ |
-| Performing the right test | Does the run exercise the asked flow and check the asked outcome? | the same 66, run in the browser, judged on the executed steps | `eval-prompts --run` ⏳ |
+| Reading the test case | Does the compiler turn a typed sentence into the right steps, and refuse what it cannot test? | 66 stress prompts, compiled, judged for fidelity; trap prompts for honesty | `eval-prompts` ✅ |
+| Performing the right test | Does the run exercise the asked flow and check the asked outcome? | the same 66, run in the browser, judged on the executed steps | `eval-prompts --run` ✅ |
 | Product knowledge | Does the memory return the right fact first? | 110 questions with known answers, hit@1 / hit@5 / MRR, deterministic | `eval-memory` ✅ |
 | Recognising a case | Is a typed case matched to the catalog case it already is, or flagged new? | 112-row labelled corpus (paraphrase, typo, Hinglish) | `eval-matcher` ✅ |
 | Orchestrator: routing | Is a free-text instruction routed to the right journey? | 102 labelled instructions | `eval-routing` ✅ |
 | Orchestrator: planning | Is a compiled plan statically runnable (steps exist, order the product enforces)? | 15 catalog cases (cost cap) | `eval-planner` ✅ |
 | Orchestrator: running | Pass rate, step reliability, time to verdict, app refusal vs automation stop, self-repair, pictures | every browser run kept since 20 Oct | `eval-orchestrator` ✅ |
-| Bugs it finds | Precision on real bugs, recall of known bugs, planted-bug catch rate, repeatability, flakiness | the agent eval (k = 3, planted bugs) | `eval-agent` ⏳ (rerun) |
+| Bugs it finds | Precision on real bugs, recall of known bugs, planted-bug catch rate, repeatability, flakiness | the agent eval (k = 3, planted bugs) | `eval-agent` ✅ |
 | Bugs it writes | Are the bug reports complete, clear, reproducible, fixable? | 86 verified bugs, measured + a developer-judge | `eval-bug-reports` ✅ |
 | Test cases it writes | Relevance, coverage, coherence (QA-Bench v0's three) | 46 screens / 336 cases, LLM judge + measured coverage | `eval-qabench` ✅ |
-| Against production | Would it have caught what customers reported? | 115 RCA'd support tickets vs catalog, stored plans, bug sheet | `eval-prod-bugs` ⏳ |
+| Against production | Would it have caught what customers reported? | 115 RCA'd support tickets vs catalog, stored plans, bug sheet | `eval-prod-bugs` ✅ |
 
 ## 2. Results
 
@@ -68,8 +67,33 @@ Composite 0.74. What the gates say: the two false alarms are the whole precision
 ### 2.7 The test cases it writes (QA-Bench v0's three) — ✅ `qabench-2026-10-21T21-23`
 46 screens / 336 cases: **relevance 4.02/5** (38/46 screens ≥ 4), **coverage 1.70/5** (0/46), **coherence 2.89/5** (4/46); measured: the cases name 34% of the controls on screen and cite 11% of the untested code rules. Honest reading: relevance is strong (grounding gate), coverage is thin at 3–8 cases a screen, coherence needs prerequisites spelled out.
 
-### 2.8 Reading the case and testing what was asked — ⏳ `eval-prompts` (rerun)
-(filled when the rerun finishes: compile fidelity, honesty on trap prompts, run pass/fail, infra share, run fidelity, time to verdict)
+### 2.8 Reading the case and testing what was asked — ✅ `prompts-2026-10-23T09-19` (+ `prompts-merged-2026-10-23`)
+The 66 stress prompts of `docs/STRESS-PROMPTS.md`, each compiled by the production compiler and judged (Slingring, with the step glossary) on whether the plan tests what the sentence asks.
+
+**Reading the case (compile):** 66/66 compiled, no generic fallback; coverage labels **full 44, partial 2, none 20**. **Compile fidelity mean 3.55/5; 35/66 rated ≥ 4** (41–65%). **Honesty on the 15 trap prompts: 12/15** (55–93%) — the compiler said "cannot be expressed" for mails, audit logs, other companies, lots and the vendor's view instead of faking a plan; the three misses were #6 (70 line items, no ceiling check), #14 (a single-stage draft, which that screen cannot do) and #54 (a 3-minute window the app will not keep).
+
+**Testing what was asked (run, three passes, best valid attempt per prompt, infrastructure stops excluded):** 48 prompts ran; **42 valid attempts: 18 passed outright, 5 stopped on the app's own refusal where a refusal was the point, 19 stopped on something else (below); 6 prompts had only infrastructure-broken attempts; 18 never ran (coverage none, by design)**. Run fidelity ≥ 4 on **17/42** valid attempts (27–56%). **1,592 spotlight pictures**; time to verdict p50 87 s.
+
+What the 19 other stops were — the benchmark's real output:
+
+| Prompt | What happened | What it is |
+| --- | --- | --- |
+| #21 publish without a title | the app said "Project created successfully" | **product finding to confirm**: the title rule ("Please fill project title!") did not fire on a fresh eRFX |
+| #6 seventy line items | the drawer took 69 of 70 and publish was not refused | **product finding to confirm**: the 65-item ceiling is not enforced at the drawer |
+| #16 / #17 quantity −5 and "ten" | the drawer accepted both with no error | **product finding to confirm** (or validation only at publish); the plans should have gone on to publish |
+| #49 new version with an item removed | "Event group line item does not belong to the specified event group" | **BUG-86 reproduced** |
+| #18 publish without a template | refused with "Please add participants to proceed!" first | product fact: participants are checked before the template |
+| #8 draft in the Drafts tab | the row reads "To Be Scheduled", not "Draft" | product fact: the Drafts tab shows the stage status; plan expectation to adjust |
+| #33 counter offer after a surrogate bid | no Counter Offer control at all | product fact: hidden, not disabled, in this state |
+| #38 award after a surrogate bid | the Submit Proposal dialog stays open on the approval-flow clause | known Q-12 (approval workflow must be chosen) |
+| #4 / #5 invite with 5 and 25 items | "no participants" after a slow vendor search | runner fault, fixed 23 Oct (patient search + QA vendors by name) |
+| #19 / #37 line-item count | 0 of 1, 1 of 2 | runner fault on a slow search, fixed 22 Oct; #37 before the fix |
+| #30 bid after close | close_event returned "closed" without the window lapsing | runner honesty fault: the step must wait or say it cannot close |
+| #35 / #39 / #41 / #43 / #45 "on an event with bids…" | open_prepared had no event behind it | Run tests did not build the state; fixed 22 Oct (`prepareForPlan`), reruns were network-broken |
+| #28 invite "Acme Nonexistent Supplier" | the name is not on screen | correct behaviour (the runner invited everyone the product suggested); the plan's assertion was wrong |
+| #42 open by title | no event titled "spine-ui-automation-…" | the plan searched for a title it never created — compiler fault (should start from a built state) |
+| #51 new version of technical + RFQ | the version's tabs read "rfq" only | product fact to confirm: the copy dropped the technical stage tab |
+| #54 three-minute window | the row reads "Ends in 2m:18s", not Closed | the plan checked before the window ended; the app did keep 3 min — a fact the walk's memory had wrong (30-min minimum) |
 
 ### 2.9 Against production — ✅ `prod-bugs-2026-10-22T06-59`
 115 RCA'd support tickets (Dec 2025 → Aug 2026), classified by a model from the CS and engineering descriptions, the triage checks and the RCA: **config 27 · real defect 25 · user error 25 · data 18 · unclear 14 · feature request 6**. Of the 25 real defects, **22 are in the events flow** (events 8, bidding 7, awarding 5, QCS 2); by class: state 5, calculation 4, validation 3, data 3, config 2, UI 2, visibility 1, permission 1.
@@ -82,6 +106,25 @@ Composite 0.74. What the gates say: the two false alarms are the whole precision
 | Already on the verified bug sheet (found by spine.ai on UAT first) | 1/22 — 5% (1–22%) — BUG-03 (surrogate prices accepted without technical participation) |
 
 This is the honest ceiling of today's detection against production: the defects customers hit are mostly **awarding and QCS arithmetic** (awarded DDP/landed amount with global charges and zero-quantity awards, QCS totals, award e-mail using requested quantities, proposal totals) and **state after an edge action** (BOQ closed after a partial award, best-offer request past its deadline, rejected counter offers, a rejected bid deleting its technical score) — the same areas the coverage report (`docs/rule-coverage.md`) marks weakest and where runnable cases are fewest (every-bid-number 5/127, award outcomes 0/35). The 14 uncovered defect summaries are the next cases to write; each needs a multi-vendor, multi-charge awarding state that the API builder does not build yet.
+
+## 2.10 Where it stands, in one table
+
+| Layer | Number to quote | n |
+| --- | --- | --- |
+| Routing an instruction to a journey | 100% | 102 |
+| Compiling a catalog case into a runnable plan | 93% | 15 |
+| Compile fidelity on hard prompts (≥ 4 of 5) | 53% (mean 3.55) | 66 |
+| Honesty on trap prompts | 80% | 15 |
+| Steps that do what they should, on the product | 98% | 634 |
+| Plans passed, on the product | 77% | 53 |
+| Memory: right fact first | 71% (87% in top 5) | 110 |
+| Matcher: existing case recognised | recall 87%, precision 71% | 112 |
+| Precision of bug reports (all) / on real bugs | 85% / 67% | 13 / 6 |
+| Planted-bug catch rate | 78% | 9 |
+| Flaky verdicts | 0% | 16 |
+| Bug reports: complete / clear / fixable from the report | 95% / 4.65 of 5 / 82% | 86 |
+| Test cases from screens: relevance / coverage / coherence | 4.0 / 1.7 / 2.9 of 5 | 336 |
+| Production defects a case covers / a plan re-checks / already found | 36% / 9% / 5% | 22 |
 
 ## 3. Against the other platforms
 
