@@ -181,6 +181,7 @@
     const list = q$("#ss-req-list");
     if (list) list.innerHTML = "";
     paintReqCount();
+    casesReset();
     const apiOnly = S.mode === "api" || kind === "features";
     setTab(apiOnly ? "requests" : "browser");
     // A run with no browser has nothing to watch on the right; its requests
@@ -414,7 +415,7 @@
 
   // ── the right-hand side ──────────────────────────────────────────────────
   function setTab(tab, picked = false) {
-    S.tab = tab === "requests" ? "requests" : "browser";
+    S.tab = tab === "requests" || tab === "cases" ? tab : "browser";
     if (picked) S.tabPicked = true;
     for (const b of document.querySelectorAll(".ss-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
     for (const p of document.querySelectorAll(".ss-pane")) p.hidden = p.dataset.pane !== S.tab;
@@ -434,7 +435,7 @@
     const btn = q$("#ss-show-right");
     if (!btn) return;
     btn.hidden = on;
-    const word = S.tab === "requests" ? "Requests" : "Browser";
+    const word = S.tab === "requests" ? "Requests" : S.tab === "cases" ? "Test cases" : "Browser";
     if (btn.lastChild?.nodeType === Node.TEXT_NODE) btn.lastChild.textContent = word;
     btn.title = `Show the ${word.toLowerCase()} panel`;
   }
@@ -1089,6 +1090,133 @@
     const n = q$("#ss-spots-n");
     if (n) n.textContent = "0";
   }
+  // ── the test cases a typed journey carries (journeyCases.ts) ─────────────
+  // One entry per case the plan's assertions make, plus what a senior tester would add (matched
+  // to the catalog or saved as new); each marked from the run's result; the cases written from
+  // the screens the run reached listed under them; the lot exported as Excel/CSV/Markdown.
+  const C = { cases: [], newCases: [], runId: null, status: "" };
+  const STATUS_WORD = { passed: "Passed", failed: "Failed", "not reached": "Not reached", "not run": "Not run" };
+  function casesReset() {
+    C.cases = [];
+    C.newCases = [];
+    C.runId = null;
+    C.status = "";
+    for (const id of ["#ss-case-list", "#ss-newcase-list"]) {
+      const l = q$(id);
+      if (l) l.innerHTML = "";
+    }
+    for (const id of ["#ss-cases-head", "#ss-cases-journey", "#ss-cases-new", "#ss-cases-export"]) {
+      const n = q$(id);
+      if (n) n.hidden = true;
+    }
+    const empty = q$("#ss-cases-empty");
+    if (empty) empty.hidden = false;
+    const n = q$("#ss-cases-n");
+    if (n) n.textContent = "";
+  }
+  function caseNode(c, i) {
+    const src = c.source === "catalog" ? `in the catalog · ${(c.catalogIds || [c.id]).join(", ")}` : c.source === "new" ? `new · ${c.id}${c.screen ? ` · from the ${c.screen} screen` : ""}` : c.id === "J-0" ? "the journey" : `from the plan · ${c.id}`;
+    // While the run is on: a case with steps is being tested; one with none has no step yet.
+    const st = c.status || (C.status === "running" ? (c.stepIndexes?.length ? "testing" : "not run") : "");
+    const li = node(
+      `<li class="ss-case ${h(c.source)} ${h((c.status || st || "").replace(/\s+/g, "-"))}" data-id="${h(c.id)}">` +
+      `<button type="button" class="ss-case-row" aria-expanded="false">` +
+      `<span class="ss-case-n">${i}</span>` +
+      `<span class="ss-case-t">${h(c.title)}</span>` +
+      `<span class="ss-case-st" data-st="${h(st)}">${h(STATUS_WORD[st] || (st === "testing" ? "Testing…" : st))}</span>` +
+      `</button>` +
+      `<div class="ss-case-body" hidden>` +
+      `<div class="ss-case-src">${h(src)}${c.grounded && c.grounded !== "journey" && c.grounded !== "screen" ? ` · rule ${h(c.grounded)}` : ""}${c.stepIndexes?.length ? ` · steps ${c.stepIndexes.map((x) => x + 1).join(", ")}` : " · no step of this run checks it"}</div>` +
+      `<ol class="ss-case-steps">${(c.steps || []).map((s) => `<li>${h(s)}</li>`).join("")}</ol>` +
+      `<div class="ss-case-exp"><b>Expected</b> ${h(c.expected)}</div>` +
+      (c.detail ? `<div class="ss-case-detail ${c.status === "failed" ? "bad" : ""}">${h(c.detail)}</div>` : "") +
+      `</div></li>`,
+    );
+    const btn = q$(".ss-case-row", li);
+    btn.addEventListener("click", () => {
+      const body = q$(".ss-case-body", li);
+      body.hidden = !body.hidden;
+      btn.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    return li;
+  }
+  function paintCaseLists() {
+    const head = q$("#ss-cases-head");
+    const empty = q$("#ss-cases-empty");
+    const all = C.cases.length + C.newCases.length;
+    if (head) head.hidden = !all;
+    if (empty) empty.hidden = !!all;
+    const n = q$("#ss-cases-n");
+    if (n) n.textContent = all ? String(all) : "";
+    const jl = q$("#ss-case-list");
+    const js = q$("#ss-cases-journey");
+    if (jl && js) {
+      jl.innerHTML = "";
+      C.cases.forEach((c, i) => jl.appendChild(caseNode(c, i + 1)));
+      js.hidden = !C.cases.length;
+      const jn = q$("#ss-cases-journey-n");
+      if (jn) jn.textContent = String(C.cases.length);
+    }
+    const nl = q$("#ss-newcase-list");
+    const ns = q$("#ss-cases-new");
+    if (nl && ns) {
+      nl.innerHTML = "";
+      C.newCases.forEach((c, i) => nl.appendChild(caseNode(c, C.cases.length + i + 1)));
+      ns.hidden = !C.newCases.length;
+      const nn = q$("#ss-cases-new-n");
+      if (nn) nn.textContent = String(C.newCases.length);
+    }
+    const sum = q$("#ss-cases-sum");
+    if (sum) {
+      const passed = C.cases.filter((c) => c.status === "passed").length;
+      const failed = C.cases.filter((c) => c.status === "failed").length;
+      const notRun = C.cases.filter((c) => c.status === "not run" || c.status === "not reached").length;
+      const fromCatalog = C.cases.filter((c) => c.source === "catalog").length;
+      const fresh = C.cases.filter((c) => c.source === "new").length + C.newCases.length;
+      sum.innerHTML =
+        `<b>${C.cases.length}</b> test case${C.cases.length === 1 ? "" : "s"} on this journey` +
+        (C.status === "tested" ? ` · <span class="ok">${passed} passed</span>${failed ? ` · <span class="bad">${failed} failed</span>` : ""}${notRun ? ` · <span class="dim">${notRun} not run</span>` : ""}` : C.status === "running" ? " · testing in the browser…" : "") +
+        (fromCatalog ? ` · ${fromCatalog} already in the catalog` : "") +
+        (fresh ? ` · <span class="new">${fresh} new</span>` : "");
+    }
+  }
+  /** The cases the journey carries, as soon as the plan has been read. */
+  function cases(p) {
+    if (!S.on) return;
+    C.runId = p.runId || C.runId;
+    C.cases = p.cases || [];
+    C.status = "running";
+    paintCaseLists();
+    const n = C.cases.length;
+    if (n) note(`${n} test case${n === 1 ? "" : "s"} written for this journey${C.cases.some((c) => c.source === "new") ? ` (${C.cases.filter((c) => c.source === "new").length} new, saved to the catalog)` : ""} — open the Test cases tab to read them.`, "info", "Test cases");
+  }
+  /** What the run proved for each case. */
+  function casesTested(p) {
+    if (!S.on) return;
+    C.cases = p.cases || C.cases;
+    C.status = "tested";
+    paintCaseLists();
+  }
+  /** The cases written from the screens the run reached. */
+  function newCases(p) {
+    if (!S.on) return;
+    C.newCases = p.cases || [];
+    paintCaseLists();
+    if (C.newCases.length) note(`${C.newCases.length} new test case${C.newCases.length === 1 ? "" : "s"} found on the screens this run passed through — in the Test cases tab, saved to the catalog.`, "ok", "Found");
+  }
+  /** The export links, once the journey is on disk. */
+  function journeyLinks(p) {
+    if (!S.on || !p?.export) return;
+    C.runId = p.runId || C.runId;
+    const box = q$("#ss-cases-export");
+    if (!box) return;
+    for (const [k, href] of Object.entries(p.export)) {
+      const a = q$(`#ss-export-${k}`);
+      if (a) a.href = href;
+    }
+    box.hidden = !(C.cases.length + C.newCases.length);
+  }
+
   function spotUrl(sp) {
     return `/api/ui-evidence?path=${encodeURIComponent(sp.file)}`;
   }
@@ -1147,6 +1275,7 @@
     spot,
     working, head, act, note,
     plan, planStep,
+    cases, casesTested, newCases, journeyLinks,
     frame, request,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
     get on() { return S.on; },

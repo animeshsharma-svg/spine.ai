@@ -5122,11 +5122,17 @@ function runTestCase(textOverride) {
     const { spot } = JSON.parse(ev.data);
     window.spineSession?.spot(spot);
   });
+  // The test cases the journey carries, what the run proved for each, the new ones its screens
+  // produced, and their export links — the session's Test cases tab (session.js).
+  es.addEventListener("cases", (ev) => window.spineSession?.cases(JSON.parse(ev.data)));
+  es.addEventListener("cases-tested", (ev) => window.spineSession?.casesTested(JSON.parse(ev.data)));
+  es.addEventListener("new-cases", (ev) => window.spineSession?.newCases(JSON.parse(ev.data)));
+  es.addEventListener("journey", (ev) => window.spineSession?.journeyLinks(JSON.parse(ev.data)));
 
   es.addEventListener("stage", (ev) => {
     const st = JSON.parse(ev.data);
     write("› " + st.line, "cmd");
-    if (st.name === "execute") window.spineSession?.working(st.line);
+    if (st.name === "execute" || st.name === "discover") window.spineSession?.working(st.line);
   });
   onQueued(es, write);
   /**

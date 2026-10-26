@@ -50,6 +50,7 @@ import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/compan
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { contextForPlan } from "./ui/prepareForPlan.js";
+import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -1173,7 +1174,28 @@ const server = createServer(async (req, res) => {
             experience: compiled.context.experience.length,
           },
         });
+        const runId = `plan-${Date.now().toString(36)}`;
+        // The test cases this journey carries (one per assertion, plus the journey) and the ones a
+        // senior tester would add, matched against the catalog — drafted while the browser runs,
+        // shown as soon as they are ready, marked from the run's result at the end.
+        const discover = url.searchParams.get("discover") !== "0";
+        const journey: TypedJourney = { runId, text: testCase, companyId: c, at: new Date().toISOString(), plan: compiled.plan.steps, cases: [], newCases: [], screens: [] };
+        const casesP = casesForJourney(testCase, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }) })
+          .then((cases) => {
+            journey.cases = cases;
+            saveJourney(journey);
+            send("cases", { runId, cases });
+            return cases;
+          })
+          .catch((e) => {
+            send("log", { line: `[journey] could not write the test cases: ${(e as Error).message}` });
+            return [] as JourneyCase[];
+          });
+        const exportLinks = { csv: `/api/journey/export?run=${runId}&format=csv`, md: `/api/journey/export?run=${runId}&format=md`, xlsx: `/api/journey/export?run=${runId}&format=xlsx` };
         if (dryRun) {
+          // A plan-only run still gets its test cases: that is most of what a typed journey is for.
+          await casesP;
+          send("journey", { runId, cases: journey.cases.length, newCases: 0, export: exportLinks });
           send("done", { exitCode: 0 });
           res.end();
           return;
@@ -1213,7 +1235,6 @@ const server = createServer(async (req, res) => {
           return;
         }
 
-        const runId = `plan-${Date.now().toString(36)}`;
         // A case that starts from an existing event gets that event built by API first.
         const prep = await contextForPlan(testCase, compiled.plan, c, (l) => send("stage", { name: "setup", line: l }));
         if (prep.why) {
@@ -1224,25 +1245,46 @@ const server = createServer(async (req, res) => {
         }
         const planToRun = prep.context ? { ...compiled.plan, context: prep.context } : compiled.plan;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
-        const { stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+        let closed = false;
+        const { stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo, discover }, async (e) => {
           const ending = e.type === "done" || e.type === "run-error";
           if (ending) {
             // The result and the verdict go out before the end event: the
             // browser closes the stream on `done`, so anything written after
             // it is dropped — which is how a finished plan arrived with no
             // steps and no verdict attached.
-            const result = readPlanResult(runId);
+            const result = readPlanResult(runId) as { passed?: boolean; steps?: Array<{ status: string; detail?: string }> } | null;
             if (result) send("plan-result", result);
             try {
               send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
             } catch {
               /* nothing recorded */
             }
+            // What the run proved for each case, then the cases its screens deserve.
+            const cases = await casesP;
+            if (result?.steps) {
+              journey.cases = markTested(cases, { steps: result.steps });
+              journey.result = { passed: !!result.passed, ok: result.steps.filter((s) => s.status === "ok").length, steps: result.steps.length };
+              saveJourney(journey);
+              send("cases-tested", { runId, cases: journey.cases, result: journey.result });
+            }
+            if (discover && !closed) {
+              send("stage", { name: "discover", line: "Writing test cases from the screens this run passed through" });
+              const found = await discoverFromRun(runId, compiled.plan.steps, c, (l) => send("log", { line: `[journey] ${l}` })).catch((err) => ({ cases: [] as JourneyCase[], screens: [] as string[], why: (err as Error).message }));
+              journey.newCases = found.cases;
+              journey.screens = found.screens;
+              saveJourney(journey);
+              send("new-cases", { runId, cases: found.cases, screens: found.screens });
+            }
+            send("journey", { runId, cases: journey.cases.length, newCases: journey.newCases.length, export: exportLinks });
           }
           send(e.type, e);
           if (ending) res.end();
         });
-        req.on("close", () => stop());
+        req.on("close", () => {
+          closed = true;
+          stop();
+        });
       } catch (err: any) {
         send("run-error", { line: `could not compile that test case: ${err?.message ?? err}` });
         res.end();

@@ -1353,7 +1353,42 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     ]);
     if (o && (o.findings.length || o.screenshot)) observations.push(o);
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
+    // Discovery (UI_DISCOVER=1): every screen the run reaches for the first time is inventoried —
+    // its controls, boxes and numbered map — so the screen-cases agent can write the cases that
+    // screen deserves after the run ("new test cases found on this run"). Bounded, never fatal.
+    if (process.env.UI_DISCOVER === "1" && o?.screenshot && !discovered.has(screenKey(page.url()))) {
+      discovered.add(screenKey(page.url()));
+      await Promise.race([
+        (async () => {
+          const label = screenKey(page.url()).replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screen";
+          const inv = await screenInventory(page);
+          const map = await spotlightMap(page, label, inv.controls).catch(() => null);
+          const file = o.screenshot!.replace(/\.png$/, ".inventory.json");
+          writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o.screenshot, map, aria: o.snapshot ?? null, runId, stepNo: i + 1, ...inv }, null, 2));
+          console.log(`[inventory] ${file}`);
+        })().catch(() => {}),
+        new Promise<void>((r) => setTimeout(r, 20_000)),
+      ]);
+    }
   };
+  /**
+   * A screen's identity for discovery: its path with ids replaced, e.g. /project/:id/details —
+   * UUIDs, numbers, and short mixed letter-digit slugs like the project code "TlpnY2RO".
+   */
+  const screenKey = (u: string) => {
+    try {
+      return (
+        new URL(u).pathname
+          .split("/")
+          .map((seg) => (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(seg) || /^\d{3,}$/.test(seg) || (/\d/.test(seg) && /[a-z]/i.test(seg) && seg.length >= 6 && !/-/.test(seg)) ? ":id" : seg))
+          .join("/")
+          .replace(/\/+$/, "") || "/"
+      );
+    } catch {
+      return u;
+    }
+  };
+  const discovered = new Set<string>();
   let failed = false;
   let recoveries = 0;
   const recoveredRules = new Set<string>();

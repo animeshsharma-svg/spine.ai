@@ -52,6 +52,37 @@ On the Screens page: hover a control or a box on the picture to see what it does
 compiles it with the route to that screen in front, saves it, and runs it with the spotlight on,
 streaming the framed pictures as it goes.
 
+## A typed journey becomes test cases (Run tests → the Test cases tab)
+
+A sentence typed into Run tests is compiled to a plan and, from 26 October, read back as **test
+cases** at once — so a run never passes without saying what it tested:
+
+- **On this journey.** The journey itself is case J-0; every assertion the plan makes is a case of
+  its own, with the acts before it as steps and the assertion as the expected result, in a tester's
+  words ("The toolbar shows 2 line item(s)"). Then the model drafts what a senior tester would
+  add for that flow — refusals, edge values, state checks, the numbers that must be right — grounded
+  in the rules Procol's code enforces. Each draft is matched against the written catalog: one the
+  catalog already has shows its id; a new one is saved as a draft (`GEN-JRN-…`, in
+  `test-cases/generated-<date>.md`) and marked **new**. A draft an earlier journey wrote is reused by
+  title, not saved twice.
+- **Tested.** When the run ends every case is marked from the steps that cover it: passed, failed
+  (with the app's words), not reached (the run stopped before it), or not run (no step of this plan
+  checks it yet). A refusal case can only be proved by a refusal assertion, never by the happy
+  path beside it; a case maps to a step only when the words that say *what* is checked overlap.
+- **New test cases found on this run.** The runner (`UI_DISCOVER=1`, on by default from Run tests)
+  inventories every screen the run reaches for the first time — path with ids stripped, controls,
+  boxes, numbered map — and after the run the screen-cases agent writes the cases those screens
+  deserve (at most 4 a screen, 6 screens a run; a screen the library already has 4+ cases for is
+  only re-photographed). They appear under the journey's cases, saved to the catalog as
+  `GEN-SCR-…` drafts, each runnable from the Screens page.
+- **Export.** Excel, CSV or Markdown of all of it — id, title, steps, expected, result, the app's
+  words, source (journey / catalog / new, and the screen it came from), the rule it rests on.
+
+Everything is kept in `prototype/data/journeys/<runId>.json` (`GET /api/journeys`,
+`/api/journey?run=`, `/api/journey/export?run=&format=csv|md|xlsx`). A plan-only run (`dry=1`)
+still gets its cases. Code: `prototype/src/agents/journeyCases.ts`, the hooks in `/api/plan-run`,
+`public/session.js` (the Test cases tab), the discovery in `procol-ui-tests/src/plan/runPlan.ts`.
+
 ## Every kind of event: the combination run
 
 `scripts/combo-night.ts` runs the product's own grid — entry path (eRFX, single-stage, BOQ) × stages
