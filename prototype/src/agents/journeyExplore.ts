@@ -81,6 +81,8 @@ export async function exploreJourney(opts: {
     const r = await exploreOne(route);
     explored.push(r);
   }
+  // The journey's own cases (and the drafts about it) that no explored screen ran say so.
+  for (const c of journey.cases) if (!c.status) Object.assign(c, { status: "not run", detail: c.detail || "no step of this run checks it — the exploration tested the screen's own cases" });
   journey.result = { passed: explored.every((e) => e.broken === 0), ok: explored.reduce((n, e) => n + e.worked + e.partly, 0), steps: journey.cases.length };
   saveJourney(journey);
   send("cases-tested", { runId, cases: journey.cases, result: journey.result });
