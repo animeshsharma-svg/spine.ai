@@ -2056,6 +2056,268 @@
           }
         ]
       }
+    },
+    {
+      "id": "GEN-SCR-374",
+      "title": "Verify Published Stages columns and row value formatting",
+      "kind": "boundary",
+      "grounded": "R-FLA-026-1",
+      "steps": [
+        "Click \"Published Stages\".",
+        "Review the table headers.",
+        "Compare the rows with and without ref_id.",
+        "Review participant and date values."
+      ],
+      "expected": "The table shows Stage Title, Pending Actions, Participants, Bidding Starts At, and Bidding Ends At. Stage Code is shown when at least one row has ref_id and is omitted when no row has ref_id. Participants show active/total, with missing values shown as 0. Missing dates show \"-\".",
+      "setup": "Use one stage row with ref_id, one row without ref_id, one row with missing participant counts, and rows with and without bidding dates.",
+      "coverage": "partial",
+      "gaps": [
+        "Compare rows with and without ref_id to conditionally show or omit Stage Code",
+        "Assert Participants values use active/total formatting for each row, including missing values rendered as 0",
+        "Assert missing Bidding Starts At and Bidding Ends At values render as '-' for specific rows"
+      ],
+      "plan": {
+        "title": "Verify Published Stages table",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary where the Published Stages control is available."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Open the Published Stages table requested by the case."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title"
+            },
+            "note": "Verify the Stage Title column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions"
+            },
+            "note": "Verify the Pending Actions column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants"
+            },
+            "note": "Verify the Participants column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At"
+            },
+            "note": "Verify the bidding start date column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At"
+            },
+            "note": "Verify the bidding end date column is present."
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Check that the published stages screen has no raw null values, crashes, server errors, or malformed data."
+          }
+        ]
+      },
+      "controls": [
+        7,
+        13
+      ]
+    },
+    {
+      "id": "GEN-SCR-375",
+      "title": "Verify Line Items and Participants count tags",
+      "kind": "state",
+      "grounded": "R-FLA-018-4",
+      "steps": [
+        "Open the project details screen.",
+        "Read the count tags on \"Line Items 1\" and \"Participants 199\".",
+        "Reload with the second response."
+      ],
+      "expected": "The headers show the response counts, initially \"Line Items 1\" and \"Participants 199\", and update to the new counts after the response changes.",
+      "setup": "Prepare a project response containing one line item and 199 participants. Also prepare a second response with changed counts.",
+      "coverage": "partial",
+      "gaps": [
+        "Reloading the project details screen with a second response",
+        "Verifying that the Line Items and Participants tags update to new response counts after reload"
+      ],
+      "plan": {
+        "title": "Verify project count tags",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open the prepared project's details/overview screen where the count tags are displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items 1",
+              "present": true
+            },
+            "note": "Verify the initial Line Items count tag."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants 199",
+              "present": true
+            },
+            "note": "Verify the initial Participants count tag."
+          }
+        ]
+      },
+      "controls": [
+        12,
+        14,
+        15,
+        18,
+        24,
+        58
+      ]
+    },
+    {
+      "id": "GEN-SCR-376",
+      "title": "Open a draft RFQ-to-auction stage with its draft event",
+      "kind": "button",
+      "grounded": "R-FLA-026-2",
+      "steps": [
+        "Click \"Published Stages\".",
+        "Click \"spine-ui-automation-...\".",
+        "Inspect the opened create screen and its request or URL parameters."
+      ],
+      "expected": "The create screen opens for the draft stage and carries the recorded draft event ID as draftEventId. No auction-team permission is required for this table action.",
+      "setup": "Use a project containing a draft RFQ-to-auction stage whose displayed title is truncated as \"spine-ui-automation-...\". Record its draft event ID.",
+      "coverage": "partial",
+      "gaps": [
+        "Verify that the URL carries the specific recorded draft event ID value, because the case does not provide that dynamic ID.",
+        "Verify that no auction-team permission is required for the table action."
+      ],
+      "plan": {
+        "title": "Open Draft RFQ-to-Auction Stage",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared draft event project page without creating or publishing a new event."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Published Stages"
+            },
+            "note": "Open the published stages table described by the case."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "spine-ui-automation-..."
+            },
+            "note": "Select the draft RFQ-to-auction stage from the table."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Verify that selecting the stage opened the create screen."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "draftEventId"
+            },
+            "note": "Verify that the create-screen URL includes the draftEventId parameter."
+          }
+        ]
+      },
+      "controls": [
+        7,
+        16
+      ]
+    },
+    {
+      "id": "GEN-SCR-377",
+      "title": "Load NFA history only when the feature flag is enabled",
+      "kind": "state",
+      "grounded": "R-FLA-017-2",
+      "steps": [
+        "Select the \"Project Details\" tab.",
+        "Wait for the project details request to complete.",
+        "Review the network requests.",
+        "Repeat with isNfaHistoryEnabled disabled."
+      ],
+      "expected": "With the flag enabled, the app sends one GET request to /event_groups/:id/get_approvals?lot_no= after the project UUID is known. With the flag disabled, that request is not sent.",
+      "setup": "Use a project with a known UUID. Run once with isNfaHistoryEnabled enabled and once disabled. Capture network requests.",
+      "coverage": "partial",
+      "gaps": [
+        "Enable or disable the isNfaHistoryEnabled feature flag",
+        "Repeat the flow with the feature flag disabled and assert that the approvals-history request is absent"
+      ],
+      "plan": {
+        "title": "NFA history request feature flag",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project details state without creating or modifying an event."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Project Details"
+            },
+            "note": "Select the tab whose loading behavior is under test."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/event_groups/",
+              "method": "GET",
+              "status": 200
+            },
+            "note": "Verify the project details request completed successfully before checking the dependent request."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/get_approvals",
+              "method": "GET",
+              "query": "lot_no=",
+              "status": 200
+            },
+            "note": "Verify that the NFA history request was sent with an empty lot_no query after the project UUID was available."
+          }
+        ]
+      },
+      "controls": [
+        15,
+        18
+      ]
     }
   ],
   "reachedBy": [
@@ -2119,6 +2381,6 @@
     "map": "/Users/animesh/Desktop/procol/prototype/data/screens/img/auction-live-map.png"
   },
   "takenAt": "2026-10-21T10:49:16.038Z",
-  "updatedAt": "2026-10-21T10:52:07.569Z",
+  "updatedAt": "2026-10-21T10:53:25.651Z",
   "captures": 2
 }
