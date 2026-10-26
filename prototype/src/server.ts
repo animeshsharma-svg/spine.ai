@@ -51,6 +51,8 @@ import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGa
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { contextForPlan } from "./ui/prepareForPlan.js";
 import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
+import { exploreJourney } from "./agents/journeyExplore.js";
+import { cancelQuestions } from "./agents/questions.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -1180,7 +1182,7 @@ const server = createServer(async (req, res) => {
         // shown as soon as they are ready, marked from the run's result at the end.
         const discover = url.searchParams.get("discover") !== "0";
         const journey: TypedJourney = { runId, text: testCase, companyId: c, at: new Date().toISOString(), plan: compiled.plan.steps, cases: [], newCases: [], screens: [] };
-        const casesP = casesForJourney(testCase, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }) })
+        const casesP = casesForJourney(testCase, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }), planCases: compiled.coverage !== "none" && compiled.source !== "fallback" })
           .then((cases) => {
             journey.cases = cases;
             saveJourney(journey);
@@ -1200,8 +1202,33 @@ const server = createServer(async (req, res) => {
           res.end();
           return;
         }
-        // An empty plan would "pass" in zero steps. Say what is missing instead.
-        if (compiled.coverage === "none" || !compiled.plan.steps.length) {
+        // No step for what the journey is about, or no plan from the words at all: the run
+        // does not stop at "not tested". It finds the console screen the journey is about
+        // (asking only when the words leave a doubt), opens it, photographs it, writes its test
+        // cases and runs them — in this session, with questions on the way (journeyExplore.ts).
+        const noStep = compiled.coverage === "none" || !compiled.plan.steps.length;
+        const noPlan = compiled.source === "fallback" && url.searchParams.get("force") !== "1";
+        if ((noStep || noPlan) && url.searchParams.get("explore") !== "0") {
+          send("log", { line: `[plan] no step yet for: ${compiled.gaps.join("; ") || "what this case checks"} — exploring the screen instead` });
+          send("stage", { name: "explore", line: "No step covers this yet — finding the screen it is about" });
+          const closers: Array<() => void> = [];
+          req.on("close", () => {
+            cancelQuestions(runId);
+            for (const f of closers) f();
+          });
+          const r = await exploreJourney({ text: testCase, gaps: compiled.gaps, companyId: c, runId, journey, send, onClose: (f) => closers.push(f), exportLinks, maxScreens: 2, maxCases: 6 }).catch((e) => ({ explored: [], asked: 0, why: (e as Error).message }));
+          await casesP.catch(() => []);
+          if (!r.explored.length) {
+            send("log", { line: `[plan] not run — ${r.why ?? "no screen to explore"}` });
+            send("done", { exitCode: 0, notRun: true, why: r.why });
+            res.end();
+            return;
+          }
+          send("done", { exitCode: r.explored.some((e) => e.broken) ? 1 : 0, explored: r.explored, asked: r.asked, runId });
+          res.end();
+          return;
+        }
+        if (noStep) {
           send("log", { line: `[plan] not run — the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}` });
           send("done", { exitCode: 0, notRun: true });
           res.end();
@@ -1275,6 +1302,16 @@ const server = createServer(async (req, res) => {
               journey.screens = found.screens;
               saveJourney(journey);
               send("new-cases", { runId, cases: found.cases, screens: found.screens });
+            }
+            // A partly covered journey: the part no step reaches is explored the same way, when
+            // the words name its screen clearly (no question, nothing when they do not).
+            if (compiled.coverage === "partial" && compiled.gaps.length && !closed && url.searchParams.get("explore") !== "0") {
+              const closers: Array<() => void> = [];
+              req.on("close", () => {
+                for (const f of closers) f();
+              });
+              const r = await exploreJourney({ text: testCase, gaps: compiled.gaps, companyId: c, runId, journey, send, onClose: (f) => closers.push(f), exportLinks, silent: true, maxScreens: 1, maxCases: 4 }).catch((e) => ({ explored: [], asked: 0, why: (e as Error).message }));
+              if (r.explored.length) (e as any).explored = r.explored;
             }
             send("journey", { runId, cases: journey.cases.length, newCases: journey.newCases.length, export: exportLinks });
           }

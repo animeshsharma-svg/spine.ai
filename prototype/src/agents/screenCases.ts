@@ -270,7 +270,8 @@ export async function draftCasesFromScreen(
     let gaps: string[] = [];
     let uiPlan: unknown;
     if (opts.compile !== false) {
-      const c = await compileTestCase(opts.notes?.length ? `${caseText} Tester's notes: ${opts.notes.join(" ")}` : caseText, "events", { tier: "fast", dryRun: true }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
+      const screen = { label: inv.label, path: inv.path, controls: inv.controls.filter((x) => x.name && x.name.length >= 2).map((x) => `${x.kind} "${x.name}"${x.disabled ? " (disabled)" : ""}`), headings: [...(inv.headings ?? []), ...(inv.messages ?? [])].filter((t) => t && t.length >= 2).slice(0, 60) };
+      const c = await compileTestCase(opts.notes?.length ? `${caseText} Tester's notes: ${opts.notes.join(" ")}` : caseText, "events", { tier: "fast", dryRun: true, screen }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
       coverage = c.coverage;
       gaps = c.gaps ?? [];
       uiPlan = (c as { plan?: unknown }).plan;

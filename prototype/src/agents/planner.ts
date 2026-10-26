@@ -1110,6 +1110,28 @@ export interface CompileOptions {
    * case is about. `valueKeys` are the API values expect_api_value can compare.
    */
   prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string };
+  /**
+   * The screen the case was written from (the explorer / screen cases): its path and the exact
+   * names of its controls. The plan reaches it with go_to {screen:"path"} and acts on it with
+   * the generic steps; a control named here is a known label, not a guess.
+   */
+  screen?: { label: string; path: string; controls: string[]; headings?: string[] };
+}
+
+/** The prompt section for a case written from a photographed screen (CompileOptions.screen). */
+function screenRules(sc: NonNullable<CompileOptions["screen"]>): string {
+  const eventScreen = /^\/(orders|project)\b/.test(sc.path);
+  return [
+    `THE SCREEN THIS CASE IS ON: "${sc.label}" at ${sc.path}.`,
+    `- Start the plan with go_to {screen:"path", path:"${sc.path}"}${eventScreen ? " unless a domain step reaches it" : ""}.`,
+    `- Its controls, named EXACTLY as rendered (these are KNOWN LABELS — asserting or acting on one is covered, not a guess):\n  ${sc.controls.slice(0, 120).join(" · ")}`,
+    sc.headings?.length ? `- Headings and column titles on it (known text for expect_text): ${sc.headings.slice(0, 40).join(" · ")}` : "",
+    "- Every generic step that looks for something needs a name, label, placeholder or text from this list — never an empty expect_count / expect_visible.",
+    eventScreen
+      ? "- The event steps apply here."
+      : "- This is NOT an event screen: the event steps (open_events_list, expect_events_list, open_create, add_line_items, publish, place_bid…) do not apply. Use the GENERIC steps: click / fill / select / press / expect_text / expect_visible / expect_count / expect_value / expect_message / attempt. A click that opens a drawer, dialog, menu or page is checked with expect_visible or expect_text on what appears.",
+    '- Coverage is "full" when every step acts on or checks a control listed here or text the screen shows; "partial" when one detail is unconfirmed; "none" only when the subject is not on this screen at all.',
+  ].join("\n");
 }
 
 /**
@@ -1253,6 +1275,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     expectations.length ? `WHAT THE RULES SAY ABOUT THIS AREA:\n${expectations.map((e) => `- ${e}`).join("\n")}` : "",
     experience.length ? `WHAT HAS BROKEN HERE BEFORE (worth asserting):\n${experience.map((e) => `- ${e}`).join("\n")}` : "",
     opts.prepared ? preparedRules(opts.prepared) : "",
+    opts.screen ? screenRules(opts.screen) : "",
     `TEST CASE:\n${testCase}`,
   ]
     .filter(Boolean)
@@ -1387,7 +1410,11 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   if (coverage === "full" && gaps.length) coverage = "partial";
   // A generic step built on a guessed label is not full coverage, whatever
   // the model says — checked against the labels known from the app.
-  const guesses = opts.withholdGeneric ? [] : labelGuesses(linted.plan.steps, testCase, catalog.labels);
+  // A photographed screen's own controls and headings are labels the product renders.
+  const labelsKnown = opts.screen
+    ? { ...(catalog.labels ?? {}), [`screen ${opts.screen.label}`]: [...opts.screen.controls.map((c) => c.replace(/^\w+\s+"(.*)"(\s+\(disabled\))?$/, "$1")), ...(opts.screen.headings ?? [])] }
+    : catalog.labels;
+  const guesses = opts.withholdGeneric ? [] : labelGuesses(linted.plan.steps, testCase, labelsKnown);
   if (guesses.length) {
     if (coverage === "full") coverage = "partial";
     warnings.push(...guesses.map((g) => `coverage partial: ${g}`));

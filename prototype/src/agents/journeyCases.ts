@@ -239,16 +239,18 @@ function parseArray(raw: string): any[] {
 /**
  * The cases a journey carries and the cases a tester would add. `draft` false skips the model.
  */
-export async function casesForJourney(text: string, plan: { title?: string; steps: PlanStep[] }, opts: { companyId?: number; draft?: boolean; max?: number; onLine?: (l: string) => void } = {}): Promise<JourneyCase[]> {
+export async function casesForJourney(text: string, plan: { title?: string; steps: PlanStep[] }, opts: { companyId?: number; draft?: boolean; max?: number; onLine?: (l: string) => void; planCases?: boolean } = {}): Promise<JourneyCase[]> {
   const say = opts.onLine ?? (() => {});
   const steps = plan.steps ?? [];
   const cases: JourneyCase[] = [];
   // 1 · the journey as a whole
   cases.push({ id: "J-0", title: clean(text).slice(0, 140), steps: steps.filter((s) => !ASSERT.test(s.step)).map(stepWords), expected: steps.filter((s) => ASSERT.test(s.step)).map(expectedWords).join(" ") || "The journey completes without the app refusing a step.", source: "journey", stepIndexes: steps.map((_, i) => i) });
-  // 2 · one case per assertion: the acts since the previous assertion are its steps
+  // 2 · one case per assertion: the acts since the previous assertion are its steps — only when
+  //     the plan IS the journey (a "closest plan" the compiler could not vouch for proves nothing)
   let from = 0;
   let k = 1;
   steps.forEach((st, i) => {
+    if (opts.planCases === false) return;
     if (!ASSERT.test(st.step) || st.step === "skip") return;
     const acts = steps.slice(from, i).filter((s) => !ASSERT.test(s.step) || s.step === "skip");
     const idx = steps.map((_, j) => j).filter((j) => j <= i && j >= Math.max(0, from - 0));

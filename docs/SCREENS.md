@@ -83,6 +83,43 @@ Everything is kept in `prototype/data/journeys/<runId>.json` (`GET /api/journeys
 still gets its cases. Code: `prototype/src/agents/journeyCases.ts`, the hooks in `/api/plan-run`,
 `public/session.js` (the Test cases tab), the discovery in `procol-ui-tests/src/plan/runPlan.ts`.
 
+## A journey no step covers never stops at "not tested" (26 Oct, evening)
+
+Typed: *create an event from a purchase requisition (PR), invite three vendors, accept one bid*.
+The step catalog knows events, not purchase requisitions, so the compiler says coverage "none".
+The run used to end there. Now:
+
+1. **Find the screen.** `src/agents/routeFinder.ts` scores the console's own routes
+   (`data/console-routes.json`, 86 static paths with their names and breadcrumbs read from the
+   client-dashboard's `routeConfigs.js`) against the journey's words — buyers' words included
+   (PR, PO, intake, supplier, DOA, HSN…) — and a fast model confirms among the top candidates.
+   The event screens (`/orders`, `/project`) are never explored: they belong to the step catalog.
+   A path typed in the words (`/purchase-requisitions`) wins outright.
+2. **Ask only on real doubt.** When the words do not name a screen, the session shows a question
+   with the best guesses as chips (and a box to type a menu name or path); the run waits for the
+   answer — with a deadline (10 min), so it always ends. `src/agents/questions.ts`,
+   `POST /api/ask/answer`.
+3. **Explore it, in the session.** The explorer (`src/agents/explorer.ts`, auto mode) opens the
+   screen, photographs and inventories it, writes its test cases from the controls and the rules
+   Procol's code enforces there, saves them to the catalog (`GEN-SCR-…`), and **runs every case
+   that compiles** — every generic step on a non-event screen (`go_to` the path, click, fill,
+   expect_text / expect_visible…; the event steps are stripped there, after `expect_events_list`
+   failed a healthy PR page). The compiler is told the screen's exact controls and headings
+   (`CompileOptions.screen`), so naming one is a known label, not a guess.
+4. **Ask about failures nobody can classify alone** — "A product bug / Expected / The test did it
+   wrong / Skip" — again with a deadline (5 min); a failure that is the plan's own fault (an empty
+   `expect_count`, a key the step refuses) is classified without a question. A case no step can
+   do is reported as *not checked* with what is missing, and a note typed in the composer teaches
+   it next time.
+5. **End honestly.** The DONE box says "No step covered this journey, so spine.ai opened
+   Purchase Requisition …: N cases written, worked / broken / not checked"; the Test cases tab
+   has each case with its verdict and the app's words; the export has it all.
+
+A partly covered journey runs its plan first, then explores the gap's screen the same way when
+the words name it clearly (never a question in that case). `explore=0` on `/api/plan-run` turns
+exploration off. Orchestration: `src/agents/journeyExplore.ts`; the session UI's question box,
+exploration lines and per-case verdicts: `public/session.js`.
+
 ## Every kind of event: the combination run
 
 `scripts/combo-night.ts` runs the product's own grid — entry path (eRFX, single-stage, BOQ) × stages

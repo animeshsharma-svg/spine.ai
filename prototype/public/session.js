@@ -1180,15 +1180,112 @@
         (fresh ? ` · <span class="new">${fresh} new</span>` : "");
     }
   }
-  /** The cases the journey carries, as soon as the plan has been read. */
+  /** The cases the journey carries, as soon as the plan has been read (or a screen was read). */
   function cases(p) {
     if (!S.on) return;
     C.runId = p.runId || C.runId;
+    const before = C.cases.length;
     C.cases = p.cases || [];
     C.status = "running";
     paintCaseLists();
-    const n = C.cases.length;
-    if (n) note(`${n} test case${n === 1 ? "" : "s"} written for this journey${C.cases.some((c) => c.source === "new") ? ` (${C.cases.filter((c) => c.source === "new").length} new, saved to the catalog)` : ""} — open the Test cases tab to read them.`, "info", "Test cases");
+    const n = C.cases.length - before;
+    if (n > 0) note(`${n} test case${n === 1 ? "" : "s"} written${before ? " more" : " for this journey"}${C.cases.some((c) => c.source === "new") ? ` (${C.cases.filter((c) => c.source === "new").length} new, saved to the catalog)` : ""} — open the Test cases tab to read them.`, "info", "Test cases");
+  }
+  /** One case's result, as the explorer runs it. */
+  function caseVerdict(p) {
+    if (!S.on) return;
+    const c = C.cases.find((x) => x.id === p.id);
+    if (!c) return;
+    c.status = p.status;
+    if (p.detail) c.detail = p.detail;
+    paintCaseLists();
+  }
+
+  // ── exploring a screen no step covers (journeyExplore.ts) ────────────────
+  function explore(p) {
+    if (!S.on) return;
+    const text = String(p.text ?? "");
+    if (p.kind === "head") {
+      // The closest plan's steps never ran: say so on each, then the exploration takes over.
+      (S.turn?.plan ?? []).forEach((st, i) => { if (st.state === "wait") planStep(i, "skip", "not run — the plan did not cover what the journey is about"); });
+      head(text, "", p.state || "run");
+      working("Opening the screen in the browser");
+      return;
+    }
+    if (p.kind === "note") return note(text, p.tone || "info");
+    const i = text.indexOf(": ");
+    const verb = i > 0 && i < 24 ? text.slice(0, i) : text;
+    const rest = i > 0 && i < 24 ? text.slice(i + 2) : "";
+    const n = act(verb, rest, p.state || "");
+    if (n && p.screenshot) {
+      const img = document.createElement("img");
+      img.className = "ss-b-shot";
+      img.loading = "lazy";
+      img.src = `/api/ui-evidence?path=${encodeURIComponent(p.screenshot)}`;
+      img.alt = text;
+      img.addEventListener("click", () => spotOpen({ file: p.screenshot, action: "screen", target: text }));
+      q$(".ss-b-body", n)?.appendChild(img);
+    }
+    if (p.working) working(text);
+    remember(text);
+  }
+
+  /** A question the run asks: options to click, or words to type; the run waits (with a deadline). */
+  function ask(q) {
+    if (!S.on) return;
+    stopWorking();
+    const mins = q.timeoutMs ? Math.round(q.timeoutMs / 60_000) : 0;
+    const box = node(
+      `<div class="ss-ask-q" data-qid="${h(q.qid)}"><div class="ss-ask-h">${icon("info")}<span class="ss-badge">Question</span>${mins ? `<span class="ss-ask-deadline">answer within ${mins} min or the run goes on without it</span>` : ""}</div>` +
+      `<div class="ss-ask-t">${h(q.text)}</div>` +
+      (q.screenshot ? `<img class="ss-b-shot" loading="lazy" src="/api/ui-evidence?path=${encodeURIComponent(q.screenshot)}" alt="the screen">` : "") +
+      `<div class="ss-ask-opts">${(q.options || []).map((o) => `<button type="button" class="ss-ask-opt">${h(o)}</button>`).join("")}</div>` +
+      `<form class="ss-ask-form"><input type="text" class="ss-ask-in" placeholder="${h(q.kind === "choose" ? "or type the numbers, e.g. 1, 3 — or all" : "or type your answer")}" autocomplete="off"><button type="submit" class="ss-ask-send">Answer</button></form>` +
+      `<div class="ss-ask-done" hidden></div></div>`,
+    );
+    addNarr(box);
+    remember(`QUESTION: ${q.text}`);
+    const answerWith = async (text) => {
+      text = String(text ?? "").trim();
+      if (!text) return;
+      for (const b of box.querySelectorAll("button, input")) b.disabled = true;
+      let ok = false;
+      try {
+        const r = await fetch(q.answerUrl || "/api/ask/answer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: q.id, qid: q.qid, answer: text }) });
+        ok = r.ok;
+      } catch {
+        ok = false;
+      }
+      if (!ok) {
+        for (const b of box.querySelectorAll("button, input")) b.disabled = false;
+        note("That answer did not reach the run — it may have moved on. Try again or type it in the composer.", "warn");
+        return;
+      }
+      markAnswered(box, text);
+      working("Going on with your answer");
+    };
+    for (const b of box.querySelectorAll(".ss-ask-opt")) b.addEventListener("click", () => answerWith(b.textContent));
+    q$(".ss-ask-form", box)?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      answerWith(q$(".ss-ask-in", box)?.value);
+    });
+    q$(".ss-ask-in", box)?.focus();
+    S.chat.push({ role: "assistant", text: `Question: ${q.text}` });
+  }
+  function markAnswered(box, text, timedOut = false) {
+    for (const b of box.querySelectorAll("button, input")) b.disabled = true;
+    q$(".ss-ask-opts", box)?.setAttribute("hidden", "");
+    q$(".ss-ask-form", box)?.setAttribute("hidden", "");
+    const d = q$(".ss-ask-done", box);
+    if (d) {
+      d.hidden = false;
+      d.textContent = timedOut ? "No answer in time — the run went on without it." : `You answered: ${text}`;
+    }
+    remember(timedOut ? "no answer in time" : `ANSWER: ${text}`);
+  }
+  function answered(p) {
+    const box = q$(`.ss-ask-q[data-qid="${CSS.escape(String(p.qid))}"]`, el.narr);
+    if (box && !q$(".ss-ask-done", box)?.textContent) markAnswered(box, p.answer, !!p.timedOut);
   }
   /** What the run proved for each case. */
   function casesTested(p) {
@@ -1275,7 +1372,8 @@
     spot,
     working, head, act, note,
     plan, planStep,
-    cases, casesTested, newCases, journeyLinks,
+    cases, casesTested, newCases, journeyLinks, caseVerdict,
+    explore, ask, answered,
     frame, request,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
     get on() { return S.on; },

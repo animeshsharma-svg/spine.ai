@@ -5128,11 +5128,17 @@ function runTestCase(textOverride) {
   es.addEventListener("cases-tested", (ev) => window.spineSession?.casesTested(JSON.parse(ev.data)));
   es.addEventListener("new-cases", (ev) => window.spineSession?.newCases(JSON.parse(ev.data)));
   es.addEventListener("journey", (ev) => window.spineSession?.journeyLinks(JSON.parse(ev.data)));
+  // A journey no step covers: the screen it is about is explored instead — lines, pictures,
+  // questions to answer, and each case's verdict as it runs (journeyExplore.ts).
+  es.addEventListener("explore", (ev) => window.spineSession?.explore(JSON.parse(ev.data)));
+  es.addEventListener("ask", (ev) => window.spineSession?.ask(JSON.parse(ev.data)));
+  es.addEventListener("answered", (ev) => window.spineSession?.answered(JSON.parse(ev.data)));
+  es.addEventListener("case-verdict", (ev) => window.spineSession?.caseVerdict(JSON.parse(ev.data)));
 
   es.addEventListener("stage", (ev) => {
     const st = JSON.parse(ev.data);
     write("› " + st.line, "cmd");
-    if (st.name === "execute" || st.name === "discover") window.spineSession?.working(st.line);
+    if (st.name === "execute" || st.name === "discover" || st.name === "explore") window.spineSession?.working(st.line);
   });
   onQueued(es, write);
   /**
@@ -5295,6 +5301,25 @@ function runTestCase(textOverride) {
   };
   es.addEventListener("done", (ev) => {
     const d = JSON.parse(ev.data);
+    // No step covered the journey, so its screen was explored: the end box says what that found.
+    if (Array.isArray(d.explored) && d.explored.length) {
+      const ex = d.explored;
+      const sum = ex.reduce((a, e) => ({ cases: a.cases + e.cases, worked: a.worked + e.worked, partly: a.partly + e.partly, broken: a.broken + e.broken, notChecked: a.notChecked + e.notChecked, skipped: a.skipped + e.skipped, questions: a.questions + e.questions }), { cases: 0, worked: 0, partly: 0, broken: 0, notChecked: 0, skipped: 0, questions: 0 });
+      const names = ex.map((e) => e.name).join(" and ");
+      renderUiInstructResult("notrun", { title: planTitle, reason: `No step covered this journey, so spine.ai explored ${names}: ${sum.cases} test cases written, ${sum.worked + sum.partly} worked, ${sum.broken} broken, ${sum.notChecked} not checked.` });
+      window.spineSession?.end({
+        tone: sum.broken ? "bad" : sum.worked + sum.partly ? "ok" : "skip",
+        key: "UI",
+        title: `No step covered this journey yet, so spine.ai opened ${names}, wrote its test cases and ran them.`,
+        lines: [
+          `${sum.cases} test case${sum.cases === 1 ? "" : "s"} written · ${sum.worked} worked · ${sum.partly} partly checked · ${sum.broken} broken · ${sum.notChecked} not checked${sum.skipped ? ` · ${sum.skipped} skipped` : ""}.`,
+          sum.questions ? `${sum.questions} question${sum.questions === 1 ? " was" : "s were"} asked on the way. ` : "",
+          "Every case, its result and its pictures are in the Test cases tab — export them from there.",
+        ],
+      });
+      finish(sum.broken ? `✗ ${sum.broken} broken on ${names}` : `✓ explored ${names}: ${sum.worked + sum.partly} of ${sum.cases} cases worked`, sum.broken ? "bad" : "ok");
+      return;
+    }
     // Not tested says why in one place: the step that is missing, when the compiler named it.
     if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: planGaps.length ? `There is no step yet for: ${gapWords(planGaps)}. Nothing was run in its place.` : "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
     else if (!planStarted) renderUiInstructResult("notrun", { title: planTitle, reason: `The run could not start${planError ? `: ${planError}` : "."}` });
