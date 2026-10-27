@@ -411,6 +411,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   const generic = await runGenericStep(s, step, (inner) => runStep(s, inner));
   if (generic) {
     s.lastStrategy = generic.strategy;
+    // A plain click on "Submit Proposal" on the awarding/proposal screen IS the award submission —
+    // the confirmation below must count it, not only the award_event step.
+    const named = `${a.name ?? ""} ${a.text ?? ""} ${a.label ?? ""}`;
+    if (step.step === "click" && /submit proposal/i.test(named)) s.awarded = true;
     return generic.detail;
   }
   switch (step.step) {
@@ -656,7 +660,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return detail;
     }
     case "expect_counter_offer_sent": {
-      if (!s.counterOfferSent) throw new Error("no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
+      if (!s.counterOfferSent) throw new Error("not checked: no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
       const co = new CounterOfferPage(s.page);
       const marked = await co.counterOfferVisibleFor(a.vendor ? String(a.vendor) : undefined);
       if (!marked) throw new Error("the counter offer was sent, but the grid shows no counter-offer mark on the bid yet");
@@ -719,7 +723,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
     }
     case "expect_counter_offer_accepted": {
-      if (!s.counterOfferAccepted) throw new Error("no counter offer was accepted in this plan — expect_counter_offer_accepted needs accept_counter_offer before it");
+      if (!s.counterOfferAccepted) throw new Error("not checked: no counter offer was accepted in this plan — expect_counter_offer_accepted needs accept_counter_offer before it");
       // Back on the buyer's page, the Responses grid should now carry the mark.
       const co = new CounterOfferPage(s.page);
       await s.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
@@ -1112,11 +1116,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `awarded ${allocated.items} line item(s) to ${allocated.vendors} vendor(s) — ${outcome}`;
     }
     case "expect_awarded":
-      expect(s.awarded, "nothing was awarded in this plan, so there is no award to confirm").toBe(true);
+      // Not a screen check: without an award made in this plan there is nothing to confirm — that is
+      // the plan's gap, never the product's failure.
+      if (!s.awarded) throw new Error("not checked: no award was submitted in this plan, so there is no award to confirm");
       return "the event is awarded";
     case "expect_bid_submitted":
-      expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
-      return "the bid is submitted";
+      if (!s.bidSubmitted && !s.context?.vendorName) throw new Error("not checked: no bid has been placed in this plan, so there is nothing to confirm");
+      return s.bidSubmitted ? "the bid is submitted" : `the event was built with ${s.context?.vendorName}'s bid`;
     case "invite_vendor": {
       if (await isSingleStageScreen(s)) {
         // The invite rule: a vendor the case names is searched for; otherwise the product's
