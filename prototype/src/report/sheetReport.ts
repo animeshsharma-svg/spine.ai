@@ -24,7 +24,7 @@ function caseBlock(c: SheetRunCase): string {
         .join("")}</div>`
     : "";
   return `<details class="case ${TONE[c.status]}" id="c-${esc(c.id)}"><summary><span class="id">${esc(c.id)}</span><span class="t">${esc(c.title)}</span><span class="pill ${TONE[c.status]}">${esc(c.status)}</span></summary>
-<div class="body"><p class="why">${esc(c.why)}</p>${c.startedFrom ? `<p class="muted">Started from: ${esc(c.startedFrom)}</p>` : ""}
+<div class="body"><p class="why">${esc(c.why)}</p>${c.repaired ? `<p class="muted"><b>Repaired by the agent:</b> ${esc(c.repaired.how)}. Before the repair: ${esc(c.repaired.before)}</p>` : ""}${c.startedFrom ? `<p class="muted">Started from: ${esc(c.startedFrom)}</p>` : ""}
 <div class="cols"><div><h4>What the case says</h4><ol>${c.case.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p><b>Expected:</b> ${esc(c.case.expected)}</p></div>
 <div><h4>What the run did</h4>${c.steps.length ? `<ol class="did">${c.steps.map((s) => `<li class="${s.outcome}"><span>${esc(s.words)}</span>${s.outcome === "failed" && s.detail ? `<em>${esc(s.detail)}</em>` : ""}</li>`).join("")}</ol>` : `<p class="muted">Nothing was run.</p>`}</div></div>${api}${shots(c.shots)}</div></details>`;
 }

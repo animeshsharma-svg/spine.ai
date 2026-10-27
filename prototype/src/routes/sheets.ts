@@ -14,6 +14,11 @@ import type { RouteHandler } from "./index.js";
 import { importSheetBuffer, listSheets, sheetCases, sheetPrep } from "../checks/sheetCases.js";
 import { activeSheetRun, listSheetRuns, loadSheetRun, runSheetCases, stopSheetRun } from "../checks/sheetRunner.js";
 import { exportSheetRun, renderSheetReport } from "../report/sheetReport.js";
+import { activeCampaign, campaignFrame, campaignResults, listCampaigns, loadCampaign, planModules, renderCampaignReport, resumeCampaigns, startCampaign, stopCampaign } from "../checks/sheetCampaign.js";
+import { backlog } from "../checks/selfRepair.js";
+
+// a campaign that was running when the server stopped carries on
+resumeCampaigns();
 
 function startsFrom(c: ReturnType<typeof sheetCases>[number]): string {
   if (c.layer === "api") return "API — the requests build what they need";
@@ -95,6 +100,41 @@ export const handle: RouteHandler = async (ctx) => {
     const b = await ctx.body();
     return ctx.json({ ok: stopSheetRun(String(b?.id ?? activeSheetRun() ?? "")) }), true;
   }
+  // ── campaigns: a whole sheet in flow order, on its own ──
+  if (ctx.path === "/api/sheets/campaign/plan") return ctx.json({ modules: planModules(sp.get("sheet") ?? "", sp.get("from") ?? undefined).map((m) => ({ key: m.key, name: m.name, cases: m.ids.length })) }), true;
+  if (ctx.path === "/api/sheets/campaign/start" && ctx.req.method === "POST") {
+    const b = await ctx.body();
+    try {
+      const c = startCampaign({ sheet: String(b?.sheet ?? ""), companyId: Number(b?.companyId) || 198678, from: b?.from ? String(b.from) : undefined, only: Array.isArray(b?.only) ? b.only.map(String) : undefined });
+      return ctx.json({ campaign: c, report: `/api/sheets/campaign/report?id=${c.id}` }), true;
+    } catch (e) {
+      return ctx.json({ why: (e as Error).message }, 400), true;
+    }
+  }
+  if (ctx.path === "/api/sheets/campaign/stop" && ctx.req.method === "POST") return ctx.json({ ok: stopCampaign() }), true;
+  if (ctx.path === "/api/sheets/campaign") {
+    const c = sp.get("id") ? loadCampaign(sp.get("id")!) : activeCampaign() ?? listCampaigns()[0] ?? null;
+    if (!c) return ctx.json({ campaign: null }), true;
+    const res = campaignResults(c);
+    const counts: Record<string, number> = {};
+    for (const r of res) counts[r.status] = (counts[r.status] ?? 0) + 1;
+    return ctx.json({ campaign: c, running: activeCampaign()?.id === c.id, counts, bugs: res.filter((r) => r.bug).length, repaired: res.filter((r) => r.repaired).length, backlog: backlog().length, report: `/api/sheets/campaign/report?id=${c.id}` }), true;
+  }
+  if (ctx.path === "/api/sheets/campaign/report") {
+    const c = loadCampaign(sp.get("id") ?? "") ?? activeCampaign() ?? listCampaigns()[0];
+    ctx.res.writeHead(c ? 200 : 404, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    ctx.res.end(c ? renderCampaignReport(c) : "<p>No campaign yet.</p>");
+    return true;
+  }
+  if (ctx.path === "/api/sheets/campaign/frame") {
+    const f = campaignFrame();
+    if (!f) return ctx.json({ why: "no picture yet" }, 404), true;
+    ctx.res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" });
+    ctx.res.end(Buffer.from(f, "base64"));
+    return true;
+  }
+  if (ctx.path === "/api/sheets/backlog") return ctx.json({ backlog: backlog() }), true;
+
   if (ctx.path === "/api/sheets/runs") return ctx.json({ runs: listSheetRuns(), active: activeSheetRun() }), true;
 
   if (ctx.path === "/api/sheets/report") {

@@ -22,6 +22,7 @@ import { runUiPlan, readPlanResult } from "../ui/uiFlowRunner.js";
 import { contextForPlan } from "../ui/prepareForPlan.js";
 import { VALUE_KEYS } from "../agents/screenModel.js";
 import { stepWords, expectedWords } from "../agents/journeyCases.js";
+import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -55,6 +56,10 @@ export interface SheetRunCase {
   api?: { summary: string; steps: HumanApiStep[] };
   ms: number;
   planRunId?: string;
+  /** set when the agent repaired its own automation and ran the case again */
+  repaired?: { how: string; before: string };
+  /** the page the browser was on when it stopped (for repairs) */
+  lastUrl?: string;
   case: SheetCase;
 }
 export interface SheetRun {
@@ -114,7 +119,7 @@ export function listSheetRuns(limit = 30): Array<Pick<SheetRun, "id" | "sheet" |
 const SEV: Record<string, SheetBug["severity"]> = { critical: "Critical", high: "High", medium: "Medium", low: "Low" };
 
 /** Run the cases one by one. Resolves with the finished run; events stream through `emit`. */
-export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
+export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
   if (active) throw new Error(`a sheet run is already going (${active.id}) — wait for it or stop it`);
   const run: SheetRun = { id: `sheet-${Date.now().toString(36)}`, sheet: opts.sheet, companyId: opts.companyId, startedAt: new Date().toISOString(), status: "running", total: cases.length, cases: [] };
   let stopped = false;
@@ -133,7 +138,7 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       const t0 = Date.now();
       let r: SheetRunCase;
       try {
-        r = c.layer === "api" ? await runApiCase(c, opts.companyId, line) : await runUiCase(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e));
+        r = c.layer === "api" ? await runApiCase(c, opts.companyId, line) : await runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e));
       } catch (e) {
         r = base(c, "Couldn't tell", `The run broke before it could finish: ${mask((e as Error).message)}.`, 0);
       }
@@ -156,12 +161,60 @@ function base(c: SheetCase, status: SheetVerdict, why: string, ms: number): Shee
   return { id: c.id, title: c.title, module: c.module, layer: c.layer, priority: c.priority, status, why, steps: [], shots: [], ms, case: c };
 }
 
-async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void): Promise<SheetRunCase> {
+async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?: boolean; repair?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void): Promise<SheetRunCase> {
+  const t0 = Date.now();
+  const r = await runUiCase(c, opts, line, setStop, emit);
+  if (opts.repair === false) return r;
+  if (r.status === "Pass" || r.status === "Fail" || r.status === "Partly checked") {
+    clearFromBacklog(c.id);
+    return r;
+  }
+  if (r.status === "Not run" && /^It starts from this/.test(r.why)) {
+    addToBacklog(c, "starting event not built", r.why, []);
+    return r;
+  }
+  const noStep = r.status === "Not run";
+  const tried: string[] = [];
+  let how = "";
+  let ground: ScreenGround | null = null;
+  if (!noStep) {
+    const st = stuckSince(t0);
+    if (st) {
+      line(`Repairing the automation: asking the AI to find the control it could not use ("${st.label}")…`);
+      const learnt = await teachStuck(st.id, line, setStop);
+      tried.push(`taught the locator for "${st.label}"${learnt ? "" : " — nothing was learnt"}`);
+      if (learnt) how = `learnt how to find "${st.label}" on that screen`;
+    }
+  }
+  if (!how) {
+    ground = screenFor(c, r.lastUrl);
+    if (ground) {
+      how = `built new steps from the "${ground.label}" screen in the screen library (its ${ground.controls.length} controls, named as on screen)`;
+      tried.push(how);
+    }
+  }
+  if (!how) {
+    addToBacklog(c, noStep ? "missing step" : "control not found", r.why, tried.length ? tried : ["no photographed screen matches this case — walk that screen first"]);
+    return r;
+  }
+  line(`Repaired: ${how}. Running the case again.`);
+  const again = await runUiCase(c, opts, line, setStop, emit, ground ?? undefined);
+  again.repaired = { how, before: `${r.status} — ${r.why}` };
+  if (again.status === "Pass" || again.status === "Fail" || again.status === "Partly checked") clearFromBacklog(c.id);
+  else addToBacklog(c, again.status === "Not run" ? "missing step" : "control not found", again.why, tried);
+  if (again.status === "Fail" && again.bug && ground) again.bug.whatHappened += " This was found with steps the agent built itself from the screen library — review those steps before reporting.";
+  return again;
+}
+
+async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround): Promise<SheetRunCase> {
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
   const prose = sheetCaseProse(c);
   line(sp?.prepared ? `Starts from: ${sp.why} — built by API, opened on ${sp.screenWhat}.` : "Starts from scratch: the steps create what they need.");
-  const compiled = await compileTestCase(prose, "events", sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {});
+  const compiled = await compileTestCase(prose, "events", {
+    ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {}),
+    ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
+  });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
   if (compiled.source === "fallback") return { ...base(c, "Not run", "The steps could not be turned into browser actions (the model gave no usable plan). Nothing was run in its place.", 0), startedFrom: sp?.why };
   if (compiled.coverage === "none" || !plan.steps.length)
@@ -199,6 +252,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     detail: s.detail ? mask(s.detail).slice(0, 400) : undefined,
   }));
   const failedAt = steps.findIndex((s) => s.status === "failed");
+  if (failedAt >= 0) r.lastUrl = steps[failedAt].evidence?.url;
   // pictures: the failing step's screenshot and frames; for a pass, the last verified picture
   const spot = (s: (typeof steps)[number] | undefined, n: number) => (s?.spotlights ?? []).map((p) => ({ file: p.file, caption: `Step ${n} · ${p.action ?? ""}${p.target ? ` · ${p.target}` : ""}` }));
   if (failedAt >= 0) {

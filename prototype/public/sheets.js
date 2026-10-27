@@ -12,7 +12,7 @@
   const q = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const root = () => q("#sht-root");
-  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [] };
+  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [], camp: null, from: "3" };
   const PILL = { Pass: "ok", Fail: "bad", "Partly checked": "warn", "Couldn't tell": "idle", "Not run": "idle" };
 
   function clientId() {
@@ -25,6 +25,7 @@
     const r = await fetch("/api/sheets", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ sheets: [] }));
     S.sheets = r.sheets || [];
     if (!S.sheet || !S.sheets.some((s) => s.id === S.sheet)) S.sheet = S.sheets[0]?.id || "";
+    S.camp = await fetch("/api/sheets/campaign", { cache: "no-store" }).then((x) => x.json()).catch(() => null);
     const runs = await fetch("/api/sheets/runs", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ runs: [] }));
     S.runs = runs.runs || [];
     if (S.sheet) {
@@ -55,6 +56,7 @@
         <label class="sht-upload">Upload a sheet (.xlsx or .csv)<input type="file" id="sht-file" accept=".xlsx,.xls,.csv"></label>
         <span class="sht-hint">Columns: Test Case ID, Module, Scenario, Test Case Title, User Role, Portal, Pre-conditions, Test Data, Test Steps, Expected Result, Priority, Test Type, Status. A sheet with the same name replaces the old one.</span>
       </div>
+      <section class="sht-camp" id="sht-camp">${campHtml(mods)}</section>
       <div class="sht-run" id="sht-run" ${S.run ? "" : "hidden"}></div>
       <div class="sht-filters">
         <input type="search" id="sht-q" placeholder="Search IDs, titles, steps, expected results" value="${esc(S.qtext)}">
@@ -69,6 +71,25 @@
       ${S.runs.length ? `<section class="sht-past"><h3>Earlier runs</h3><ul>${S.runs.map((r) => `<li><a href="/api/sheets/report?run=${r.id}" target="_blank" rel="noopener">${esc(new Date(r.startedAt).toLocaleString())} · ${esc(r.sheet)} · ${r.total} case${r.total === 1 ? "" : "s"}</a> <span>${Object.entries(r.counts).map(([k, v]) => `${v} ${esc(k.toLowerCase())}`).join(" · ")}</span> <a href="/api/sheets/export?run=${r.id}&format=xlsx">results sheet</a></li>`).join("")}</ul></section>` : ""}`;
     wire();
     if (S.run) paintRun();
+  }
+
+  function campHtml(mods) {
+    const c = S.camp?.campaign;
+    const keyOf = (m) => (m.match(/^(\d+[A-Z]?)/) || [])[1] || m;
+    const pick = `<select id="sht-from">${mods.map((m) => `<option value="${esc(keyOf(m))}" ${keyOf(m) === S.from ? "selected" : ""}>Start from ${esc(m)}</option>`).join("")}</select>`;
+    if (c && S.camp.running) {
+      const done = c.modules.reduce((n, m) => n + m.done.length, 0), total = c.modules.reduce((n, m) => n + m.ids.length, 0);
+      const k = S.camp.counts || {};
+      return `<div class="sht-camphead"><b>The whole sheet is running on its own — ${done} of ${total} cases done</b>
+        <span class="pill ok">${k.Pass || 0} pass</span><span class="pill bad">${k.Fail || 0} fail</span><span class="pill warn">${k["Partly checked"] || 0} partly</span><span class="pill idle">${(k["Couldn't tell"] || 0) + (k["Not run"] || 0)} not checked</span>
+        <span class="sht-hint" style="flex-basis:auto">${S.camp.repaired} repaired by the agent · ${S.camp.backlog} on the automation backlog</span>
+        <a class="btn primary" href="${esc(S.camp.report)}" target="_blank" rel="noopener">Campaign report</a><button class="btn" id="sht-camp-stop">Stop</button></div>
+        <div class="sht-runbody"><div class="sht-live"><img id="sht-camp-frame" src="/api/sheets/campaign/frame?t=${Date.now()}" alt="The browser the run is driving" onerror="this.style.display='none'"></div>
+        <div>${c.current ? `<p><b>Now:</b> ${esc(c.current.caseId)} — ${esc(c.current.title)}<br><span class="sht-hint">${esc(c.current.module)} · case ${c.current.index} of ${c.current.total}</span></p>` : ""}
+        <ol class="sht-done">${c.modules.map((m) => `<li><b>${esc(m.name.replace(/ — .*/, ""))}</b> — ${m.done.length}/${m.ids.length}${m.status === "done" ? " ✓" : m.status === "running" ? " (running)" : ""}</li>`).join("")}</ol></div></div>`;
+    }
+    return `<div class="sht-camphead"><b>Run the whole sheet on its own</b><span class="sht-hint" style="flex-basis:auto">Module by module in flow order, one case at a time; the agent repairs its own automation where it can, carries on after a restart, and lists what it could not build.</span></div>
+      <div class="sht-filters">${pick}<button class="btn primary" id="sht-camp-go" ${S.sheet ? "" : "disabled"}>Start the whole sheet</button>${c ? `<a class="btn" href="${esc(S.camp.report)}" target="_blank" rel="noopener">Last campaign report (${esc(c.status)})</a>` : ""}</div>`;
   }
 
   function row(c) {
@@ -91,6 +112,13 @@
     q("#sht-none")?.addEventListener("click", () => { S.picked.clear(); paint(); });
     q("#sht-go")?.addEventListener("click", () => start([...S.picked]));
     q("#sht-file")?.addEventListener("change", upload);
+    q("#sht-from")?.addEventListener("change", (e) => (S.from = e.target.value));
+    q("#sht-camp-go")?.addEventListener("click", async () => {
+      const r = await fetch("/api/sheets/campaign/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sheet: S.sheet, from: S.from, companyId: clientId() }) }).then((x) => x.json()).catch(() => ({ why: "The server did not answer." }));
+      if (r.why) alertBox(r.why);
+      load();
+    });
+    q("#sht-camp-stop")?.addEventListener("click", async () => { await fetch("/api/sheets/campaign/stop", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }); load(); });
     root().querySelectorAll(".sht-case").forEach((li) => {
       const id = li.dataset.id;
       q(".sht-pick", li).addEventListener("change", (e) => { e.target.checked ? S.picked.add(id) : S.picked.delete(id); const b = q("#sht-go"); if (b) { b.disabled = !S.picked.size || !!S.run?.live; b.textContent = `Run ${S.picked.size || ""} ticked case${S.picked.size === 1 ? "" : "s"} one by one`; } });
@@ -161,6 +189,16 @@
   function route() {
     if (location.hash.startsWith("#/sheets")) load();
   }
+  // while a campaign runs, refresh its panel (counts, current case, the live picture) every 8 s
+  setInterval(async () => {
+    if (!location.hash.startsWith("#/sheets") || !S.camp?.running) return;
+    S.camp = await fetch("/api/sheets/campaign", { cache: "no-store" }).then((x) => x.json()).catch(() => S.camp);
+    const el = q("#sht-camp");
+    if (el) {
+      el.innerHTML = campHtml([...new Set(S.cases.map((c) => c.module))]);
+      q("#sht-camp-stop")?.addEventListener("click", async () => { await fetch("/api/sheets/campaign/stop", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }); load(); });
+    }
+  }, 8000);
   window.addEventListener("hashchange", route);
   route();
 })();

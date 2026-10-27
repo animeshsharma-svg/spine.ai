@@ -5299,8 +5299,23 @@ function runTestCase(textOverride) {
     runFinished();
     loadFindings();
   };
+  // "run everything / run the X module": a whole-sheet campaign started; it runs on its own on the server.
+  es.addEventListener("campaign", (ev) => {
+    const d = JSON.parse(ev.data);
+    window.spineSession?.end({
+      tone: "ok",
+      key: "UI",
+      title: `Started: ${d.total} test cases from the sheet, module by module, one case at a time.`,
+      lines: [`In this order: ${d.modules.join(" → ")}.`, "It runs on its own on the server (it carries on after a restart) and repairs its own automation where it can. Follow it on Test sheets; the report fills in as it goes."],
+      links: [{ label: "Campaign report", href: d.report, icon: "chart-column" }, { label: "Test sheets", href: "#/sheets", icon: "list-checks" }],
+    });
+  });
   es.addEventListener("done", (ev) => {
     const d = JSON.parse(ev.data);
+    if (d.campaign) {
+      finish("✓ whole-sheet run started", "ok");
+      return;
+    }
     // No step covered the journey, so its screen was explored: the end box says what that found.
     if (Array.isArray(d.explored) && d.explored.length) {
       const ex = d.explored;

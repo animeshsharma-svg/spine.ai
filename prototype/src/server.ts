@@ -50,7 +50,8 @@ import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/compan
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { contextForPlan } from "./ui/prepareForPlan.js";
-import { findSheetCase, sheetCaseProse, sheetPrep } from "./checks/sheetCases.js";
+import { findSheetCase, listSheets, sheetCaseProse, sheetPrep } from "./checks/sheetCases.js";
+import { campaignIntent, startCampaign } from "./checks/sheetCampaign.js";
 import { VALUE_KEYS } from "./agents/screenModel.js";
 import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
 import { exploreJourney } from "./agents/journeyExplore.js";
@@ -1162,6 +1163,23 @@ const server = createServer(async (req, res) => {
         // A case from a test-case sheet (typed by its ID, e.g. SRC-AWD-012, or by its title) runs with
         // every column of the sheet: its pre-conditions decide which event is built first and which
         // screen opens, its steps and expected result are what gets compiled.
+        // "run everything starting with create event" / "run the awarding module": the whole sheet (or those
+        // modules) runs on its own, in flow order, as a campaign — followed on the Test sheets page.
+        const defaultSheet = listSheets().find((x) => /sourcing/i.test(x.name))?.id ?? listSheets()[0]?.id;
+        const intent = defaultSheet ? campaignIntent(testCase, defaultSheet) : null;
+        if (intent) {
+          try {
+            const camp = startCampaign({ sheet: defaultSheet!, companyId: c, from: intent.from, only: intent.only });
+            const mods = camp.modules.map((m) => m.name.replace(/ — .*/, ""));
+            send("campaign", { id: camp.id, modules: mods, total: camp.modules.reduce((n, m) => n + m.ids.length, 0), report: `/api/sheets/campaign/report?id=${camp.id}` });
+            send("done", { exitCode: 0, campaign: camp.id });
+          } catch (e) {
+            send("run-error", { line: (e as Error).message });
+            send("done", { exitCode: 1 });
+          }
+          res.end();
+          return;
+        }
         const sheetCase = findSheetCase(testCase);
         const sheetStart = sheetCase ? sheetPrep(sheetCase) : null;
         const caseText = sheetCase ? sheetCaseProse(sheetCase) : testCase;
