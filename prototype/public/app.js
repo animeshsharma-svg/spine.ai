@@ -58,7 +58,7 @@ let catRunning = null; // the open EventSource while cases are running
 // welcome = the landing page, login = sign in (both public/welcome.js — no app shell)
 // plan = Plan a run (public/plan.js), which replaced API automation and UI automation
 // sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
-const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success", "history", "screens"];
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success", "history", "screens", "sheets"];
 
 /**
  * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark

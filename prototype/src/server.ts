@@ -50,6 +50,8 @@ import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/compan
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { contextForPlan } from "./ui/prepareForPlan.js";
+import { findSheetCase, sheetCaseProse, sheetPrep } from "./checks/sheetCases.js";
+import { VALUE_KEYS } from "./agents/screenModel.js";
 import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
 import { exploreJourney } from "./agents/journeyExplore.js";
 import { cancelQuestions } from "./agents/questions.js";
@@ -1157,7 +1159,27 @@ const server = createServer(async (req, res) => {
             return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
           })
           .catch(() => 0);
-        const compiled = await compileTestCase(testCase);
+        // A case from a test-case sheet (typed by its ID, e.g. SRC-AWD-012, or by its title) runs with
+        // every column of the sheet: its pre-conditions decide which event is built first and which
+        // screen opens, its steps and expected result are what gets compiled.
+        const sheetCase = findSheetCase(testCase);
+        const sheetStart = sheetCase ? sheetPrep(sheetCase) : null;
+        const caseText = sheetCase ? sheetCaseProse(sheetCase) : testCase;
+        if (sheetCase) {
+          send("stage", { name: "compile", line: `Running ${sheetCase.id} from the "${sheetCase.sheet}" sheet: ${sheetCase.title}` });
+          send("sheet-case", { case: sheetCase, startsFrom: sheetStart ? (sheetStart.unbuilt ? `needs ${sheetStart.why} — ${sheetStart.unbuilt}` : `${sheetStart.why} (built by API, opened on ${sheetStart.screenWhat})`) : "from scratch" });
+          if (sheetStart?.unbuilt) {
+            send("log", { line: `[plan] not run — ${sheetCase.id} starts from: ${sheetStart.why} ${sheetStart.unbuilt}` });
+            send("done", { exitCode: 0, notRun: true, why: `${sheetCase.id} starts from ${sheetStart.why.toLowerCase()} ${sheetStart.unbuilt}. Run its set-up case first, or run it by hand.` });
+            res.end();
+            return;
+          }
+        }
+        const compiled = await compileTestCase(
+          caseText,
+          "events",
+          sheetStart?.prepared ? { prepared: { state: sheetStart.state, screen: sheetStart.screen, screenWhat: sheetStart.screenWhat, valueKeys: VALUE_KEYS[sheetStart.state] ?? [], technical: sheetStart.technical } } : {},
+        );
         const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
         if (overLimit) {
           compiled.warnings = [...(compiled.warnings ?? []), overLimit];
@@ -1182,7 +1204,7 @@ const server = createServer(async (req, res) => {
         // shown as soon as they are ready, marked from the run's result at the end.
         const discover = url.searchParams.get("discover") !== "0";
         const journey: TypedJourney = { runId, text: testCase, companyId: c, at: new Date().toISOString(), plan: compiled.plan.steps, cases: [], newCases: [], screens: [] };
-        const casesP = casesForJourney(testCase, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }), planCases: compiled.coverage !== "none" && compiled.source !== "fallback" })
+        const casesP = casesForJourney(caseText, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }), planCases: compiled.coverage !== "none" && compiled.source !== "fallback" })
           .then((cases) => {
             journey.cases = cases;
             saveJourney(journey);
@@ -1263,7 +1285,7 @@ const server = createServer(async (req, res) => {
         }
 
         // A case that starts from an existing event gets that event built by API first.
-        const prep = await contextForPlan(testCase, compiled.plan, c, (l) => send("stage", { name: "setup", line: l }));
+        const prep = await contextForPlan(caseText, compiled.plan, c, (l) => send("stage", { name: "setup", line: l }), sheetStart?.prepared ? { state: sheetStart.state, technical: sheetStart.technical, auction: sheetStart.auction } : undefined);
         if (prep.why) {
           send("run-error", { line: prep.why });
           send("done", { exitCode: 1 });

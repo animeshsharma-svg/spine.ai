@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sheetCatalogCases, sheetCaseProse } from "./sheetCases.js";
 
 /**
  * The written test catalog, as data.
@@ -39,6 +40,8 @@ export interface CatalogCase {
   recordsCurrentBehaviour?: boolean;
   refs: string[];
   source: string;
+  /** set for a case imported from a test-case sheet (sheetCases.ts): its 13 columns */
+  sheet?: import("./sheetCases.js").SheetCase;
 }
 
 let cache: CatalogCase[] | null = null;
@@ -48,7 +51,11 @@ export function allCases(): CatalogCase[] {
   if (cache) return cache;
   if (!existsSync(CATALOG)) {
     console.warn(`[catalog] ${CATALOG} is missing — run: npx tsx scripts/import-test-cases.ts`);
-    return (cache = []);
+    try {
+      return (cache = sheetCatalogCases());
+    } catch {
+      return (cache = []);
+    }
   }
   try {
     const parsed = JSON.parse(readFileSync(CATALOG, "utf8"));
@@ -56,6 +63,14 @@ export function allCases(): CatalogCase[] {
   } catch (err) {
     console.warn(`[catalog] could not read the catalog: ${(err as Error).message}`);
     cache = [];
+  }
+  // The test-case sheets (the team's 13-column manual sheets) are catalog cases too: typing one's
+  // ID in Run tests, or picking it in the case runner, finds it. A written case keeps its ID.
+  try {
+    const have = new Set(cache!.map((c) => c.id.toUpperCase()));
+    for (const c of sheetCatalogCases()) if (!have.has(c.id.toUpperCase())) cache!.push(c);
+  } catch (err) {
+    console.warn(`[catalog] could not read the test-case sheets: ${(err as Error).message}`);
   }
   return cache!;
 }
@@ -125,6 +140,7 @@ export function sections(layer?: "ui" | "api") {
  * nothing.
  */
 export function caseAsProse(c: CatalogCase): string {
+  if (c.sheet) return sheetCaseProse(c.sheet);
   const parts = [`${c.id} — ${c.title}`];
   if (c.setup) parts.push(`Setup: ${c.setup}`);
   parts.push(`Steps: ${c.steps}`);

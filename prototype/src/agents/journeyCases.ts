@@ -25,6 +25,7 @@ import { retrieve } from "../rag/knowledgeBase.js";
 import { matchTestCase } from "../checks/caseMatcher.js";
 import { listDrafts, nextDraftId, saveDraft, type DraftRecord } from "./drafts.js";
 import { recordScreen, getScreen, slug } from "./screenModel.js";
+import { STYLE_GUIDE, styleExamplesText, toHouseStyle } from "./caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -266,8 +267,10 @@ export async function casesForJourney(text: string, plan: { title?: string; step
     const system = [
       "You are a senior QA engineer for Procol, a B2B sourcing platform (buyers run RFQ/RFP events and auctions; vendors bid; awards become purchase orders).",
       "A tester typed a journey and the platform will run the plan below. Write the test cases a senior tester would ADD for this journey: the refusals, the edge values, the state checks and the numbers that must be right along this flow — not restatements of the plan's own assertions.",
-      "Rules: steps are short imperative sentences a person can follow on the Procol console; expected says what the screen shows, quoting the app's message when a rule gives one; ground each case in one RULE below when one applies (its number), else 'journey'; name real controls (Publish, Save as draft, Items, Participants, Master QCS, Start Awarding, Counter Offer…); never invent a vendor name.",
-      `Return ONLY a JSON array of at most ${opts.max ?? 8} objects: {"title","steps":[…],"expected","grounded":"R-… or journey","kind":"positive|negative|boundary|state|calculation"}.`,
+      "Ground each case in one RULE below when one applies (its number), else 'journey'; name real controls (Publish, Save as draft, Items, Participants, Master QCS, Start Awarding, Counter Offer…); never invent a vendor name.",
+      STYLE_GUIDE,
+      `How the voice looks:\n${styleExamplesText()}`,
+      `Return ONLY a JSON array of at most ${opts.max ?? 8} objects: {"title","setup":"the pre-conditions in words","testData":"values to type, or -","steps":[…],"expected","grounded":"R-… or journey","kind":"positive|negative|boundary|state|calculation","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
     ].join("\n");
     const user = `JOURNEY: ${text}\n\nTHE PLAN THAT WILL RUN:\n${steps.map((s, i) => `${i + 1}. ${stepWords(s)}`).join("\n")}\n\nRULES FROM PROCOL'S CODE AND PRODUCT FACTS:\n${rules.map((r, i) => `[${i + 1}] ${clean(r.text).slice(0, 240)}`).join("\n")}`;
     const raw = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tier: "fast", temperature: 0.2, maxTokens: 3000 }).catch(() => "");
@@ -315,17 +318,24 @@ export async function casesForJourney(text: string, plan: { title?: string; step
         cases.push({ id: had, title, steps: stepsD, expected, source: "catalog", catalogIds: [had], grounded: rule, stepIndexes: idx });
         continue;
       }
+      const house = toHouseStyle({ title, steps: stepsD, expected, setup: d?.setup, testData: d?.testData, priority: d?.priority, testType: d?.testType ?? (d?.kind === "negative" ? "Negative" : undefined) });
       const draft: DraftRecord = {
         id: await nextDraftId("JRN"),
         area: "JRN",
         typed: `journey: ${clean(text).slice(0, 200)}`,
         title,
         why: `A senior tester's addition to the journey "${clean(text).slice(0, 120)}"${rule !== "journey" ? `, grounded in rule ${rule}` : ""}.`,
-        setup: "A buyer signed in to the client under test.",
-        steps: stepsD,
+        setup: house.preconditions !== "-" ? house.preconditions : "A buyer signed in to the client under test.",
+        steps: house.steps,
         expected,
         oracle: expected,
-        priority: d?.kind === "negative" || d?.kind === "calculation" ? "P1" : "P2",
+        priority: house.priority,
+        module: `Journey — ${clean(text).slice(0, 60)}`,
+        scenario: "A senior tester's addition",
+        role: house.role,
+        portal: house.portal,
+        testData: house.testData,
+        testType: house.testType,
         layer: "ui",
         coverage: idx.length ? "partial" : "none",
         gaps: idx.length ? [] : ["no step of this journey's plan checks it yet"],

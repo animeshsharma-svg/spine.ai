@@ -27,8 +27,16 @@ export function stateForPlan(text: string, plan: PlanLike): { state: UiState; sc
 }
 
 /** Build that state through the API and return the context the plan needs (or why not). */
-export async function contextForPlan(text: string, plan: PlanLike, companyId: number, onLine?: (l: string) => void): Promise<{ context?: Record<string, unknown>; state?: UiState; why?: string }> {
-  const need = stateForPlan(text, plan);
+export async function contextForPlan(
+  text: string,
+  plan: PlanLike,
+  companyId: number,
+  onLine?: (l: string) => void,
+  /** the state the case's own pre-conditions name (a test-case sheet) — used instead of guessing from the words */
+  explicit?: { state: UiState; technical?: boolean; auction?: boolean },
+): Promise<{ context?: Record<string, unknown>; state?: UiState; why?: string }> {
+  const guessed = stateForPlan(text, plan);
+  const need = guessed && explicit ? { ...guessed, state: explicit.state, technical: !!explicit.technical, auction: explicit.auction } : guessed;
   if (!need) return {};
   onLine?.(`building a "${need.state}" event through the API${need.state === "bid" || need.state === "closed" ? " (a vendor's bid in)" : ""} — the case starts from an existing event`);
   const b: any = await buildUiState(companyId, need.state, { technical: need.technical, auction: need.auction, onLine }).catch((e) => ({ ok: false, why: (e as Error).message }));

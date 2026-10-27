@@ -57,7 +57,7 @@ case("SRC-NEG", M21, "Vendor view", "What the vendor sees for a counter offer",
 M22 = "22. Master QCS — comparison and report"
 qc = lambda ev, *s: [BUYER_LOGIN, open_event(ev), "Click the \"Master QCS\" tab", *s]
 for title, ev, exp, tt in [
-    ("Master QCS before any bid", "the live RFQ (no bids)", "\"No bids placed yet\"; \"Start Awarding\" is disabled; Download Report has nothing to compare.", "Negative"),
+    ("Master QCS before any bid", "the live RFQ (no bids)", "The tab says \"No bids are placed yet!\" and there is no \"Start Awarding\" button: nothing can be awarded until a bid exists. (Checked live on 27 Oct: the button is not shown at all, not greyed out.)", "Negative"),
     ("Master QCS with one bid", "a live RFQ with only Vendor A at 100", "One vendor column: Vendor A, rank 1, amount 1,000 for 10 units, sum total with GST.", "Positive"),
     ("Master QCS with two bids", "the RFQ with two bids (A 100, B 90)", "Two columns: Vendor B rank 1 (L1) with 900, Vendor A rank 2 with 1,000; the lowest price is highlighted.", "Positive"),
     ("Master QCS with three bids", "an RFQ with A 100, B 90, C 95", "Ranks: B 1 (900), C 2 (950), A 3 (1,000).", "Positive"),

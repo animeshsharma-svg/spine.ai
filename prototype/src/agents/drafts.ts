@@ -46,6 +46,13 @@ export interface DraftRecord {
   uiPlan?: unknown;
   lastRun?: unknown;
   companyId?: number;
+  /** the house-style columns (caseStyle.ts) — the same 13 columns as the team's manual sheets */
+  module?: string;
+  scenario?: string;
+  role?: string;
+  portal?: string;
+  testData?: string;
+  testType?: string;
 }
 
 /** Which area code a draft is filed under, from what the typed case is about. */
@@ -126,11 +133,14 @@ export function draftMarkdown(d: DraftRecord): string {
     `### ${d.id} — ${d.title}`,
     "",
     `- **Why it matters.** ${d.why.replace(/([^.!?])$/, "$1.")} **Draft, needs review** — written by the assistant on ${today()} ${/^screen /.test(d.typed) ? "from what a screen shows and the rules in Procol's code" : "from a request typed in the chat box"}; ${covered}.`,
+    ...(d.module || d.scenario ? [`- **Module / scenario.** ${[d.module, d.scenario].filter(Boolean).join(" — ")}`] : []),
+    ...(d.role || d.portal ? [`- **Who.** ${d.role ?? "Buyer"} · ${d.portal ?? "Buyer portal"}`] : []),
     `- **Setup.** ${d.setup || "A buyer signed in to the client under test."}`,
+    ...(d.testData && d.testData !== "-" ? [`- **Test data.** ${d.testData}`] : []),
     `- **Steps.** ${steps}`,
     `- **Expected.** ${d.expected}`,
     `- **Oracle.** ${d.oracle}`,
-    `- **Trace.** ${d.priority} · draft · \`${d.id}\` · layer ${d.layer} · coverage ${d.coverage}${(d.apiPlan as { setup?: { recipe?: string } } | undefined)?.setup?.recipe ? ` · api plan on \`${(d.apiPlan as { setup: { recipe: string } }).setup.recipe}\`` : ""}${d.partialOf.length ? ` · overlaps ${d.partialOf.slice(0, 3).map((x) => `\`${x}\``).join(", ")}` : ""} · typed: “${d.typed.replace(/\s+/g, " ").slice(0, 200)}”`,
+    `- **Trace.** ${d.priority}${d.testType ? ` · ${d.testType}` : ""} · draft · \`${d.id}\` · layer ${d.layer} · coverage ${d.coverage}${(d.apiPlan as { setup?: { recipe?: string } } | undefined)?.setup?.recipe ? ` · api plan on \`${(d.apiPlan as { setup: { recipe: string } }).setup.recipe}\`` : ""}${d.partialOf.length ? ` · overlaps ${d.partialOf.slice(0, 3).map((x) => `\`${x}\``).join(", ")}` : ""} · typed: “${d.typed.replace(/\s+/g, " ").slice(0, 200)}”`,
     "",
   ].join("\n");
 }

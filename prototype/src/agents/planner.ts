@@ -1050,7 +1050,7 @@ export function resolveCaseId(input: string): { text: string; id: string } | nul
   // The written catalog first — `UI-CRE-001`, `API-BID-014`. It is the source
   // of truth people actually edit, and it carries Setup and Oracle, so it
   // specifies the case better than the mined JSON does.
-  const written = input.trim().match(/^((?:UI|API)-[A-Z]+-\d+)$/i)?.[1];
+  const written = input.trim().match(/^((?:UI|API)-[A-Z]+-\d+)$/i)?.[1] ?? (input.trim().match(/^([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)$/i)?.[1] && caseById(input.trim()) ? input.trim() : undefined);
   if (written) {
     const c = caseById(written);
     return c ? { text: caseAsProse(c), id: c.id } : null;
