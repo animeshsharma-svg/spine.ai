@@ -31,18 +31,28 @@ const pathKey = (p: string) => p.replace(/\?.*$/, "").split("/").map((s) => (/^\
 export function screenFor(c: SheetCase, url?: string): ScreenGround | null {
   const all = listScreens();
   let best: { id: string; score: number } | null = null;
+  // Several screens share a path (/orders/quick-create is the single stage, eRFX and BOQ create screens):
+  // the page it was on narrows the choice, the case's words pick among them.
+  let pool = all;
   if (url) {
     try {
       const want = pathKey(new URL(url).pathname);
-      const hit = all.find((s) => pathKey(s.path) === want);
-      if (hit) best = { id: hit.id, score: 99 };
+      const same = all.filter((s) => pathKey(s.path) === want);
+      if (same.length) pool = same;
     } catch {
       /* not a url */
     }
   }
-  if (!best) {
+  const single = /single stage|single-stage/i.test(`${c.title} ${c.module} ${c.steps.join(" ")}`);
+  const erfx = /erfx|project/i.test(`${c.title} ${c.module}`);
+  if (single) {
+    const ss = (url ? pool : all).filter((s) => /single-stage/.test(s.id));
+    pool = ss.length ? ss : pool.filter((s) => !/boq|erfx/.test(s.id)).length ? pool.filter((s) => !/boq|erfx/.test(s.id)) : pool;
+  }
+  else if (erfx) pool = pool.filter((s) => !/boq|single-stage/.test(s.id)).length ? pool.filter((s) => !/boq|single-stage/.test(s.id)) : pool;
+  {
     const cw = words(`${c.title} ${c.steps.slice(1).join(" ")} ${c.expected}`);
-    for (const s of all) {
+    for (const s of pool) {
       const r = getScreen(s.id);
       if (!r) continue;
       const sw = words(`${r.label} ${r.headings.join(" ")} ${r.controls.map((x) => x.name).join(" ")}`);
@@ -51,7 +61,7 @@ export function screenFor(c: SheetCase, url?: string): ScreenGround | null {
       const score = both / Math.max(6, cw.size);
       if (!best || score > best.score) best = { id: s.id, score };
     }
-    if (!best || best.score < 0.25) return null;
+    if (!best || (pool === all && best.score < 0.25)) return null;
   }
   const r = getScreen(best.id);
   if (!r) return null;
