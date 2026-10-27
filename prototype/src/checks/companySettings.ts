@@ -173,15 +173,25 @@ function writePending(p: Pending): void {
   writeFileSync(PENDING, JSON.stringify(p, null, 1));
 }
 
-async function setValue(companyId: number, key: string, value: unknown): Promise<void> {
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** Switch it through the app; true when the app's own answer shows the new value saved. */
+async function setValue(companyId: number, key: string, value: unknown): Promise<boolean> {
   const client = await openClientContext(companyId);
   try {
-    await client.ctx.buyerApi.post("/custom_configuration/update_or_create", { body: { config_key: key, item_type: "Company", modifications: { value } } });
+    const reply: any = await client.ctx.buyerApi.post("/custom_configuration/update_or_create", { body: { config_key: key, item_type: "Company", modifications: { value } } });
+    return reply?.config_key === key && same(reply?.modifications?.value, value);
   } finally {
     await client.dispose().catch(() => {});
   }
 }
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** The database copy we read can lag the app by a few seconds: wait (≤30 s) until it shows the value. */
+async function settled(companyId: number, key: string, value: unknown): Promise<boolean> {
+  for (const until = Date.now() + 30_000; Date.now() < until; ) {
+    if (same((await currentValue(companyId, key)).value, value)) return true;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return false;
+}
 
 /**
  * Make the company match the settings, run `work`, then put every changed setting back. Returns what was
@@ -199,20 +209,21 @@ export async function withSettings<T>(companyId: number, needed: NeededSetting[]
       }
       onLine(`Switching ${n.key} from ${JSON.stringify(cur.value)} to ${JSON.stringify(n.value)} for this case (${n.why}).`);
       writePending([...readPending(), { companyId, key: n.key, restoreTo: cur.value, caseId }]);
-      await setValue(companyId, n.key, n.value);
-      const after = await currentValue(companyId, n.key);
-      log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: same(after.value, n.value) });
+      const saved = await setValue(companyId, n.key, n.value);
       changed.push({ key: n.key, from: cur.value, to: n.value });
-      if (!same(after.value, n.value)) return { refused: `the app did not take the change to ${n.key} (it still reads ${JSON.stringify(after.value)})` };
+      const inDb = saved ? await settled(companyId, n.key, n.value) : false;
+      log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: saved, readBack: inDb });
+      if (!saved) return { refused: `the app did not save the change to ${n.key}` };
+      if (!inDb) onLine(`The app saved ${n.key} = ${JSON.stringify(n.value)}; the database copy had not caught up after 30 s — running anyway.`);
     }
     const result = await work();
     return { result, changed };
   } finally {
     for (const ch of [...changed].reverse()) {
       try {
-        await setValue(companyId, ch.key, ch.from);
-        const back = await currentValue(companyId, ch.key);
-        log({ companyId, key: ch.key, from: ch.to, to: ch.from, caseId, restore: true, confirmed: same(back.value, ch.from) });
+        const ok = await setValue(companyId, ch.key, ch.from);
+        log({ companyId, key: ch.key, from: ch.to, to: ch.from, caseId, restore: true, confirmed: ok, readBack: ok ? await settled(companyId, ch.key, ch.from) : false });
+        if (!ok) throw new Error("the app did not confirm the change back");
         onLine(`Switched ${ch.key} back to ${JSON.stringify(ch.from)}.`);
         writePending(readPending().filter((p) => !(p.companyId === companyId && p.key === ch.key)));
       } catch (e) {
