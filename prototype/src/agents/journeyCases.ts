@@ -425,21 +425,33 @@ export function listJourneys(limit = 30): Array<Pick<JourneyRecord, "runId" | "t
 
 /** The journey's cases as a file: csv, md or xlsx. */
 export async function exportJourney(r: JourneyRecord, format: "csv" | "md" | "xlsx"): Promise<{ body: Buffer | string; mime: string; name: string }> {
-  const rows = [...r.cases, ...r.newCases].map((c, i) => ({
-    "#": i + 1,
-    "Case id": c.id,
-    Title: c.title,
-    Steps: c.steps.map((s, k) => `${k + 1}. ${s}`).join("\n"),
-    Expected: c.expected,
-    Status: c.status ?? "",
-    Detail: c.detail ?? "",
-    Source: c.source === "catalog" ? `catalog (${(c.catalogIds ?? [c.id]).join(", ")})` : c.source === "new" ? `new${c.screen ? ` (from the ${c.screen} screen)` : ""}` : "the journey",
-    Rule: c.grounded && c.grounded !== "journey" && c.grounded !== "screen" ? c.grounded : "",
-  }));
+  // The 13 columns of the team's manual test-case sheets (the PO Amendment sheet): every export,
+  // for any flow, comes out in that shape so it can be pasted next to the hand-written ones.
+  const refusal = /\b(refus|reject|cannot|can't|not allowed|blocked|disabled|greyed|invalid|error|not offered)/i;
+  const module = `${clean(r.text).slice(0, 80)}`;
+  const rows = [...r.cases, ...r.newCases].map((c) => {
+    const neg = refusal.test(`${c.title} ${c.expected}`);
+    const vendor = /\bvendor (portal|logs? in)|as vendor|vendor's user/i.test(c.steps.join(" "));
+    return {
+      "Test Case ID": c.id,
+      Module: c.screen ? `${module} — ${c.screen} screen` : module,
+      Scenario: c.source === "journey" ? (c.id === "J-0" ? "The journey as typed" : "Checked by the journey's plan") : c.source === "catalog" ? `Already in the catalog (${(c.catalogIds ?? [c.id]).join(", ")})` : c.screen ? `New — written from the ${c.screen} screen` : "New — a senior tester's addition",
+      "Test Case Title": c.title,
+      "User Role": vendor ? "Buyer, Vendor" : "Buyer",
+      Portal: vendor ? "Buyer + Vendor portal" : "Buyer portal",
+      "Pre-conditions": c.grounded && c.grounded !== "journey" && c.grounded !== "screen" ? `Product rule ${c.grounded}` : "-",
+      "Test Data": "-",
+      "Test Steps": [/^log in/i.test(c.steps[0] ?? "") ? "" : "Log in to Procol (buyer side) with the buyer user", ...c.steps].filter(Boolean).map((s, k) => `${k + 1}. ${s.replace(/\.$/, "")}`).join("\n"),
+      "Expected Result": c.expected,
+      Priority: c.id === "J-0" || (neg && c.source !== "catalog") ? "High" : "Medium",
+      "Test Type": neg ? "Negative" : "Positive",
+      Status: c.status === "passed" ? "Pass" : c.status === "failed" ? `Fail — ${c.detail ?? ""}`.trim() : c.status === "not reached" ? "Blocked" : "Not Run",
+    };
+  });
   const base = `test-cases-${r.runId}`;
   if (format === "csv") {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const head = Object.keys(rows[0] ?? { "#": 0, "Case id": "", Title: "", Steps: "", Expected: "", Status: "", Detail: "", Source: "", Rule: "" });
+    const head = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"];
     const body = [head.map(esc).join(","), ...rows.map((row) => head.map((h) => esc((row as any)[h])).join(","))].join("\n");
     return { body: "﻿" + body, mime: "text/csv; charset=utf-8", name: `${base}.csv` };
   }
@@ -456,7 +468,7 @@ export async function exportJourney(r: JourneyRecord, format: "csv" | "md" | "xl
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
-  (ws as any)["!cols"] = [{ wch: 4 }, { wch: 14 }, { wch: 50 }, { wch: 70 }, { wch: 50 }, { wch: 12 }, { wch: 50 }, { wch: 28 }, { wch: 14 }];
+  (ws as any)["!cols"] = [14, 30, 28, 46, 18, 18, 30, 20, 80, 70, 10, 11, 14].map((wch) => ({ wch }));
   XLSX.utils.book_append_sheet(wb, ws, "Test cases");
   const info = XLSX.utils.aoa_to_sheet([["Journey", r.text], ["Run", r.runId], ["When", r.at], ["Result", r.result ? `${r.result.ok}/${r.result.steps} steps passed` : "not run"], ["Cases on the journey", r.cases.length], ["Found on its screens", r.newCases.length], ["Screens photographed", r.screens.join(", ")]]);
   XLSX.utils.book_append_sheet(wb, info, "Run");
