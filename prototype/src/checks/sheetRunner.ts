@@ -60,6 +60,8 @@ export interface SheetRunCase {
   repaired?: { how: string; before: string };
   /** the page the browser was on when it stopped (for repairs) */
   lastUrl?: string;
+  /** the plan step it failed at (for second opinions) */
+  failedStep?: string;
   case: SheetCase;
 }
 export interface SheetRun {
@@ -161,12 +163,45 @@ function base(c: SheetCase, status: SheetVerdict, why: string, ms: number): Shee
   return { id: c.id, title: c.title, module: c.module, layer: c.layer, priority: c.priority, status, why, steps: [], shots: [], ms, case: c };
 }
 
+/** A pre-condition that needs a particular company configuration ("Company with eRFX switched off"). */
+export function companySetting(pre: string): string | null {
+  const t = String(pre ?? "").trim();
+  if (!t || /^the buyer can (create events|see purchase requisitions)/i.test(t)) return null;
+  const m = t.match(/\b((?:a |the )?compan(?:y|ies) (?:with|where|whose|that|which|without)[^.;]*|[^.;]*\b(?:switched|turned) (?:on|off)\b[^.;]*|[^.;]*\bconfig(?:uration)? (?:is )?(?:on|off|enabled|disabled)\b[^.;]*)/i);
+  return m ? m[1].trim().replace(/^(a|the) /i, "a ") : null;
+}
+
 async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?: boolean; repair?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void): Promise<SheetRunCase> {
   const t0 = Date.now();
   const r = await runUiCase(c, opts, line, setStop, emit);
   if (opts.repair === false) return r;
+  // A failure at a generic check (text / visible / value / count) may be the plan's own mistake (it read the
+  // wrong control): get a second opinion — steps rebuilt from the photographed screen — before calling it a bug.
+  if (r.status === "Fail" && /^expect_(text|visible|value|count|disabled|enabled)$/.test(r.failedStep ?? "")) {
+    const g = screenFor(c, r.lastUrl);
+    if (g) {
+      line(`Second opinion: the failure was at a generic check, so the steps are rebuilt from the "${g.label}" screen and the case runs again.`);
+      const again = await runUiCase(c, opts, line, setStop, emit, g);
+      again.repaired = { how: `checked again with steps rebuilt from the "${g.label}" screen`, before: `${r.status} — ${r.why}` };
+      if (again.status === "Fail") {
+        again.why += " A second, independently built plan failed the same check, so this is reported.";
+        return again;
+      }
+      if (again.status === "Pass" || again.status === "Partly checked") {
+        clearFromBacklog(c.id);
+        return again;
+      }
+      // the rebuilt plan could not decide: the first failure is not trusted either
+      again.why = `The first plan failed at a generic check (${r.why}), but a rebuilt plan could not confirm it: ${again.why}`;
+      return again;
+    }
+  }
   if (r.status === "Pass" || r.status === "Fail" || r.status === "Partly checked") {
     clearFromBacklog(c.id);
+    return r;
+  }
+  if (r.status === "Not run" && /^It needs /.test(r.why)) {
+    addToBacklog(c, "starting event not built", r.why, ["needs a company with a particular setting"]);
     return r;
   }
   if (r.status === "Not run" && /^It starts from this/.test(r.why)) {
@@ -207,6 +242,8 @@ async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?:
 }
 
 async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround): Promise<SheetRunCase> {
+  const setting = companySetting(c.preconditions);
+  if (setting) return { ...base(c, "Not run", `It needs ${setting}. The test company may not be set up that way, so running it here could report a failure that is only the company's setting. Run it on a company set up as it says, or confirm the setting first.`, 0), startedFrom: c.preconditions };
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
   const prose = sheetCaseProse(c);
@@ -252,7 +289,10 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     detail: s.detail ? mask(s.detail).slice(0, 400) : undefined,
   }));
   const failedAt = steps.findIndex((s) => s.status === "failed");
-  if (failedAt >= 0) r.lastUrl = steps[failedAt].evidence?.url;
+  if (failedAt >= 0) {
+    r.lastUrl = steps[failedAt].evidence?.url;
+    r.failedStep = steps[failedAt].step;
+  }
   // pictures: the failing step's screenshot and frames; for a pass, the last verified picture
   const spot = (s: (typeof steps)[number] | undefined, n: number) => (s?.spotlights ?? []).map((p) => ({ file: p.file, caption: `Step ${n} · ${p.action ?? ""}${p.target ? ` · ${p.target}` : ""}` }));
   if (failedAt >= 0) {
@@ -273,9 +313,9 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     const f = steps[failedAt];
     const d = mask(f.detail ?? "");
     const words = r.steps[failedAt].words;
-    if (/^not checked:/i.test(d)) {
+    if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
-      r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^not checked:\s*/i, "")}. This is not a product failure.`;
+      r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
     } else if (ASSERT.test(f.step) || f.evidence?.appSaid) {
       r.status = "Fail";
       r.why = ASSERT.test(f.step)
