@@ -16,9 +16,11 @@ import { activeSheetRun, listSheetRuns, loadSheetRun, runSheetCases, stopSheetRu
 import { exportSheetRun, renderSheetReport } from "../report/sheetReport.js";
 import { activeCampaign, campaignFrame, campaignResults, listCampaigns, loadCampaign, planModules, renderCampaignReport, resumeCampaigns, startCampaign, stopCampaign } from "../checks/sheetCampaign.js";
 import { backlog } from "../checks/selfRepair.js";
+import { restorePendingSettings } from "../checks/companySettings.js";
 
-// a campaign that was running when the server stopped carries on
-resumeCampaigns();
+// a setting left switched by a server that stopped mid-case is switched back first; then a campaign that
+// was running when the server stopped carries on
+void restorePendingSettings().catch(() => undefined).finally(() => resumeCampaigns());
 
 function startsFrom(c: ReturnType<typeof sheetCases>[number]): string {
   if (c.layer === "api") return "API — the requests build what they need";

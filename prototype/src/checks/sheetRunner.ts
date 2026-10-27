@@ -23,6 +23,7 @@ import { contextForPlan } from "../ui/prepareForPlan.js";
 import { VALUE_KEYS } from "../agents/screenModel.js";
 import { stepWords, expectedWords } from "../agents/journeyCases.js";
 import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
+import { settingsFor, withSettings } from "./companySettings.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -62,6 +63,8 @@ export interface SheetRunCase {
   lastUrl?: string;
   /** the plan step it failed at (for second opinions) */
   failedStep?: string;
+  /** company settings switched for this case (and switched back after) */
+  settings?: Array<{ key: string; from: unknown; to: unknown }>;
   case: SheetCase;
 }
 export interface SheetRun {
@@ -140,7 +143,26 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       const t0 = Date.now();
       let r: SheetRunCase;
       try {
-        r = c.layer === "api" ? await runApiCase(c, opts.companyId, line) : await runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e));
+        const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
+        // A case that needs a company set up a certain way: find the setting, switch it for this case, switch it back.
+        const setting = companySetting(c.preconditions);
+        if (setting) {
+          const needed = await settingsFor(setting).catch(() => null);
+          if (!needed) {
+            r = base(c, "Not run", `It needs ${setting}, and no company setting in Procol's settings catalogue clearly means that, so the company could not be set up for it. Run it on a company set up as it says.`, 0);
+            addToBacklog(c, "starting event not built", r.why, ["looked for a matching company setting"]);
+          } else {
+            line(`This case needs ${setting} — that is the company setting ${needed.map((n) => `${n.key} = ${JSON.stringify(n.value)}`).join(", ")}.`);
+            const out = await withSettings(opts.companyId, needed, c.id, line, runOne);
+            if ("refused" in out) {
+              r = base(c, "Not run", `It needs ${setting} (${needed.map((n) => n.key).join(", ")}), but the setting could not be switched: ${out.refused}.`, 0);
+            } else {
+              r = out.result;
+              r.settings = out.changed;
+              if (out.changed.length) r.why += ` Ran with ${out.changed.map((ch) => `${ch.key} switched from ${JSON.stringify(ch.from)} to ${JSON.stringify(ch.to)}`).join(", ")}; switched back afterwards.`;
+            }
+          }
+        } else r = await runOne();
       } catch (e) {
         r = base(c, "Couldn't tell", `The run broke before it could finish: ${mask((e as Error).message)}.`, 0);
       }
@@ -200,10 +222,6 @@ async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?:
     clearFromBacklog(c.id);
     return r;
   }
-  if (r.status === "Not run" && /^It needs /.test(r.why)) {
-    addToBacklog(c, "starting event not built", r.why, ["needs a company with a particular setting"]);
-    return r;
-  }
   if (r.status === "Not run" && /^It starts from this/.test(r.why)) {
     addToBacklog(c, "starting event not built", r.why, []);
     return r;
@@ -242,8 +260,6 @@ async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?:
 }
 
 async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround): Promise<SheetRunCase> {
-  const setting = companySetting(c.preconditions);
-  if (setting) return { ...base(c, "Not run", `It needs ${setting}. The test company may not be set up that way, so running it here could report a failure that is only the company's setting. Run it on a company set up as it says, or confirm the setting first.`, 0), startedFrom: c.preconditions };
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
   const prose = sheetCaseProse(c);
