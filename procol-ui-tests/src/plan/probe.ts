@@ -317,6 +317,14 @@ export async function probeControls(page: Page, a: Record<string, unknown>, outD
         continue;
       }
       await el.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+      // the tab already open does nothing when clicked, by design — not a finding
+      const active = await el.evaluate((e) => e.getAttribute("aria-selected") === "true" || /(^|[\s_-])(active|selected)([\s_-]|$)|tab-active|tabs-tab-active/i.test(`${e.className} ${e.parentElement?.className ?? ""}`)).catch(() => false);
+      if (active && (c.role === "tab" || /tab/i.test(c.tag))) {
+        rec.outcome = "skipped";
+        rec.note = "the tab already open";
+        records.push(rec);
+        continue;
+      }
       const disabled = (await el.isDisabled().catch(() => false)) || /disabled/.test((await el.getAttribute("class").catch(() => "")) ?? "") || (await el.getAttribute("aria-disabled").catch(() => null)) === "true";
       if (disabled) {
         rec.disabled = true;
