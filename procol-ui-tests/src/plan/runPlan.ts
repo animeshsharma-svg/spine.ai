@@ -19,6 +19,7 @@ import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
 import { probeControls } from "./probe.js";
+import { extendTime } from "./eventTime.js";
 import { appRuleFor, recoveryFor } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
@@ -569,6 +570,41 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       console.log(`[sheet] row ${rowNo}: ${seenDetail.join(" | ")}`);
       if (problems.length) throw new Error(`sheet row ${rowNo}: ${problems.join("; ")} — seen: ${seenDetail.join(" | ").slice(0, 700)}`);
       return `sheet row ${rowNo}: ${seen.join(", ")}`;
+    }
+    case "extend_time": {
+      return extendTime(s.page, a, async () => (await runStep(s, { step: "open_event_settings" })) ?? "");
+    }
+    case "expect_settings_menu": {
+      // what the Settings menu offers in this event's state: present / absent / greyed out / clickable,
+      // and every greyed-out item must say why in a tooltip
+      const offered = (await runStep(s, { step: "open_event_settings" })) ?? "";
+      const items = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem'], .ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item").filter({ visible: true });
+      const rows: Array<{ name: string; greyed: boolean; tip: string }> = [];
+      for (let i = 0; i < (await items.count()); i++) {
+        const it = items.nth(i);
+        const name = ((await it.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        if (!name) continue;
+        rows.push({ name, greyed: /disabled/.test((await it.getAttribute("class").catch(() => "")) ?? ""), tip: "" });
+      }
+      for (const r of rows.filter((x) => x.greyed)) {
+        await runStep(s, { step: "open_event_settings" }).catch(() => "");
+        const it = items.filter({ hasText: r.name }).first();
+        await it.hover({ force: true }).catch(() => {});
+        await s.page.waitForTimeout(700);
+        r.tip = ((await s.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").filter({ visible: true }).last().innerText().catch(() => "")) || "").trim();
+      }
+      await s.page.keyboard.press("Escape").catch(() => {});
+      const has = (n: string) => rows.find((r) => r.name.toLowerCase() === n.toLowerCase() || r.name.toLowerCase().startsWith(n.toLowerCase()));
+      const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
+      const problems: string[] = [];
+      for (const n of list(a.offered)) if (!has(n)) problems.push(`"${n}" is not offered`);
+      for (const n of list(a.absent)) if (has(n)) problems.push(`"${n}" is offered${has(n)!.greyed ? " (greyed out)" : ""} but should not be`);
+      for (const n of list(a.greyed)) if (has(n) && !has(n)!.greyed) problems.push(`"${n}" can be clicked but should be greyed out`);
+      for (const n of list(a.enabled)) if (has(n)?.greyed) problems.push(`"${n}" is greyed out${has(n)!.tip ? ` ("${has(n)!.tip}")` : ""} but should be clickable`);
+      if (a.tooltips !== false) for (const r of rows.filter((x) => x.greyed && !x.tip)) problems.push(`"${r.name}" is greyed out with NO tooltip saying why`);
+      const seen = rows.map((r) => `${r.name}${r.greyed ? ` (greyed${r.tip ? `: "${r.tip}"` : ", no tooltip"})` : ""}`).join(", ");
+      if (problems.length) throw new Error(`Settings menu: ${problems.join("; ")} — offered: ${seen || offered}`);
+      return `Settings menu offers: ${seen}`;
     }
     case "probe_controls": {
       const runDir = joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_"));

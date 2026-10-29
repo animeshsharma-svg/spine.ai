@@ -254,7 +254,8 @@ const CONFIRMED_BUGS: Array<{ id: string; match: RegExp; title: string; expected
 function observed(r: ProbeRecord): { title: string; expected: string; question?: string; type: string } {
   const label = r.name.replace(/^(.*?) → /, "");
   if (r.outcome === "disabled")
-    return { title: `"${label}" is greyed out`, expected: `"${label}" is greyed out and does nothing when clicked${r.tooltip ? `; moving the mouse over it shows ${q(r.tooltip)}` : " (no tooltip says why)"}.`, type: "Negative", question: r.tooltip ? undefined : `"${r.name}" is greyed out with no tooltip saying why. When should it be available, and should it explain why it is not?` };
+    // every greyed-out control must say why in a tooltip (the tester, 30 Oct): one without is a bug, not a question
+    return { title: `"${label}" is greyed out and says why`, expected: `"${label}" is greyed out and does nothing when clicked; moving the mouse over it shows a tooltip saying why${r.tooltip ? ` — ${q(r.tooltip)}` : ""}.`, type: "Negative" };
   if (r.outcome === "dialog" && r.dialog)
     return { title: `"${label}" opens the ${q(r.dialog.title || "pop-up")} window`, expected: `A window ${q(r.dialog.title || "(no title)")} opens${r.dialog.fields.length ? ` with ${list(r.dialog.fields, 6)}` : ""}${r.dialog.buttons.length ? ` and the buttons ${list(r.dialog.buttons)}` : ""}. Nothing changes on the event until a button in it is pressed.`, type: "Positive" };
   if (r.outcome === "menu" && r.menu) return { title: `"${label}" opens its menu`, expected: `A menu opens listing ${list(r.menu, 12)}.`, type: "Positive" };
@@ -292,6 +293,14 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
     for (const rec of run.records) {
       if (["not found", "probe failed", "skipped"].includes(rec.outcome)) continue;
       const o = observed(rec);
+      if (rec.outcome === "disabled" && !rec.tooltip) {
+        const rw = row(o.title, run.probe, rec, o.expected, o.type, asIs, run.probe.within ? `${run.probe.within} menu` : "What each control does");
+        const title = `${flow.name.split(" — ")[0]}: "${rec.name.replace(/^(.*?) → /, "")}" is greyed out with no tooltip saying why`;
+        rw.Status = "Fail — BUG-NO-TOOLTIP: greyed out, and moving the mouse over it shows nothing (every greyed-out control must say why — the tester, 30 Oct)";
+        rw.Priority = "Medium";
+        out.push({ row: rw, screenshot: rec.screenshot, bug: { id: "BUG-NO-TOOLTIP", title, seen: `"${rec.name}" greyed out, no tooltip`, flow: flow.name, screenshot: rec.screenshot } });
+        continue;
+      }
       const odd = (rec.newText ?? []).find((t) => ODD_NUMBER.test(t)) ?? (rec.dialog?.text.match(ODD_NUMBER) ? rec.dialog.text.slice(0, 160) : undefined);
       const question = o.question ?? (odd ? `After clicking "${rec.name}" the screen shows ${q(odd)} — is that value right?` : undefined);
       out.push({ row: row(o.title, run.probe, rec, o.expected, o.type, asIs, run.probe.within ? `${run.probe.within} menu` : "What each control does"), question, screenshot: rec.screenshot });
@@ -466,6 +475,16 @@ export async function writeExploredSheet(keys = FLOWS.map((f) => f.key), opts: {
   const file = join(OUT, "Procol-Explored-Flows.xlsx");
   XLSX.writeFile(wb, file);
   writeFileSync(join(OUT, "questions.md"), `# Questions from exploring the flows\n\nAnswer each one; the answer becomes the case's expected result.\n\n${qs.map((x) => `- **${x.id}** — ${x.q}`).join("\n")}\n`);
+  // the platform's Bugs page reads these (report/sheetDefects.ts)
+  const at = new Date().toISOString();
+  writeFileSync(
+    join(RAW, "bugs.json"),
+    JSON.stringify(
+      all.filter((c) => c.bug).map((c) => ({ id: c.bug!.id, title: c.bug!.title, seen: c.bug!.seen, flow: c.bug!.flow, caseId: c.row["Test Case ID"], severity: c.row.Priority as "High", expected: c.row["Expected Result"], steps: c.row["Test Steps"].split("\n"), screenshot: c.bug!.screenshot, at })),
+      null,
+      1,
+    ),
+  );
   writeFileSync(join(OUT, "bugs.md"), `# Bugs found while exploring\n\n${bugs.map((b) => `- **${b["Bug ID"]}** — ${b.Title}. Seen on ${b.Where}: ${b.Seen} (case ${b["Test Case ID"]}; screenshot ${String(b.Screenshot).replace(/^.*\/procol-ui-tests\//, "procol-ui-tests/")})`).join("\n") || "None yet."}\n`);
   return { file, cases: all.length, questions: qs.map((x) => `${x.id}: ${x.q}`), bugs: bugs.map((b) => `${b["Bug ID"]}: ${b.Title} — ${b.Seen}`) };
 }

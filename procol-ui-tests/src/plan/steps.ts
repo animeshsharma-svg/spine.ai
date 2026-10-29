@@ -121,6 +121,20 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "extend_time",
+    purpose:
+      'On an event\'s page, open Settings → "Extend Submission Time" (which:"submission", default) or "Edit Evaluation Time" (which:"evaluation") and set the new time in the "Increase Event Time" window: option "preset" (a ready slot, preset = its words e.g. "15 Mins"), "custom" (amount + unit minutes|hours|days; direction "decrease" for Edit Evaluation Time\'s "Decrease by"), or "fixed" (at = "E+30m" from the CURRENT end, "+2h" from now, "-10m" in the past). Presses Ok and judges the window\'s own answer; when it saves, reads the event\'s end before and after and checks the SUM (new end = old end + duration, or now + duration when bidding had already ended). expect "refused" for a negative case (also passes when the item is not offered, or is greyed out WITH a tooltip; message = words of the refusal). Use for every "extend submission time / edit evaluation time" case: by preset, by custom minutes/hours/days, to a fixed time, zero, empty, past time, before the current end, during live / evaluation / after award.',
+    args: { which: '"submission" (default) | "evaluation"', option: '"preset" | "custom" (default) | "fixed"', preset: "the slot's words (optional)", amount: "number for custom (may be 0, empty, letters for negative cases)", unit: '"minutes" | "hours" | "days"', direction: '"increase" (default) | "decrease"', at: '"E+30m" | "+2h" | "-10m" for fixed', expect: '"saved" (default) | "refused"', message: "words of the refusal (optional)", confirm: "false = fill but do not press Ok" },
+    assertion: true,
+  },
+  {
+    name: "expect_settings_menu",
+    purpose:
+      'Open the event\'s Settings menu and check what it offers in the event\'s CURRENT state: offered (must be there), absent (must not be there), greyed (must be greyed out), enabled (must be clickable). Every greyed-out item must show a tooltip saying why (tooltips:false turns that check off). Use for "is X allowed when the event is upcoming / live / in evaluation / awarded" — e.g. after award: absent ["Withdraw"], greyed ["Extend Submission Time"].',
+    args: { offered: '["Withdraw", …]', absent: '["Reschedule Event", …]', greyed: '["Extend Submission Time", …]', enabled: '["Order Activity", …]', tooltips: "false = do not require tooltips on greyed items" },
+    assertion: true,
+  },
+  {
     name: "probe_controls",
     purpose:
       'EXPLORATION, not a check: click every control the current screen offers (buttons, tabs, menu items, links, switches), one at a time on the screen reloaded each time, and record what the app did — the dialog it opened (title, fields, buttons), the menu, the new page, the message, the request it sent, an error, or nothing; a greyed-out control is hovered for its tooltip. Never presses the confirm inside a dialog. Controls that usually change the event (Publish, Submit, Save …) go last. Use only when the case asks to find out what each control does ("what happens if I click …", "explore this screen").',

@@ -38,5 +38,7 @@ SUMMARY = {
     "33": "Splitting line items into lots and reopening line items on staggered events.",
     "34": "The same key actions (withdraw, extend, reject, surrogate, award, recreate) on reverse auctions and on each kind of eRFX project, where the result differs by kind.",
     "35": "The e-mails each vendor receives at each step, and that nobody else gets them.",
+    "37": "Every Settings action in every event state — upcoming, live (one bid / two bids), evaluation, awarded, draft — offered, greyed out with a tooltip, or not offered, as the dashboard code decides; and the same action as the state changes under it.",
+    "38": "The Increase Event Time window behind Extend Submission Time and Edit Evaluation Time: ready slots, custom minutes / hours / days, fixed times, zero, empty, letters, negative, decimals, huge values, before the end, in the past, the 3-month limit — and the sum of every extension checked on both portals.",
     "36": "How each state looks on the stage header and in the Events list.",
 }

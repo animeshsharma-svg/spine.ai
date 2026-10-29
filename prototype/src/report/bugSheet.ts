@@ -1,6 +1,7 @@
 import { knownBugSentence } from "./knownBugs.js";
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import { summariseFindings, type DefectGroup } from "../agents/oracle.js";
+import { sheetDefects } from "./sheetDefects.js";
 import { defectsFromRuns } from "./checkDefects.js";
 import { uiRunDefects } from "./uiFrictionDefects.js";
 import { curatedAsDefects, loadCuratedBugs, type CuratedBug } from "./curatedBugs.js";
@@ -347,6 +348,8 @@ export function allDefects(): DefectGroup[] {
     // retries, and the calls the app made in the background that failed. A
     // green journey used to contribute nothing here at all.
     ...uiRunDefects(),
+    // test sheets run case by case, and the flows explored control by control
+    ...sheetDefects(),
   ]
     .filter((g) => {
       if (seen.has(g.defectFingerprint)) return false;
