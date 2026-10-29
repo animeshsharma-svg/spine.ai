@@ -225,7 +225,7 @@ export async function probeControls(page: Page, a: Record<string, unknown>, outD
       }
     }
     const file = join(outDir, `probe-${stepNo}.json`);
-    writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), listOnly: true, within: within || undefined, records }, null, 1));
+    writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), listOnly: true, within: within || undefined, listed: records.map((r) => r.name), records }, null, 1));
     console.log(`[probe] listed ${records.length}: ${records.map((r) => `${r.name}${r.disabled ? " (greyed)" : ""}`).join(" | ").slice(0, 700)}`);
     return { records, file };
   }
@@ -317,6 +317,6 @@ export async function probeControls(page: Page, a: Record<string, unknown>, outD
   }
   if (reload && page.url() !== home) await page.goto(home, { waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => {});
   const file = join(outDir, `probe-${stepNo}.json`);
-  writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), within: within || undefined, records }, null, 1));
+  writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), within: within || undefined, listed: list.map((c) => (within ? `${within} → ${c.name}` : c.name)), records }, null, 1));
   return { records, file };
 }

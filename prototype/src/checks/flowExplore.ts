@@ -123,17 +123,17 @@ interface ProbeRecord {
   dialog?: { title: string; buttons: string[]; fields: string[]; text: string }; menu?: string[]; url?: string;
   messages?: Array<{ kind: string; text: string }>; requests?: Array<{ method: string; path: string; status: number }>; newText?: string[]; changedEvent?: boolean; screenshot?: string; note?: string;
 }
-interface ProbeRun { probe: Probe; records: ProbeRecord[] }
+interface ProbeRun { probe: Probe; records: ProbeRecord[]; listed?: string[] }
 interface Variant { key: string; from: unknown; to: unknown; listed: ProbeRun[]; clicked: ProbeRun[]; diff: string[]; why?: string }
 export interface FlowResult { flow: string; at: string; baseline: ProbeRun[]; baselineSettings: ConfigNeed[]; variants: Variant[]; why?: string }
 
 /** Build the flow's starting event (if any), open its screen and run the probes in ONE browser run. */
-async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, companyId: number, line: (l: string) => void): Promise<{ runs: ProbeRecord[][]; why?: string }> {
+async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, companyId: number, line: (l: string) => void): Promise<{ runs: ProbeRecord[][]; listed: string[][]; why?: string }> {
   const plan: { title: string; steps: Step[]; context?: Record<string, unknown> } = { title: `explore ${flow.key}`, steps: [...flow.start, ...probes.map((args) => ({ step: "probe_controls", args }))] };
   if (flow.state === "none") plan.context = { state: "none" };
   else {
     const prep = await contextForPlan(`explore ${flow.name}`, plan, companyId, line, { state: flow.state, technical: flow.technical, auction: flow.auction });
-    if (!prep.context) return { runs: [], why: prep.why ?? "the starting event could not be built" };
+    if (!prep.context) return { runs: [], listed: [], why: prep.why ?? "the starting event could not be built" };
     plan.context = prep.context;
   }
   const runId = `explore-${flow.key}-${Date.now().toString(36)}`;
@@ -145,22 +145,23 @@ async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, 
   );
   const result = readPlanResult(runId) as { steps?: Array<{ step: string; status: string; detail?: string }> } | null;
   const failedStart = result?.steps?.slice(0, flow.start.length).find((s) => s.status !== "ok");
-  if (failedStart) return { runs: [], why: `could not reach the screen: ${failedStart.step} — ${String(failedStart.detail ?? "").slice(0, 200)}` };
+  if (failedStart) return { runs: [], listed: [], why: `could not reach the screen: ${failedStart.step} — ${String(failedStart.detail ?? "").slice(0, 200)}` };
   const dir = join(UI, "evidence", runId);
-  const runs = probes.map((_, i) => {
+  const files = probes.map((_, i) => {
     const f = join(dir, `probe-${flow.start.length + i + 1}.json`);
-    return existsSync(f) ? ((JSON.parse(readFileSync(f, "utf8")).records ?? []) as ProbeRecord[]) : [];
+    return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as { records?: ProbeRecord[]; listed?: string[] }) : {};
   });
-  return { runs };
+  return { runs: files.map((x) => x.records ?? []), listed: files.map((x) => x.listed ?? (x.records ?? []).map((r) => r.name)) };
 }
 
-const offered = (rs: ProbeRecord[]) => new Map(rs.filter((r) => !["not found", "probe failed"].includes(r.outcome)).map((r) => [r.name, r.disabled]));
+/** What a screen offered: every control it listed (whether or not its click worked), greyed out or not. */
+const offered = (run: ProbeRun) => new Map((run.listed ?? run.records.filter((r) => r.outcome !== "not found").map((r) => r.name)).map((n) => [n, run.records.find((r) => r.name === n)?.disabled ?? false]));
 
 export async function exploreFlow(flow: FlowDef, opts: { companyId: number; variants?: boolean; line: (l: string) => void }): Promise<FlowResult> {
   const { companyId, line } = opts;
   line(`── ${flow.name}: clicking everything on the screen as the company is set up now`);
   const base = await probeOnce(flow, flow.probes as Array<Record<string, unknown>>, companyId, line);
-  const result: FlowResult = { flow: flow.key, at: new Date().toISOString(), baseline: flow.probes.map((p, i) => ({ probe: p, records: base.runs[i] ?? [] })), baselineSettings: [], variants: [], why: base.why };
+  const result: FlowResult = { flow: flow.key, at: new Date().toISOString(), baseline: flow.probes.map((p, i) => ({ probe: p, records: base.runs[i] ?? [], listed: base.listed[i] })), baselineSettings: [], variants: [], why: base.why };
   const known = new Map((await settingsCatalog()).map((s) => [s.key, s]));
   for (const key of flow.settings.filter((k) => known.has(k))) {
     const cur = await currentValue(companyId, key);
@@ -172,14 +173,14 @@ export async function exploreFlow(flow: FlowDef, opts: { companyId: number; vari
     const to = !b.value;
     line(`── ${flow.name}: switching ${b.key} to ${to ? "On" : "Off"} and looking again`);
     const v: Variant = { key: b.key, from: b.value, to, listed: [], clicked: [], diff: [] };
-    const out = await withSettings(companyId, [{ key: b.key, value: to, why: "explore the screen with it switched" }], `explore-${flow.key}`, line, async () => {
+    const out = await withSettings(companyId, [{ key: b.key, value: to, why: "explore the screen with it switched" }], `explore-${flow.key}`, line, async (): Promise<{ why?: string }> => {
       const listed = await probeOnce(flow, flow.probes.map((p) => ({ ...p, listOnly: true })), companyId, line);
       if (listed.why) return { why: listed.why };
-      v.listed = flow.probes.map((p, i) => ({ probe: p, records: listed.runs[i] ?? [] }));
+      v.listed = flow.probes.map((p, i) => ({ probe: p, records: listed.runs[i] ?? [], listed: listed.listed[i] }));
       // what changed against the screen as it was: appeared, disappeared, greyed out or no longer greyed out
       const changedNames: string[][] = flow.probes.map(() => []);
       flow.probes.forEach((p, i) => {
-        const was = offered(result.baseline[i].records), now = offered(v.listed[i].records);
+        const was = offered(result.baseline[i]), now = offered(v.listed[i]);
         for (const [n, dis] of now) {
           if (!was.has(n)) { v.diff.push(`appears: "${n}"${dis ? " (greyed out)" : ""}`); changedNames[i].push(n); }
           else if (was.get(n) !== dis) { v.diff.push(`${dis ? "greyed out" : "no longer greyed out"}: "${n}"`); changedNames[i].push(n); }
@@ -192,7 +193,7 @@ export async function exploreFlow(flow: FlowDef, opts: { companyId: number; vari
         v.clicked = toClick.map((x, i) => ({ probe: x.p, records: clicked.runs[i] ?? [] }));
       }
       return {};
-    });
+    }).catch((e: Error) => ({ refused: `exploring with it switched broke: ${e.message.slice(0, 160)}` }));
     if ("refused" in out) v.why = out.refused;
     else if ((out.result as { why?: string }).why) v.why = (out.result as { why?: string }).why;
     line(`   ${b.key} ${to ? "On" : "Off"}: ${v.why ? `not explored — ${v.why}` : v.diff.length ? v.diff.join("; ") : "nothing on the screen changed"}`);

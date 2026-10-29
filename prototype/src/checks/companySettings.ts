@@ -212,7 +212,15 @@ export async function withSettings<T>(companyId: number, needed: NeededSetting[]
       }
       onLine(`Switching ${n.key} from ${JSON.stringify(cur.value)} to ${JSON.stringify(n.value)} for this case (${n.why}).`);
       writePending([...readPending(), { companyId, key: n.key, restoreTo: cur.value, caseId }]);
-      const saved = await setValue(companyId, n.key, n.value);
+      let saved = false;
+      try {
+        saved = await setValue(companyId, n.key, n.value);
+      } catch (e) {
+        // e.g. "The Config type is not supported": the app does not take this setting per company
+        writePending(readPending().filter((p) => !(p.companyId === companyId && p.key === n.key)));
+        log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: false, error: (e as Error).message.slice(0, 200) });
+        return { refused: `the app would not change ${n.key} for the company (it answered: ${(e as Error).message.split("\n")[0].slice(0, 120)})` };
+      }
       changed.push({ key: n.key, from: cur.value, to: n.value });
       const inDb = saved ? await settled(companyId, n.key, n.value) : false;
       log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: saved, readBack: inDb });

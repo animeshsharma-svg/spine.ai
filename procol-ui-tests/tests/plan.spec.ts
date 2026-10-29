@@ -46,7 +46,9 @@ test("planned test case", async ({ page }) => {
   // The default 6-minute test budget killed the wait at 137s; give such plans
   // the time the product demands, and only such plans.
   const waitsForWindow = plan.steps.some((st: { step: string }) => st.step === "close_event");
-  test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000);
+  // An exploration (probe_controls) clicks each control on a reloaded screen, ~15 s a click: give it that time.
+  const probes = plan.steps.filter((st: { step: string; args?: Record<string, unknown> }) => st.step === "probe_controls" && !st.args?.listOnly).length;
+  test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000 + probes * 15 * 60_000);
 
   const collector = new EvidenceCollector(page, `plan.${plan.title.replace(/\s+/g, "_").slice(0, 40)}`);
   await collector.installToastRecorder();
