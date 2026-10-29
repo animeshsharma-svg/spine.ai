@@ -48,8 +48,8 @@ for action, by_state in RULES.items():
             title, ttype = f"{label} is not offered on {words.split(' (')[0]}", "Negative"
         steps = [BUYER_LOGIN, open_event(setup), OPEN_SETTINGS, f"Look for \"{label}\" in the menu; move the mouse over it", f"If it can be clicked, click it and then press \"Cancel\""]
         if key == "draft":
-            steps = [BUYER_LOGIN, OPEN_EVENTS, "Open the \"Drafts\" tab and click the draft. The project screen opens", OPEN_DOTS + " (a draft has no stage Settings menu: its actions are under the three dots)", f"Look for \"{label}\""]
-        case("SRC-SAM", M33, f"{action} by state", title, steps, exp, pre=f"{cap(words)}.", priority="High" if action in ("Withdraw", "Extend Submission Time", "Reschedule Event", "Edit Evaluation Time") else "Medium", ttype=ttype,
+            steps = [BUYER_LOGIN, OPEN_EVENTS, "Open the \"Drafts\" tab and click the draft project. The project screen opens", OPEN_DOTS + " (a draft has no stage Settings menu: its actions are under the three dots)", f"Look for \"{label}\""]
+        case("SRC-SAM", M33, f"{action} by state", title, steps, exp, priority="High" if action in ("Withdraw", "Extend Submission Time", "Reschedule Event", "Edit Evaluation Time") else "Medium", ttype=ttype,
              configs=CO if "Counter" in action else ERFX)
 
 # the same check, iterated: one action, the state changing under it
@@ -61,7 +61,7 @@ for action, a, b, exp in [
     ("Shared With", "live", "evaluation", "\"Shared With\" is offered while live; when bidding ends it is gone from Settings."),
 ]:
     case("SRC-SAM", M33, f"{action} as the state changes", f"{action} when the event moves from {a} to {b}",
-         [BUYER_LOGIN, open_event(f"an RFQ that is {a}"), OPEN_SETTINGS, f"Note whether \"{action}\" is offered", f"Wait / act until the RFQ is {b} (bidding ends, the award is submitted, or a second vendor bids)", "Refresh the page and open Settings again"],
+         [BUYER_LOGIN, open_event({k: n for k, n, _ in STATES}[a]), OPEN_SETTINGS, f"Note whether \"{action}\" is offered", f"Wait / act until the RFQ is {b} (bidding ends, the award is submitted, or a second vendor bids)", "Refresh the page and open Settings again"],
          exp, priority="High", ttype="Edge", configs=CO if "Counter" in action else ERFX)
 
 # ── the Increase Event Time window: every option, value and the sum ──────────────────────────────────
