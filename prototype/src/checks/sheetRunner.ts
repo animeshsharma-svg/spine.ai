@@ -87,7 +87,8 @@ export type SheetEvent =
   | { type: "done"; run: SheetRun };
 
 const mask = (s: string) => String(s ?? "").replace(/(access-token|lightspeed-token|token|authorization)=([^&\s'"]+)/gi, "$1=…").replace(/eyJ[A-Za-z0-9_-]{20,}/g, "…");
-const ASSERT = /^(expect_|attempt$)/;
+// checks, and the steps that judge the app's answer themselves (extend_time: the sum, the refusal's words)
+const ASSERT = /^(expect_|attempt$|extend_time$)/;
 
 let active: { id: string; stop: () => void } | null = null;
 export function activeSheetRun(): string | null {
@@ -337,7 +338,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
-    } else if (ASSERT.test(f.step) || f.evidence?.appSaid) {
+    } else if (ASSERT.test(f.step) || f.evidence?.appSaid || /\[product\]/.test(d)) {
       r.status = "Fail";
       r.why = ASSERT.test(f.step)
         ? `At step ${failedAt + 1} the screen did not show what the case expects. ${words.replace(/^Check: /, "Expected: ")} What it showed instead: ${d}`

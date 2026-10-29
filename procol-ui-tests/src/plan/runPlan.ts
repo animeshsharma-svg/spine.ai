@@ -603,7 +603,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       for (const n of list(a.enabled)) if (has(n)?.greyed) problems.push(`"${n}" is greyed out${has(n)!.tip ? ` ("${has(n)!.tip}")` : ""} but should be clickable`);
       if (a.tooltips !== false) for (const r of rows.filter((x) => x.greyed && !x.tip)) problems.push(`"${r.name}" is greyed out with NO tooltip saying why`);
       const seen = rows.map((r) => `${r.name}${r.greyed ? ` (greyed${r.tip ? `: "${r.tip}"` : ", no tooltip"})` : ""}`).join(", ");
-      if (problems.length) throw new Error(`Settings menu: ${problems.join("; ")} — offered: ${seen || offered}`);
+      if (problems.length) throw new Error(`[product] Settings menu: ${problems.join("; ")} — offered: ${seen || offered}`);
       return `Settings menu offers: ${seen}`;
     }
     case "probe_controls": {

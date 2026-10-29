@@ -16,6 +16,13 @@ export interface PlanLike {
 /** Which state the words and the plan ask for; null when the plan starts from nothing. */
 export function stateForPlan(text: string, plan: PlanLike): { state: UiState; screen: string; technical: boolean; auction?: boolean } | null {
   if (plan.context?.eventGroupUuid) return null; // already built
+  // "On a live RFQ, …" compiled to open_event with no title: there is no such event to search for — build one
+  // in the state the words name and open it by route instead.
+  const opener = plan.steps?.[0];
+  if (opener?.step === "open_event" && !opener.args?.title && /\b(live|upcoming|closed|awarded|evaluation|bid|published|existing)\b/i.test(text)) {
+    opener.step = "open_prepared";
+    opener.args = { screen: /settings|extend|withdraw|reschedule|counter|responses|compare/i.test(text) ? "responses" : "summary" };
+  }
   const first = plan.steps?.find((s) => s.step === "open_prepared");
   if (!first) return null;
   const screen = String(first.args?.screen ?? "summary");

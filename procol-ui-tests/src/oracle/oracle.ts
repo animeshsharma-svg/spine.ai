@@ -122,6 +122,20 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
     };
   }
 
+  // 2b. A step that judged the product itself and said so ("[product] …"): a refusal with no words, a greyed-out
+  //     control with no tooltip, a sum that is wrong. The app produced no error text BECAUSE that is the defect.
+  if (/\[product\]/.test(message)) {
+    const what = message.replace(/^step "[a-z_]+" failed:\s*/, "").replace(/\[product\]\s*/, "").split("\n")[0].slice(0, 220);
+    return {
+      kind: "product_defect",
+      severity: "medium",
+      title: `${evidence.flowKey}: ${what.slice(0, 120)}`,
+      rationale: `The step checked the app's own answer and found it wrong: ${what}.`,
+      reproduction: steps,
+      actionable: true,
+    };
+  }
+
   // 3. The app refused the input in its own words. That is the product working:
   //    the finding is a gap in the test data or in an unbuilt step.
   // Only the refusal still standing when the step failed is judged: earlier ones were met by

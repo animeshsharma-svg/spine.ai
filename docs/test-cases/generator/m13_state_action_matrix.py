@@ -71,7 +71,7 @@ SUM = "Then the countdown in the header and the event's end time move: the new e
 for opt, d in [("the first ready slot", "that slot's duration"), ("Custom: 15 Minutes", "15 minutes"), ("Custom: 2 Hours", "2 hours"), ("Custom: 1 Days", "1 day (24 hours)")]:
     steps = OPEN_EXT + ([f"Choose {opt}"] if "slot" in opt else ["Choose \"Custom\"", f"Type {opt.split(': ')[1].split()[0]} and pick \"{opt.split()[-1]}\""]) + ["Click \"Ok\""]
     case("SRC-IET", M34, "Extend by a duration", f"Extend a live RFQ by {opt.replace('Custom: ', '')}", steps,
-         f"The window closes with \"Event time updated successfully\". " + SUM.format(d=d), priority="Critical" if "15" in opt else "High", configs=ERFX)
+         f"The window closes and the app says \"Order time updated\". " + SUM.format(d=d), priority="Critical" if "15" in opt else "High", configs=ERFX)
 for val, exp, t in [
     ("0", "The window stays open; the duration box turns red and says what is wrong (e.g. \"Please enter valid time\"). Nothing is saved. A red box with no words is a bug.", "Negative"),
     ("(leave empty)", "The window stays open; the duration box turns red with a message. Nothing is saved.", "Negative"),
