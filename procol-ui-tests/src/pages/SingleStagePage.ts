@@ -219,8 +219,30 @@ export class SingleStagePage extends BasePage {
   }
 
   /** Open the template picker and select a Buy (pricing) template. */
+  /**
+   * The template Procol has already set on this screen, or "". An event made from a PR opens with
+   * one ("Templates: test 1 ▾") and no "Select Templates" button at all, so looking for that
+   * button failed the step four times over (27 Oct, PR → RFQ stopped at select_template).
+   */
+  async templateAlreadyChosen(): Promise<string> {
+    const label = this.page.getByText(/^\s*Templates\s*$/).filter({ visible: true }).first();
+    for (let i = 0; i < 10; i++) {
+      if (await this.page.getByRole("button", { name: /select templates/i }).filter({ visible: true }).count().catch(() => 0)) return "";
+      // The button right after the label is the template control; "Add Columns" there means it has not drawn yet.
+      const name = (await label.locator("xpath=following::button[1]").innerText({ timeout: 1_000 }).catch(() => "")).replace(/\s+/g, " ").trim();
+      if (name && !/select templates|add columns/i.test(name)) return name;
+      await this.pause(500);
+    }
+    return "";
+  }
+
   async selectBuyTemplate(): Promise<string> {
     await this.dismissDistractions();
+    const already = await this.templateAlreadyChosen();
+    if (already) {
+      console.log(`[template] Procol has already set the template "${already}" on this screen — keeping it`);
+      return already;
+    }
     // The picker is DISABLED while its template list loads (templateSelection.jsx:137,
     // templateListLoading). A forced click on it does nothing and the step used to "pass";
     // wait (bounded) until it is enabled, then click it like a person.
@@ -280,9 +302,29 @@ export class SingleStagePage extends BasePage {
         if (await preferred.count()) break;
       }
     }
+    // The searches above leave the menu filtered to whatever the last word matched — nothing, on
+    // 21 Oct (A11: "rfq" on an auction screen), and the click on "the first item" then waited 8 s
+    // on an empty list. Clear the search so the tenant's full list is back before falling back.
+    if (!(await preferred.count())) {
+      const search = menu.getByPlaceholder(/search template/i).first();
+      if (await search.inputValue().catch(() => "")) {
+        await search.fill("").catch(() => {});
+        await this.pause(1200);
+      }
+    }
     const pick = (await preferred.count()) ? preferred : items.first();
+    if (!(await pick.count().catch(() => 0))) throw new Error("the template menu lists no template for this event type, even with its search cleared (not evidence about the product)");
     const name = ((await pick.innerText().catch(() => "")) || "").trim();
-    await pick.click({ timeout: 8_000 });
+    // The template menu opens on hover and closes when the pointer leaves it; after the searches
+    // it had closed and the click waited 8 s on a hidden item (23 Oct, A11 rerun). Re-open it first.
+    if (!(await pick.isVisible().catch(() => false))) {
+      await picker.hover({ timeout: 5_000 }).catch(() => {});
+      await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+    }
+    await pick.click({ timeout: 8_000 }).catch(async (e) => {
+      if (!(await pick.isVisible().catch(() => false))) throw new Error(`the template menu closed before "${name || "the template"}" could be chosen, twice (not evidence about the product)`);
+      throw e;
+    });
     // Some tenants confirm a template choice in a modal — accept it.
     const confirm = this.page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-btn-primary").filter({ hasText: /ok|yes|confirm|proceed|continue/i }).first();
     if (await confirm.isVisible().catch(() => false)) await confirm.click({ timeout: 5_000 }).catch(() => {});

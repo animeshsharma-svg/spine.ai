@@ -119,6 +119,21 @@ async function scopeFor(page: Page, within?: string): Promise<{ root: Page | Loc
     const m = page.locator(".ant-dropdown:not(.ant-dropdown-hidden), [role='menu'], .ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
     return { root: m, note: " (inside the open menu)" };
   }
+  // An open dialog or drawer named by its TITLE ("inside Send Reminders"): the whole of it, not the title
+  // bar alone — the smallest block holding "Send Reminders" was its header, so nothing below was found
+  // (27 Oct, MN03).
+  const titled = page
+    .locator(".ant-drawer-open .ant-drawer-content, .pro-drawer-open .pro-drawer-content, .ant-modal-content, [role='dialog']")
+    .filter({ visible: true })
+    .filter({ has: page.locator(".ant-drawer-title, .pro-drawer-title, .ant-modal-title, [role='dialog'] h1, [role='dialog'] h2, [role='dialog'] h3").filter({ hasText: pattern(w) }) });
+  if (await titled.count().catch(() => 0)) return { root: titled.last(), note: ` (inside the open “${w}” dialog/drawer)` };
+  // …or a drawer whose title is a plain heading (Procol's "Send Reminders" is an h3 in a drawer with no dialog role).
+  const heading = page.getByRole("heading", { name: pattern(w) }).filter({ visible: true }).last();
+  if (await heading.count().catch(() => 0)) {
+    // The panel's BODY, not its title bar: Procol's own drawers are "pro-drawer-content" (27 Oct, Send Reminders).
+    const panel = heading.locator("xpath=ancestor::*[contains(@class,'drawer-content') or contains(@class,'drawer-body') or contains(@class,'modal-content') or @role='dialog'][1]");
+    if (await panel.count().catch(() => 0)) return { root: panel.first(), note: ` (inside the “${w}” panel)` };
+  }
   // A text anchor: the smallest row-like block that holds it.
   const rowish = page
     .locator("tr, [role='row'], li, [role='listitem'], .ant-list-item, .ant-card, [class*='row' i], [class*='card' i]")

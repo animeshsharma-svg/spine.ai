@@ -34,7 +34,7 @@ const GUARD = String.raw`(() => {
   // The declining half of a prompt, or its close control. Never the accepting half.
   const DECLINE = /^(not\s*now|no,?\s*thanks|maybe later|later|skip( tour)?|dismiss|close|got it|ok,? got it|×|✕|x)$/i;
   const NEVER = /enable|allow|yes|turn on|subscribe|i'?m in|accept all/i;
-  const BOXES = ".ant-notification-notice, .ant-message-notice, .ant-modal-wrap, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='toast' i], [class*='cookie' i], [class*='tour' i], [class*='joyride' i], .introjs-tooltip, .shepherd-element";
+  const BOXES = ".ant-notification-notice, .ant-message-notice, .ant-modal-wrap, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='toast' i], [class*='cookie' i], [class*='tour' i], [class*='joyride' i], .introjs-tooltip, .shepherd-element, [role='tooltip'], .ant-popover, .ant-tooltip";
   const state = { closed: [], scans: 0 };
   window.__spineGuard = state;
   const shown = (el) => {

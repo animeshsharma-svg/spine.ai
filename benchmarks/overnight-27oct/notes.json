@@ -1,0 +1,145 @@
+{
+  "subtitle": "Run through the night of 26–27 Oct 2026 on PROCOL DEMO (UAT), signed in as Procol Support. Every UI case made its own event, so nothing another team owns was withdrawn or changed. Verdicts below wait for your approval; “to confirm” marks an expectation nobody has checked against Procol's rules yet.",
+  "asked": [
+    "<b>“next is surrogate bid, work on that. make testcases and test them and generate a table for what case u ran and what result u got”</b>",
+    "<b>“run the surrogate bid testcases till morning … if user asks to withdraw the event at any phase of time, then ui must go here … add price cap, if anything from these options is asked by user remember to open this and perform the activity”</b>",
+    "<b>“at end i want the full report of what i asked what u did what went wrong how many worked well, api and ui automation both”</b>",
+    "<b>“after surrogate bid, look for vendor bidding … invite 2-3 vendors, from one vendor submit surrogate response, from other, login into that vendor, can we show two tabs in parallel … then buyer can see it, continue it for rfp, rfq, combinations, auction … merge it in the report … show how many cases and what type are working absolutely fine right now”</b>"
+  ],
+  "findings": [
+    "<b>The API withdraws an event with a blank remark.</b> PATCH /event_groups/:id with <code>withdraw_remark.remarks: \"\"</code> returns 200 and the event reads back withdrawn (API-WD03). On screen the remark is required — “Yes, Withdraw Project” stays disabled without it (WD04).",
+    "<b>A bid equal to the price cap is accepted — on screen and through the API</b> (cap 100, surrogate bid 100: PC04 and API-PC04), while the template's own price rule says “Price should be less than the Cap price” (strictly below). One of the two is wrong.",
+    "<b>A surrogate bid with no price, or a negative price, is refused with the wrong words</b>: “Product not found” (code 80) instead of naming the price (API-SB03, API-SB04). On screen Submit Bid simply stays disabled (SB10).",
+    "<b>A surrogate bid after the project is withdrawn is refused as “Trade Request not found”</b> (code 95, API-WD04) — refused, but the message does not say the event is withdrawn."
+  ],
+  "api": {
+    "API-SB01": {
+      "verdict": "PASS",
+      "note": "Surrogate bid of 100 accepted (200). Round 1 had failed with a 500 because spine.ai sent a bare library body; fixed in the API planner, re-run passed."
+    },
+    "API-SB02": {
+      "verdict": "PASS",
+      "note": "Two surrogate bids (100 and 120) for two vendors, both accepted."
+    },
+    "API-SB03": {
+      "verdict": "FINDING",
+      "note": "Refused, as it should be — but Procol says “Product not found” for a price of -50 (finding 3)."
+    },
+    "API-SB04": {
+      "verdict": "FINDING",
+      "note": "Refused, as it should be — but with “Product not found” for a bid with no price (finding 3). Round 1 had sent a price by mistake; fixed and re-run."
+    },
+    "API-SB05": {
+      "verdict": "PASS",
+      "note": "A surrogate technical response through the API: a technical-only event, then POST /template_responses/create_surrogate_response with every questionnaire page and question read from the round's schema (recorded from the screen, 28 Oct). Procol accepted it, and its records show the answer saved for the vendor, placed by the buyer."
+    },
+    "API-WD01": {
+      "verdict": "PASS",
+      "note": "Withdrawn with a remark; reads back as withdrawn."
+    },
+    "API-WD02": {
+      "verdict": "PASS",
+      "note": "A surrogate bid in, then withdrawn with a remark; reads back as withdrawn."
+    },
+    "API-WD03": {
+      "verdict": "FINDING",
+      "note": "Procol withdrew it with a blank remark (finding 1)."
+    },
+    "API-WD04": {
+      "verdict": "PASS",
+      "note": "After the withdrawal the surrogate bid is refused (422 “Trade Request not found”, finding 4). An earlier round's read-back check looked for the remark in the wrong place; the final run passed."
+    },
+    "API-WD05": {
+      "verdict": "PASS",
+      "note": "A live auction withdrawn with a remark; reads back as withdrawn."
+    },
+    "API-PC01": {
+      "verdict": "PASS",
+      "note": "Price cap set through PATCH /trade/:id/update_vendor_validations (200). Round 1 could not tell — there was no API step for a price cap; built tonight from the UI's own recorded call."
+    },
+    "API-PC02": {
+      "verdict": "PASS",
+      "note": "Bid of 120 above a cap of 100 refused: “Price cannot be more than the allowed price” (422)."
+    },
+    "API-PC03": {
+      "verdict": "PASS",
+      "note": "Bid of 90 under a cap of 100 accepted (200)."
+    },
+    "API-PC04": {
+      "verdict": "FINDING",
+      "note": "Bid equal to the cap (100 = 100) accepted — the template rule says it must be below (finding 2)."
+    }
+  },
+  "override": {
+    "PC04": {
+      "verdict": "FINDING",
+      "note": "A bid exactly equal to the cap (100 = 100) is ACCEPTED on screen, as through the API (finding 2) — while the template rule says the price must be below the cap."
+    },
+    "MN05": {
+      "verdict": "NEEDS_JUDGEMENT",
+      "note": "“Recreate Order” opens a form for a NEW order built from this one — same type, mode and strategy, the product sheet copied, a price to enter, the auction/bidding times — with Cancel / Create Order (seen 28 Oct on our own auction; cancelled, nothing created). It is greyed out on some live RFQs (your RFX-19216) and enabled on others (our fresh events). When should it be greyed out?"
+    }
+  },
+  "note": {
+    "SB08": "On a technical stage, Add Bid opens the vendor's technical response and the buyer submits it. (Round 1 expected no Add Bid there; the screenshot proved otherwise, so the case was corrected — it was our expectation, not Procol.)",
+    "SB10": "Submit Bid stays disabled for a price of -50 — Procol refuses it. (Round 1 called this our own failure; fixed.)",
+    "SB11": "Counter Offer is greyed out on a surrogate bid. (Round 1 looked for it in the wrong place; fixed.)",
+    "SB12": "After the bidding ended, Participants offer no Add Bid; the vendor's row is still listed, now without a checkbox. (Round 1 picked another team's still-open event; the case now ends its own event's bidding first. In the final run an extra count step went red because our row reader only knew rows with a checkbox; fixed, and re-run green at 07:05.)",
+    "SB04": "On a live RFQ the run picked, a surrogate bid for the vendor who had not bid; that row then offers no Add Bid. (Earlier rounds: the vendor's name was read with its email; then the check went to the screen AI. Both fixed.)",
+    "SB09": "Submit Bid stays disabled with no price entered. (Earlier rounds sent this check to the screen AI, which went round in circles; now a fixed step.)",
+    "SB14": "Two bids, 100 and 120; Master QCS ranks the 100 bid first. (Round 1's screen check could not run — the screen AI was calling the wrong server; fixed.)",
+    "WD03": "Settings → Withdraw with a reason: “Order withdrawn”; Procol's records show the stage withdrawn. (Round 1 looked for the word on the page, but a stage withdrawal returns to the Events list; now checked in Procol's records.)",
+    "WD10": "This client has no early end, so the run waited out the 30-minute window; after bidding ended the project was still withdrawn (“Project withdrawn successfully”).",
+    "WD11": "Once withdrawn, the ⋮ menu offers only Send Reminders and Clone Project.",
+    "PC02": "Bid of 120 above a cap of 100 refused on screen: “Price cannot be more than the allowed price”.",
+    "PC05": "On an auction, a bid of 60 above a cap of 50 refused: “Price cannot be more than the allowed price”.",
+    "PC06": "OK with no cap entered: Procol answers “Insufficient parameters” and saves nothing.",
+    "PC07": "A cap of -10: refused with the same “Insufficient parameters” — the cell may simply not take a minus sign, so whether Procol checks negative caps is not proven.",
+    "MN03": "⋮ → Send Reminders opens the drawer with “Offer submissions · 1 Pending · View”; nothing was sent. (Earlier rounds could not look inside that drawer — Procol's own “pro-drawer”; fixed.)",
+    "MN04": "Settings → Shared With opens “Participation Summary” (Invited · Seen · Bid Placed · Bid Not Placed). (Round 1 looked for the words “Shared With”; the step now knows what each item opens.)",
+    "WD09": "Once the project is withdrawn, Participants offer no Add Bid (Procol's records: project status 3). (In the final run an extra count step went red: a withdrawn list's rows have no checkbox and our reader missed them. Fixed and re-run green at 06:25.)",
+    "PC01": "Price cap 100 saved (“Price Cap added successfully!”) and read back as 100 through the row's “Edit Price Cap”, closed without saving. (The final run sent “verify the saved cap” to the screen AI, which went round in circles; a fixed step does it now, re-run green at 06:25.)",
+    "VB01": "Surrogate bid 100 for samplevendor; PROCOL TECH bid 90 from the vendor portal, shown beside the buyer; the buyer's Responses list both, participation 2/2.",
+    "VB02": "3 invited: a surrogate bid for one, a portal bid from another, the third did not bid — the buyer sees 2 responses, participation 2/3.",
+    "VB03": "Technical-only RFP: the buyer entered one vendor's technical answer, the other vendor answered from the vendor portal; both show on the Technical Stage's Responses.",
+    "VB04": "RFP + RFQ: PROCOL TECH answered the technical sheet and quoted 95 from the portal; the buyer entered samplevendor's technical answer and a bid of 100; each stage shows both vendors.",
+    "VB05": "Auction: a surrogate bid of 100 and a portal bid of 90; the buyer sees both, participation 2/2.",
+    "VB06": "RFQ: a surrogate and a portal bid, both seen by the buyer; then Convert to Auction — the auction stage carries both bids over (Procol keeps RFQ and auction apart).",
+    "VB07": "Both vendors bid from the vendor portal, one after the other; the buyer sees 2 responses, none surrogate.",
+    "VB08": "Surrogate 120 and portal 100: the buyer sees both, and Master QCS ranks the 100 bid first.",
+    "VB09": "The vendor bid 100 from the portal, the buyer countered 90, the vendor accepted it in the portal, and the buyer's grid marks it accepted.",
+    "VB10": "Portal bid first, then a surrogate bid of 110 for the other vendor; the buyer sees both.",
+    "SB13": "A surrogate bid of 100 on an auction; afterwards the vendor's row offers no Add Bid and the bid stays at 100 — the buyer cannot revise it (Aanya, 28 Oct: no revision possible). Earlier rounds expected a revision; the case was corrected."
+  },
+  "fixed": [
+    "<b>The screen AI inside runs on the test server called the wrong server</b> — every on-screen step “did not answer”. Runs now talk to the server that started them.",
+    "<b>The planner put a real bid before a bid the case expects to be refused</b> (SB10, SB08) — and a later repair re-added it. Both fixed; a refused try is one exact step.",
+    "<b>Procol's refusals were reported as our failures</b> — a disabled Submit for -50, a greyed Counter Offer. Steps now say “blocked: …” and that counts as the refusal.",
+    "<b>Exact checks were sent to the screen AI</b>, which went round in circles (Add Bid gone, a bid with no price, “exactly one vendor”). The planner now uses the fixed steps.",
+    "<b>Wrong expectations of ours</b>: a technical stage DOES offer Add Bid (SB08); SB12 now ends its own event instead of picking another team's.",
+    "<b>Withdraw, Price Cap and every event-menu item</b> had no steps — six new steps; both menus and every dialog mapped on RFX-19215 (nothing confirmed there).",
+    "<b>Add Price Cap's first run stayed on Project Details</b>; a stage withdrawal returns to the Events list; the Send Reminders drawer is Procol's own “pro-drawer”; a greyed item was matched twice — each fixed after reading the real page.",
+    "<b>API side</b> (with the other session): a bare library body for a surrogate bid (500), a “no price” case that still sent a price, an unclear result counted as a pass, no price-cap step (built from the UI's recorded call), and “bid of exactly N” wording — all fixed and re-run.",
+    "<b>This morning, from the final run</b>: a closed or withdrawn event's Participants rows have no checkbox, and our row reader missed them (SB12, WD09 went red on an extra count step; the real check, no Add Bid, held). Both re-ran green, but neither plan counted rows again, so the reader fix is proven by its selftest on the recorded page, not yet live. A saved price cap is read back through “Edit Price Cap” by a new step, expect_price_cap, not by the screen AI (PC01).",
+    "<b>Vendor bidding (27 Oct, after the night)</b>: a live stage shows no “Surrogate Bid” tag, so Procol's records now say which response is surrogate; participation read “1/250” (it is “1 / 2 50%”); a surrogate bid could take the portal vendor; a two-stage plan invited 3 for 2; the portal missed a just-published event; Counter Offer looked greyed while loading; accepting a counter offer signed in as the wrong vendor; every surrogate bid quoted 1 unit instead of the quantity asked; Master QCS ranks were checked by amount, Procol ranks by rate. All fixed and re-run.",
+    "<b>28 Oct</b>: SB13 now expects no revision (your answer); the Master QCS check read “Price” from the Last Purchase Price row — reference rows are skipped now; the API path gained the surrogate technical response (built from the round's questionnaire), so API-SB05 runs; the side-by-side view is on your 4300.",
+    "<b>Two slips of mine</b>, caught at once: the compile cache served a plan built by old code (SB10 — cleared, and written down), and an apostrophe broke the step catalog for a minute at 03:58 (no run started)."
+  ],
+  "open": [
+    "<b>PC07</b>: a negative price cap gets the same answer as an empty one (“Insufficient parameters”). The cell may simply refuse the minus sign, so whether Procol checks for negative caps is still unproven.",
+    "<b>Closed-event Participants rows</b>: the reader fix (rows with no checkbox) passes its selftest on the recorded page but hasn't run on a live closed event yet."
+  ],
+  "needs": [
+    "<b>Approve the expected results</b> — 14 surrogate-bid, 27 event-action, 10 vendor-bidding and 14 API cases, all marked draft.",
+    "<b>Decide the four Procol findings</b> above: bugs to raise, or intended?",
+    "<b>MN05</b>: “Recreate Order” makes a new order from this one — when should it be greyed out on a live RFQ?"
+  ],
+  "where": [
+    "UI suites: <code>benchmarks/surrogate-bid</code>, <code>benchmarks/event-actions</code> and <code>benchmarks/vendor-bidding</code> (cases.json, runs/, score.sh)",
+    "API suite: <code>benchmarks/api-actions</code> (cases.json, run_api.mjs, runs/)",
+    "New steps: <code>procol-ui-tests/src/pages/EventActionsPage.ts</code>, <code>src/plan/eventMenuSteps.ts</code>",
+    "Rules learned: <code>docs/LESSONS.md</code> 27–35",
+    "The price cap call, recorded: <code>procol-ui-tests/recordings/price-cap-27oct.flow.json</code>"
+  ],
+  "footer": "spine.ai · built from the runs' own records and Procol's database (read-only). Every Pass/Fail here is the run's verdict and waits for your review."
+}

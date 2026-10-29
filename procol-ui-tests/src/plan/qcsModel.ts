@@ -69,17 +69,22 @@ export function findRowLabel(labels: string[], want: string | RegExp, exclude?: 
   const pool = labels.filter((l) => !exclude || !exclude.test(l));
   if (want instanceof RegExp) return pool.find((l) => want.test(l));
   const w = norm(want);
+  // A loose match never lands on a reference row unless the case names one: "Price" read "Last Purchase
+  // Price" (28 Oct, SB13) — the bid's price is its rate row.
+  const REFERENCE = /negotiated|last purchase|landed|savings|target|reference|budget/i;
+  const loose = REFERENCE.test(want) ? pool : pool.filter((l) => !REFERENCE.test(l));
   return (
     pool.find((l) => norm(l) === w) ??
     pool.find((l) => norm(l).startsWith(w)) ??
-    pool.find((l) => norm(l).includes(w)) ??
+    loose.find((l) => norm(l).includes(w)) ??
     // "rate per unit" ↔ "RFQ Rate", "Auction/RFQ Amount" ↔ "RFQ Amount": every word of the
     // label but the stage's name is in the wanted text ("Final Negotiated Rate" is not "rate").
-    pool.find((l) => {
+    loose.find((l) => {
       const words = labelWords(l);
       const wanted = new Set(w.split(/[^a-z0-9]+/).filter(Boolean));
       return words.length > 0 && words.every((word) => wanted.has(word));
-    })
+    }) ??
+    (/\bprice\b/.test(w) ? loose.find((l) => /\brate\b/i.test(l)) : undefined)
   );
 }
 
@@ -199,14 +204,18 @@ export function checkAmounts(
   return { ...out, labels };
 }
 
-/** Ranks follow the amounts: on a buy event the lowest amount is Rank 1 (highest on a sell event). */
+/**
+ * Ranks follow the RATE: on a buy event the lowest rate is Rank 1 (highest on a sell event). Procol ranks by the
+ * unit rate, not the line amount — 27 Oct, VB08: 100/unit for 10 units (amount 1,000) was Rank 1 over 120/unit for
+ * 1 unit (amount 120). Where every vendor quotes the same quantity the two orders agree. No rate row: the amount.
+ */
 export function checkRanks(
   g: QcsGrid,
   opts: { by?: unknown; product?: unknown; order?: "lowest" | "highest" },
 ): MathCheck & { labels: { rank?: string; by?: string } } {
   const all = rowLabels(g);
   const rank = findRowLabel(all, /^rank$/i) ?? findRowLabel(all, /\brank\b/i);
-  const by = opts.by ? findRowLabel(all, String(opts.by)) : amountLabels(all, {}).amount;
+  const by = opts.by ? findRowLabel(all, String(opts.by)) : (amountLabels(all, {}).rate ?? amountLabels(all, {}).amount);
   const out: MathCheck = { checked: [], wrong: [], skipped: [] };
   if (!rank || !by) return { ...out, labels: { rank, by } };
   const better = (a: number, b: number) => (opts.order === "highest" ? a > b : a < b);

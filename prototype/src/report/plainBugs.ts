@@ -41,7 +41,7 @@ export interface PlainWay {
 }
 
 export interface PlainArtifact {
-  kind: "screenshot" | "session" | "report" | "request" | "reply";
+  kind: "screenshot" | "video" | "replay" | "session" | "report" | "request" | "reply";
   label: string;
   href?: string;
   text?: string;
@@ -127,8 +127,16 @@ interface Facts {
 
 /** Every case's latest check, by case id, from the kept API runs. */
 let checkIndex: { sig: string; byId: Map<string, any>; runCompany: Map<string, string> } | null = null;
+let checkedAt = 0;
+/**
+ * LOOKED_AT_MOST every 2 s: withPlain asks once per bug (210 of them), and listRuns(500) reads 500
+ * run records (≈60 ms) — so one /api/findings spent ≈13 s here with the whole server blocked: the
+ * Sessions list, "Opening the session…" and a live run's frames all waited (Aanya, 27 Oct: "too slow").
+ */
 function checks(): { byId: Map<string, any>; runCompany: Map<string, string> } {
+  if (checkIndex && Date.now() - checkedAt < 2_000) return checkIndex;
   const runs = listRuns(500);
+  checkedAt = Date.now();
   const sig = `${runs.length}:${runs[0]?.id ?? ""}`;
   if (checkIndex?.sig === sig) return checkIndex;
   const byId = new Map<string, any>();
@@ -213,11 +221,28 @@ export function planShotPath(run: string, file: string): string | undefined {
   return full.startsWith(join(PLAN_EVIDENCE, run)) && existsSync(full) ? full : undefined;
 }
 
+/** A plan run's video (made when it failed, runVideo.ts) or its Playwright trace: only those two names, in its own folder. */
+export function planMediaPath(run: string, file: string): string | undefined {
+  if (!/^plan-[a-z0-9]+$/i.test(run) || !/^(video\.webm|trace\.zip)$/.test(file)) return undefined;
+  const full = join(PLAN_EVIDENCE, run, file);
+  return existsSync(full) ? full : undefined;
+}
+
 /** "06-add_line_items.png" → "step 6, add line items" */
 const stepOfShot = (f: string) => {
   const m = f.match(/^(\d{2})-(.+)\.png$/);
   return m ? `step ${Number(m[1])}, ${m[2].replace(/[_-]+/g, " ")}` : f;
 };
+/** Every browser run's result, read once per 2 s rather than once per bug (see checks()). */
+let uiKept: ReturnType<typeof loadAllUiResults> = [];
+let uiAt = 0;
+function uiResults(): ReturnType<typeof loadAllUiResults> {
+  if (!uiAt || Date.now() - uiAt >= 2_000) {
+    uiKept = loadAllUiResults();
+    uiAt = Date.now();
+  }
+  return uiKept;
+}
 function artifactsOf(g: DefectGroup): PlainArtifact[] {
   const out: PlainArtifact[] = [];
   const curl = g.reproduction.findIndex((r) => /^curl\b/.test(r));
@@ -233,7 +258,7 @@ function artifactsOf(g: DefectGroup): PlainArtifact[] {
 
   // Screenshots from the browser runs that hit it, newest first.
   const runs = new Set(g.runs);
-  const shots = loadAllUiResults()
+  const shots = uiResults()
     .filter((r) => runs.has(r.runId) && r.screenshot)
     .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""))
     .slice(0, 3);
@@ -255,6 +280,10 @@ function artifactsOf(g: DefectGroup): PlainArtifact[] {
     for (const f of files.slice(-2).reverse()) {
       out.push({ kind: "screenshot", label: `The screen at ${stepOfShot(f)} (run ${id})`, href: `/api/plan-shot?run=${encodeURIComponent(id)}&f=${encodeURIComponent(f)}` });
     }
+    // How it happened (Aanya, 29 Oct: "the images or the video links of where and how the bug occurred"):
+    // the run's video, and its step-by-step Playwright replay, when the run kept them.
+    if (planMediaPath(id, "video.webm")) out.push({ kind: "video", label: `Video of the run (${id})`, href: `/api/plan-media?run=${encodeURIComponent(id)}&f=video.webm` });
+    if (planMediaPath(id, "trace.zip")) out.push({ kind: "replay", label: `Step-by-step replay, a Playwright trace (${id})`, href: `/api/plan-media?run=${encodeURIComponent(id)}&f=trace.zip` });
   }
   for (const id of g.runs.slice(0, 3)) {
     const ui = /^ui-|^plan-/.test(id);

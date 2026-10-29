@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RouteHandler } from "./index.js";
-import { caseFromEffect, getScreen, listScreens, newCaseOnScreen, planForScreenCase, screenImage } from "../agents/screenModel.js";
+import { caseFromEffect, getScreen, listScreens, newCaseOnScreen, planForScreenCase, screenImage, screenPicture } from "../agents/screenModel.js";
 import { getWalk, listWalks, runningWalk, startWalk, stopWalk, subscribeWalk, WALKS } from "../agents/screenWalk.js";
 import { getDraftAutomation } from "../agents/drafts.js";
 import { runUiPlan, readPlanResult } from "../ui/uiFlowRunner.js";
@@ -48,7 +48,9 @@ export const handle: RouteHandler = async (ctx) => {
 
   if (ctx.path === "/api/screens/one") {
     const s = getScreen(sp.get("id") ?? "");
-    ctx.json(s ? { screen: s } : { why: "no such screen" }, s ? 200 : 404);
+    const p = s && screenPicture(s.id, "plain");
+    // where the picture comes from, without this computer's file path
+    ctx.json(s ? { screen: s, picture: p ? { from: p.from, run: p.run, step: p.step, at: p.at } : null } : { why: "no such screen" }, s ? 200 : 404);
     return true;
   }
 

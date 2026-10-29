@@ -21,8 +21,9 @@
  */
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { acquireBrowser, setSlotProgress, setSlotHeaded } from "./browserSlot.js";
-import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { acquireBrowser, setSlotProgress, setSlotHeaded, setSlotAsk, clearSlotAsk } from "./browserSlot.js";
+import { DECATHLON_ID, DECATH_DIR, decathCases } from "../clients/decath.js";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,7 +58,7 @@ export interface UiFlowDef {
    * project with its own config, its own login and its own deployment — so a
    * journey now says which suite it belongs to rather than the runner guessing.
    */
-  suite?: "ui-master" | "three-way-match";
+  suite?: "ui-master" | "three-way-match" | "decath";
   /**
    * The accounts this journey may be offered to, when it is not universal.
    *
@@ -132,10 +133,14 @@ export const UI_FLOWS: UiFlowDef[] = [
     suite: "three-way-match",
     clients: [900001],
   },
+  // Decathlon: each case of the decath suite (procol-qa-platform/decath/cases.json).
+  ...decathCases().map((c) => ({ key: `decath.${c.id}`, label: `${c.id} · ${c.title}`, group: `Decathlon · ${c.module}`, suite: "decath" as const, clients: [DECATHLON_ID] })),
 ];
 
 /** The journeys this account can actually run. */
 export function uiFlowsFor(companyId: number): UiFlowDef[] {
+  // Decathlon has no sourcing events: only its own suite's journeys.
+  if (companyId === DECATHLON_ID) return UI_FLOWS.filter((f) => f.suite === "decath");
   return UI_FLOWS.filter((f) => !f.clients || f.clients.includes(companyId));
 }
 
@@ -187,6 +192,11 @@ export interface UiRunEvent {
   exitCode?: number;
   /** base64 JPEG — a live preview frame for the dashboard's split view. */
   frame?: string;
+  /** "side": the frame or caption belongs to the pane beside the main view (the vendor portal) */
+  pane?: "side";
+  /** the side pane's caption, and whether its page is still being driven */
+  label?: string;
+  state?: "live" | "done";
   /** "ask": the explorer's question to the tester (procol-ui-tests/src/explore/ask.ts) */
   ask?: Record<string, unknown>;
   /** "explore-step": one step the explorer took or is taking */
@@ -231,7 +241,9 @@ function launch(
   slot.ready.then((release) => {
     if (stopped) return release();
     onStart();
-    child = spawn("npx", args, { cwd, env, shell: false });
+    // This server draws a second pane beside the main one (the vendor portal next to the buyer, 27 Oct):
+    // the run streams it as "[frame@side]" lines only when told so (liveCursor.ts sideFrames).
+    child = spawn("npx", args, { cwd, env: { ...env, UI_SIDE_FRAMES: "1" }, shell: false });
     setSlotHeaded(args.includes("--headed"));
     setSlotProgress("starting the browser");
     // A live frame line is a base64 JPEG — tens of KB, easily bigger than one
@@ -249,6 +261,20 @@ function launch(
           emit({ type: "frame", frame: line.slice("[frame] ".length) });
           continue;
         }
+        // The side pane: its frames, and its caption ("Vendor portal · <email>", live or done).
+        if (line.startsWith("[frame@side] ")) {
+          emit({ type: "frame", pane: "side", frame: line.slice("[frame@side] ".length) });
+          continue;
+        }
+        if (line.startsWith("[pane@side] ")) {
+          try {
+            const p = JSON.parse(line.slice("[pane@side] ".length)) as { label?: string; state?: string };
+            emit({ type: "frame", pane: "side", label: String(p.label ?? ""), state: p.state === "done" ? "done" : "live" });
+          } catch {
+            /* a garbled caption is not worth a log line */
+          }
+          continue;
+        }
         // The explorer's questions and steps, as structured events (src/explore/ in the UI suite).
         const tagged = line.match(/^\[(ask|explore-step)\] (\{.*\})\s*$/);
         if (tagged) {
@@ -256,6 +282,9 @@ function launch(
             const body = JSON.parse(tagged[2]);
             if (tagged[1] === "ask") {
               setSlotProgress("waiting for your answer");
+              // Kept on the slot too, so any tab can see and answer it (Sessions' "Waiting for you" card).
+              const opts = Array.isArray(body.options) ? body.options.map((o: any) => ({ id: String(o?.id ?? ""), label: String(o?.label ?? "") })).filter((o: { id: string }) => o.id) : undefined;
+              setSlotAsk({ runId: String(body.runId ?? ""), n: Number(body.n), question: String(body.question ?? ""), kind: body.kind ? String(body.kind) : undefined, options: opts });
               emit({ type: "ask", ask: body });
             } else {
               if (body.status === "run" && body.text) setSlotProgress(`step ${body.n} — ${String(body.text).slice(0, 70)}`);
@@ -276,7 +305,7 @@ function launch(
         }
         // Mirror the run's own narration into the slot so the dashboard strip
         // can say what a HEADLESS run is doing right now.
-        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
+        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill|decath)\] (.{0,80})/);
         if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
         if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
         emit({ type: "log", line });
@@ -307,7 +336,7 @@ function launch(
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -315,7 +344,11 @@ export function runUiPlan(
   const runId = opts.runId ?? `plan-${Date.now().toString(36)}`;
   const planFile = join(dir, `${runId}.json`);
   const resultFile = join(dir, `${runId}-result.json`);
-  writeFileSync(planFile, JSON.stringify(opts.plan, null, 2));
+  // WARM START: started before its plan is compiled — the run signs in and waits for handPlan()
+  // (or callOffWarm()) to write the file (tests/plan.spec.ts waitForPlan).
+  if (opts.warm) {
+    for (const f of [planFile, join(dir, `${runId}-cancel.json`)]) rmSync(f, { force: true });
+  } else writeFileSync(planFile, JSON.stringify(opts.plan, null, 2));
 
   const args = ["playwright", "test", "tests/plan.spec.ts", "--workers=1"];
   if (opts.headed !== false) args.push("--headed");
@@ -330,6 +363,13 @@ export function runUiPlan(
     // A plan run can ask the tester too (no event fits the case: create one,
     // pick one, or stop) — the explorer's question channel, same folder.
     UI_EXPLORE_DIR: dir,
+    // …and hand an ask_tester part to the explorer (runPlan), whose model calls
+    // go through this server with this key; without it every call was refused
+    // and typed steps ended "not tested" (found by the stress batch, 21 Oct).
+    UI_EXPLORE_KEY: EXPLORE_KEY,
+    // …to THIS server: the explorer's default is :4300, so a run started by a second instance (:4310)
+    // sent its key to the wrong server and every do_on_screen "did not answer" (27 Oct, surrogate suite).
+    SPINE_SERVER: process.env.SPINE_SERVER ?? `http://127.0.0.1:${process.env.PORT ?? 4300}`,
   };
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
   // Blind waits shrink to 70% on every plan run; timeouts for real conditions
@@ -337,10 +377,32 @@ export function runUiPlan(
   env.UI_SPEED = env.UI_SPEED ?? "0.7";
   if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
   if (opts.headed !== false && opts.slowMo) env.UI_SLOWMO = String(opts.slowMo);
+  if (opts.warm) env.UI_PLAN_WAIT = "1";
 
   return launch(`plan ${runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),
   );
+}
+
+/** A warm run's plan, now compiled: written whole (a rename), so the run never reads half a file. */
+export function handPlan(runId: string, plan: unknown): void {
+  const file = join(UI_TESTS_DIR, ".plans", `${runId}.json`);
+  writeFileSync(`${file}.tmp`, JSON.stringify(plan, null, 2));
+  renameSync(`${file}.tmp`, file);
+}
+
+/** A warm run that will get no plan (the case went to the explorer, or nothing compiled): it ends untested. */
+export function callOffWarm(runId: string, why: string): void {
+  try {
+    writeFileSync(join(UI_TESTS_DIR, ".plans", `${runId}-cancel.json`), JSON.stringify({ why, at: new Date().toISOString() }));
+  } catch {
+    /* the run is stopped anyway */
+  }
+}
+
+/** The marker, once the warm run it called off has ended. */
+export function clearWarmMarker(runId: string): void {
+  rmSync(join(UI_TESTS_DIR, ".plans", `${runId}-cancel.json`), { force: true });
 }
 
 /**
@@ -396,6 +458,7 @@ export function writeExploreAnswer(runId: string, n: number, answer: { option: s
   // An explorer run, a plan run (its plan file) or a browser journey (its ask marker) can ask.
   if (!existsSync(join(dir, `${runId}-explore.json`)) && !existsSync(join(dir, `${runId}.json`)) && !existsSync(join(dir, `${runId}-ask.json`))) return false;
   writeFileSync(join(dir, `${runId}-answer-${n}.json`), JSON.stringify({ option: answer.option, text: answer.text, at: new Date().toISOString() }));
+  clearSlotAsk(runId, n);
   return true;
 }
 
@@ -472,6 +535,22 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   if (!flow) {
     emit({ type: "run-error", line: `unknown UI flow "${opts.flowKey}"` });
     return { stop: () => {} };
+  }
+
+  /**
+   * The Decathlon suite runs itself, in procol-qa-platform/decath: one case per
+   * journey, signed in on screen as each role the case names, judged against
+   * Procol's database (read-only). Its "[decath] …" lines are the run's steps,
+   * and its pages stream to the live view.
+   */
+  if (flow.suite === "decath") {
+    const caseId = flow.key.replace(/^decath\./, "");
+    const args = ["playwright", "test", "tests/rbv.spec.ts", "--workers=1"];
+    const env: Record<string, string> = { ...(process.env as Record<string, string>), DECATH_CASES: caseId, UI_LIVE_FRAMES: "1" };
+    if (opts.runId) env.QA_RUN_ID = opts.runId;
+    if (opts.headed !== false) env.DECATH_HEADED = "1";
+    const command = `npx ${args.join(" ")}  (DECATH_CASES=${caseId})`;
+    return launch(`journey ${flow.key}`, args, env, emit, () => emit({ type: "start", command, line: `$ ${command}` }), true, DECATH_DIR);
   }
 
   /**

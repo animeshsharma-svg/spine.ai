@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+import { installSpotlight, beginStep } from "../src/plan/spotlight.js";
 import { lastVerification } from "../src/flows/shared/verifyEvent.js";
 import { CONFIG, COMPANY_ID } from "../src/config.js";
 import { ClientConfig } from "../src/master/config.js";
@@ -172,6 +173,12 @@ for (const mod of REGISTRY) {
     let signedIn: SignedIn | undefined;
     if (process.env.UI_SHOW_LOGIN === "1") signedIn = await loginOnScreen(page, companyId);
     else if (companyId) await loginAsCompany(page, companyId);
+
+    // A framed picture of every action, as a typed plan has (spotlight.ts) — from
+    // here, after sign-in; a vendor's sign-in later shows its code as •••.
+    const spotRun = (process.env.QA_RUN_ID || `ui-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_");
+    installSpotlight(page, `${process.cwd()}/evidence/${spotRun}`);
+    beginStep(0, mod.title, 0);
 
     const ctx: UiFlowContext = { page, profile: CONFIG, config };
 

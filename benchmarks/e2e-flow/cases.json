@@ -1,0 +1,69 @@
+{
+  "about": "The whole buying flow in one test (Aanya, 29 Oct 2026): PR → event → publish → vendor bidding + surrogate bidding → evaluator scoring (technical stage) → awarding in Master QCS, in different combinations. Judged by the run and Procol's own records: who responded and how (a surrogate response is placed by the event's creator), the evaluator's scores (evaluations), and the award (proposals).",
+  "cases": [
+    {
+      "id": "E2E01", "n": 1, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 1 line item, invite 2 vendors and publish it. One vendor logs into the vendor portal, answers the technical sheet and quotes 95; for the other vendor the buyer enters a surrogate technical response and a surrogate bid of 100. End the bidding, then as the evaluator score both vendors' technical responses (8 and 6) and submit the evaluation. Then award the line to the lowest bidder in Master QCS.",
+      "note": "the basic chain: one portal vendor, one surrogate, evaluation, award to the lowest",
+      "expect": "complete",
+      "must": "PR → RFP+RFQ; a portal and a surrogate response on each stage; both vendors evaluated and submitted; an award proposal for the lowest bid (95).",
+      "data": { "published": true, "stages": ["technical", "rfq"], "tech_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E02", "n": 2, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 1 line item, invite 2 vendors and publish it. Both vendors log into the vendor portal one after the other, answer the technical sheet and quote 100 and 90. End the bidding, score both technical responses as the evaluator (7 and 9) and submit the evaluation, then award the line to the lowest bidder in Master QCS.",
+      "note": "both vendors from the portal",
+      "expect": "complete",
+      "must": "PR → RFP+RFQ; two portal responses on each stage; both evaluated; an award proposal for the 90 bid.",
+      "data": { "published": true, "stages": ["technical", "rfq"], "tech_vendors": 2, "surrogate_vendors": 0, "direct_vendors": 2, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E03", "n": 3, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 1 line item, invite 2 vendors and publish it. The buyer enters a surrogate technical response and a surrogate bid for each vendor (100 and 110). End the bidding, score both technical responses as the evaluator and submit the evaluation, then award the line to the lowest bidder in Master QCS.",
+      "note": "both vendors by surrogate",
+      "expect": "complete",
+      "must": "PR → RFP+RFQ; two surrogate responses on each stage; both evaluated; an award proposal for the 100 bid.",
+      "data": { "published": true, "stages": ["technical", "rfq"], "tech_vendors": 2, "surrogate_vendors": 2, "direct_vendors": 0, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E04", "n": 4, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 2 line items, invite 2 vendors and publish it. One vendor answers the technical sheet and quotes 95 on every line from the vendor portal; for the other vendor the buyer enters a surrogate technical response and a surrogate bid of 100. End the bidding, score both technical responses as the evaluator and submit the evaluation, then award both lines to the lowest bidder in Master QCS.",
+      "note": "a PR with 2 line items",
+      "expect": "complete",
+      "must": "PR with 2 lines → RFP+RFQ; a portal and a surrogate response; both evaluated; an award proposal covering both lines.",
+      "data": { "published": true, "stages": ["technical", "rfq"], "line_items": 2, "tech_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E05", "n": 5, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 1 line item, invite 3 vendors and publish it. One vendor answers and quotes 95 from the vendor portal, the buyer enters a surrogate technical response and a bid of 100 for a second vendor, and the third vendor does not respond. End the bidding, score the two technical responses as the evaluator and submit the evaluation, then award the line to the lowest bidder in Master QCS.",
+      "note": "three invited, two respond",
+      "expect": "complete",
+      "must": "3 invited, 2 respond (portal + surrogate); both responders evaluated; an award proposal for the 95 bid.",
+      "data": { "published": true, "stages": ["technical", "rfq"], "vendors_min": 3, "tech_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E06", "n": 6, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + auction event from an existing PR with 1 line item, invite 2 vendors and publish it. One vendor answers the technical sheet and bids 95 on the auction from the vendor portal; for the other vendor the buyer enters a surrogate technical response and a surrogate bid of 100. End the bidding, score both technical responses as the evaluator and submit the evaluation, then award the line to the lowest bidder in Master QCS.",
+      "note": "technical + auction",
+      "expect": "complete",
+      "must": "PR → RFP+Auction; a portal and a surrogate response; both evaluated; an award proposal for the 95 bid.",
+      "data": { "published": true, "stages": ["technical", "auction"], "tech_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "evaluations_submitted": 2, "proposal": true }
+    },
+    {
+      "id": "E2E07", "n": 7, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFQ event from an existing PR with 1 line item, invite 2 vendors and publish it. One vendor quotes 95 from the vendor portal and the buyer places a surrogate bid of 100 for the other. End the bidding, then award the line to the lowest bidder in Master QCS.",
+      "note": "RFQ only, no technical stage — the chain without evaluation",
+      "expect": "complete",
+      "must": "PR → RFQ; a portal and a surrogate bid; an award proposal for the 95 bid.",
+      "data": { "published": true, "stages": ["rfq"], "bid_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "proposal": true }
+    },
+    {
+      "id": "E2E08", "n": 8, "section": "E2E", "sectionName": "End to end",
+      "prompt": "Create an RFP + RFQ event from an existing PR with 1 line item, invite 2 vendors and publish it. One vendor answers and quotes 95 from the vendor portal; for the other vendor the buyer enters a surrogate technical response and a surrogate bid of 100. End the bidding, score the technical responses as the evaluator (the surrogate vendor 9, the portal vendor 5) and submit the evaluation, then award the line to the surrogate vendor (the better technical score) in Master QCS and approve the award.",
+      "note": "award the better-scored vendor, not the cheapest, and approve it",
+      "expect": "complete",
+      "must": "a portal and a surrogate response; both evaluated; an award proposal for the surrogate vendor, approved.",
+      "data": { "published": true, "stages": ["technical", "rfq"], "tech_vendors": 2, "surrogate_vendors": 1, "direct_vendors": 1, "evaluations_submitted": 2, "proposal": true }
+    }
+  ]
+}

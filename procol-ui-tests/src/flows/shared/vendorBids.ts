@@ -3,7 +3,7 @@ import { CONFIG } from "../../config.js";
 import { buyerApi } from "../../support/buyerApi.js";
 import { VendorPortalPage } from "../../pages/VendorPortalPage.js";
 import { vendorLogins, qaVendorLogins, allowRealVendors } from "../../db/qaVendors.js";
-import { focusFrames } from "../../support/liveCursor.js";
+import { sideFrames } from "../../support/liveCursor.js";
 
 /**
  * THE VENDORS BID ON THE EVENT THE JOURNEY BUILT.
@@ -14,7 +14,7 @@ import { focusFrames } from "../../support/liveCursor.js";
  * bid on, and the vendor side narrated nothing. Now the event journey carries
  * on: after the publish, UI_BIDDERS vendors invited to THIS event each sign in
  * to the vendor portal in their own browser and bid, every step a `[bid]` line,
- * with the live view following them (focusFrames).
+ * each streaming beside the buyer's page (sideFrames).
  *
  * Who bids: the vendors actually invited, read back from the event through the
  * API (`get_audience`, 20 a page — the participant chips show four names and
@@ -75,7 +75,7 @@ export async function vendorsBid(buyer: Page, ev: { title: string; projectId: st
     // run would test the buyer's view of the portal, not the vendor's.
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    const release = focusFrames(page);
+    const side = sideFrames(page, `Vendor portal · ${v.email}`);
     try {
       console.log(`[bid] vendor ${i + 1} of ${bidders.length}: ${v.name} signs in to the vendor portal (${v.email})`);
       const portal = new VendorPortalPage(page);
@@ -92,7 +92,7 @@ export async function vendorsBid(buyer: Page, ev: { title: string; projectId: st
       console.log(`[bid] ${v.name}'s bid is submitted`);
       done++;
     } finally {
-      release();
+      await side.stop();
       await ctx.close().catch(() => {});
     }
   }

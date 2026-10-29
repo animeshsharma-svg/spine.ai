@@ -1,0 +1,374 @@
+{
+ "id": "API-PC04",
+ "text": "Create an RFQ with 1 line item, invite 1 vendor, publish it, set a price cap of 100 for that vendor, then place a surrogate bid of 100 for that vendor (equal to the cap); it should be refused because a bid must be below the cap.",
+ "expect": "refused",
+ "startedAt": "2026-10-26T22:01:54.025Z",
+ "lines": [
+  "No ready-made case matches — writing an API test from your sentence…",
+  "Plan “Price cap of 100, then a surrogate bid of 100 (refused)” on PROCOL DEMO",
+  "Setup: A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+  "  setup · Chosen by the caller: vendor “QA vendor 1”.",
+  "  setup · Sign in as the buyer: worked — Using Procol Support's web-console session for PROCOL DEMO — the app accepted it (role: super_admin).",
+  "  setup · Create the draft event: worked — Draft Z1hkY2RY was created with one line item (23 KG).",
+  "  setup · Add the pricing round: worked — Round 1 (pricing round, RFQ) was attached as ZFhwa1Fn; bidding open 03:32–03:52.",
+  "  setup · Publish the event to the invited vendor: worked — “spine-API-automation-63065420” is now active with 1 round, visible to 1 invited vendor.",
+  "  setup · Read the event back: worked — The event reads back as active with 1 round.",
+  "  · act 1: The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it). — The app accepted it (HTTP 200).",
+  "  ✗ act 2: The buyer enters a bid on a vendor's behalf (surrogate bid). — The app accepted it (HTTP 200).",
+  "Verdict: failed — The app accepted step 2, which the case says it must refuse."
+ ],
+ "checks": [
+  {
+   "id": "API-TYPED",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "Price cap of 100, then a surrogate bid of 100 (refused)",
+   "type": "functional",
+   "category": "API plan",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "reject",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "23",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "23",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 100,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 2300,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 443337,
+           "trade_product_uuid": "Wmdra1praw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "ZHBaZ1pncA==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "ZFhwa1Fn",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 16548,
+   "pass": false,
+   "verdict": "api plan failed — The app accepted step 2, which the case says it must refuse.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it).",
+    "The buyer enters a bid on a vendor's behalf (surrogate bid)."
+   ],
+   "expectedResult": "The app refuses the step the case is about with a clear message, and never with a server error.",
+   "apiPlan": {
+    "recipe": "published_rfq",
+    "setupOk": true,
+    "event": "spine-API-automation-63065420"
+   }
+  },
+  {
+   "id": "API-TYPED·act1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it).",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "PATCH /trade/ZFhwa1Fn/update_vendor_validations",
+   "request": {
+    "method": "PATCH",
+    "path": "/trade/ZFhwa1Fn/update_vendor_validations",
+    "body": {
+     "productwise_vendor_validations": {
+      "Wmdra1praw==": {
+       "cGNrY1pE": 100
+      }
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 454,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act2",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "23",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "23",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 100,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 2300,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 443337,
+           "trade_product_uuid": "Wmdra1praw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "ZHBaZ1pncA==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "ZFhwa1Fn",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 662,
+   "pass": false,
+   "verdict": "The app accepted it (HTTP 200)."
+  }
+ ],
+ "done": {
+  "ok": true,
+  "total": 1
+ },
+ "fatal": null,
+ "ms": 24316
+}

@@ -34,9 +34,12 @@ export class ParticipantsPage extends BasePage {
   }
 
   private rowsLocator(): Locator {
+    // A live round's rows carry a checkbox; once the event is closed or withdrawn the same rows lose it and
+    // keep only the paragraphs (27 Oct, SB12/WD09: the count read 0 rows beside a listed vendor). The
+    // pagination's own list items hold no paragraph, so they never count.
     return this.page
-      .locator("[role='listitem'], li, .ant-list-item")
-      .filter({ has: this.page.getByRole("checkbox") })
+      .locator("[role='listitem']:not([class*='pagination']), li:not([class*='pagination']), .ant-list-item")
+      .filter({ has: this.page.locator("[role='checkbox'], input[type='checkbox'], p, [role='paragraph']") })
       .filter({ visible: true });
   }
 

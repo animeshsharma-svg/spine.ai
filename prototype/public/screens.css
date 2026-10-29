@@ -1,4 +1,24 @@
 /* Screens — the screen library (public/screens.js) */
+
+/* The page column, as on Sessions: full width up to the cap, so the left edge stays put
+   whatever has loaded (the shell centres its children, and a view without a width shrinks
+   to its content). The title and the client bar share the first row. */
+.view.screens.active {
+  display: flex; flex-direction: column; gap: 20px;
+  width: 100%; max-width: 1080px; margin: 0 auto;
+  padding: 8px 0 40px;
+}
+.scr-page-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; }
+.scr-page-head h1 { margin: 0; font: 600 26px/1.2 var(--font-sans); letter-spacing: -0.01em; color: var(--text-strong); }
+.scr-page-head p { grid-column: 1 / -1; margin: 0; max-width: 78ch; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+.scr-ctx:empty { display: none; }
+.scr-ctx .ctx-bar { justify-content: flex-end; }
+@media (max-width: 720px) {
+  .scr-page-head { grid-template-columns: 1fr; }
+  .scr-page-head h1 { font-size: 24px; }
+  .scr-ctx .ctx-bar { justify-content: flex-start; }
+}
+
 #scr-root { display: flex; flex-direction: column; gap: 18px; }
 #scr-root h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
 #scr-root h3 { margin: 0; font-size: 14.5px; }
@@ -14,15 +34,49 @@
 .scr-sec-head span { font-size: 12.5px; color: var(--ink-soft); }
 
 /* the walk box */
-.scr-walkbox { background: var(--panel); border: 1px solid var(--card-line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }
-.scr-walkbox-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-.scr-walkbox-head p { margin: 5px 0 0; max-width: 70ch; font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); }
-.scr-walks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
-.scr-walk { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--card-line); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.scr-walkbox { background: var(--panel); border: 1px solid var(--card-line); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px; }
+.scr-walkbox-head p { margin: 6px 0 0; max-width: 72ch; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+
+/* how it works: three numbered steps in a row */
+.scr-how { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.scr-how li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--idle-soft); font-size: 13px; }
+.scr-how b { display: block; font-weight: 600; }
+.scr-how small { display: block; margin-top: 2px; color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
+.scr-how-n { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font: 700 12px/22px var(--mono); text-align: center; }
+
+/* the walks: one card each */
+.scr-walks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.scr-walk { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--card-line); border-radius: 10px; cursor: pointer; font-size: 13px; transition: border-color .12s ease, background-color .12s ease; }
+.scr-walk:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-line)); }
 .scr-walk:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.scr-walk input { margin-top: 3px; }
-.scr-walk small { display: block; margin-top: 2px; color: var(--ink-soft); line-height: 1.4; }
-.scr-opt { font-size: 12.5px; color: var(--ink-soft); display: flex; gap: 8px; align-items: center; }
+.scr-walk input { flex: 0 0 auto; margin: 3px 0 0; }
+.scr-walk-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.scr-walk-main b { font-weight: 600; line-height: 1.35; }
+.scr-walk-main small { color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
+.scr-walk-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.scr-meta, .scr-fx { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; white-space: nowrap; }
+.scr-meta { background: var(--idle-soft); color: var(--ink-soft); }
+.scr-fx { white-space: normal; height: auto; min-height: 22px; padding: 3px 8px; line-height: 1.3; }
+.scr-fx.look { background: var(--good-soft); color: var(--good); }
+.scr-fx.make { background: var(--warn-soft); color: var(--warn); }
+
+/* the bar under the cards: the test-case option, what Start will do, Start */
+.scr-walkbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; padding-top: 14px; border-top: 1px solid var(--card-line); }
+.scr-opt { font-size: 13px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.scr-opt input { margin: 3px 0 0; }
+.scr-opt b { display: block; font-weight: 600; }
+.scr-opt small { display: block; margin-top: 2px; color: var(--ink-soft); font-size: 12px; }
+.scr-walkbar-go { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.scr-sum { font-size: 12.5px; color: var(--ink-soft); text-align: right; }
+.scr-sum b { color: var(--ink); font-weight: 600; }
+.scr-sum-make { color: var(--warn); font-weight: 600; }
+.scr-sum-look { color: var(--good); font-weight: 600; }
+.scr-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
+@media (max-width: 720px) {
+  .scr-how { grid-template-columns: 1fr; }
+  .scr-walkbar-go { margin-left: 0; width: 100%; justify-content: space-between; }
+  .scr-sum { text-align: left; }
+}
 .scr-recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-soft); }
 .scr-recent .chip { text-decoration: none; }
 
@@ -30,8 +84,17 @@
 .scr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .scr-card { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--card-line); border-radius: 14px; overflow: hidden; text-decoration: none; color: inherit; box-shadow: var(--shadow); transition: transform .12s ease, border-color .12s ease; }
 .scr-card:hover { transform: translateY(-2px); border-color: #d946ef; }
-.scr-thumb { aspect-ratio: 16 / 10; background: #0f172a; overflow: hidden; }
+.scr-thumb { aspect-ratio: 16 / 10; background: #0f172a; overflow: hidden; position: relative; }
+/* a run's screenshot standing in for a walk picture this computer does not have */
+.scr-thumb-from { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(15, 23, 42, 0.78); color: #fff; font-size: 11px; font-weight: 600; }
+.scr-stage.from-run .scr-boxes, .scr-stage.from-run .scr-tip { display: none; }
 .scr-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+/* No picture on this computer (screens.js marks it): a quiet empty state. */
+.scr-thumb.no-pic, .scr-stage.no-pic { display: flex; align-items: center; justify-content: center; background: var(--idle-soft); }
+.scr-thumb.no-pic::after, .scr-stage.no-pic::after { content: "No picture on this computer yet"; padding: 0 16px; font-size: 12px; color: var(--ink-soft); text-align: center; }
+.scr-stage.no-pic { min-height: 280px; }
+.scr-stage.no-pic::after { content: "No picture on this computer yet. Start walking on the Screens page to take one."; font-size: 13px; }
+.scr-stage.no-pic .scr-boxes, .scr-stage.no-pic .scr-tip { display: none; }
 .scr-card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
 .scr-card-body b { font-size: 13.5px; }
 .scr-card-sub { font-size: 11.5px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -142,3 +205,15 @@
 .scr-new-row { display: flex; gap: 10px; align-items: flex-start; }
 .scr-new-row textarea { flex: 1; min-width: 0; resize: vertical; font: 13px/1.5 inherit; padding: 9px 11px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--paper); color: var(--ink); }
 .scr-new-note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+
+/* compact walk rows (Aanya, 21 Oct: "make the ui better, so much content") */
+.scr-walks { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.scr-walk { padding: 10px 12px; align-items: center; }
+.scr-walk input { margin: 0; }
+.scr-walk-main { gap: 3px; }
+.scr-walk-meta { margin-top: 0; gap: 6px; align-items: center; }
+.scr-meta { background: none; padding: 0; height: auto; font-size: 12px; }
+.scr-fx { min-height: 0; padding: 1px 7px; font-size: 11px; white-space: nowrap; }
+.scr-opt { align-items: center; }
+.scr-opt input { margin: 0; }
+.scr-card-stats .scr-card-when { margin-left: auto; color: var(--ink-soft); }

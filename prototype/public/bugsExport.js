@@ -112,7 +112,20 @@
     ["User Type", (r) => r.userType, 14],
     ["Module", (r) => r.module, 22],
     ["Description", (r) => description(r), 90],
+    // Where and how it happened, as links that open from the sheet (29 Oct).
+    ["Artifacts", (r) => artifactsText(r), 60],
   ];
+
+  /** Every picture, video, replay and report of the bug, one link a line. */
+  function artifactsText(r) {
+    const line = (what, xs) => xs?.length ? xs.map((x) => `${what}: ${x.url}`) : [];
+    return [
+      ...line("Video", r.videos),
+      ...line("Screenshot", r.shots),
+      ...line("Replay (open at trace.playwright.dev)", r.replays),
+      ...(r.links ?? []).filter((x) => !x.href?.startsWith("#")).map((x) => `${x.label}: ${x.url}`),
+    ].join("\n");
+  }
 
   /** The plain write-up, then the evidence as links that open from the sheet. */
   function description(r) {
@@ -299,6 +312,9 @@
       `<p class="seen">${esc(seenLine(r))}</p>` +
       (r.shots?.length
         ? `<h3>Screenshots</h3><div class="shots">${r.shots.map((x) => `<figure><img src="${esc(x.url)}" alt="${esc(x.label)}" /><figcaption>${esc(x.label)}</figcaption></figure>`).join("")}</div>`
+        : "") +
+      (r.videos?.length || r.replays?.length
+        ? `<h3>How it happened</h3><ul class="links">${[...(r.videos ?? []).map((x) => `<li>${esc(x.label)}: <a href="${esc(x.url)}">${esc(x.url)}</a></li>`), ...(r.replays ?? []).map((x) => `<li>${esc(x.label)}: <a href="${esc(x.url)}">${esc(x.url)}</a></li>`)].join("")}</ul>`
         : "") +
       (r.links?.length ? `<h3>The runs behind it</h3><ul class="links">${r.links.map((x) => `<li>${esc(x.label)}: <a href="${esc(x.url)}">${esc(x.url)}</a></li>`).join("")}</ul>` : "") +
       (r.curl ? `<h3>The exact request</h3><pre>${esc(r.curl)}</pre>` + (r.reply ? `<p class="seen">The server answered: ${esc(r.reply)}</p>` : "") : "") +

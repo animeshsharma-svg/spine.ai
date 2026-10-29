@@ -2,7 +2,7 @@ import { Page } from "@playwright/test";
 import { uatLoginCodes } from "./uatOtp.js";
 import { CONFIG, STORAGE_KEYS, NAV } from "../config.js";
 import { LoginPage } from "../pages/LoginPage.js";
-import { CompanyLogin, resolveCompanyLogin } from "./multiClient.js";
+import { CompanyLogin, resolveCompanyLogin, userPhone } from "./multiClient.js";
 
 /**
  * Log the UI in as ANY company by injecting a DB-resolved console token into
@@ -196,4 +196,34 @@ export async function loginOnScreen(page: Page, companyId: number | null): Promi
     console.log(`[login] signed in with the saved session — the app opened ${new URL(page.url()).pathname}`);
     return { how: "saved-session", fellBackBecause: because };
   }
+}
+
+/**
+ * Sign ONE PARTICULAR USER in (an evaluator, an approver), in a browser of their own. Their saved console session
+ * first; when Procol has expired it (it sends the tab back to /login a few seconds after /home loads — 29 Oct: the
+ * evaluator's 10 Sep session did, so his tab had nothing to score), the login screen with the UAT code the backend
+ * accepts for them (uatOtp.ts) — the way the journeys sign in on screen.
+ */
+export async function signInUser(page: Page, companyId: number, userId: number, who: string): Promise<SignedIn> {
+  let because = "";
+  try {
+    await loginAsCompany(page, companyId, userId);
+    const bounced = await page.waitForURL((u) => u.pathname.includes("/login"), { timeout: 8_000 }).then(() => true).catch(() => false);
+    if (!bounced) return { how: "saved-session" };
+    because = `${who}'s saved session has expired`;
+  } catch (e) {
+    because = firstLine(e);
+  }
+  const raw = await userPhone(userId).catch(() => null);
+  const phone = phoneNumberOf(raw);
+  if (!phone) throw new Error(`could not sign in as ${who}: ${because}, and no phone is on record to sign in on screen`);
+  const codes = await uatLoginCodes({ phone: raw ?? phone }, companyId).catch(() => []);
+  if (!codes.length) throw new Error(`could not sign in as ${who}: ${because}, and no UAT login code is on file for them (phone ending ${phone.slice(-4)})`);
+  console.log(`[login] ${because} — signing ${who} in on the login screen (phone ending ${phone.slice(-4)}, ${codes[0].source})`);
+  await page.evaluate((k) => localStorage.removeItem(k), STORAGE_KEYS.accessToken).catch(() => {});
+  await page.context().clearCookies().catch(() => {});
+  const login = new LoginPage(page);
+  await login.goto();
+  await login.login(phone, codes[0].otp);
+  return { how: "on-screen", phoneEnding: phone.slice(-4), fellBackBecause: because };
 }

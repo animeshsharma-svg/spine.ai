@@ -1,0 +1,219 @@
+{
+  "about": "Surrogate bids (a buyer entering a bid for a vendor from the buyer console). Written 27 Oct 2026 for Aanya: 'next is surrogate bid, work on that. make testcases and test them and generate a table'. Each case has an expected kind (complete: it must work; app_refuses: Procol must refuse it) and the facts Procol's database must hold afterwards (bids are bid_trades → bids). 'to confirm' marks an expectation nobody has checked against Procol's own rules yet. Status: draft until Aanya approves the expectations.",
+  "cases": [
+    {
+      "id": "SB01",
+      "n": 1,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and place a surrogate bid of 100 for that vendor.",
+      "note": "the basic surrogate bid, with a price",
+      "expect": "complete",
+      "must": "Published RFQ, 1 vendor invited, 1 surrogate bid from that vendor at 100.",
+      "data": {
+        "published": true,
+        "stages": [
+          "rfq"
+        ],
+        "vendors_min": 1,
+        "bid_vendors": 1,
+        "latest_bid_price": 100
+      }
+    },
+    {
+      "id": "SB02",
+      "n": 2,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 2 line items, invite 2 vendors, publish it, place a surrogate bid for each vendor and check both vendors show on Master QCS.",
+      "note": "one bid per vendor, compared (stress B24)",
+      "expect": "complete",
+      "must": "2 vendors invited, a surrogate bid from each (2 bidding vendors), both columns on Master QCS.",
+      "data": {
+        "published": true,
+        "line_items": 2,
+        "vendors_min": 2,
+        "bid_vendors": 2
+      }
+    },
+    {
+      "id": "SB03",
+      "n": 3,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ, invite the vendor \"QA_Platform Vendor 1\" by name, publish it and place a surrogate bid for that vendor.",
+      "note": "a named vendor (stress B27)",
+      "expect": "complete",
+      "must": "\"QA_Platform Vendor 1\" invited by name and a surrogate bid placed for it.",
+      "data": {
+        "published": true,
+        "bid_vendors": 1,
+        "bid_vendor_name": "QA_Platform Vendor 1"
+      }
+    },
+    {
+      "id": "SB04",
+      "n": 4,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "On a live RFQ that is open for quotes, place a surrogate bid for an invited vendor who has not bid yet, then check that vendor's row on Participants no longer offers Add Bid.",
+      "note": "an existing event the run picks from the Live list (vetted in the database)",
+      "expect": "complete",
+      "must": "A surrogate bid saved for the picked vendor on the picked event; Add Bid gone for that vendor.",
+      "data": {
+        "bid_for_vendor": true
+      }
+    },
+    {
+      "id": "SB05",
+      "n": 5,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, place a surrogate bid of 250 for that vendor and check Master QCS shows 250 as that vendor's RFQ rate.",
+      "note": "the price reaches the comparison",
+      "expect": "complete",
+      "must": "Bid at 250, and Master QCS's RFQ Rate for the vendor reads 250.",
+      "data": {
+        "published": true,
+        "bid_vendors": 1,
+        "latest_bid_price": 250
+      }
+    },
+    {
+      "id": "SB06",
+      "n": 6,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ event from an existing PR, invite 1 vendor, publish it and place a surrogate bid for that vendor.",
+      "note": "an event made from a PR (today's PR start)",
+      "expect": "complete",
+      "must": "An RFQ made from a PR, published, with 1 surrogate bid.",
+      "data": {
+        "published": true,
+        "stages": [
+          "rfq"
+        ],
+        "bid_vendors": 1
+      }
+    },
+    {
+      "id": "SB07",
+      "n": 7,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ, invite 1 vendor, publish it, place a surrogate bid for that vendor, then try to place a second surrogate bid for the same vendor.",
+      "note": "Add Bid is gone after a bid (stress B25)",
+      "expect": "app_refuses",
+      "must": "The second surrogate bid is not possible: the vendor's row no longer offers Add Bid; still 1 bidding vendor.",
+      "data": {
+        "published": true,
+        "bid_vendors": 1
+      }
+    },
+    {
+      "id": "SB08",
+      "n": 8,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create a technical-only event, invite a vendor, publish it and place a surrogate technical response for that vendor from Participants (Add Bid).",
+      "note": "Procol DOES offer Add Bid on a technical stage — it opens the vendor's technical response (seen 27 Oct; the first expectation, 'no Add Bid', was wrong)",
+      "expect": "complete",
+      "must": "On the technical stage, Add Bid opens the vendor's technical response and the buyer submits it for the vendor.",
+      "data": {
+        "published": true,
+        "stages": [
+          "technical"
+        ]
+      }
+    },
+    {
+      "id": "SB09",
+      "n": 9,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, open that vendor's Add Bid and submit it without entering a price.",
+      "note": "to confirm: Procol should refuse a bid with no price",
+      "expect": "app_refuses",
+      "must": "Procol refuses the empty bid (an error naming the price); no bid saved.",
+      "data": {
+        "published": true,
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "SB10",
+      "n": 10,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and try to place a surrogate bid of -50 for that vendor.",
+      "note": "to confirm: a negative price should be refused",
+      "expect": "app_refuses",
+      "must": "Procol refuses a negative price; no bid at -50 saved.",
+      "data": {
+        "published": true,
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "SB11",
+      "n": 11,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ, invite 1 vendor, publish it, place a surrogate bid for that vendor and check that Counter Offer for that vendor is disabled on Master QCS.",
+      "note": "Counter Offer is greyed out on a surrogate bid (stress B33, which tried to send one)",
+      "expect": "app_refuses",
+      "must": "Counter Offer is shown greyed out for the vendor's surrogate bid; 1 bid.",
+      "data": {
+        "published": true,
+        "bid_vendors": 1
+      }
+    },
+    {
+      "id": "SB12",
+      "n": 12,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, place a surrogate bid for that vendor, end the bidding, then check that no vendor offers Add Bid on Participants.",
+      "note": "no surrogate bid once bidding is over — on the run's own event (the first version picked another team's event and got one still open)",
+      "expect": "app_refuses",
+      "must": "After the bidding ends, Participants show no Add Bid; 1 bid.",
+      "data": {
+        "bid_vendors": 1,
+        "closed": true
+      }
+    },
+    {
+      "id": "SB13",
+      "n": 13,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an auction with one item, invite a vendor, publish it and place a surrogate bid of 100 for that vendor. Then check the buyer cannot revise it: the vendor's Participants row no longer offers Add Bid, and the bid stays at 100.",
+      "note": "a surrogate bid on an auction cannot be revised by the buyer (Aanya, 28 Oct: no revision possible)",
+      "expect": "complete",
+      "must": "Auction, 1 vendor, a surrogate bid of 100; afterwards no Add Bid for that vendor, and the bid stays 100.",
+      "data": {
+        "published": true,
+        "stages": [
+          "auction"
+        ],
+        "vendors_min": 1,
+        "bid_vendors": 1,
+        "latest_bid_price": 100
+      }
+    },
+    {
+      "id": "SB14",
+      "n": 14,
+      "section": "SB",
+      "sectionName": "Surrogate bid",
+      "prompt": "Create an RFQ with 1 line item, invite 2 vendors, publish it, place a surrogate bid of 100 for one vendor and 120 for the other, then check Master QCS ranks the 100 bid first.",
+      "note": "ranking of surrogate bids",
+      "expect": "complete",
+      "must": "Two bids (100 and 120) from two vendors; Rank 1 is the 100 bid.",
+      "data": {
+        "published": true,
+        "bid_vendors": 2
+      }
+    }
+  ]
+}

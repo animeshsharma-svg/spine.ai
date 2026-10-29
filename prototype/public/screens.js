@@ -151,13 +151,56 @@
     </section>`;
   }
 
+  /**
+   * What a walk leaves behind on UAT, in a first-time reader's words. Taken from the walk's
+   * steps in src/agents/screenWalk.ts (publish / invite_vendor / place_surrogate_bid /
+   * convert_to_auction, and the API-built starting state). `made` counts the events it publishes.
+   */
+  const WALK_EFFECT = {
+    list: { look: true, tag: "Read-only", text: "Changes nothing — only looks" },
+    "create-erfx": { made: 1, tag: "Publishes 1 event", text: "Publishes 1 event, invites 1 vendor, places 1 bid" },
+    "single-stage": { made: 1, tag: "Publishes 1 auction", text: "Publishes 1 auction, invites 1 vendor" },
+    boq: { look: true, tag: "Read-only", text: "Changes nothing — publishes nothing" },
+    "compare-award": { made: 1, tag: "Builds an event first", text: "First builds an event with bids through the API" },
+    proposal: { made: 1, tag: "Builds an event first", text: "First builds an event with an award proposal through the API" },
+    convert: { made: 1, tag: "Publishes 1 RFQ", text: "Publishes 1 RFQ, then converts it to an auction" },
+  };
+  const walkEffect = (w) =>
+    WALK_EFFECT[w.id] ?? (w.state && w.state !== "none" ? { made: 1, tag: "Builds an event first", text: `First builds a “${w.state}” event through the API` } : null);
+  const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+  /** The footer line under the cards: what pressing Start will do with what is ticked. */
+  function walkSummary() {
+    const d = state.data;
+    const picked = [...document.querySelectorAll('input[name="walk"]:checked')].map((x) => d.walks.find((w) => w.id === x.value)).filter(Boolean);
+    const sum = q("#scr-sum");
+    const start = q("#scr-start");
+    if (start && !d.running) start.disabled = !picked.length;
+    if (!sum) return;
+    if (!picked.length) {
+      sum.textContent = "Pick at least one part to walk.";
+      return;
+    }
+    const minutes = picked.reduce((n, w) => n + (Number(w.minutes) || 0), 0);
+    const screens = picked.reduce((n, w) => n + (Number(w.screens) || 0), 0);
+    const made = picked.reduce((n, w) => n + (walkEffect(w)?.made || 0), 0);
+    sum.innerHTML =
+      `<b>${plural(picked.length, "walk")}</b> · ${plural(screens, "screen")} · about ${minutes} min` +
+      (made ? ` · <span class="scr-sum-make" title="Publishing on UAT is real: the vendors an event invites get Procol's usual emails.">creates ${plural(made, "event")} on UAT</span>` : ` · <span class="scr-sum-look">changes nothing on UAT</span>`);
+  }
+
   function paintList() {
     const d = state.data;
     if (!d) return;
     const walksHtml = d.walks
-      .map(
-        (w) => `<label class="scr-walk"><input type="checkbox" name="walk" value="${esc(w.id)}" ${["list", "create-erfx", "single-stage"].includes(w.id) ? "checked" : ""} /><span><b>${esc(w.title)}</b><small>${esc(w.covers)} · ${w.screens} screens · about ${w.minutes} min${w.state !== "none" ? ` · starts from a "${esc(w.state)}" event the API builds` : ""}</small></span></label>`,
-      )
+      .map((w) => {
+        const fx = walkEffect(w);
+        const badge = fx ? `<span class="scr-fx ${fx.look ? "look" : "make"}">${esc(fx.tag || fx.text)}</span>` : "";
+        const tip = [w.covers, fx?.text].filter(Boolean).join(" — ");
+        return `<label class="scr-walk" title="${esc(tip)}"><input type="checkbox" name="walk" value="${esc(w.id)}" ${["list", "create-erfx", "single-stage"].includes(w.id) ? "checked" : ""} />
+          <span class="scr-walk-main"><b>${esc(w.title)}</b>
+          <span class="scr-walk-meta"><span class="scr-meta">${plural(Number(w.screens) || 0, "screen")} · ~${esc(w.minutes)} min</span>${badge}</span></span></label>`;
+      })
       .join("");
     const running = d.running ? `<div class="sx-banner info">A walk is going (<a href="#/screens/walk/${esc(d.running.id)}">watch it</a>) — ${esc(d.running.current?.walk || "starting")}.</div>` : "";
     const recent = d.recent?.length
@@ -167,31 +210,39 @@
       ? d.screens
           .map(
             (s) => `<a class="scr-card" href="#/screens/${esc(s.id)}">
-            <div class="scr-thumb"><img loading="lazy" src="${img(s.id, "plain")}" alt="${esc(s.label)}" /></div>
+            <div class="scr-thumb"><img loading="lazy" src="${img(s.id, "plain")}" alt="${esc(s.label)}" onerror="this.parentNode.classList.add('no-pic');this.remove()" />${s.picture === "run" ? `<span class="scr-thumb-from" title="No walk picture on this computer: this is the nearest screenshot one of your runs took">From your run · ${esc(when(s.pictureAt))}</span>` : ""}</div>
             <div class="scr-card-body">
               <b>${esc(s.label)}</b>
               <div class="scr-card-sub"><code>${esc(s.path)}</code>${s.state && s.state !== "none" ? ` <span class="pill idle">${esc(s.state)} event</span>` : ""}</div>
-              <div class="scr-card-stats"><span>${s.controls} controls</span><span>${s.known} described</span><span>${s.cases} test case${s.cases === 1 ? "" : "s"}</span>${s.rulesUntested ? `<span class="warn">${s.rulesUntested} untested rules</span>` : ""}</div>
-              <small>captured ${esc(when(s.takenAt))}${s.captures > 1 ? ` · ${s.captures} captures` : ""}</small>
+              <div class="scr-card-stats"><span>${s.controls} controls</span><span>${s.cases} case${s.cases === 1 ? "" : "s"}</span>${s.rulesUntested ? `<span class="warn">${s.rulesUntested} untested rules</span>` : ""}<span class="scr-card-when">${esc(when(s.takenAt))}</span></div>
             </div></a>`,
           )
           .join("")
       : `<p class="scr-empty">No screens yet. Start a walk: spine.ai opens the product, photographs each section and writes the cases.</p>`;
     root().innerHTML = `
+      <a class="scr-back" href="#/sessions">← Sessions</a>
       ${running}
-      <section class="scr-walkbox">
-        <div class="scr-walkbox-head"><div><h2>Walk the events flow</h2><p>spine.ai opens Procol in its browser, goes through the flow like a buyer, and photographs every section it reaches — each control framed as it acts, each assertion verified on screen. Every screen it meets becomes knowledge (what each control does) and test cases.</p></div>
-          <button type="button" class="run-btn primary" id="scr-start" ${d.running ? "disabled" : ""}>Start walking</button></div>
+      <section class="scr-walkbox" aria-labelledby="scr-walk-title">
+        <div class="scr-walkbox-head">
+          <h2 id="scr-walk-title">Add or refresh screens</h2>
+          <p>Pick parts of the events flow. spine.ai walks them in its own browser and saves each screen below.</p>
+        </div>
         <div class="scr-walks">${walksHtml}</div>
-        <label class="scr-opt"><input type="checkbox" id="scr-cases" checked /> write test cases from each screen (slower: the model drafts, code checks them)</label>
+        <div class="scr-walkbar">
+          <label class="scr-opt" title="Slower: the AI drafts them, then the code checks them."><input type="checkbox" id="scr-cases" checked /><span>Write test cases too</span></label>
+          <div class="scr-walkbar-go"><span class="scr-sum" id="scr-sum" aria-live="polite"></span>
+            <button type="button" class="run-btn primary" id="scr-start" title="Walks share the browser with test runs, one at a time." ${d.running ? "disabled" : ""}>Start walking</button></div>
+        </div>
         ${recent}
       </section>
       ${combosHtml()}
       <section>
-        <div class="scr-sec-head"><h2>The library</h2><span>${d.screens.length} screen${d.screens.length === 1 ? "" : "s"} · ${d.screens.reduce((n, s) => n + s.cases, 0)} cases written from them</span></div>
+        <div class="scr-sec-head"><h2>The library</h2><span>${d.screens.length} screen${d.screens.length === 1 ? "" : "s"} · ${d.screens.reduce((n, s) => n + s.cases, 0)} cases</span></div>
         <div class="scr-grid">${cards}</div>
       </section>`;
     q("#scr-start")?.addEventListener("click", startWalk);
+    document.querySelectorAll('input[name="walk"]').forEach((x) => x.addEventListener("change", walkSummary));
+    walkSummary();
   }
 
   async function startWalk() {
@@ -250,7 +301,7 @@
       panel.log(p.line, /✗/.test(p.line) ? "bad" : "");
     });
     es.addEventListener("log", (ev) => panel.log(JSON.parse(ev.data).text));
-    es.addEventListener("frame", (ev) => panel.frame(JSON.parse(ev.data).frame));
+    es.addEventListener("frame", (ev) => { const d = JSON.parse(ev.data); if (d.pane !== "side") panel.frame(d.frame); });
     es.addEventListener("spot", (ev) => panel.spot(JSON.parse(ev.data)));
     es.addEventListener("screen", (ev) => {
       const s = JSON.parse(ev.data);
@@ -276,6 +327,9 @@
       return;
     }
     state.screen = r.screen;
+    state.picture = r.picture;
+    // A run's picture has no numbered map: the map is the walk's own.
+    if (r.picture?.from === "run") state.kind = "plain";
     state.picked = null;
     state.hover = null;
     paintScreen();
@@ -287,6 +341,7 @@
   function paintScreen() {
     const s = state.screen;
     const onScreen = s.controls.filter((c) => c.box && !c.offscreen);
+    const fromRun = state.picture?.from === "run";
     const reach = s.reachedBy?.length ? s.reachedBy.map((st) => `<code>${esc(st.step)}${st.args && Object.keys(st.args).length ? " " + esc(JSON.stringify(st.args)) : ""}</code>`).join(" → ") : "<i>not recorded</i>";
     root().innerHTML = `
       <a class="scr-back" href="#/screens">← Screens</a>
@@ -297,10 +352,13 @@
       <p class="scr-reach"><b>How spine.ai gets here:</b> ${reach}</p>
       <div class="scr-two">
         <section class="scr-pic">
-          <div class="scr-pic-tools"><span>Hover a control, or a box on the picture, to see what it does.</span>
+          ${fromRun
+            ? `<div class="scr-pic-tools"><span>From your run <code>${esc(state.picture.run)}</code>, after <code>${esc(state.picture.step)}</code>, ${esc(when(state.picture.at))}. It is not the walk's picture, so the control boxes are hidden; walk this screen for an exact one.</span>
+            <a class="chip" href="${img(s.id, "plain")}" target="_blank" rel="noopener">Open full size</a></div>`
+            : `<div class="scr-pic-tools"><span>Hover a control, or a box on the picture, to see what it does.</span>
             <span class="scr-seg"><button type="button" class="chip ${state.kind === "plain" ? "on" : ""}" data-kind="plain">Plain</button><button type="button" class="chip ${state.kind === "map" ? "on" : ""}" data-kind="map">Numbered map</button></span>
-            <a class="chip" href="${img(s.id, state.kind)}" target="_blank" rel="noopener">Open full size</a></div>
-          <div class="scr-stage" id="scr-stage"><img id="scr-img" src="${img(s.id, state.kind)}" alt="${esc(s.label)}" /><div class="scr-boxes" id="scr-boxes"></div><div class="scr-tip" id="scr-tip" hidden></div></div>
+            <a class="chip" href="${img(s.id, state.kind)}" target="_blank" rel="noopener">Open full size</a></div>`}
+          <div class="scr-stage${fromRun ? " from-run" : ""}" id="scr-stage"><img id="scr-img" src="${img(s.id, state.kind)}" alt="${esc(s.label)}" /><div class="scr-boxes" id="scr-boxes"></div><div class="scr-tip" id="scr-tip" hidden></div></div>
         </section>
         <aside class="scr-side">
           <div class="scr-sec-head"><h3>Controls on this screen</h3><span>${onScreen.length} on the picture${s.controls.length > onScreen.length ? `, ${s.controls.length - onScreen.length} below the fold` : ""}</span></div>
@@ -490,7 +548,7 @@
       if (m) { panel.line(m[1].slice(0, 200)); panel.log(m[1], /✗/.test(m[1]) ? "bad" : ""); }
       else if (/\[create-event\]|\[observe\]|\[inventory\]/.test(line)) panel.log(line.replace(/^.*?\] /, ""));
     });
-    es.addEventListener("frame", (ev) => panel.frame(JSON.parse(ev.data).frame));
+    es.addEventListener("frame", (ev) => { const d = JSON.parse(ev.data); if (d.pane !== "side") panel.frame(d.frame); });
     es.addEventListener("spot", (ev) => panel.spot(JSON.parse(ev.data).spot));
     es.addEventListener("plan-result", (ev) => {
       const r = JSON.parse(ev.data);
@@ -501,6 +559,39 @@
     es.addEventListener("done", () => { es.close(); b.disabled = false; });
     es.onerror = () => { b.disabled = false; };
   }
+
+  // ── the client bar sits in this page's header while it is open (as on Sessions and Bugs) ──
+  function placeClientBar() {
+    const bar = q(".ctx-bar");
+    const slot = q("#scr-ctx");
+    if (!bar || !slot) return;
+    if (document.documentElement.dataset.view === "screens") {
+      if (bar.parentNode !== slot) slot.appendChild(bar);
+    } else if (bar.parentNode === slot) {
+      const views = q("main.views");
+      const extra = q(".ctx-extra");
+      if (extra?.parentNode === views) views.insertBefore(bar, extra);
+      else views?.prepend(bar);
+    }
+  }
+  // After the router has switched views (it runs on the same hashchange).
+  window.addEventListener("hashchange", () => setTimeout(placeClientBar, 0));
+  setTimeout(placeClientBar, 0);
+
+  // A picture this computer does not have (the library's pictures are git-ignored UAT screenshots,
+  // taken by a walk on the machine that ran it): an empty state, not a broken-image icon.
+  document.addEventListener(
+    "error",
+    (e) => {
+      const im = e.target;
+      if (!(im instanceof HTMLImageElement)) return;
+      const box = im.closest("#view-screens .scr-thumb, #view-screens .scr-stage");
+      if (!box) return;
+      im.hidden = true;
+      box.classList.add("no-pic");
+    },
+    true,
+  );
 
   // ── routing ───────────────────────────────────────────────────────────────────────────────
   function route() {

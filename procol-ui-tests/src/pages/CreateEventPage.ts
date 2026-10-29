@@ -370,7 +370,10 @@ export class CreateEventPage extends BasePage {
     // drawer without a qty column no longer fails the whole run.
     const qty = scope.getByRole("spinbutton").or(scope.locator("input[type='number']")).last();
     if (await qty.count()) {
-      await qty.fill(quantity).catch(() => {});
+      let took = true;
+      await qty.fill(quantity).catch(() => {
+        took = false;
+      });
       await p.keyboard.press("Tab").catch(() => {});
       await this.pause(200);
       // Short wait: this validation is a client-side field check, not a
@@ -378,6 +381,13 @@ export class CreateEventPage extends BasePage {
       // A long wait here would tax every normal line-item add for a toast
       // that, on a valid quantity, never comes.
       this.lastQuantityError = await this.errorToastText(1_200).catch(() => null);
+      // A number field refuses letters by not taking them: "ten" cannot be typed into it and the
+      // box stays as it was. That IS the app's answer to text in a number cell (21 Oct, A17: no
+      // toast came, and the check read the refusal as missing).
+      const now = (await qty.inputValue().catch(() => "")).trim();
+      if (!this.lastQuantityError && !/^-?\d+(\.\d+)?$/.test(quantity.trim()) && (!took || now !== quantity.trim())) {
+        this.lastQuantityError = `the quantity field did not take “${quantity}” — it is a number field and accepts digits only${now ? ` (it holds ${now})` : ""}`;
+      }
     }
   }
 
@@ -851,11 +861,17 @@ export class CreateEventPage extends BasePage {
   }
 
   // ── templates + sheet ────────────────────────────────────────────────────────
+  /**
+   * The stage's own template picker: "Select Templates", plural, always. The singular "Template: Select
+   * Template ▾" on a Technical stage is the Vendor Assessment's questionnaire picker, a different control;
+   * matching it failed expect_template_selected on a stage whose template was applied (27 Oct, plan-mvpo4yu0:
+   * "Item Template: Test" on screen, reported as "the stage still offers 'Select Templates'").
+   */
   private selectTemplatesButtonCandidates() {
     const p = this.page;
     return [
-      p.getByRole("button", { name: /select templates?/i }),
-      p.getByText(/select templates?/i),
+      p.getByRole("button", { name: /select templates\b/i }),
+      p.getByText(/select templates\b/i),
     ];
   }
 
@@ -910,9 +926,35 @@ export class CreateEventPage extends BasePage {
    * @param preferred substring of the wanted template's name; the first row
    *        wins when it is absent or matches nothing.
    */
+  /**
+   * The template Procol has already set on this tab, or "". An event made from a PR opens with one
+   * ("Templates: test 1 ▾") and no "Select Templates" button at all, so opening the picker failed
+   * four times over (27 Oct, PR → RFQ stopped at select_template).
+   */
+  async templateAlreadyChosen(tries = 10): Promise<string> {
+    // "Templates" (an RFQ) or "Item Template" (a Technical stage made from a PR) — never the Vendor
+    // Assessment's "Template:", which has a colon.
+    const label = this.page.getByText(/^\s*(item\s+)?templates?\s*$/i).filter({ visible: true }).first();
+    for (let i = 0; i < tries; i++) {
+      if (await this.page.getByRole("button", { name: /select templates\b/i }).filter({ visible: true }).count().catch(() => 0)) return "";
+      // The button right after the label is the template control; "Add Columns" there means it has not drawn yet.
+      const name = (await label.locator("xpath=following::button[1]").innerText({ timeout: 1_000 }).catch(() => "")).replace(/\s+/g, " ").trim();
+      if (name && !/select templates?\b|add columns/i.test(name)) return name;
+      await this.page.waitForTimeout(500);
+    }
+    return "";
+  }
+
   async selectTemplate(preferred?: string): Promise<string> {
     const p = this.page;
     await this.waitForSpinnerHidden();
+    // Already set by Procol and the case names none (or names this one): that is the template. Another
+    // named template is still picked.
+    const already = await this.templateAlreadyChosen(preferred ? 3 : 10);
+    if (already && (!preferred || already.toLowerCase().includes(preferred.toLowerCase()))) {
+      console.log(`[template] Procol has already set the template "${already}" on this screen — keeping it`);
+      return already;
+    }
 
     let opened = false;
     for (let attempt = 0; attempt < 4 && !opened; attempt++) {
@@ -922,7 +964,7 @@ export class CreateEventPage extends BasePage {
       // forces — so an off-screen control was being "clicked" at coordinates
       // nothing occupied. Scroll it in first, every attempt.
       await this.page
-        .getByRole("button", { name: /select templates?/i })
+        .getByRole("button", { name: /select templates\b/i })
         .first()
         .scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT })
         .catch(() => {});
@@ -985,6 +1027,15 @@ export class CreateEventPage extends BasePage {
       const found = names.findIndex((n) => n.toLowerCase().includes(want));
       if (found >= 0) index = found;
       else console.log(`[create-event] template "${preferred}" not offered (have: ${names.join(", ")}) — taking the first`);
+    } else {
+      // A technical (RFP) stage needs a questionnaire template — a buy/pricing one has no
+      // evaluator controls (23 Oct, B08: "BuyBuy Template" first on a technical-only event, and
+      // "no evaluator could be assigned"). Prefer the first that does not read as pricing.
+      const active = ((await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").first().textContent().catch(() => "")) || "").trim();
+      if (/\b(rfp|rfi|technical)\b/i.test(active)) {
+        const q = names.findIndex((n) => !/\b(buy|pricing|price|rfq|auction)\b/i.test(n));
+        if (q >= 0) index = q;
+      }
     }
     const chosen = names[index] ?? "(unnamed)";
     await rows.nth(index).click({ timeout: TIMEOUTS.MEDIUM });
@@ -995,7 +1046,7 @@ export class CreateEventPage extends BasePage {
     // was too strict: applying a template is a network round-trip, and on a slow
     // response the button lingers a moment after the schema has already
     // arrived — which failed the step on an event that was perfectly fine.
-    const gone = p.getByRole("button", { name: /select templates?/i }).first();
+    const gone = p.getByRole("button", { name: /select templates\b/i }).first();
     const sheet = p.locator("[data-testid^='sheet-header-'], .data-grid-container").first();
     const applied = await Promise.race([
       gone.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).then(() => true),
@@ -1030,6 +1081,8 @@ export class CreateEventPage extends BasePage {
   /** The template name the stage now shows, or null when the picker is still offering a choice. */
   async appliedTemplateName(): Promise<string | null> {
     if (await this.templatePickerPresent()) return null;
+    const named = await this.templateAlreadyChosen(2);
+    if (named) return named;
     const trigger = this.page.locator("[class*='templateName'], [data-testid*='template-name'], [class*='selectedTemplate']").first();
     const text = (await trigger.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
     return text || "(applied — name not displayed)";
@@ -1280,6 +1333,10 @@ export class CreateEventPage extends BasePage {
       const count = await buttons.count();
       if (!count || index >= count) break;
 
+      // A line item's evaluator control below the fold counts as not visible until it is
+      // scrolled to (21 Oct, A02: 2 line items, only the first got an evaluator, and the app
+      // refused to publish "Please add Evaluator to all the line items in the Technical Stage").
+      await buttons.nth(index).scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
       if (!(await buttons.nth(index).isVisible().catch(() => false))) {
         index++;
         continue;
@@ -1291,7 +1348,34 @@ export class CreateEventPage extends BasePage {
         continue;
       }
 
-      const picked = await this.pickFirstNamedOption("evaluator");
+      // The run's OWN account as evaluator, so the run can score the technical answers itself (29 Oct: the
+      // first name in the list was a real M3M person, Satish Kumar Kaushik; Procol then let only him score —
+      // is_allowed_to_evaluate false for the run, no "Submit Score"). UI_EVALUATOR names someone else.
+      // Procol's evaluator list never offers the account that makes the event (29 Oct: get_all_users with
+      // include_current_user=false — PROCOL DEMO lists only Satish Kumar Kaushik), and evaluate_technical signs in as
+      // whoever is assigned. So no search by default: searching for the run's own account only cost time on every run.
+      const self = (process.env.UI_EVALUATOR || "").trim();
+      const search = this.evaluatorPanel().getByPlaceholder(/search users/i).first();
+      let searched = false;
+      if (self && (await search.isVisible().catch(() => false))) {
+        await search.fill(self).catch(() => {});
+        await this.pause(1_500);
+        searched = true;
+      }
+      const wanted = self ? new RegExp(self.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*"), "i") : undefined;
+      let picked = await this.pickFirstNamedOption("evaluator", undefined, wanted);
+      if (!picked && searched) {
+        console.log(`[create-event] “${self}” is not in the evaluator list — picking the first user offered, who then is the only one who can score`);
+        await search.fill("").catch(() => {});
+        await this.pause(1_200);
+        picked = await this.pickFirstNamedOption("evaluator");
+      }
+      if (!picked) {
+        // Once more from a freshly opened picker: a list that never finished loading is not an empty one.
+        await p.keyboard.press("Escape").catch(() => {});
+        await this.pause(600);
+        if (await this.openEvaluatorPicker(index)) picked = await this.pickFirstNamedOption("evaluator");
+      }
       if (!picked) {
         const healed = await heal(p, "click the first named user in the open Search users list to assign them as evaluator");
         if (!healed) {
@@ -1370,7 +1454,7 @@ export class CreateEventPage extends BasePage {
    * `["", "Satish Kumar Kaushik"]` and `.first()` selects the blank one: the
    * click lands on nothing, the panel stays open, and the caller loops.
    */
-  private async pickFirstNamedOption(label: string, panelOverride?: Locator): Promise<boolean> {
+  private async pickFirstNamedOption(label: string, panelOverride?: Locator, only?: RegExp): Promise<boolean> {
     const p = this.page;
     // Scope every candidate to the picker itself. A generic
     // `[class*='dropdown']:visible li` matched the LEFT SIDEBAR's
@@ -1384,6 +1468,9 @@ export class CreateEventPage extends BasePage {
     const panel = panelOverride ?? this.evaluatorPanel();
     const lists = [
       p.locator("[data-testid^='evaluator-option-']"),
+      // The vendor list's rows are menu items under a "VENDORS" list item (26 Oct, PR quick-create): tried
+      // before plain `li`, which would match that header row first.
+      panel.locator("[role='menuitem'], .ant-select-dropdown-menu-item"),
       panel.locator(".ant-select-item, [role='option'], li, [class*='option'], [class*='userRow']"),
       p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item"),
       p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option']"),
@@ -1392,6 +1479,10 @@ export class CreateEventPage extends BasePage {
     // pick. The panel becomes visible before its users render, so reading
     // immediately saw two rows both reading "" and concluded the picker was
     // empty — when the only real problem was arriving 400ms early.
+    // The users load after the panel opens, behind a spinner, and on UAT that can take well over
+    // six seconds (A02, 23 Oct: the second line item's picker was still spinning, the step found
+    // no name and moved on, and publish was refused for that line item's missing evaluator).
+    await panel.locator(".ant-spin-spinning, .ant-spin-dot, [class*='spinner' i]").first().waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
     const deadline = Date.now() + 6_000;
     while (Date.now() < deadline) {
       let anyText = false;
@@ -1414,6 +1505,8 @@ export class CreateEventPage extends BasePage {
         const row = list.nth(i);
         const text = ((await row.textContent().catch(() => "")) ?? "").trim();
         if (!text) continue; // the search row renders as an empty option
+        // only: the one user wanted (the run's own account as evaluator), never "the first name" (29 Oct).
+        if (only && !only.test(text)) continue;
         if (!(await row.isVisible().catch(() => false))) continue;
         await row.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
         const clicked = await row
@@ -1502,12 +1595,72 @@ export class CreateEventPage extends BasePage {
         // Translate the grid's column key into the kind the filler understands.
         const kind = sheet.canonicalType(type);
         const value = sheet.valueForType(kind);
-        if (value === undefined) continue; // computed or unknown — nothing to type
-        await sheet.fillCell(row, key, { key, type: kind }, value).catch(() => {});
-        if (await sheet.cellValue(row, key)) filled++;
+        // A column this code has never seen — a tenant's own custom column ("dgfgfd_custom" on an event
+        // made from a PR, 27 Oct: publish refused "Sheet partially filled") — is still editable and
+        // still required: try it as text, then as a number, and keep what it takes. Computed ones are left.
+        const tries: Array<[string, unknown]> =
+          value !== undefined ? [[kind, value]] : kind === "formula" ? [] : [["text", sheet.valueForType("text")], ["number", sheet.valueForType("number")]];
+        for (const [k, v] of tries) {
+          await sheet.fillCell(row, key, { key, type: k }, v).catch(() => {});
+          if (await sheet.cellValue(row, key)) {
+            filled++;
+            break;
+          }
+        }
+        if (tries.length && !(await sheet.cellValue(row, key))) console.log(`[create-event] the sheet's "${key}" cell on line ${row + 1} is still empty after filling — the publish will say so`);
       }
     }
     return filled;
+  }
+
+  /**
+   * The sheet's REQUIRED cells (header marked *) that the buyer can type into and are still empty,
+   * by line and column name — what "Sheet partially filled, please check again." is about. Only
+   * lines that hold a product count (the grid keeps an empty row at the bottom for a new line).
+   */
+  async emptyRequiredSheetCells(): Promise<Array<{ row: number; key: string; column: string }>> {
+    return this.page.evaluate(() => {
+      const heads = new Map<string, string>();
+      document.querySelectorAll('[data-testid^="sheet-header-"]').forEach((h) => {
+        const key = (h.getAttribute("data-testid") ?? "").replace("sheet-header-", "");
+        const text = (h as HTMLElement).innerText ?? "";
+        if (key && (h.querySelector('[class*="isRequired"]') || /\*\s*$/.test(text))) heads.set(key, text.replace(/\*/g, "").replace(/\s+/g, " ").trim() || key);
+      });
+      const out: Array<{ row: number; key: string; column: string }> = [];
+      document.querySelectorAll('[data-testid^="sheet-cell-"]').forEach((c) => {
+        const m = (c.getAttribute("data-testid") ?? "").match(/^sheet-cell-(\d+)-(.+)$/);
+        if (!m || m[1] === "0" || !heads.has(m[2]) || c.getAttribute("aria-disabled") === "true") return;
+        const product = document.querySelector(`[data-testid="sheet-cell-${m[1]}-product"]`) as HTMLElement | null;
+        if (product && !(product.innerText ?? "").trim()) return;
+        const input = c.querySelector("input, textarea") as HTMLInputElement | null;
+        if (((c as HTMLElement).innerText ?? "").trim() || (input?.value ?? "").trim()) return;
+        out.push({ row: Number(m[1]), key: m[2], column: heads.get(m[2])! });
+      });
+      return out;
+    });
+  }
+
+  /**
+   * A required cell the schema-driven pass left empty, filled by trying each kind a client's column can be — text,
+   * number, a dropdown's first option, today's date — until one takes (29 Oct: a client switch must not stop a run
+   * at a sheet cell). Answers the value that took, or null.
+   */
+  async fillRequiredCellAnyway(line: number, key: string): Promise<string | null> {
+    const sheet = new InlineSheet(this.page);
+    for (const type of ["text", "number", "dropdown", "date"]) {
+      await sheet.fillCell(line - 1, key, { key, type } as WidgetConfig, sheet.valueForType(type)).catch(() => {});
+      const v = await sheet.cellValue(line - 1, key);
+      if (v) return String(v);
+    }
+    return null;
+  }
+
+  /** Type a value into one sheet cell (line 1 = the first line item) and say whether it took. */
+  async typeIntoSheetCell(line: number, key: string, value: string): Promise<boolean> {
+    const sheet = new InlineSheet(this.page);
+    const type = /^\d+([.,]\d+)?$/.test(value.trim()) ? "number" : "text";
+    await sheet.fillCell(line - 1, key, { key, type }, value).catch(() => {});
+    return !!(await sheet.cellValue(line - 1, key));
   }
 
   // ── publish ──────────────────────────────────────────────────────────────────
@@ -1904,14 +2057,15 @@ export class CreateEventPage extends BasePage {
       await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        // Wait for the search RESULTS, not two seconds: the options appear when
-        // the vendor search returns, which is usually well under a second.
-        await p
-          .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item")
-          .first()
-          .waitFor({ state: "visible", timeout: 4_000 })
-          .catch(() => {});
-        const picked = await this.pickFirstNamedOption("vendor");
+        // The vendor search is a server round-trip that can take well over 15 s on UAT.
+        await this.waitForVendorRows(TIMEOUTS.LONG);
+        // The VENDOR panel, found by its own "VENDORS" header, as the named invite does. Without it the
+        // picker read the evaluator panel and found nothing, though the list showed AMD LTD, Demo
+        // Supplier - 1, Dummy… (26 Oct, an event made from a PR: "Vendors invited: 0").
+        const open = p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-dropdown:not(.ant-dropdown-hidden), [role='listbox']");
+        const byHeader = open.filter({ hasText: /vendors/i });
+        const vendorPanel = (await byHeader.count()) ? byHeader.last() : open.last();
+        const picked = await this.pickFirstNamedOption("vendor", vendorPanel);
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
       // The participant chip renders once the add request returns; wait for
@@ -2159,6 +2313,9 @@ export class CreateEventPage extends BasePage {
       // the stages' raw eventEndTime values, which hold a length for "Duration" but a clock
       // timestamp for "Fixed time", so a fixed technical end beside a duration RFQ is always
       // refused ("RFP duration exceeds RFQ end time") — BUG-85. Equal durations compare equal.
+      // Tried 29 Oct: Fixed time on every stage. Switching the first stage to Fixed time left the drawer showing
+      // one stage block, the RFQ kept 30 min, and the step failed outright. So a multi-stage event stays on
+      // Duration, and a short window there still needs the drawer worked out from screenshots.
       if (blockCount > 1 && minutes < 30 && bi === 0) {
         console.log(`[create-event] asked ${minutes} min on a ${blockCount}-stage event — keeping every stage on Duration (a fixed end beside a duration is refused by the app's own check, BUG-85)`);
       }

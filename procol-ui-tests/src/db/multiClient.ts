@@ -187,3 +187,9 @@ export async function loginnableWithFlag(configKey: string): Promise<number[]> {
   );
   return q.rows.map((r) => Number(r.company_id));
 }
+
+/** A user's phone as the users table holds it ("+91/98…"), or null. */
+export async function userPhone(userId: number): Promise<string | null> {
+  const q = await db().query(`select phone from users where id = $1`, [userId]);
+  return q.rows[0]?.phone ?? null;
+}

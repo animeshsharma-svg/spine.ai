@@ -326,7 +326,7 @@ export function startWalk(input: { companyId: number; walks?: string[]; cases?: 
           });
           if (!rec) continue;
           run.screens.push(rec.id);
-          const sum = { id: rec.id, label: rec.label, path: rec.path, state: rec.state, controls: rec.controls.length, effects: rec.effects.length, known: rec.effects.filter((e) => e.confidence !== "unknown").length, cases: rec.cases.length, rulesUntested: rec.rules.filter((r) => r.verdict === "not covered").length, takenAt: rec.takenAt, captures: rec.captures, hasMap: !!rec.images.map };
+          const sum = { id: rec.id, label: rec.label, path: rec.path, state: rec.state, controls: rec.controls.length, effects: rec.effects.length, known: rec.effects.filter((e) => e.confidence !== "unknown").length, cases: rec.cases.length, rulesUntested: rec.rules.filter((r) => r.verdict === "not covered").length, takenAt: rec.takenAt, captures: rec.captures, hasMap: !!rec.images.map, picture: rec.images.plain ? ("walk" as const) : null };
           s.screens = [...s.screens.filter((x) => x.id !== rec.id), sum];
           emit(L, "screen", sum, `"${rec.label}": ${sum.controls} controls, ${sum.known} described, ${sum.cases} cases`);
         }

@@ -225,14 +225,43 @@ export async function readView(page: Page): Promise<ScreenView> {
       picked.add(el);
     }
 
+    // ROW TICK-BOXES (26 Oct, Purchase Requisitions: "you cant even select a PR"). The real checkbox
+    // is usually a hidden input under a drawn box, and the drawn box sits inside a clickable row, so
+    // neither was listed and selecting a row could only ever "open the row". List the drawn box,
+    // standing for the input: role checkbox, its real ticked state, named for what it selects.
+    const boxFor = new Map<Element, Element>();
+    for (const inp of Array.from(document.querySelectorAll("input[type='checkbox'], [role='checkbox']"))) {
+      if (visible(inp)) continue;
+      // The first visible box around it (an inner wrapper can be zero-sized; the drawn square is
+      // often its label), never past the table cell: a cell with words in it is not the box.
+      let shown: Element | null = inp.parentElement;
+      for (let k = 0; shown && k < 5 && !visible(shown); k++) {
+        if (shown.matches("td, th, [role='gridcell'], [role='cell']")) break;
+        shown = shown.parentElement;
+      }
+      if (!shown || !visible(shown)) continue;
+      if (shown.matches("tr, [role='row'], .ant-table-row, tbody, table")) continue;
+      if (shown.matches("td, th, [role='gridcell'], [role='cell']") && ((shown as HTMLElement).innerText || "").trim()) continue;
+      picked.delete(inp);
+      picked.add(shown);
+      boxFor.set(shown, inp);
+    }
+
     type C = { el: Element; role: string; name: string; value?: string; placeholder?: string; disabled?: boolean; where?: string; behind?: boolean; tag: string; offscreen?: boolean };
     const out: C[] = [];
     for (const el of picked) {
       if (!visible(el)) continue;
       // An input inside an Ant select is listed once, as the select.
       if (el.tagName === "INPUT" && el.closest(".ant-select-selector") && picked.has(el.closest(".ant-select-selector")!)) continue;
-      const role = el.matches(".ant-select-selector") ? "combobox" : el.matches(".ant-picker") ? "datepicker" : roleOf(el);
+      const box = boxFor.get(el);
+      const role = box ? "checkbox" : el.matches(".ant-select-selector") ? "combobox" : el.matches(".ant-picker") ? "datepicker" : roleOf(el);
       let name = nameOf(el, role);
+      // A tick-box with no words of its own: named for what it selects (the row's words go in
+      // `where`). The name helpers would borrow the row's text, which reads like opening the row.
+      if (box) name = clean((el as HTMLElement).innerText);
+      if (role === "checkbox" && !name) {
+        name = el.closest("thead, [role='columnheader'], .ant-table-thead") ? "select all rows" : el.closest("tr, [role='row'], .ant-table-row") ? "select this row" : "tick box";
+      }
       if (role === "combobox" && el.matches(".ant-select-selector")) {
         const shown = clean(el.querySelector(".ant-select-selection-item, .ant-select-selection-placeholder")?.textContent);
         name = clean(labelFor(el.closest(".ant-select") ?? el) || shown || "select");
@@ -247,8 +276,9 @@ export async function readView(page: Page): Promise<ScreenView> {
       const input = el as HTMLInputElement;
       let value: string | undefined;
       if (role === "checkbox" || role === "radio" || role === "switch") {
-        const on = input.checked ?? el.getAttribute("aria-checked") === "true";
-        value = on || el.getAttribute("aria-checked") === "true" || el.classList.contains("ant-checkbox-wrapper-checked") ? "checked" : "unchecked";
+        const real = (box ?? el) as HTMLInputElement;
+        const on = real.checked ?? real.getAttribute("aria-checked") === "true";
+        value = on || real.getAttribute("aria-checked") === "true" || el.classList.contains("ant-checkbox-wrapper-checked") || el.classList.contains("ant-checkbox-checked") ? "checked" : "unchecked";
       } else if (tag === "input" || tag === "textarea") {
         value = input.type === "password" ? (input.value ? "••••" : "") : clean(input.value, 60);
       } else if (tag === "select") {
@@ -450,10 +480,57 @@ const exact = (s: string) => new RegExp(`^\\s*${s.replace(/[.*+?^${}()|[\]\\]/g,
 /** Find a recipe's control on the page now; null when nothing matches. */
 export async function findByRecipe(page: Page, r: Recipe, timeoutMs = 8_000): Promise<Locator | null> {
   const tries: Locator[] = [];
+  // A row's tick-box: in the same row if it is still listed, otherwise the first row's (a step like
+  // "tick one PR" is about selecting a row, not that one row, which may be gone by the next run).
+  if (r.role === "checkbox" && /^select (this row|all rows)$/i.test(r.name)) {
+    // One kind at a time, the real input first: in page order a zero-sized wrapper comes before it.
+    const KINDS = ["input[type='checkbox']", "[role='checkbox']", ".ant-checkbox-wrapper", "label"];
+    const rowText = r.where?.startsWith("row:") ? r.where.replace(/^row:\s*/, "").slice(0, 40).trim() : "";
+    for (const k of KINDS) {
+      if (/all rows/i.test(r.name)) tries.push(page.locator(`thead ${k}, .ant-table-thead ${k}`));
+      else {
+        if (rowText) tries.push(page.locator("tr, [role='row']", { hasText: rowText }).locator(k));
+        tries.push(page.locator("tbody tr, .ant-table-row").locator(k));
+      }
+    }
+  }
+  // A sheet cell a tester clicked by hand (support/liveControl.ts recipeAt): its column by the header's
+  // words, its line by the row's words — or the first empty cell of that column when the line is gone.
+  if (r.role === "cell" && r.name) {
+    const rowText = r.where?.startsWith("row:") ? r.where.replace(/^row:\s*/, "").slice(0, 40).trim() : "";
+    const token = `c${Date.now().toString(36)}`;
+    const marked = await page
+      .evaluate(
+        `(() => {
+          const want = ${JSON.stringify(r.name.toLowerCase())}, rowText = ${JSON.stringify(rowText.toLowerCase())};
+          const words = (el) => (el && el.innerText || "").replace(/[*\\s]+/g, " ").trim().toLowerCase();
+          let cells = [];
+          const head = [...document.querySelectorAll("[data-testid^='sheet-header-']")].find((h) => words(h) === want);
+          if (head) {
+            const key = head.getAttribute("data-testid").replace(/^sheet-header-/, "");
+            cells = [...document.querySelectorAll("[data-testid^='sheet-cell-']")].filter((c) => c.getAttribute("data-testid").endsWith("-" + key));
+          } else {
+            for (const th of document.querySelectorAll("thead th")) {
+              if (words(th) !== want) continue;
+              const i = Array.prototype.indexOf.call(th.parentElement.children, th);
+              cells = [...th.closest("table").querySelectorAll("tbody tr")].map((tr) => tr.children[i]).filter(Boolean);
+              break;
+            }
+          }
+          const rowOf = (c) => words(c.closest("tr, [role='row']"));
+          const pick = (rowText && cells.find((c) => rowOf(c).startsWith(rowText))) || cells.find((c) => !words(c));
+          if (!pick) return false;
+          pick.setAttribute("data-spine-cell", ${JSON.stringify(token)});
+          return true;
+        })()`,
+      )
+      .catch(() => false);
+    if (marked) tries.push(page.locator(`[data-spine-cell="${token}"]`));
+  }
   if (r.name && ARIA_ROLES.has(r.role)) tries.push(page.getByRole(r.role as Parameters<Page["getByRole"]>[0], { name: exact(r.name) }));
   if (r.placeholder) tries.push(page.getByPlaceholder(exact(r.placeholder)));
   if (r.name && (r.role === "textbox" || r.role === "combobox")) tries.push(page.getByLabel(exact(r.name)));
-  if (r.name) tries.push(page.getByText(exact(r.name)));
+  if (r.name && r.role !== "cell") tries.push(page.getByText(exact(r.name))); // a cell's name is its column: the header itself is not it
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
     for (const t of tries) {

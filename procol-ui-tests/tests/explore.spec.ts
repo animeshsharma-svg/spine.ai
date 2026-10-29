@@ -12,6 +12,7 @@ import { COMPANY_ID } from "../src/config.js";
 import { loginAsCompany, loginOnScreen } from "../src/db/dbLogin.js";
 import { closeDb } from "../src/db/multiClient.js";
 import { explore } from "../src/explore/explorer.js";
+import { installSpotlight, beginStep } from "../src/plan/spotlight.js";
 
 const companyId = COMPANY_ID ? Number(COMPANY_ID) : null;
 
@@ -72,6 +73,10 @@ test("explore a journey with no written steps", async ({ page }) => {
     console.log(`[explore] signed in as company ${companyId}`);
   }
   await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
+  // A framed picture of every action, as a typed plan has (spotlight.ts) — from
+  // here, after sign-in, so the login is not photographed (UI_SPOTLIGHT=0: off).
+  installSpotlight(page, `${process.cwd()}/evidence/${runId.replace(/[^\w.-]+/g, "_")}`);
+  beginStep(0, "working it out on screen", 0);
 
   let failure: Error | null = null;
   let result;

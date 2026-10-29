@@ -17,7 +17,7 @@
  *   knowledge/events/screens/<id>.md     the memory: `npm run rag:build` turns it into chunks the
  *                                        planner recalls when a new case names this screen
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chat } from "../ai/llm.js";
@@ -119,6 +119,9 @@ export interface ScreenSummary {
   takenAt: string;
   captures: number;
   hasMap: boolean;
+  /** where the card's picture comes from: the walk, one of this computer's runs, or none here */
+  picture: "walk" | "run" | null;
+  pictureAt?: string;
 }
 
 export const slug = (s: string) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screen";
@@ -182,6 +185,10 @@ function summary(r: ScreenRecord): ScreenSummary {
     takenAt: r.takenAt,
     captures: r.captures,
     hasMap: !!r.images.map,
+    ...(() => {
+      const p = pictureOf(r, "plain");
+      return { picture: p?.from ?? null, pictureAt: p?.at };
+    })(),
   };
 }
 
@@ -195,11 +202,135 @@ export function getScreen(id: string): ScreenRecord | null {
   }
 }
 
+/** Where a screen's picture comes from: its own walk, or one of this computer's runs. */
+export interface ScreenPicture {
+  file: string;
+  from: "walk" | "run";
+  /** for a run's picture: which run, after which step, when */
+  run?: string;
+  step?: string;
+  at?: string;
+}
+
+const UI_TESTS = join(ROOT, "..", "procol-ui-tests");
+// The args that tell screens reached by the same step apart (open_create erfx vs boq, …).
+const KEY_ARGS: Record<string, string[]> = { open_create: ["path"], open_prepared: ["screen"], filter_events: ["tab"], compose_stages: ["stages"], configure_single_stage: ["eventType", "auctionSubtype"] };
+const stepKey = (st: { step: string; args?: Record<string, unknown> }) => [st.step, ...(KEY_ARGS[st.step] ?? []).map((k) => JSON.stringify(st.args?.[k] ?? null))].join("|");
+/** /project/a1pjY1hk/master_qcs and /project/UVpkY1hk/master_qcs are the same screen. */
+const pathShape = (p: string) => decodeURIComponent(p).replace(/\/[A-Za-z0-9%=]{8,}/g, "/*");
+
+interface RunShot { file: string; run: string; before: Set<string>; urlShape: string | null; at: number }
+
+let recordsCache: { at: number; records: ScreenRecord[] } | null = null;
+/** Every screen record, read at most every two minutes (the picture matcher asks per screen). */
+function listScreenRecords(): ScreenRecord[] {
+  if (recordsCache && Date.now() - recordsCache.at < 120_000) return recordsCache.records;
+  const records = existsSync(SCREENS_DIR)
+    ? readdirSync(SCREENS_DIR)
+        .filter((f) => f.endsWith(".json") && f !== "index.json")
+        .flatMap((f) => {
+          try {
+            return [JSON.parse(readFileSync(join(SCREENS_DIR, f), "utf8")) as ScreenRecord];
+          } catch {
+            return [];
+          }
+        })
+    : [];
+  recordsCache = { at: Date.now(), records };
+  return records;
+}
+let shotIndex: { at: number; byKey: Map<string, RunShot[]> } | null = null;
+
+/**
+ * Every screenshot this computer's plan runs took after a step that went through
+ * (procol-ui-tests/evidence/<run>/NN-<step>.png beside .plans/<run>-result.json), by step.
+ */
+function runShots(): Map<string, RunShot[]> {
+  if (shotIndex && Date.now() - shotIndex.at < 120_000) return shotIndex.byKey;
+  const byKey = new Map<string, RunShot[]>();
+  const plans = join(UI_TESTS, ".plans");
+  const evidence = join(UI_TESTS, "evidence");
+  for (const f of existsSync(plans) ? readdirSync(plans) : []) {
+    const run = f.match(/^(plan-[\w-]+?)-result\.json$/)?.[1];
+    const dir = run && join(evidence, run);
+    if (!run || !dir || !existsSync(dir)) continue;
+    let steps: Array<{ step: string; args?: Record<string, unknown>; status?: string; evidence?: { url?: string } }>;
+    try {
+      steps = JSON.parse(readFileSync(join(plans, f), "utf8")).steps ?? [];
+    } catch {
+      continue;
+    }
+    for (const pic of readdirSync(dir)) {
+      const m = pic.match(/^(\d+)-([a-z_]+)\.png$/);
+      const idx = m ? Number(m[1]) - 1 : -1;
+      const st = steps[idx];
+      if (!m || !st || st.step !== m[2] || st.status !== "ok") continue;
+      let urlShape: string | null = null;
+      try {
+        urlShape = st.evidence?.url ? pathShape(new URL(st.evidence.url).pathname) : null;
+      } catch {}
+      const shot: RunShot = { file: join(dir, pic), run, before: new Set(steps.slice(0, idx).map(stepKey)), urlShape, at: statSync(join(dir, pic)).mtimeMs };
+      const key = stepKey(st);
+      byKey.set(key, [...(byKey.get(key) ?? []), shot]);
+    }
+  }
+  shotIndex = { at: Date.now(), byKey };
+  return byKey;
+}
+
+/**
+ * The run screenshot nearest to a screen: taken right after the step the walk reached it by
+ * (same step, same key args), on the same page when the run recorded one, from the run whose
+ * earlier steps share most of the walk's way there; newest on a tie.
+ */
+function bestRunShot(r: ScreenRecord): RunShot | null {
+  const chain = r.reachedBy ?? [];
+  const last = chain[chain.length - 1];
+  if (!last) return null;
+  const want = pathShape(r.path);
+  // Where several screens are reached by the same step (expect_published on an RFQ, a technical
+  // round, a traffic-light auction…), what was BUILT tells them apart: the run must have the
+  // same open_create / compose_stages / configure_single_stage — "technical only" is not a
+  // technical + auction run. A screen alone in being reached by its step (Settings menu,
+  // History tab) looks the same on any event.
+  const lastKey = stepKey(last);
+  const shared = listScreenRecords().filter((x) => x.reachedBy?.length && stepKey(x.reachedBy[x.reachedBy.length - 1]) === lastKey).length > 1;
+  const identity = shared ? chain.slice(0, -1).filter((c) => KEY_ARGS[c.step]).map(stepKey) : [];
+  let best: RunShot | null = null;
+  let bestScore = -1;
+  for (const s of runShots().get(stepKey(last)) ?? []) {
+    if (s.urlShape && s.urlShape !== want) continue;
+    if (!identity.every((k) => s.before.has(k))) continue;
+    const score = chain.slice(0, -1).filter((c) => s.before.has(stepKey(c))).length + (s.urlShape ? 2 : 0);
+    if (score > bestScore || (score === bestScore && best && s.at > best.at)) {
+      best = s;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function pictureOf(r: ScreenRecord | null, kind: "plain" | "map"): ScreenPicture | null {
+  if (!r) return null;
+  const f = kind === "map" ? r.images.map : r.images.plain;
+  if (f && existsSync(f)) return { file: f, from: "walk" };
+  // A record walked on another computer names that computer's path (/Users/animesh/…); its
+  // pictures are git-ignored, so a copy of them dropped into this checkout's data/screens/img
+  // is found by name instead.
+  const local = join(SCREENS_DIR, "img", `${r.id}${kind === "map" ? "-map" : ""}.png`);
+  if (existsSync(local)) return { file: local, from: "walk" };
+  // Still none: the nearest screenshot this computer's own runs took of the screen (Aanya,
+  // 26 Oct). Plain only — the numbered map's boxes were measured on the walk's picture.
+  if (kind === "map") return null;
+  const s = bestRunShot(r);
+  return s ? { file: s.file, from: "run", run: s.run, step: r.reachedBy[r.reachedBy.length - 1].step, at: new Date(s.at).toISOString() } : null;
+}
+
+export const screenPicture = (id: string, kind: "plain" | "map"): ScreenPicture | null => pictureOf(getScreen(id), kind);
+
 /** The served copy of a screen's picture (plain screenshot or the numbered map). */
 export function screenImage(id: string, kind: "plain" | "map"): string | null {
-  const r = getScreen(id);
-  const f = kind === "map" ? r?.images.map : r?.images.plain;
-  return f && existsSync(f) ? f : null;
+  return screenPicture(id, kind)?.file ?? null;
 }
 
 function saveRecord(r: ScreenRecord): void {

@@ -66,6 +66,35 @@ export async function tradesOfEventGroup(eventGroupId: number): Promise<DbTrade[
   return rows;
 }
 
+/** A bid on one of an event's rounds: who, whether the buyer typed it (a surrogate), its unit price and total. */
+export interface DbBid {
+  vendor: string;
+  rfx_mode: number;
+  by_buyer: boolean;
+  price: number | null;
+  amount: number | null;
+  lines: number;
+  placed_at: string | null;
+}
+
+/** Every bid on an event's rounds (read-only), oldest first. */
+export async function bidsOfEventGroup(eventGroupId: number): Promise<DbBid[]> {
+  const { rows } = await db().query(
+    `select c.name as vendor, t.rfx_mode, (b.user_id = e.user_id) as by_buyer, b.price, b.amount, b.placed_at,
+            (select count(*) from bid_trade_products p join trade_products tp on tp.id = p.trade_product_id
+              where tp.trade_request_id = t.id and p.company_id = b.company_id)::int as lines
+       from event_groups e
+       join trade_requests t on t.event_group_id = e.id
+       join bid_trades bt on bt.trade_request_id = t.id
+       join bids b on b.id = bt.bid_id
+       join companies c on c.id = b.company_id
+      where e.id = $1
+      order by b.placed_at nulls last, b.id`,
+    [eventGroupId],
+  );
+  return rows.map((r: any) => ({ vendor: String(r.vendor ?? ""), rfx_mode: Number(r.rfx_mode), by_buyer: r.by_buyer === true, price: r.price == null ? null : Number(r.price), amount: r.amount == null ? null : Number(r.amount), lines: Number(r.lines) || 0, placed_at: r.placed_at ? new Date(r.placed_at).toISOString() : null }));
+}
+
 export interface DbOrder {
   id: number;
   seller_company_id: number;

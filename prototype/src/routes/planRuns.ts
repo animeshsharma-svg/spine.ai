@@ -30,7 +30,18 @@ function lastPlanShot(run: string): string | undefined {
     .filter((f) => /^\d{2}-[\w-]+\.png$/.test(f) && planShotPath(run, f))
     .map((f) => ({ f, n: Number(f.slice(0, 2)), at: statSync(join(dir, f)).mtimeMs }))
     .sort((a, b) => a.n - b.n || a.at - b.at);
-  return shots[shots.length - 1]?.f;
+  const last = shots[shots.length - 1];
+  /**
+   * SHOWS_THE_END or nothing: a picture is kept only where something went wrong (and, since 27 Oct,
+   * one of where the run ended — "NN-end.png"). A run from before that kept only mid-run pictures, and
+   * its newest one read as its end: ZE5kY2RO and ZFhYY2RO had published, but their panels showed the
+   * create screen at step 10 ("last screen is not published"). Only a picture from the last step the
+   * run took, or later, is its last screen; otherwise the panel keeps its words.
+   */
+  if (!last || /-end\.png$/.test(last.f)) return last?.f;
+  const rec = readPlanRun(run);
+  const ran = (rec?.steps ?? []).reduce((n: number, st: { status?: string }, i: number) => (st.status === "ok" || st.status === "failed" ? i + 1 : n), 0);
+  return ran && last.n < ran ? undefined : last.f;
 }
 
 export const handle: RouteHandler = async (ctx) => {

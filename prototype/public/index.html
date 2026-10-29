@@ -206,7 +206,8 @@
               <!-- Run tests (#/run-tests) replaced API automation and UI automation. Its
                    blue count is the features ticked there (app.js syncNav). -->
               <a class="nav-item" href="#/run-tests" data-view="plan" title="Run tests"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></span><span class="nav-label">Run tests</span></a>
-              <a class="nav-item" href="#/screens" data-view="screens" title="Screens"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span><span class="nav-label">Screens</span></a>
+              <!-- Screens opens from the Sessions page now (Aanya, 27 Oct: "I don't want the module of screens on the left sidebar"). Hidden, not removed: drop `hidden` to bring it back. -->
+              <a class="nav-item" href="#/screens" data-view="screens" title="Screens" hidden><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span><span class="nav-label">Screens</span></a>
             </div>
           </div>
 
@@ -216,7 +217,7 @@
               <!-- Sessions (#/sessions, public/sessions.js); a single session
                    (#/session/{id}) is the Run screen, so this entry stays lit
                    there too. Amber count: sessions on "Your turn". -->
-              <a class="nav-item" href="#/sessions" data-view="sessions" data-also="run" title="Sessions" id="sb-sessions"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg></span><span class="nav-label">Sessions</span></a>
+              <a class="nav-item" href="#/sessions" data-view="sessions" data-also="run screens" title="Sessions" id="sb-sessions"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg></span><span class="nav-label">Sessions</span></a>
               <a class="nav-item" href="#/bugs" data-view="bugs" data-also="stuck" title="Bugs" id="sb-defects"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg></span><span class="nav-label">Bugs</span></a>
             </div>
           </div>
@@ -1007,6 +1008,10 @@
                 <div class="ss-tabs" role="tablist" aria-label="Panel">
                   <button type="button" class="ss-tab" role="tab" data-tab="browser" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg>Browser</button>
                   <button type="button" class="ss-tab" role="tab" data-tab="requests" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left-right"/></svg>Requests<span class="ss-req-n" id="ss-req-n"></span></button>
+                  <!-- The browser's console errors and failed calls, by step; each can be reported as a bug (session.js; Aanya, 28 Oct). -->
+                  <button type="button" class="ss-tab" role="tab" data-tab="console" aria-selected="false" hidden><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg>Console<span class="ss-req-n ss-con-n" id="ss-con-n"></span></button>
+                  <!-- The run's test cases, as cards (runCases.js; Aanya, 27 Oct). -->
+                  <button type="button" class="ss-tab" role="tab" data-tab="cases" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-list-checks"/></svg>Test cases<span class="ss-req-n ss-tc-n" id="ss-tc-n"></span></button>
                 </div>
                 <button type="button" class="ss-collapse" id="ss-collapse" title="Hide this panel" aria-label="Hide this panel"><svg class="ico" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
               </header>
@@ -1016,18 +1021,38 @@
                   <!-- The live JPEG frames /api/plan-run and /api/ui-run stream (app.js sets the src). -->
                   <div id="live-frame-panel" class="live-frame-panel" hidden>
                     <img id="live-frame" alt="The browser the run is driving" />
+                    <!-- The vendor portal beside the buyer's page (session.js sideFrame; Aanya, 27 Oct). -->
+                    <figure class="live-side" id="live-side" hidden>
+                      <figcaption class="live-cap" id="live-side-cap">Vendor portal</figcaption>
+                      <img id="live-frame-side" alt="The vendor portal, beside the buyer's page" />
+                    </figure>
                   </div>
                   <p class="ss-empty" id="ss-browser-empty">The browser appears here as soon as the run opens it.</p>
                 </div>
                 <!-- Spotlight pictures: every control the run acted on, framed; every assertion, verified (spotlight.ts). -->
                 <div class="ss-spots" id="ss-spots" hidden>
                   <div class="ss-spots-head"><span>Screenshots</span><b id="ss-spots-n">0</b><button type="button" class="ss-spots-open" id="ss-spots-open">Open the latest</button></div>
+                  <!-- What a frame's colour means (session.js colours each picture by its step's outcome). -->
+                  <ul class="ss-spots-key" aria-label="What the colours mean">
+                    <li data-tone="run">Step in progress</li>
+                    <li data-tone="ok">Step passed</li>
+                    <li data-tone="bad">Step failed</li>
+                  </ul>
+                  <p class="ss-spots-note" id="ss-spots-note" hidden><span id="ss-spots-say"></span> <button type="button" class="ss-spots-all" id="ss-spots-all"></button></p>
                   <div class="ss-spots-strip" id="ss-spots-strip"></div>
                 </div>
               </div>
               <div class="ss-pane ss-requests" data-pane="requests" role="tabpanel" hidden>
                 <ol class="ss-req-list" id="ss-req-list"></ol>
                 <p class="ss-empty" id="ss-req-empty">Each API request appears here as it is sent — open one to see what was sent and what came back.</p>
+              </div>
+              <div class="ss-pane ss-console" data-pane="console" role="tabpanel" hidden>
+                <div class="ss-con-head" id="ss-con-head" hidden></div>
+                <ol class="ss-con-list" id="ss-con-list"></ol>
+                <p class="ss-empty" id="ss-con-empty">Console errors, warnings and failed calls from the browser appear here, step by step, as the run goes.</p>
+              </div>
+              <div class="ss-pane ss-cases" data-pane="cases" role="tabpanel" hidden>
+                <div class="tc" id="ss-tc"></div>
               </div>
             </aside>
           </div>
@@ -1355,16 +1380,18 @@
         <section class="view sessions" id="view-sessions" data-view="sessions" aria-labelledby="sn-title">
           <header class="sn-head">
             <h1 id="sn-title">Sessions</h1>
-            <a class="sn-new" id="sn-new" href="#/home"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>New session</a>
             <div class="sn-ctx" id="sn-ctx"></div>
+            <span class="sn-sep" aria-hidden="true"></span>
+            <a class="sn-screens" href="#/screens" title="Every screen spine.ai has walked, with its cases" aria-label="Screens"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg><span class="sn-btn-t">Screens</span></a>
+            <a class="sn-new" id="sn-new" href="#/home"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>New session</a>
           </header>
           <div class="sn-tools">
+            <div class="sn-filters" id="sn-filters" role="group" aria-label="Filter by status"></div>
             <label class="sn-search">
               <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
               <span class="sr-only">Search sessions by what was asked</span>
               <input type="search" id="sn-q" placeholder="Search by what was asked" autocomplete="off" spellcheck="false" />
             </label>
-            <div class="sn-filters" id="sn-filters" role="group" aria-label="Filter by status"></div>
           </div>
           <div class="sn-body" id="sn-body" aria-busy="true"></div>
           <p class="sr-only" id="sn-said" aria-live="polite"></p>
@@ -1499,10 +1526,13 @@
         </section>
 
         <!-- ── Screens (public/screens.js) ─────────────────────────────── -->
-        <section class="view" id="view-screens" data-view="screens">
-          <header class="view-head">
-            <h1>Screens</h1>
-            <p>spine.ai walks the events flow in its browser, photographs every section, numbers every control, learns what each one does to the product, and writes test cases from what it saw. Hover a picture to see what a control does; run any case and watch each action framed as it happens.</p>
+        <section class="view screens" id="view-screens" data-view="screens" aria-labelledby="scr-title">
+          <!-- Same header as Sessions and Bugs: the title and the client bar on one row
+               (screens.js moves the bar into #scr-ctx while this page is open). -->
+          <header class="scr-page-head">
+            <h1 id="scr-title">Screens</h1>
+            <div class="scr-ctx" id="scr-ctx"></div>
+            <p>Procol's event screens spine.ai has learned: a picture of each, what its controls do, and test cases.</p>
           </header>
           <div class="view-body" id="scr-root"><div class="loading">Loading…</div></div>
         </section>
@@ -1553,6 +1583,7 @@
     <script src="/plan.js"></script>
     <script src="/session.js"></script>
     <script src="/runCases.js"></script>
+    <script src="/runKeep.js"></script>
     <script src="/liveControl.js"></script>
     <script src="/sessions.js"></script>
     <script src="/bugsExport.js"></script>

@@ -3,6 +3,7 @@ import { BasePage } from "./BasePage.js";
 import { EventsPage } from "./EventsPage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
+import { released } from "../support/liveControl.js";
 
 /**
  * A published event's detail page (`/orders/:id`).
@@ -22,6 +23,16 @@ export class EventDetailPage extends BasePage {
     super(page);
   }
 
+  /** The project page has rendered: its spinner is gone and a stage tab or the Settings button shows (at most 45 s). */
+  async waitForProjectPage(): Promise<void> {
+    await this.waitForSpinnerHidden().catch(() => {});
+    await this.page
+      .locator(".ant-tabs-tab, [role='tab'], [data-testid='event-settings-button']")
+      .first()
+      .waitFor({ state: "visible", timeout: 45_000 })
+      .catch(() => {});
+  }
+
   private settingsButton() {
     const p = this.page;
     return [
@@ -32,13 +43,28 @@ export class EventDetailPage extends BasePage {
 
   /** True when this event offers the conversion (published, non-masked RFQ). */
   async canConvertToAuction(): Promise<boolean> {
+    // Right after publish the project page can sit on its loading spinner for a long while on UAT
+    // (23 Oct, D07: no tabs and no Settings yet, so "not offered"). Wait for it to render first.
+    await this.waitForProjectPage();
     await this.dismissDistractions();
-    const opened = await this.clickIfPresent(this.settingsButton(), {
+    let opened = await this.clickIfPresent(this.settingsButton(), {
       label: "event-settings",
       timeout: TIMEOUTS.SHORT,
     });
     if (!opened) {
-      this.lastReason = "no Settings button on this tab";
+      // The project's own tab (Project Details) has no Settings; the stage's tab does (21 Oct, B09:
+      // published RFQ, landed on /details, "Convert to Auction is not offered"). Go to it and look again.
+      const p = this.page;
+      const stageTab = p.getByRole("tab", { name: /^\s*(rfq|auction)\b/i }).or(p.locator(".ant-tabs-tab, [role='tab'], a").filter({ hasText: /^\s*RFQ\s*$/ })).first();
+      if (await stageTab.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await stageTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.waitForSpinnerHidden().catch(() => {});
+        await this.dismissDistractions();
+        opened = await this.clickIfPresent(this.settingsButton(), { label: "event-settings", timeout: TIMEOUTS.SHORT });
+      }
+    }
+    if (!opened) {
+      this.lastReason = "no Settings button on this tab or the stage's tab";
       return false;
     }
     // The Settings menu is an antd Dropdown rendered into a portal on
@@ -134,11 +160,17 @@ export class EventDetailPage extends BasePage {
    */
   async forceEnd(remark = "Closed by the QA platform"): Promise<string> {
     const p = this.page;
+    // The project page may still be loading after publish, and its tab bar is not always role=tab
+    // (23 Oct, D10: on /details the Settings wait timed out) — let it render, then match tab text too.
+    await this.waitForProjectPage();
     await this.dismissDistractions();
     // The Settings menu belongs to the stage tab, not the project summary.
     const onStage = await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").filter({ hasText: /rfq|auction|technical|rfp/i }).count();
     if (!onStage) {
-      const tab = p.getByRole("tab", { name: /^(rfq|auction|technical|rfp)\b/i }).first();
+      const tab = p
+        .getByRole("tab", { name: /^(rfq|auction|technical|rfp)\b/i })
+        .or(p.locator(".ant-tabs-tab, [role='tab'], a").filter({ hasText: /^\s*(RFQ|Auction|RFP|RFI|Technical Stage)\s*$/ }))
+        .first();
       if (await tab.count()) {
         await tab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         await this.waitForSpinnerHidden();
@@ -196,7 +228,35 @@ export class EventDetailPage extends BasePage {
     const p = this.page;
     const projectId = BasePage.projectIdFromUrl(p.url());
     const events = new EventsPage(p);
+    const projectUrl = projectId ? p.url().replace(/(\/project\/[^/?#]+).*$/, "$1/details") : "";
+    /**
+     * The event's own page first (29 Oct: the Events list drew a blank page and the wait failed at its search):
+     * a stage tab's header shows the countdown with a badge — "Live" while bidding, then "Evaluation time",
+     * "Expired" or "Closed" (seen on RFX-19478 / RFX-19391). Null when the page shows neither.
+     */
+    const readFromProject = async (): Promise<{ text: string; seconds: number | null; over: boolean } | null> => {
+      if (!projectUrl) return null;
+      await p.goto(projectUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
+      await p.getByRole("tab").first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
+      const stageTab = p.getByRole("tab").filter({ hasText: /^(rfq|rfp|auction|technical|reverse|forward)/i }).first();
+      if (await stageTab.count()) {
+        await stageTab.click().catch(() => {});
+        await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
+      }
+      await this.dismissDistractions().catch(() => false);
+      const head = ((await p.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      const live = /\blive\b/i.test(head.match(/\d+\s*[hm]\s*:\s*\d+\s*[ms][^A-Za-z]{0,20}([A-Za-z ]{0,20})/)?.[1] ?? "");
+      const badge = head.match(/\b(evaluation time|expired|closed|overdue|completed)\b/i)?.[1];
+      const m = head.match(/(?:(\d+)\s*h\s*:\s*)?(\d+)\s*m\s*:\s*(\d+)\s*s/i);
+      if (!m && !badge) return null;
+      const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+      const over = !!badge && !live;
+      console.log(`[close-event] event page: ${m ? m[0] : "no countdown"}${badge ? ` · ${badge}` : live ? " · Live" : ""} → ${over ? "window over" : seconds !== null ? `${seconds}s left` : "still live"}`);
+      return { text: `${m?.[0] ?? ""} ${badge ?? (live ? "Live" : "")}`.trim(), seconds: over ? 0 : seconds, over };
+    };
     const readRemaining = async (): Promise<{ text: string; seconds: number | null; over: boolean }> => {
+      const own = await readFromProject().catch(() => null);
+      if (own) return own;
       // A fresh load every time: the list caches, and a stale row reads as live.
       await events.goto();
       // The event this run just published is the newest, so it is at the top
@@ -217,9 +277,13 @@ export class EventDetailPage extends BasePage {
       // 2026-09-11 after a 2-minute window: "Ends in 1/1 RFQ in Progress 1").
       // So "live" means a countdown with a time in it; an ended state word
       // anywhere in the row also counts as over.
-      const liveCountdown = !!m;
-      const endedWord = /overdue|evaluat|closed|ended|history|completed|expired/i.test(row);
-      const over = row.length > 0 && (endedWord || (!liveCountdown && /ends in/i.test(row)));
+      // A countdown with time left is live, whatever else the row says: a live RFQ's row carries an
+      // "Evaluate RFQ Commercials" button, and "evaluat" read it as ended (21 Oct, B07: "Ends in
+      // 29m : 47s … Evaluate RFQ Commercials" was taken for a closed event, and the late bid was
+      // tried on a live one).
+      const liveCountdown = !!m && Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) > 0;
+      const endedWord = /overdue|evaluation (?:in progress|pending|started)|closed|ended|history|completed|expired/i.test(row);
+      const over = row.length > 0 && !liveCountdown && (endedWord || /ends in/i.test(row));
       const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
       console.log(`[close-event] row: ${row.slice(0, 140)} → ${over ? "window over" : seconds !== null ? `${seconds}s left` : "no countdown read"}`);
       return { text: row.slice(0, 160), seconds, over };
@@ -227,10 +291,17 @@ export class EventDetailPage extends BasePage {
     let state = await readRemaining();
     if (!state.over && state.seconds !== null && state.seconds > maxWaitMinutes * 60) {
       throw new Error(
-        `the bidding window still has ${Math.round(state.seconds / 60)} min to run and no force-end is offered on this tenant — publish with set_schedule{minutes: 3} for a closed-event case (row: ${state.text})`,
+        `the bidding window still has ${Math.round(state.seconds / 60)} min to run and no force-end is offered on this tenant — the app's shortest window is 30 min, so a closed-event case waits that long (row: ${state.text})`,
       );
     }
     const deadline = Date.now() + maxWaitMinutes * 60_000 + 30_000;
+    // Said under the step, so a half-hour wait does not read as a run that froze (Aanya, 26 Oct:
+    // "it gets stuck after I perform something and hand back").
+    const clock = (ms: number) => new Date(Date.now() + ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+    if (!state.over) {
+      const left = state.seconds !== null ? Math.ceil(state.seconds / 60) : null;
+      console.log(`[note] · Waiting for the bidding window to end${left !== null ? ` — about ${left} min, at ${clock(state.seconds! * 1000)}` : ""}. This client has no “End now”, so the event closes on its own time; the run carries on after that.`);
+    }
     while (!state.over && Date.now() < deadline) {
       // As long as the countdown says, plus a few seconds for the app to mark
       // it ended — one wait and one look, not a reload every 15 s. With no
@@ -239,10 +310,14 @@ export class EventDetailPage extends BasePage {
       const capped = Math.max(1_000, Math.min(wait, deadline - Date.now()));
       console.log(`[close-event] waiting ${Math.round(capped / 1000)} s for the bidding window to end`);
       await p.waitForTimeout(capped);
+      // The tester may hold the browser now: looking at the list again would pull it from under them.
+      await released();
       state = await readRemaining();
+      if (!state.over && state.seconds !== null) console.log(`[note] · Still waiting — about ${Math.ceil(state.seconds / 60)} min left (ends at ${clock(state.seconds * 1000)}).`);
     }
     if (!state.over) throw new Error(`the bidding window had not lapsed after ${maxWaitMinutes} min (row: ${state.text})`);
     // Back to the event.
+    await released();
     if (projectId) await events.openEvent({ id: projectId });
     return `window lapsed — the list row now reads: ${state.text}`;
   }

@@ -1,9 +1,10 @@
 import { NOISE_CONTAINER_TEXT } from "../src/oracle/noise.js";
 import { test } from "@playwright/test";
 import { startLiveFrames } from "../src/support/liveCursor.js";
+import { startRunVideo } from "../src/support/runVideo.js";
 import { orchestrate } from "../src/support/orchestrator.js";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { validatePlan } from "../src/plan/steps.js";
 import { runPlan } from "../src/plan/runPlan.js";
 import { EvidenceCollector } from "../src/oracle/evidence.js";
@@ -38,20 +39,105 @@ const planFile = process.env.UI_PLAN_FILE;
 
 test.skip(!planFile, "no UI_PLAN_FILE given");
 
-test("planned test case", async ({ page }) => {
+// The run's own record replaces Playwright's: a text record per step (observe.ts), a picture where a
+// step fails, and the full replay (trace) of a failed run kept beside its evidence — not in
+// test-results, which the next run wipes. No video: the live view is the moving picture.
+test.use({ trace: "off", video: "off", screenshot: "off" });
+
+/** The plan file, checked; throws when it cannot run. */
+function readPlan() {
   const parsed = JSON.parse(readFileSync(planFile!, "utf8"));
   const check = validatePlan(parsed);
   if (!check.ok) throw new Error(`the plan is not runnable: ${check.reason}`);
-  const plan = check.plan;
-  // A closed-event plan waits for a real bidding window to lapse — the
-  // product's smallest preset is 30 minutes and this tenant has no force-end.
-  // The default 6-minute test budget killed the wait at 137s; give such plans
-  // the time the product demands, and only such plans.
-  const waitsForWindow = plan.steps.some((st: { step: string }) => st.step === "close_event");
-  test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000);
+  return check.plan;
+}
+
+// A closed-event plan waits for a real bidding window to lapse — the
+// product's smallest preset is 30 minutes and this tenant has no force-end.
+// The default 6-minute test budget killed the wait at 137s; give such plans
+// the time the product demands, and only such plans.
+// 12 minutes for the rest, not 6: on a slow UAT day (23 Oct) a single invite took minutes and
+// the 6-minute budget closed the browser mid-step (A16 rerun), after the case's real check had passed.
+const budgetFor = (plan: { steps: Array<{ step: string }> }) => (plan.steps.some((st) => st.step === "close_event") ? 48 * 60_000 : 12 * 60_000);
+
+/** Sign in as the company the dashboard picked (see the comment where the plan signs in below). */
+async function signIn(page: import("@playwright/test").Page, buyerUserId?: number) {
+  if (process.env.UI_SHOW_LOGIN === "1") {
+    console.log("[plan] showing the login in this window before the plan runs");
+    const who = await loginOnScreen(page, companyId);
+    console.log(`[plan] signed in — ${who.how === "on-screen" ? "on screen" : `saved session (${who.fellBackBecause ?? "screen unavailable"})`}`);
+  } else if (companyId) {
+    const who = await loginAsCompany(page, companyId, buyerUserId || undefined);
+    console.log(`[plan] signed in as company ${companyId}${buyerUserId ? ` (user ${who.userId}, the API setup's buyer)` : ""}`);
+  }
+}
+
+/**
+ * WARM START (UI_PLAN_WAIT=1): the server starts this run the moment it starts compiling, so the
+ * browser opens and signs in while the case compiles (15–25 s) instead of after it (Aanya, 27 Oct:
+ * "too slow", "boring for the user watching"). The plan file is written when the compile is done;
+ * a `<run>-cancel.json` beside it means the server will not run a plan here after all (the case
+ * went to the explorer, or nothing could be compiled) and this run ends without testing anything.
+ */
+async function waitForPlan(limitMs: number): Promise<{ plan: ReturnType<typeof readPlan> } | { cancelled: string }> {
+  const cancelFile = planFile!.replace(/\.json$/, "-cancel.json");
+  const until = Date.now() + limitMs;
+  let said = false;
+  while (Date.now() < until) {
+    if (existsSync(cancelFile)) {
+      const why = (() => {
+        try {
+          return String(JSON.parse(readFileSync(cancelFile, "utf8")).why ?? "");
+        } catch {
+          return "";
+        }
+      })();
+      return { cancelled: why || "the server called it off" };
+    }
+    if (existsSync(planFile!)) {
+      try {
+        return { plan: readPlan() };
+      } catch (e) {
+        // Half-written: read it again on the next tick. A plan that cannot run throws once it is whole.
+        if (!/JSON|Unexpected end/i.test(String((e as Error).message))) throw e;
+      }
+    }
+    if (!said) {
+      console.log("[plan] signed in; waiting for the compiled steps");
+      said = true;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`the compiled steps did not arrive within ${Math.round(limitMs / 60_000)} min`);
+}
+
+test("planned test case", async ({ page }) => {
+  const warm = process.env.UI_PLAN_WAIT === "1";
+  // Warm: the budget covers the wait for the compile and the sign-in, and is set again once the plan is known.
+  let plan = warm ? null : readPlan();
+  test.setTimeout(plan ? budgetFor(plan) : 6 * 60_000);
 
   // Pop-ups are closed by one watcher in the page from the first screen on (support/orchestrator.ts).
   await orchestrate(page);
+  let stopFrames: (() => void) | null = null;
+  if (warm) {
+    // The live view from second one: the sign-in is what the tester sees while the case compiles.
+    stopFrames = startLiveFrames(page);
+    console.log("[plan] opening the browser and signing in while your case compiles");
+    const waitStarted = Date.now();
+    await signIn(page);
+    const got = await waitForPlan(5 * 60_000);
+    if ("cancelled" in got) {
+      console.log(`[plan] no plan to run in this browser — ${got.cancelled}`);
+      stopFrames();
+      return;
+    }
+    plan = got.plan;
+    test.setTimeout(Date.now() - waitStarted + budgetFor(plan) + 60_000);
+    // A plan on an API-built event runs as that event's buyer; the warm sign-in was the company's own.
+    if (process.env.UI_SHOW_LOGIN !== "1" && Number(plan.context?.buyerUserId)) await signIn(page, Number(plan.context?.buyerUserId));
+  }
+  if (!plan) throw new Error("no plan");
   const collector = new EvidenceCollector(page, `plan.${plan.title.replace(/\s+/g, "_").slice(0, 40)}`);
   await collector.installToastRecorder();
   collector.start();
@@ -69,7 +155,7 @@ test("planned test case", async ({ page }) => {
    */
   // The frames, plus one each time the pointer lands on an element before an
   // action, so every click and keystroke shows where it happened (liveCursor.ts).
-  let stopFrames: (() => void) | null = startLiveFrames(page);
+  if (!stopFrames) stopFrames = startLiveFrames(page);
 
   // Record the flow's real /api/* calls when asked (UI_RECORD_FLOW=<name>) —
   // no headers, so the token never lands on disk. Piggybacks on the run.
@@ -107,14 +193,15 @@ test("planned test case", async ({ page }) => {
   // company's session is dropped into the browser. Plans used to lean on the
   // saved clientA session instead — which ran every plan as clientA, and once
   // that session aged out, failed in the OTP setup before step 1.
-  if (process.env.UI_SHOW_LOGIN === "1") {
-    console.log("[plan] showing the login in this window before the plan runs");
-    const who = await loginOnScreen(page, companyId);
-    console.log(`[plan] signed in — ${who.how === "on-screen" ? "on screen" : `saved session (${who.fellBackBecause ?? "screen unavailable"})`}`);
-  } else if (companyId) {
-    const who = await loginAsCompany(page, companyId, Number(plan.context?.buyerUserId) || undefined);
-    console.log(`[plan] signed in as company ${companyId}${plan.context?.buyerUserId ? ` (user ${who.userId}, the API setup's buyer)` : ""}`);
-  }
+  // (A warm start signed in already, before its plan arrived.)
+  if (!warm) await signIn(page, Number(plan.context?.buyerUserId) || undefined);
+
+  // The full replay of the run (Playwright trace: each action, the page as it was, its requests),
+  // started after sign-in so no one-time code is in it, and kept only when the run fails.
+  const traceAt = join(process.cwd(), "evidence", String(process.env.QA_RUN_ID ?? "plan").replace(/[^\w.-]+/g, "_"), "trace.zip");
+  const tracing = await page.context().tracing.start({ snapshots: true, screenshots: false, sources: false }).then(() => true).catch(() => false);
+  // A video of the run, from the live view's own frames, kept only when it fails (runVideo.ts); no sign-in screen is in it.
+  const video = startRunVideo(dirname(traceAt));
 
   let failure: Error | null = null;
   let result;
@@ -170,6 +257,15 @@ test("planned test case", async ({ page }) => {
     failure = err instanceof Error ? err : new Error(String(err));
   }
 
+  // The screen the run ENDED on, kept as one picture numbered after the last step: a saved run's
+  // Browser panel shows its highest-numbered picture, and with pictures only where something went
+  // wrong that was a mid-run one (27 Oct: ZE5kY2RO had published, but the panel showed step 10's
+  // create screen and read as "done without publishing").
+  if (result?.steps?.length) {
+    const n = String(Math.min(99, result.steps.length + 1)).padStart(2, "0");
+    await page.screenshot({ path: join(dirname(traceAt), `${n}-end.png`) }).catch(() => {});
+  }
+
   watchdog.stop();
   if (stopFrames) {
     stopFrames();
@@ -190,9 +286,17 @@ test("planned test case", async ({ page }) => {
   const verdict = judge(evidence, failure, { expected: expectedSays });
   recordFinding(evidence, verdict);
 
+  let trace: string | undefined;
+  await video.finish(!!failure || (result ? !result.passed : true)).catch(() => null);
+  if (tracing) {
+    const keep = !!failure || (result ? !result.passed : true);
+    if (keep) mkdirSync(dirname(traceAt), { recursive: true });
+    trace = await page.context().tracing.stop(keep ? { path: traceAt } : undefined).then(() => (keep ? traceAt : undefined)).catch(() => undefined);
+    if (trace) console.log(`[plan] the full replay of this failed run is kept: ${trace}`);
+  }
   if (result && process.env.UI_PLAN_RESULT) {
     mkdirSync(dirname(process.env.UI_PLAN_RESULT), { recursive: true });
-    writeFileSync(process.env.UI_PLAN_RESULT, JSON.stringify({ ...result, verdict }, null, 2));
+    writeFileSync(process.env.UI_PLAN_RESULT, JSON.stringify({ ...result, verdict, ...(trace ? { trace } : {}) }, null, 2));
   }
   if (failure) {
     failure.message = `[${verdict.kind}] ${verdict.title}\n${verdict.rationale}\n\n${failure.message}`;

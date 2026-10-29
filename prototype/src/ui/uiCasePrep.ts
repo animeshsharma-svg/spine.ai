@@ -96,6 +96,19 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
       : "proposal";
     return r("awarded", screen, technical, `the case starts from an award proposal submitted for approval — built by API (award submitted into the approval workflow); opened on ${WHAT[screen] ?? "the award proposal page"}`);
   }
+  // A case that names its starting state as awarded / with an award proposal starts THERE, not
+  // from a closed event: "On an awarded event, create a purchase order…" (C05, 23 Oct) and "On
+  // an event with an award proposal…" were read as "an award case — closed".
+  if (/\b(on|from|for|of|in) (an?|the) awarded (event|rfq|rfp|rfx|round|stage)|\b(event|rfq|rfp|round) (that|which) (has been|is|was) awarded|\bafter (the )?award (is|has been|was) (submitted|made|done)/.test(setup)) {
+    const t2 = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+    const screen = /proposal/.test(t2) && !/purchase order|\bpo\b/.test(t2) ? "proposal" : /master qcs|\bqcs\b/.test(t2) ? "master_qcs" : "summary";
+    return r("awarded", screen, technical, `the case starts from an awarded event — built by API (award submitted); opened on ${WHAT[screen] ?? "the award proposal page"}`);
+  }
+  if (/\b(with|has|having) (an? |the )?(draft )?(award )?proposal\b|\b(an? |the )?(draft )?award proposal (exists|is (drafted|open|in draft))/.test(setup)) {
+    const t2 = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+    const screen = /master qcs|\bqcs\b|start awarding/.test(t2) ? "master_qcs" : "proposal";
+    return r("proposal", screen, technical, `the case starts from a draft award proposal — built by API (closed, line allocated); opened on ${WHAT[screen] ?? "the award proposal page"}`);
+  }
   if (/withdrawn/.test(setup)) return notBuilt("a withdrawn event");
   // auction SUBTYPES the API body does not choose yet (it builds a price-based english auction)
   if (/dutch|knock-?out|japanese/.test(setup)) return notBuilt("a dutch / knockout auction (the API setup builds a standard price auction)");

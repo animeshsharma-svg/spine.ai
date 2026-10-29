@@ -407,7 +407,15 @@ export class AwardPage extends BasePage {
     // few seconds after it renders (stuck screenshot 2026-09-11). Clear it
     // right before the click, not only when the page opened.
     await this.dismissDistractions();
-    await p.getByRole("button", { name: /create proposal/i }).first().scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    const create = p.getByRole("button", { name: /create proposal/i }).first();
+    await create.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    // The button sits in a loading state (pale, with a spinner) while the allocation saves — on
+    // 23 Oct (C03) a 1/1 award was on screen and the click gave up after 10 s on that spinner.
+    // Wait for it to be ready before pressing; say so if it never is.
+    const ready = async () =>
+      (await create.isEnabled().catch(() => false)) && !/\bant-btn-loading\b/.test((await create.getAttribute("class").catch(() => "")) ?? "");
+    for (let t = Date.now(); !(await ready()) && Date.now() - t < 45_000; ) await this.pause(1_000);
+    if (!(await ready())) throw new Error("Create Proposal stayed in its loading state for 45 s after the line items were allocated — the app did not finish saving the allocation");
     await this.click([p.getByRole("button", { name: /create proposal/i })], {
       label: "create-proposal",
       timeout: TIMEOUTS.MEDIUM,

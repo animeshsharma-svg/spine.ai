@@ -44,10 +44,13 @@
     ["turn", "Your turn"],
     ["broken", "Broken"],
     ["worked", "Worked"],
+    // Runs kept on purpose with Save at the end of the run (27 Oct).
+    ["saved", "Saved"],
   ];
   const FILTER_KEYS = new Set(FILTERS.map(([k]) => k));
 
   const st = {
+    saved: {},           // /api/run-save: the runs kept on purpose, by id
     runs: null,          // /api/runs, as it last answered
     err: false,
     query: "",
@@ -78,6 +81,7 @@
       const body = await res.json();
       if (seq !== loadSeq) return;
       st.runs = Array.isArray(body.runs) ? body.runs : [];
+      st.saved = await fetch("/api/run-save", { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).then((b) => b?.saved ?? {}).catch(() => ({}));
       st.err = false;
     } catch {
       if (seq !== loadSeq) return;
@@ -165,6 +169,7 @@
     : key === "turn" ? r.turn
     : key === "broken" ? r.status.cls === "bad"
     : key === "worked" ? r.status.cls === "ok"
+    : key === "saved" ? !!st.saved[r.id]
     : true;
 
   // ── the step strip ───────────────────────────────────────────────────────
@@ -299,7 +304,7 @@
     return (
       `<a class="sn-row" href="${h(R().sessionHref(row.id))}" data-id="${h(row.id)}" data-group="${h(group)}"${detail ? ' data-detail="1"' : ""}>` +
       `<span class="sn-dot${dot}" aria-hidden="true"></span>` +
-      `<span class="sn-text"><span class="sn-title" title="${h(row.title)}">${h(row.title)}</span>` +
+      `<span class="sn-text"><span class="sn-title" title="${h(row.title)}">${st.saved[row.id] ? `<span class="sn-star" title="Saved">★</span> ` : ""}${h(row.title)}</span>` +
       `<span class="sn-meta" title="${h(fullTime(row.startedAt))}">${h(metaOf(row, group))}</span></span>` +
       stripHtml(itemsFor(row)) +
       `<span class="sn-type">${h(row.type)}</span>` +
@@ -358,7 +363,7 @@
     box.innerHTML = FILTERS.map(
       ([key, label]) =>
         `<button type="button" class="sn-pill" data-status="${key}" aria-pressed="${st.status === key}">` +
-        `${h(label)}<span class="sn-n">${num(counts[key])}</span></button>`,
+        `${h(label)}<span class="sn-n${counts[key] ? "" : " is-zero"}">${num(counts[key])}</span></button>`,
     ).join("");
     if (had) box.querySelector(`[data-status="${had}"]`)?.focus();
   }
@@ -584,6 +589,7 @@
 
   // ── keeping it current ───────────────────────────────────────────────────
   function enter() {
+    void paintWait();
     placeClientBar();
     st.status = statusFromHash();
     const box = q$("#sn-q");
@@ -612,7 +618,67 @@
     }
   }
 
+  /**
+   * WAITING FOR YOU — a run that asked a question, whichever tab started it (Aanya, 27 Oct: "it says
+   * waiting for your answer, but I don't see any session waiting for my answer"). A run started from
+   * another tab, or from a tab since reloaded, asked into a stream nobody read. The server keeps the
+   * open question on the browser slot (/api/run-state running.ask); it is shown and answered here.
+   */
+  let waitSig = "";
+  function waitShort(t) {
+    const x = String(t ?? "").replace(/\s+/g, " ").trim();
+    const tried = x.match(/\(I tried on screen and stopped: ([^)]+)\)/i);
+    if (tried) return `${tried[1].trim().replace(/[.\s]+$/, "")}. How should I go on?`;
+    if (x.length <= 200) return x;
+    return x.match(/^(.{40,200}?[.?!])(\s|$)/)?.[1] ?? `${x.slice(0, 190)}…`;
+  }
+  async function paintWait() {
+    const box = q$("#sn-wait");
+    if (!box) return;
+    let ask = null;
+    try {
+      ask = (await (await fetch("/api/run-state", { cache: "no-store" })).json())?.running?.ask ?? null;
+    } catch {
+      return; // the server is restarting: keep what is shown
+    }
+    const sig = ask ? `${ask.runId}|${ask.n}` : "";
+    if (sig === waitSig) return;
+    waitSig = sig;
+    box.hidden = !ask;
+    if (!ask) return void (box.innerHTML = "");
+    const mine = window.spineSession?.open && window.spineSession?.turn?.runId === ask.runId;
+    const short = waitShort(ask.question);
+    box.innerHTML =
+      `<div class="sn-wait-h"><span class="sn-wait-dot" aria-hidden="true"></span>Waiting for your answer` +
+      `<span class="sn-wait-run">${h(ask.runId)}</span>${mine ? `<a class="sn-wait-open" href="#/session/${encodeURIComponent(window.spineSession.id)}">Open its session</a>` : ""}</div>` +
+      `<div class="sn-wait-q">${h(short)}</div>` +
+      (short !== String(ask.question ?? "").replace(/\s+/g, " ").trim() ? `<details class="sn-wait-more"><summary>More</summary><div>${h(ask.question)}</div></details>` : "") +
+      `<div class="sn-wait-opts">${(ask.options ?? []).filter((o) => o.id !== "self").map((o) => `<button type="button" class="sn-wait-opt${o.id === "stop" ? " stop" : ""}" data-opt="${h(o.id)}">${h(o.label)}</button>`).join("")}</div>` +
+      `<form class="sn-wait-other"><input type="text" maxlength="2000" placeholder="Or type what to do" aria-label="Your answer" /><button type="submit">Send</button></form>` +
+      `<div class="sn-wait-said" hidden></div>`;
+    const send = async (option, text) => {
+      box.querySelectorAll("button, input").forEach((x) => (x.disabled = true));
+      const ok = await fetch("/api/explore/answer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: ask.runId, n: ask.n, option, text }) })
+        .then(async (r) => r.ok && (await r.json().catch(() => ({}))).ok === true)
+        .catch(() => false);
+      const said = q$(".sn-wait-said", box);
+      said.hidden = false;
+      said.textContent = ok ? `Answered: “${text}”. The run carries on.` : "The run is no longer waiting for this answer.";
+    };
+    box.querySelectorAll(".sn-wait-opt").forEach((b) => b.addEventListener("click", () => send(b.dataset.opt, b.textContent)));
+    q$(".sn-wait-other", box)?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = q$(".sn-wait-other input", box).value.trim();
+      if (text) send(null, text);
+    });
+  }
+
   function init() {
+    // The waiting card sits above the list (see paintWait).
+    q$("#sn-body")?.insertAdjacentHTML("beforebegin", `<div class="sn-wait" id="sn-wait" role="group" aria-label="A run is waiting for your answer" hidden></div>`);
+    setInterval(() => {
+      if (onPage() && document.visibilityState === "visible") void paintWait();
+    }, 3000);
     const box = q$("#sn-q");
     let typing = null;
     box?.addEventListener("input", () => {

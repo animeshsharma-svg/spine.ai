@@ -6,6 +6,7 @@ import { recall } from "../rag/knowledgeBase.js";
 import { caseById, caseAsProse } from "../checks/testCatalog.js";
 import { recordVocabularyGaps } from "./vocabularyGaps.js";
 import { qaVendorsOnly } from "../checks/eventVendors.js";
+import { prepFor } from "../ui/uiCasePrep.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(here, "..", "..", "..", "procol-ui-tests", "plan-catalog.json");
@@ -161,11 +162,41 @@ export function labelIsKnown(word: string, labels: Record<string, string[]> | un
  * as them cannot work.
  */
 
+/** A case whose event starts from a purchase request: "from a PR", "PR to event", "convert the requisition". */
+const FROM_PR = /\b(from|using|out of|based on|against|convert(?:ing)?)\s+(?:an?\s+|the\s+|approved\s+|existing\s+)*(pr|prs|purchase[- ]?requests?|purchase[- ]?requisitions?|requisitions?|indents?)\b|\b(pr|purchase[- ]?request|requisition)\s*(?:to|→|->)\s*(?:an?\s+)?(event|rfq|rfp|rfx|auction|erfx)\b/i;
+/**
+ * Picking a PR and making an event of it, in any order of words: "Select a PR with 2 line items, create an
+ * RFQ event from it and publish it" (Aanya's case 5, 27 Oct) had neither "from a PR" nor "PR → event".
+ */
+const PICKS_PR = /\b(select|pick|choose|tick|take|use)\s+(?:an?\s+|the\s+|one\s+|any\s+|existing\s+|approved\s+|open\s+)*(pr|prs|purchase[- ]?requests?|purchase[- ]?requisitions?|requisitions?|indents?)\b|\b(pr|purchase[- ]?requisition|requisition|indent)\s+with\s+(\d+|one|two|three|four|five)\s+(line[- ]?)?items?\b/i;
+const MAKES_EVENT = /\b(create|make|start|raise|build|publish|convert)\b[^.;]*\b(event|rfq|rfp|rfx|auction|project|technical)\b/i;
+/**
+ * The case starts its event from a PR: its words say so, or the plan both starts at Purchase Requisitions
+ * and makes an event (a check of the PR list alone — "tick a PR, Purchase Items turns on" — is not one).
+ */
+function startsFromPr(testCase: string, steps: PlanStep[] = []): boolean {
+  const prStart = steps.some((st) => ["open_purchase_requisitions", "select_pr", "purchase_items", "choose_stages"].includes(st.step));
+  const makes = steps.some((st) => ["choose_stages", "publish", "save_draft", "set_schedule", "invite_vendor"].includes(st.step));
+  return FROM_PR.test(testCase) || (PICKS_PR.test(testCase) && MAKES_EVENT.test(testCase)) || (prStart && makes);
+}
+/** What the run does on screen first for such a case (runPlan do_on_screen). */
+/** A case that scores a vendor's technical response: evaluation, an evaluator, a technical score. */
+const EVALUATES = /\b(evaluat(?:e|es|ed|ing|ion)|technical (score|scoring|response score))\b|\bscore (the |a |each )?(vendor'?s? )?(technical|tech) (response|answer|bid)/i;
+/** A case that scores a response — not a publish case that only names the evaluator setup ("publishing without an evaluator is refused"). */
+function evaluates(testCase: string): boolean {
+  if (!EVALUATES.test(testCase)) return false;
+  return !(/\bpublish/i.test(testCase) && /\b(refused|blocked|rejected|prevented|disabled|without|missing|no)\b/i.test(testCase));
+}
+/** What the run does on screen for the scoring itself (runPlan do_on_screen); this account is the client's evaluator. */
+const EVALUATE_GOAL = "as the evaluator (this account), open the technical stage's evaluation, score the vendor's technical response and submit the evaluation; stop when the screen shows the evaluation saved or submitted";
+
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
 - Is it about an EXISTING event (open it, inspect its participants / bids / status, act on it)? Then start with open_event{title|id} and STOP adding create steps — no open_create, no set_title. open_event lands on the event's project page.
 - Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
   EXCEPT when the case also says an event the test itself publishes ("a just-published event", "a newly created event") must show up in the list: the list can only be checked for this plan's own event. Then build and publish that event first (the create steps below, through publish and expect_published), then open_events_list, filter_events as the case asks, and expect_event_in_list with NO title — it looks for this plan's own event.
+- Does the event START FROM A PURCHASE REQUEST (a PR, requisition or indent: "from a PR", "from the existing PR", "convert the PR")? Then it starts open_purchase_requisitions, pr_tab{tab:"Open"}, select_pr, purchase_items, choose_stages (stages ONLY if the case names the event: "technical event" → ["rfp"], "technical + RFQ" → ["rfp","rfq"]; with none the run asks the tester), expect_pr_items, then each named stage's steps (switch_stage when more than one, select_template, fill_questionnaires + assign_evaluator for Technical, fill_sheet for RFQ / Auction). "A PR with 2 line items" → select_pr{items:2}. Never open_create, compose_stages, add_line_items or expect_line_items for it: it is made from the PR and keeps its items (one PR line can become several items on the create screen). Carry on with set_title, set_schedule, invite_vendor, publish and what the case asks after.
+- Does the case EVALUATE (an evaluation, an evaluator, a technical score)? Evaluation happens on a TECHNICAL stage, after its window closes, on a vendor's technical answer. With no event named and none created by the plan: open_event{purpose:"evaluation"} (the run picks an event whose technical stage has closed with a vendor's answer waiting), then go_to{screen:"stage", stage:"rfp"}, then do_on_screen{goal:"${EVALUATE_GOAL}"} (this account is the client's evaluator). NEVER close_event an event the plan did not create. When the plan creates its own event for an evaluation, it must compose a technical stage (rfp) and assign_evaluator.
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
@@ -280,6 +311,35 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // "invite 2 vendors" is two (27 Oct, VB04: the model invited 3 on a two-stage case, twice, and then counted 2):
+  // the invite's count is the number the case gives, when it gives one and names none.
+  const WORDS: Record<string, number> = { one: 1, a: 1, an: 1, two: 2, three: 3, four: 4, five: 5 };
+  const said = testCase.match(/\binvit(?:e|es|ing)\s+(\d+|one|a|an|two|three|four|five)\s+vendors?\b/i);
+  if (said) {
+    const n = /^\d+$/.test(said[1]) ? Number(said[1]) : WORDS[said[1].toLowerCase()];
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      if (st.step !== "invite_vendor" || (Array.isArray(st.args?.vendors) && (st.args?.vendors as unknown[]).length)) continue;
+      if (st.args?.count !== undefined && Number(st.args.count) !== n) {
+        repairs.push(`invite_vendor count ${st.args.count} → ${n} — the case says “${said[0]}”`);
+        steps[i] = { ...st, args: { ...(st.args ?? {}), count: n } };
+      }
+    }
+  }
+
+  // "…publish it and wait for it to close" (D54, 23 Oct) came back as ask_tester{"wait for the
+  // RFQ's three-minute bidding window to expire…"} where close_event belongs: close_event IS the
+  // wait (natural: never the force-end), and the explorer the question was handed to took the
+  // waiting for going round in circles, so the case never finished.
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    const need = String(st.args?.need ?? st.args?.question ?? "");
+    if (st.step === "ask_tester" && /\bwait\b[^.]{0,80}\b(window|bidding|event|rfq|auction|round|stage|it)\b[^.]{0,60}\b(close|expire|end|lapse|finish)/i.test(need)) {
+      steps[i] = { step: "close_event", args: { natural: true }, note: st.note };
+      repairs.push("ask_tester → close_event{natural} — waiting for the bidding window to close is close_event's job, not a question for the tester");
+    }
+  }
+
   // reschedule_event judges the Reschedule dialog's own answer (its field message, the save
   // call) and then CLOSES the dialog. A check of a dialog field after it can only fail ("no
   // field 'Make Order Live At' on screen" — UI-EVDTME-002), so it is folded into the step's
@@ -352,6 +412,24 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const bridged = bridgeLifecycle(steps, (plan as { context?: { state?: string } }).context?.state);
     steps.splice(0, steps.length, ...bridged.steps);
     repairs.push(...bridged.repairs);
+  }
+
+  // "On an awarded event, create a purchase order…" (C05, 23 Oct) compiled to open_event with no
+  // id or title, so the run looked through the Live list for an event open for quotes — an
+  // awarded event or one with an award proposal is never there, and it stopped to ask. A case
+  // that starts from those states opens one built for it instead: open_prepared, which
+  // /api/plan-run builds from the case's own words (uiCasePrep.prepFor). Bid / closed cases keep
+  // open_event — the run's pick finds those among existing events.
+  if (!has("open_prepared") && has("open_event") && !has("open_create") && !has("set_title") && !has("publish")) {
+    const at = indexOf("open_event");
+    const oe = steps[at];
+    if (!oe.args?.id && !oe.args?.title) {
+      const p = prepFor({ id: "typed", group: "", title: testCase, setup: testCase, steps: "", expected: "" });
+      if (p.ok && p.prepared && (p.state === "awarded" || p.state === "proposal")) {
+        steps[at] = { step: "open_prepared", args: { screen: p.screen }, note: `the API builds the ${p.state} event this case starts from` };
+        repairs.push(`open_event → open_prepared(${p.screen}) — the case starts from ${p.state === "awarded" ? "an awarded event" : "an award proposal"}, which the run's pick never finds among live events; the API builds it`);
+      }
+    }
   }
 
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
@@ -615,10 +693,111 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(`added compose_stages(${wanted.join(", ")}) — the screen defaults to an Auction stage, so this test would have run against the wrong stage`);
   }
 
-  if (!has("open_create")) {
+  /**
+   * Only a plan that creates an event gets the create screen opened for it.
+   * A Decathlon PO-visibility case ("open the PO list, check each row…") came
+   * back as open_create erfx + set_title + ask_tester — an event screen for a
+   * case about purchase orders (21 Oct, "ask tester — eww").
+   */
+  /**
+   * AN EVENT MADE FROM A PURCHASE REQUEST STARTS ON THE PR (Aanya, 26 Oct: "why does it
+   * directly go to event, it should go to pr"). This pass used to put open_create first on
+   * every create plan, so "create an event from a PR…" opened a blank event and asked the
+   * tester for the PR part afterwards, when it could no longer make the event from the PR.
+   * No catalog step opens a PR, so the run works that part out on screen (do_on_screen,
+   * tested only when the screen proves it), first; the create screen it lands on already
+   * holds the PR's line items, so the template / line-item steps would only replace them.
+   */
+  const fromPr = startsFromPr(testCase, steps);
+  if (fromPr) {
+    // create_from_pr does the whole start: Purchase Requisitions → Open → tick a PR → Purchase Items →
+    // Start New Project → the stages → create, then each stage's template, questionnaires/evaluator or
+    // sheet (Aanya, 26 Oct). The stages are the ones the case names; with none, the run asks which.
+    // The stages the case names: the model's choose_stages or compose_stages, else the case's words.
+    const named =
+      (steps.find((st) => st.step === "choose_stages")?.args?.stages as string[] | undefined) ??
+      (steps.find((st) => st.step === "compose_stages")?.args?.stages as string[] | undefined) ??
+      [];
+    const fromText: string[] = [];
+    if (/\btechnical|\brfp\b/i.test(testCase)) fromText.push("rfp");
+    if (/\brfq\b/i.test(testCase)) fromText.push("rfq");
+    if (/\bauction\b/i.test(testCase)) fromText.push("auction");
+    const stages = (named.length ? named : fromText).filter((x) => ["rfp", "rfq", "auction"].includes(x));
+    // Everything the PR start and the stage rows below do, wherever the model put it: added once, in order.
+    // expect_line_items too: a PR's items are counted by expect_pr_items — one service line on the PR can
+    // become two items on the create screen, so a literal count failed a PR → RFQ run (27 Oct, plan-mvpnwryi).
+    const handled = ["open_create", "compose_stages", "switch_stage", "select_template", "add_line_items", "remove_line_items", "fill_sheet", "fill_questionnaires", "assign_evaluator", "configure_single_stage",
+      "open_purchase_requisitions", "pr_tab", "select_pr", "purchase_items", "choose_stages", "expect_pr_items", "expect_line_items"];
+    // "a PR with 2 line items" (Aanya's case 5, 27 Oct): select_pr ticks that many rows of one PR.
+    const WORD_N: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+    const nItems = testCase.match(/\b(\d+|one|two|three|four|five)\s+(?:pr\s+)?(?:line[- ]?items?|items|lines)\b/i)?.[1]?.toLowerCase();
+    const items = nItems ? Number(nItems) || WORD_N[nItems] : 0;
+    const prArgs = { ...((steps.find((st) => st.step === "select_pr")?.args as Record<string, unknown> | undefined) ?? {}), ...(items > 1 ? { items } : {}) };
+    const prPart = (st: PlanStep) => (st.step === "ask_tester" || st.step === "do_on_screen") && /\b(pr|purchase[- ]?req|requisition|indent)/i.test(String(st.args?.need ?? st.args?.goal ?? ""));
+    const before = steps.length;
+    for (let i = steps.length - 1; i >= 0; i--) if (handled.includes(steps[i].step) || prPart(steps[i])) steps.splice(i, 1);
+    // One row per screen action (Aanya, 26 Oct: "break it into steps like u did for events"), then
+    // each named stage's own steps; with no stages named, choose_stages asks and adds them at run time.
+    const stageRows: PlanStep[] = [];
+    for (const stage of stages) {
+      if (stages.length > 1) stageRows.push({ step: "switch_stage", args: { stage } });
+      stageRows.push({ step: "select_template" });
+      if (stage === "rfp") stageRows.push({ step: "fill_questionnaires" }, { step: "assign_evaluator" });
+      else stageRows.push({ step: "fill_sheet" });
+    }
+    steps.unshift(
+      { step: "open_purchase_requisitions" },
+      { step: "pr_tab", args: { tab: "Open" } },
+      { step: "select_pr", ...(Object.keys(prArgs).length ? { args: prArgs } : {}) },
+      { step: "purchase_items" },
+      { step: "choose_stages", args: stages.length ? { stages } : {} },
+      { step: "expect_pr_items" },
+      ...stageRows,
+    );
+    repairs.push(
+      `starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → ${stages.length ? stages.join(" + ") : "the stages the tester picks"}); dropped ${before - steps.length + 6 + stageRows.length} step(s) that would open a blank event or replace the PR's items`,
+    );
+  }
+  /**
+   * A SURROGATE BID THE CASE EXPECTS PROCOL TO REFUSE (27 Oct, surrogate-bid suite): "try to place a surrogate
+   * bid of -50" or "…on a technical-only event". One try, after the Participants list — never a real bid placed
+   * before it: SB10 compiled place_surrogate_bid (a real bid) and then attempt{-50}, so Add Bid was already gone
+   * and the "refusal" was for the wrong reason. Where no bid can exist at all (a technical stage, a closed or
+   * awarded round) the check is the missing Add Bid (expect_count 0 / expect_participant addBid:false), and a
+   * plain place_surrogate_bid there only stops the run before that check.
+   */
+  const bidMentions = (testCase.match(/surrogate bids?\b/gi) ?? []).length;
+  const triesBid = /\b(try|tries|trying|attempts?|attempting)\s+(?:to\s+)?(?:place|enter|submit|add|make)\s+(?:a\s+|the\s+|one\s+)?surrogate bid/i.test(testCase);
+  if (triesBid && bidMentions === 1) {
+    const isPlain = (st: PlanStep) => st.step === "place_surrogate_bid";
+    const isTry = (st: PlanStep) => st.step === "attempt" && st.args?.step === "place_surrogate_bid";
+    const absenceCheck = steps.some((st) => (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? st.args?.text ?? "")) && Number(st.args?.count ?? st.args?.max ?? 1) === 0) || (st.step === "expect_participant" && st.args?.addBid === false));
+    const plainAt = steps.map((st, k) => (isPlain(st) ? k : -1)).filter((k) => k >= 0);
+    if (plainAt.length && (absenceCheck || steps.some(isTry))) {
+      for (const k of plainAt.reverse()) steps.splice(k, 1);
+      repairs.push(`dropped ${plainAt.length} real surrogate bid(s) before the refused try — the case places none`);
+    } else if (plainAt.length) {
+      const last = plainAt[plainAt.length - 1];
+      steps[last] = { step: "attempt", args: { step: "place_surrogate_bid", args: (steps[last].args as Record<string, unknown>) ?? {}, expect: "refused" } };
+      for (const k of plainAt.slice(0, -1).reverse()) steps.splice(k, 1);
+      repairs.push("the surrogate bid the case tries is an attempt Procol must refuse, not a real bid");
+    }
+    const tryAt = steps.findIndex((st) => isTry(st) || (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? ""))));
+    if (tryAt >= 0 && !steps.slice(0, tryAt).some((st) => st.step === "open_participants")) {
+      steps.splice(tryAt, 0, { step: "open_participants" });
+      repairs.push("opened Participants before the surrogate-bid check (Add Bid lives there)");
+    }
+  }
+  const CREATE_STEP = /^(compose_stages|switch_stage|select_template|add_line_items|remove_line_items|fill_sheet|fill_questionnaires|assign_evaluator|set_schedule|invite_vendor|publish|save_draft|expect_publish_blocked|configure_single_stage|expect_stages|expect_line_items)$/;
+  const createsEvent =
+    steps.some((st) => CREATE_STEP.test(st.step)) ||
+    /\b(create|publish|draft|compose)\b[^.\n]{0,60}\b(event|rfq|rfp|auction|erfx|project|stage)\b/i.test(testCase);
+  if (fromPr) {
+    // The PR's own create screen is the start (above); a blank one would undo it.
+  } else if (!has("open_create") && createsEvent) {
     steps.unshift({ step: "open_create", args: { path: "erfx" } });
     repairs.push("added open_create — every create test has to start somewhere");
-  } else if (indexOf("open_create") !== 0) {
+  } else if (has("open_create") && indexOf("open_create") !== 0) {
     // Present but not first. Every other step acts on the create screen, so
     // anything before it runs against whatever page happens to be open.
     const [open] = steps.splice(indexOf("open_create"), 1);
@@ -772,8 +951,20 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // Bids for N vendors need N vendors on the event: the product removes a vendor's Add Bid once
   // that vendor has bid, so a second surrogate bid with one participant found nobody (E4, 2026-10-21).
   {
+    // …ONCE PER STAGE: on a two-stage event the same vendor answers the technical stage and then quotes the RFQ
+    // (27 Oct, VB04: a portal bid + a surrogate technical answer + a surrogate price for the other vendor are
+    // two vendors, not three). place_bid covers both stages; a surrogate step with stage "rfp" is the technical one.
     const bids = steps.filter((st) => st.step === "place_surrogate_bid" || st.step === "place_bid");
-    const distinct = new Set(bids.map((st, i) => String(st.args?.vendor ?? `#${i}`))).size;
+    // compose_stages on a blank event, choose_stages on an event made from a PR (29 Oct: a PR plan invited 3 for 2).
+    const twoStage = steps.some((st) => (st.step === "compose_stages" || st.step === "choose_stages") && Array.isArray(st.args?.stages) && (st.args!.stages as unknown[]).length > 1);
+    const perStage = new Map<string, Set<string>>();
+    bids.forEach((st, i) => {
+      const who = String(st.args?.vendor ?? `#${i}`);
+      const tech = /^(rfp|technical)/i.test(String(st.args?.stage ?? ""));
+      const keys = !twoStage ? ["one"] : st.step === "place_bid" ? ["technical", "pricing"] : [tech ? "technical" : "pricing"];
+      for (const k of keys) (perStage.get(k) ?? perStage.set(k, new Set()).get(k)!).add(st.step === "place_bid" && twoStage ? `portal#${i}` : who);
+    });
+    const distinct = Math.max(0, ...[...perStage.values()].map((v) => v.size));
     const inv = steps.find((st) => st.step === "invite_vendor");
     if (inv && distinct > 1) {
       const names = Array.isArray(inv.args?.names) ? (inv.args!.names as unknown[]).length : Array.isArray(inv.args?.vendors) ? (inv.args!.vendors as unknown[]).length : 0;
@@ -906,7 +1097,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     steps[indexOf("place_surrogate_bid")] = { step: "place_bid", note: "the test asks the vendor to bid for themselves" };
     repairs.push("swapped place_surrogate_bid for place_bid — the test asks the VENDOR to sign in and bid");
   }
-  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid")) {
+  // A case that only TRIES a bid Procol must refuse (an attempt, or the missing Add Bid as the check) places
+  // none: adding one here put a real bid before SB08's / SB10's refusal check (27 Oct).
+  const triesOnly = steps.some((st) => (st.step === "attempt" && /^place_(surrogate_)?bid$/.test(String(st.args?.step ?? ""))) || (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? st.args?.text ?? "")) && Number(st.args?.count ?? st.args?.max ?? 1) === 0) || (st.step === "expect_participant" && st.args?.addBid === false && !/\b(then|after)\b/i.test(testCase)));
+  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly) {
     const step = wantsSurrogate ? "place_surrogate_bid" : "place_bid";
     const at = has("expect_published") ? indexOf("expect_published") + 1 : has("publish") ? indexOf("publish") + 1 : steps.length;
     steps.splice(at, 0, { step });
@@ -945,7 +1139,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
 
   // A nameless event is refused at publish, and the title is also how a human
   // finds the event afterwards.
-  if (!accounted("set_title")) {
+  if (!accounted("set_title") && has("open_create")) {
     const after = Math.max(indexOf("open_create"), indexOf("compose_stages"));
     steps.splice(after + 1, 0, { step: "set_title" });
     repairs.push("added set_title — publishing without a title is refused");
@@ -1007,7 +1201,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   }
 
   if (stages.length <= 1 && submits) {
-    if (wantsTrade && has("add_line_items") && !accounted("fill_sheet")) {
+    // A single-stage RFP's template is a questionnaire: it has no price sheet to fill (A13, 21 Oct).
+    const singleStageRfp = steps.some((st) => st.step === "configure_single_stage" && /rfp/i.test(String(st.args?.eventType ?? "")));
+    if (wantsTrade && !singleStageRfp && has("add_line_items") && !accounted("fill_sheet")) {
       const at = indexOf("expect_line_items") >= 0 ? indexOf("expect_line_items") + 1 : indexOf("add_line_items") + 1;
       steps.splice(at, 0, { step: "fill_sheet" });
       repairs.push("added fill_sheet — a pricing stage will not publish with an unfilled sheet");
@@ -1070,8 +1266,11 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       const missing: TestPlan["steps"] = [];
       // …unless the case leaves that step out ON PURPOSE (skip): "a stage with no template" must
       // stay without one — putting it back turned UI-TPL-004 into an ordinary create
-      if (!skipped.has("select_template") && (at("select_template") < 0 || at("select_template") > firstNeedy)) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
-      if (!skipped.has("add_line_items") && (at("add_line_items") < 0 || at("add_line_items") > firstNeedy)) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
+      // An event made from a PR already holds the PR's items (and its template, unless the plan adds a
+      // stage): putting add_line_items back in front of publish replaced them (26 Oct).
+      const prTemplateNeeded = !fromPr; // a PR plan's template is placed with its stage, above
+      if (prTemplateNeeded && !skipped.has("select_template") && (at("select_template") < 0 || at("select_template") > firstNeedy)) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
+      if (!fromPr && !skipped.has("add_line_items") && (at("add_line_items") < 0 || at("add_line_items") > firstNeedy)) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
       if (missing.length) {
         steps.splice(firstNeedy, 0, ...missing);
         repairs.push(`inserted ${missing.map((m) => m.step).join(" + ")} before ${steps[firstNeedy + missing.length].step} — the create screen locks Participants and Publish until a template is chosen and a product added`);
@@ -1091,6 +1290,19 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // Evaluators are assigned per line item: on a technical stage the line items come before its
+  // questionnaires and its evaluator. The insert above put add_line_items before set_schedule,
+  // i.e. AFTER assign_evaluator, and "no evaluator could be assigned" (B08, 21 Oct).
+  {
+    const li = steps.findIndex((st) => st.step === "add_line_items");
+    const tech = steps.findIndex((st, k) => k < li && (st.step === "fill_questionnaires" || st.step === "assign_evaluator"));
+    if (li >= 0 && tech >= 0) {
+      const [item] = steps.splice(li, 1);
+      steps.splice(tech, 0, item);
+      repairs.push("moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item");
+    }
+  }
+
   // The SINGLE-STAGE create screen opens with Event Type = RFP, whose templates are questionnaires
   // with no price sheet. A priced plan must set the event type before choosing a template.
   {
@@ -1103,6 +1315,29 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       const at = tpl > oc ? tpl : oc + 1;
       steps.splice(at, 0, { step: "configure_single_stage", args: { eventType }, note: "a priced single-stage event needs its type set before a template (the screen opens as RFP)" });
       repairs.push(`inserted configure_single_stage{eventType:${eventType}} — the single-stage screen opens as RFP, whose templates have no price sheet`);
+    }
+  }
+
+  /**
+   * ON-SCREEN PARTS THAT A STEP ALREADY DOES (27 Oct, surrogate suite): the explorer went round in circles
+   * on each of these, where a fixed step answers in seconds.
+   *  - "make sure exactly one vendor is selected" after invite_vendor{count}: the invite already did it;
+   *  - "the vendor's row no longer offers Add Bid": expect_participant{addBid:false};
+   *  - "open Add Bid and submit with no price": attempt{place_surrogate_bid{noPrice:true}}.
+   */
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const st = steps[i];
+    if (st.step !== "do_on_screen") continue;
+    const goal = String(st.args?.goal ?? "");
+    if (/exactly (one|1|\d+) (invited )?(vendors?|participants?)/i.test(goal) && /\b(select|invite|retain|remov|participant)/i.test(goal) && steps.slice(0, i).some((x) => x.step === "invite_vendor")) {
+      steps.splice(i, 1);
+      repairs.push("dropped an on-screen check that the vendor count is right — invite_vendor{count} already sets it");
+    } else if (/no longer offers? add bid|add bid (is )?(gone|absent|no longer|not offered)|(without|no) add bid/i.test(goal)) {
+      steps[i] = { step: "expect_participant", args: { addBid: false }, note: "the row no longer offers Add Bid" };
+      repairs.push("checked the missing Add Bid with expect_participant{addBid:false}, not on screen");
+    } else if (/add bid/i.test(goal) && /(without|no|empty|blank)\s+(entering\s+)?(a\s+|any\s+)?price/i.test(goal)) {
+      steps[i] = { step: "attempt", args: { step: "place_surrogate_bid", args: { noPrice: true }, expect: "refused" }, note: "a bid with no price" };
+      repairs.push("submitted the bid with no price through place_surrogate_bid{noPrice}, not on screen");
     }
   }
 
@@ -1270,6 +1505,41 @@ function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
 - On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
 - Use expect_toast for a toast, expect_field_error for an error at a field, expect_navigated after a click that should move the screen, expect_order for order/sorting, expect_disabled/expect_enabled for control state, expect_visible/expect_text/expect_count for presence and absence, expect_screen_clean when the case is about the screen rendering correctly.
 - If the case needs a state this one is not (e.g. a second vendor, a setting flipped, a different event type), say so in cannotExpress and set coverage "partial" or "none".${p.examples ? `\n\n${p.examples}` : ""}`;
+}
+
+/**
+ * A DRAFT PLAN IN UNDER A SECOND, no model (Aanya, 26 Oct: "this feels so slow and boring for the user
+ * watching the journey"). The compile takes 15–25 s; this is what the session shows meanwhile, marked as
+ * a draft — the compiled plan replaces it. It is the same repairs lintPlan applies to every plan, run on
+ * the generic create plan (or, for an evaluation of an existing event, on the evaluation skeleton), so a
+ * PR case already reads Purchase Requisitions → Open → tick a PR → Purchase Items → … here.
+ */
+export function quickOutline(testCase: string): { title: string; steps: PlanStep[]; draft: true } {
+  // Only when the case's shape is certain: a wrong draft ("it's going to create an event" for a
+  // list-only check, 27 Oct) is worse than none. Empty steps mean no draft is sent.
+  const none = { title: "", steps: [] as PlanStep[], draft: true as const };
+  const creates = /\b(create|publish|make|build|save)\b[^.]{0,60}\b(event|rfq|rfp|auction|erfx|project|draft)\b/i.test(testCase);
+  const tab = testCase.match(/\b(live|history|drafts?|recurring|upcoming)\s+tab\b/i)?.[1];
+  const listOnly = !creates && /\b(events? list|list of events|events page|live tab|history tab|drafts? tab|recurring tab)\b/i.test(testCase);
+  const evaluatesExisting = evaluates(testCase) && !creates;
+  let base: TestPlan | null = null;
+  if (startsFromPr(testCase)) {
+    // the PR repairs add the PR start and the named stages' steps; the stages are never guessed
+    base = { title: "Event from a PR", steps: [{ step: "set_title" }, { step: "set_schedule" }, { step: "invite_vendor" }, { step: "publish" }, { step: "expect_published" }] };
+  } else if (evaluatesExisting) {
+    base = { title: "Evaluate a technical response", steps: [{ step: "open_event", args: { purpose: "evaluation" } }, { step: "go_to", args: { screen: "stage", stage: "rfp" } }, { step: "do_on_screen", args: { goal: EVALUATE_GOAL } }] };
+  } else if (listOnly) {
+    return { title: "The events list", steps: [{ step: "open_events_list" }, { step: "expect_events_list" }, ...(tab ? [{ step: "filter_events", args: { tab: tab.replace(/s$/i, "") } }] : [])], draft: true };
+  } else if (creates) {
+    base = fallbackPlan(testCase);
+  }
+  if (!base) return none;
+  try {
+    const { plan } = lintPlan(base, testCase);
+    return { title: plan.title, steps: plan.steps, draft: true };
+  } catch {
+    return none;
+  }
 }
 
 export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
@@ -1460,6 +1730,11 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
+  // A plan that does the steps it has and asks the tester for the rest
+  // (ask_tester, Aanya 21 Oct: "whatever u dont have, ask the user") is partly
+  // covered. Read as "none", the server sent it whole to the explorer, which
+  // guessed: a Technical + RFQ case became a single-stage RFQ.
+  if (coverage === "none" && linted.plan.steps.some((st) => st.step === "ask_tester") && linted.plan.steps.some((st) => st.step !== "ask_tester")) coverage = "partial";
   // A generic step built on a guessed label is not full coverage, whatever
   // the model says — checked against the labels known from the app.
   const guesses = opts.withholdGeneric ? [] : labelGuesses(linted.plan.steps, testCase, catalog.labels);
@@ -1505,6 +1780,9 @@ const LIFE: Record<string, { needs: LifeState[]; makes?: LifeState }> = {
   open_create: { needs: ["none", "editing", "published", "bid", "closed", "awarded", "ordered"], makes: "editing" },
   publish: { needs: ["editing"], makes: "published" },
   create_new_version: { needs: ["published", "bid"], makes: "editing" },
+  // The conversion opens the auction as a new draft on the create screen, published again after (B32, 26 Oct:
+  // "publish cannot run on a published event" was said of that very publish).
+  convert_to_auction: { needs: ["published", "bid"], makes: "editing" },
   place_bid: { needs: ["published", "bid"], makes: "bid" },
   place_surrogate_bid: { needs: ["published", "bid"], makes: "bid" },
   close_event: { needs: ["published", "bid"], makes: "closed" },

@@ -1,0 +1,355 @@
+{
+  "_what": "Aanya's RBV sheet (21 Oct 2026; renumbered RBV_001–RBV_016 on 22 Oct): purchase-order visibility and access by role on Decathlon UAT. Read by the suite (tests/rbv.spec.ts) and by the platform (the cases Run tests lists for DECATHLON SPORTS INDIA). `writes` marks a case that changes data on UAT: it only runs when DECATH_ALLOW_WRITES=1. `users` are the user ids the case names. `tester` is Aanya's own result from the sheet, shown beside the automated one; `was` is the id before the renumbering.",
+  "_logins": "The users decath/.env has a login for (role → user id). A case naming any other user is shown 'Needs a login' and runs as Not tested.",
+  "logins": {
+    "general_user": 23170,
+    "business_validator": 23151,
+    "account_validator": 23172,
+    "av_leader": 23742,
+    "finance_partner": 23744,
+    "real_estate": 23743,
+    "super_admin": 21543,
+    "account_validator_2": 24295,
+    "business_validator_3": 24496,
+    "approver": 21710,
+    "general_user_3": 23171
+  },
+  "cases": [
+    {
+      "id": "RBV_001",
+      "module": "PO List",
+      "scenario": "Own scope",
+      "title": "Verify general user sees only own and shared POs",
+      "users": [
+        23170
+      ],
+      "steps": [
+        "Open PO list",
+        "Check creator / shared of each row",
+        "Search a PO of another user (not shared)"
+      ],
+      "data": "Out-of-scope PO no.",
+      "expected": "Only own + shared POs listed; search gives no result",
+      "writes": false,
+      "was": "RBV_002",
+      "tester": {
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "RBV_002",
+      "module": "PO List",
+      "scenario": "Team scope",
+      "title": "Verify business validator sees own, team and shared POs",
+      "users": [
+        24500
+      ],
+      "steps": [
+        "Open PO list",
+        "Check Team of each row"
+      ],
+      "data": "Team CC-1010801041",
+      "expected": "Own + Team CC-1010801041 + shared only",
+      "writes": false,
+      "was": "RBV_003",
+      "tester": {
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "RBV_003",
+      "module": "PO List",
+      "scenario": "All scope",
+      "title": "Verify account validator sees all POs and count matches",
+      "users": [
+        23172
+      ],
+      "steps": [
+        "Open PO list",
+        "Compare total count with super admin",
+        "Page through to the end"
+      ],
+      "data": "Super admin count",
+      "expected": "Every PO listed; count = super admin count = rows",
+      "writes": false,
+      "was": "RBV_004",
+      "tester": {
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "RBV_004",
+      "module": "PO List",
+      "scenario": "Other PO types",
+      "title": "Verify same rules on Rent, Gift and Candex PO lists",
+      "users": [
+        23170,
+        23172
+      ],
+      "steps": [
+        "Open Rent, Gift and Candex PO lists as each user"
+      ],
+      "data": "—",
+      "expected": "23170: own + shared only; 23172: all",
+      "writes": false,
+      "was": "RBV_005"
+    },
+    {
+      "id": "RBV_005",
+      "module": "PO Detail",
+      "scenario": "Open by URL",
+      "title": "Verify out-of-scope PO cannot be opened by URL",
+      "users": [
+        23170
+      ],
+      "steps": [
+        "Paste link of another user's PO (not shared)",
+        "Open own PO"
+      ],
+      "data": "PO links copied from super admin",
+      "expected": "Other user's PO: access denied; own PO opens",
+      "writes": false,
+      "was": "RBV_006",
+      "tester": {
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "RBV_006",
+      "module": "PO Detail",
+      "scenario": "Shared / team PO",
+      "title": "Verify shared and team POs open, other team's PO is blocked",
+      "users": [
+        23170,
+        24500
+      ],
+      "steps": [
+        "As 23170, open a PO shared with them",
+        "As 24500, open a Team CC-1010801041 PO and another team's PO"
+      ],
+      "data": "Shared PO, team POs",
+      "expected": "Shared PO opens; own team opens; other team denied",
+      "writes": false,
+      "was": "RBV_007"
+    },
+    {
+      "id": "RBV_007",
+      "module": "Edit & Share",
+      "scenario": "Edit rights",
+      "title": "Verify creator can edit own PO",
+      "users": [
+        23170
+      ],
+      "steps": [
+        "Edit a field on own PO and save"
+      ],
+      "data": "Own PO",
+      "expected": "Saves",
+      "writes": true,
+      "was": "RBV_008",
+      "sheet": {
+        "steps": [
+          "Edit a field on own PO and save",
+          "Share it"
+        ],
+        "expected": "Saves; share works",
+        "title": "Verify creator can edit and share own PO"
+      },
+      "rule": "Aanya, 22 Oct 2026: a PO can't be shared and can't be deleted, by anyone."
+    },
+    {
+      "id": "RBV_008",
+      "module": "Edit & Share",
+      "scenario": "View ≠ edit",
+      "title": "Verify all-scope user cannot edit another team's PO",
+      "users": [
+        24295
+      ],
+      "steps": [
+        "Open PO of a team 24295 is not in",
+        "Try to edit"
+      ],
+      "data": "Other team's PO",
+      "expected": "PO opens; edit refused",
+      "writes": true,
+      "was": "RBV_009",
+      "sheet": {
+        "steps": [
+          "Open PO of a team 24295 is not in",
+          "Try to edit and share"
+        ],
+        "expected": "PO opens; edit and share refused"
+      },
+      "rule": "Aanya, 22 Oct 2026: a PO can't be shared and can't be deleted, by anyone."
+    },
+    {
+      "id": "RBV_009",
+      "module": "Edit & Share",
+      "scenario": "Delete",
+      "title": "Verify no one can delete a PO",
+      "users": [
+        23172
+      ],
+      "steps": [
+        "Look for Delete on a PO created by someone else (as 23172)",
+        "Look for it as the PO's creator and as the super admin"
+      ],
+      "data": "Other user's PO",
+      "expected": "No Delete for anyone — not 23172 on another user's PO, not the creator, not the super admin",
+      "writes": false,
+      "was": "RBV_010",
+      "tester": {
+        "result": "FAIL",
+        "comment": "No one can delete the PO"
+      },
+      "sheet": {
+        "title": "Verify only creator / super admin can delete",
+        "steps": [
+          "Try to delete a PO created by someone else"
+        ],
+        "expected": "Delete refused"
+      },
+      "rule": "Aanya, 22 Oct 2026: a PO can't be shared and can't be deleted, by anyone."
+    },
+    {
+      "id": "RBV_010",
+      "module": "PO Picker",
+      "scenario": "Invoice PO Number picker",
+      "title": "Verify invoice PO picker shows only POs the user can see",
+      "users": [
+        23170,
+        23172
+      ],
+      "steps": [
+        "Create invoice → open PO Number picker as each user",
+        "As 23170, search another user's unshared PO"
+      ],
+      "data": "Out-of-scope PO no.",
+      "expected": "23170: own + shared only, search not found; 23172: all POs",
+      "writes": false,
+      "was": "RBV_011"
+    },
+    {
+      "id": "RBV_011",
+      "module": "PO Picker",
+      "scenario": "Existing link",
+      "title": "Verify invoice linked to out-of-scope PO still opens",
+      "users": [
+        23170
+      ],
+      "steps": [
+        "Open invoice linked to a PO 23170 can't see",
+        "Click the PO"
+      ],
+      "data": "Invoice with out-of-scope PO",
+      "expected": "Invoice opens with PO number; opening the PO is denied",
+      "writes": false,
+      "was": "RBV_012",
+      "tester": {
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "RBV_012",
+      "module": "Approver Access",
+      "scenario": "Approver view only",
+      "title": "Verify approver can open, approve but not edit the PO",
+      "users": [
+        21710
+      ],
+      "steps": [
+        "Open PO from approval inbox",
+        "Try to edit",
+        "Approve",
+        "Open PO list"
+      ],
+      "data": "PO raised by 23170",
+      "expected": "Opens; edit refused; approve works; PO not in 21710's list",
+      "writes": true,
+      "was": "RBV_013",
+      "sheet": {
+        "steps": [
+          "Open PO from approval inbox",
+          "Try to edit and share",
+          "Approve",
+          "Open PO list"
+        ],
+        "expected": "Opens; edit/share refused; approve works; PO not in 21710's list"
+      },
+      "rule": "Aanya, 22 Oct 2026: a PO can't be shared and can't be deleted, by anyone."
+    },
+    {
+      "id": "RBV_013",
+      "module": "Report Export",
+      "scenario": "Export scope",
+      "title": "Verify PO export follows the same scope as the list",
+      "users": [
+        23170,
+        23172
+      ],
+      "steps": [
+        "Export PO report as each user",
+        "Compare row count with list"
+      ],
+      "data": "—",
+      "expected": "23170: same POs as list; 23172: all POs",
+      "writes": false,
+      "was": "RBV_014"
+    },
+    {
+      "id": "RBV_014",
+      "module": "Edge Cases",
+      "scenario": "Blank Team",
+      "title": "Verify PO with blank Team",
+      "users": [
+        23151,
+        23172
+      ],
+      "steps": [
+        "Create PO with no Team",
+        "Check PO list as both users"
+      ],
+      "data": "New PO, Team blank",
+      "expected": "Not shown to 23151 (unless creator/shared); shown to 23172",
+      "writes": true,
+      "was": "RBV_015"
+    },
+    {
+      "id": "RBV_015",
+      "module": "Edge Cases",
+      "scenario": "Amendment owner",
+      "title": "Verify amended PO belongs to the amender",
+      "users": [
+        23170,
+        23171
+      ],
+      "steps": [
+        "23171 amends a PO created by 23170",
+        "23170 opens PO list"
+      ],
+      "data": "23170's PO",
+      "expected": "23170 no longer sees it (expected, not a bug)",
+      "writes": true,
+      "was": "RBV_016"
+    },
+    {
+      "id": "RBV_016",
+      "module": "Regression",
+      "scenario": "Unchanged areas",
+      "title": "Verify invoice list, other tenant and approval flow are unchanged",
+      "users": [
+        23170,
+        23172
+      ],
+      "steps": [
+        "Open Invoice list",
+        "Log in to a non-Decathlon tenant, open PO list",
+        "Raise PO, submit, approve"
+      ],
+      "data": "—",
+      "expected": "Same records as before; approval flow completes",
+      "writes": true,
+      "was": "RBV_017"
+    }
+  ]
+}

@@ -37,6 +37,8 @@ let catState = { layer: "", section: "", priority: "", verdict: "", q: "" };
 let catCases = []; // the currently filtered page of the catalog
 const catPicked = new Set(); // case ids the user has ticked
 let catRunning = null; // the open EventSource while cases are running
+/** Stop was pressed: a sequence of browser journeys starts no further journey. */
+let runStopRequested = false;
 
 /**
  * THE ROUTER — one view at a time, addressable.
@@ -536,6 +538,12 @@ async function init() {
       uiRunning.close();
       uiRunning = null;
     }
+    if (catRunning) {
+      catRunning.close();
+      catRunning = null;
+    }
+    // A sequence of journeys stops here too, not just the one in flight.
+    runStopRequested = true;
     runStoppedNote = null;
     window.spineSession?.stopped();
     runFinished();
@@ -1825,7 +1833,8 @@ function rfpInputProblem(n, qty, vendors) {
 function runSelectedFeatures(ask, onEnd) {
   if (!ask?.features) ask = null;
   const ids = ask ? ask.features : [...selected];
-  if (featureSuite && ids.length && !ask) return runRfpSuite(ids);
+  // Only the RFP suite runs its cases through the API; Decathlon's run in the browser.
+  if (featureSuite?.id === "aanya-rfp" && ids.length && !ask) return runRfpSuite(ids);
   if (!ids.length) {
     // Said where the reader is standing — navigating first would hide it.
     const meta = $("#api-meta");
@@ -2227,9 +2236,93 @@ function journeyAsk(text) {
   return { features, label: type.label, lineItems, vendors, vendorsNamed: vendorsNamed !== undefined, bidders, qty: qm ? qm[1] : "" };
 }
 
+/**
+ * A pasted LIST of test prompts, not one case: the stress-prompt sheet (66
+ * lines in sections, each "prompt → what it is meant to find"). Sent as one
+ * case on 21 Oct, it went to the step-writing AI whole: the model returned
+ * nothing three times (minutes of waiting), the run fell back to a generic
+ * plan, ended Not tested, and still offered "Write test cases from this run".
+ * The prompts it holds, or [] for an ordinary case. A case written as steps
+ * (numbered, or a few imperative lines) is not caught: it needs the arrow
+ * notes, or ten or more prompt lines.
+ */
+function separatePrompts(text) {
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 3) return [];
+  const PROMPT = /^(create|open|on (an|a|the)|place|invite|publish|award|submit|check|verify)\b/i;
+  // A prompt line is short; the sheet's intro ("Paste one line at a time into
+  // Run tests → UI …") and its "how to read" notes carry arrows too.
+  const arrowed = lines.filter((l) => /\S\s+(→|->)\s+\S/.test(l) && l.length > 25 && l.length < 300);
+  const asked = arrowed.filter((l) => PROMPT.test(l));
+  const list = asked.length >= 3 ? asked : arrowed;
+  if (list.length >= 3) return list.map((l) => l.split(/\s+(?:→|->)\s+/)[0].trim());
+  const prompts = lines.filter((l) => l.length > 25 && PROMPT.test(l));
+  return prompts.length >= 10 ? prompts : [];
+}
+
+/**
+ * Decathlon (57675): a typed ask is one of its RBV cases (procol-qa-platform/
+ * decath), never an events plan. On 21 Oct the events compiler turned a
+ * PO-visibility case into "open_create, set_title…", and the run could not
+ * even sign in ("No usable console session for company 57675"). The case is
+ * found by its id (RBV_002) or, failing that, by its title's words; when it is
+ * not clear which case is meant, nothing is guessed.
+ */
+function decathAsk(text) {
+  if (featureSuite?.id !== "decath") return null;
+  const flows = uiFlows.filter((f) => String(f.key).startsWith("decath."));
+  const ids = [...new Set((text.match(/\bRBV[_\- ]?\d{3}\b/gi) || []).map((x) => `RBV_${x.match(/\d{3}/)[0]}`))];
+  let keys = ids.map((id) => `decath.${id}`).filter((k) => flows.some((f) => f.key === k));
+  if (!keys.length) {
+    const words = (t) => new Set(String(t).toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+    const asked = words(text);
+    const scored = flows
+      .map((f) => {
+        const own = words(String(f.label).replace(/^RBV_\d+ · /, ""));
+        let n = 0;
+        for (const w of own) if (asked.has(w)) n++;
+        return { f, s: n / Math.max(4, own.size) };
+      })
+      .sort((a, b) => b.s - a.s);
+    if (scored[0] && scored[0].s >= 0.6 && (!scored[1] || scored[0].s - scored[1].s >= 0.15)) keys = [scored[0].f.key];
+  }
+  return { keys, flows };
+}
+
 function runInstruction(mode) {
   const text = $("#request").value.trim();
   if (!text) return;
+  const dc = decathAsk(text);
+  if (dc) {
+    // Its cases run in the browser; the journey opens its own session turn.
+    if (dc.keys.length && mode !== "api") return runSelectedUiJourneys(dc.keys);
+    window.spineSession?.begin({ text, mode, kind: "typed" });
+    window.spineSession?.end({
+      tone: "skip",
+      title: dc.keys.length ? "Decathlon's cases run in the browser, not through the API, so nothing was run." : "I couldn't tell which Decathlon case this is, so nothing was run.",
+      lines: [
+        dc.keys.length
+          ? "Switch to UI and send it again."
+          : `Name its id, or tick it on Run tests. Decathlon's cases: ${dc.flows.map((f) => String(f.label).split(" · ")[0]).join(", ") || "none loaded yet"}.`,
+      ],
+    });
+    window.spineSession?.idle();
+    return;
+  }
+  const many = separatePrompts(text);
+  if (many.length) {
+    window.spineSession?.begin({ text, mode, kind: "typed" });
+    window.spineSession?.end({
+      tone: "skip",
+      title: `This is a list of ${many.length} separate test prompts, not one test case, so nothing was run.`,
+      lines: [
+        "Each line is its own test case, with its own plan, run and result. Paste one line at a time, without the note after the arrow.",
+        `The first one: “${many[0]}”`,
+      ],
+    });
+    window.spineSession?.idle();
+    return;
+  }
   // The ask opens a turn on the Run screen's session (public/session.js) —
   // a new session, or the next turn of this one when it came from its composer.
   window.spineSession?.begin({ text, mode, kind: "typed" });
@@ -2815,7 +2908,9 @@ async function runSelectedUiJourneys(only, opts) {
   con.innerHTML = "";
   let passed = 0;
   let failed = 0;
-  for (let i = 0; i < keys.length; i++) {
+  let notTested = 0;
+  runStopRequested = false;
+  for (let i = 0; i < keys.length && !runStopRequested; i++) {
     const flow = uiFlows.find((f) => f.key === keys[i]) ?? { key: keys[i], usesLineItems: true };
     const label = flow.label || keys[i];
     setRunPending(
@@ -2833,11 +2928,13 @@ async function runSelectedUiJourneys(only, opts) {
     const code = await new Promise((done) =>
       runUiJourney(flow, done, { partOfSequence: true, autoOpen: i === keys.length - 1 }),
     );
+    // 3: the journey ran but its case was not tested (runUiJourney) — never counted as passed.
     if (code === 0) passed++;
+    else if (code === 3) notTested++;
     else failed++;
   }
   runEmptyNote =
-    `<b>${passed} passed${failed ? `, ${failed} failed` : ""}</b> of ${keys.length} browser journey` +
+    `<b>${[passed ? `${passed} passed` : "", failed ? `${failed} failed` : "", notTested ? `${notTested} not tested` : ""].filter(Boolean).join(", ") || "nothing ran"}</b> of ${keys.length} browser journey` +
     `${keys.length === 1 ? "" : "s"}. The steps are above and the raw output is below; a browser journey ` +
     "does not produce test-case rows — its result is the steps, the screenshots and the UI automation report.";
   runFinished();
@@ -2858,6 +2955,7 @@ const UI_PHASES = {
   "event-detail": { label: "On the event", icon: "search" },
   award: { label: "Awarding", icon: "trophy" },
   "by-hand": { label: "Done by you, not tested", icon: "circle-minus" },
+  decath: { label: "Decathlon checks", icon: "list-checks" },
   plan: { label: "Running the plan", icon: "map" },
   healer: { label: "Healing a broken step", icon: "bot" },
   learned: { label: "Learned a locator", icon: "brain" },
@@ -3633,7 +3731,10 @@ function runUiJourney(flow, onDone, opts = {}) {
   if (frameImg) frameImg.removeAttribute("src");
   es.addEventListener("frame", (ev) => {
     if (!showFrames || !frameImg) return;
-    const { frame } = JSON.parse(ev.data);
+    const data = JSON.parse(ev.data);
+    // The vendor portal's pane, beside the buyer's page (session.js sideFrame).
+    if (data.pane === "side") return void window.spineSession?.sideFrame?.(data);
+    const { frame } = data;
     if (!frame) return;
     frameImg.src = `data:image/jpeg;base64,${frame}`;
     if (framePanel) framePanel.hidden = false;
@@ -3665,9 +3766,18 @@ function runUiJourney(flow, onDone, opts = {}) {
   // happened or where the run stopped.
   // Steps the tester did in the browser ("[by-hand] …"): the journey ends Partly tested.
   let byHand = 0;
+  // A suite that states its own verdict (decath: "RBV_003 ⊘ NOT TESTED — …"): a case it did not
+  // test ends the journey Not tested, though Playwright exits 0 (21 Oct: "1 passed" for a case
+  // that could not run).
+  const verdicts = { pass: 0, fail: 0, notTested: [] };
   es.addEventListener("step", (ev) => {
     const step = JSON.parse(ev.data);
     if (step?.phase === "by-hand") byHand++;
+    if (step?.phase === "decath") {
+      if (/✓ PASS/.test(step.text)) verdicts.pass++;
+      else if (/✗ FAIL/.test(step.text)) verdicts.fail++;
+      else if (/⊘ NOT TESTED/.test(step.text)) verdicts.notTested.push(String(step.text).replace(/^.*⊘ NOT TESTED\s*—\s*/, ""));
+    }
     pushJourneyStep(step);
   });
   // Stuck: the journey asks in the chat (procol-ui-tests/src/explore/ask.ts).
@@ -3717,11 +3827,12 @@ function runUiJourney(flow, onDone, opts = {}) {
   });
   es.addEventListener("done", (ev) => {
     const { exitCode: code, runId } = JSON.parse(ev.data);
-    write(code !== 0 ? "✗ The journey failed — the report shows where it stopped" : byHand ? "◐ Partly tested — some steps were done by you in the browser" : "✓ The journey passed", code === 0 && !byHand ? "ok" : code === 0 ? "note" : "bad");
+    const notTested = code === 0 && verdicts.notTested.length && !verdicts.pass ? verdicts.notTested.join(" ") : "";
+    write(code !== 0 ? "✗ The journey failed — the report shows where it stopped" : notTested ? `– Not tested — ${notTested}` : byHand ? "◐ Partly tested — some steps were done by you in the browser" : "✓ The journey passed", code === 0 && !byHand && !notTested ? "ok" : code === 0 ? "note" : "bad");
     btn.classList.remove("running");
     btn.classList.add(code === 0 ? "ok" : "bad");
     es.close();
-    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code, runId, took: elapsedInWords(Date.now() - runStartedAt), byHand });
+    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code, runId, took: elapsedInWords(Date.now() - runStartedAt), byHand, notTested });
     if (!opts.partOfSequence) runFinished();
     uiRunning = null;
     loadFindings();
@@ -3747,7 +3858,7 @@ function runUiJourney(flow, onDone, opts = {}) {
         reportNote: "The report above has every step this journey took, in order — and, on a break, exactly where it stopped.",
       });
     }
-    onDone?.(code);
+    onDone?.(notTested ? 3 : code);
   });
 }
 
@@ -5212,6 +5323,19 @@ function initBugControls() {
  * what happened. The arguments carry the specifics, so they stay.
  */
 function planStepInWords(step) {
+  // No step for this part: the run asks the tester in the chat (runPlan ask_tester).
+  if (step.step === "ask_tester") return `Ask you: ${String(step.args?.need ?? "this part has no ready-made step").replace(/\.$/, "")}`;
+  // No step either, but the run works it out on screen itself (runPlan do_on_screen).
+  if (step.step === "do_on_screen") return `Work out on screen: ${String(step.args?.goal ?? "this part").replace(/\.$/, "")}`;
+  // The PR start, step by step (session 6c, 27 Oct).
+  const pa = step.args || {};
+  const stageWords = (xs) => xs.map((x) => ({ rfp: "Technical", rfi: "Technical", rfq: "RFQ", auction: "Auction" })[String(x).toLowerCase()] || x).join(" + ");
+  if (step.step === "open_purchase_requisitions") return "Open Purchase Requisitions";
+  if (step.step === "pr_tab") return `Open the ${pa.tab || "Open"} tab`;
+  if (step.step === "select_pr") return pa.pr ? `Tick PR ${pa.pr}` : "Tick a PR";
+  if (step.step === "purchase_items") return "Purchase Items → Start New Project (Purchase Cart)";
+  if (step.step === "choose_stages") return Array.isArray(pa.stages) && pa.stages.length ? `Tick ${stageWords(pa.stages)} under Create Project → Create Project` : "Tick the stages under Create Project (asks you which) → Create Project";
+  if (step.step === "expect_pr_items") return "The create screen lists the PR's items";
   const name = String(step.step ?? "").replace(/_/g, " ");
   const args = step.args && Object.keys(step.args).length
     ? " " + Object.entries(step.args).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(", ")
@@ -5269,6 +5393,11 @@ function renderUiInstructResult(state, d = {}) {
         replayed ? `${replayed} of them followed the route saved from an earlier run.` : "",
         d.saved ? "I saved this route: asking for the same thing again follows it first." : "",
       ];
+    } else if (/^(nobody answered my first question|you asked me to stop before I started)/i.test(String(d.reason || ""))) {
+      // Asked first, as Aanya wants (21 Oct), and got no steps: not tested, never a failure.
+      cls = "skip";
+      badge = "– Not tested (UI)";
+      lines = [`Not tested — ${String(d.reason).replace(/\.$/, "")}.`, "There are no ready-made steps for this yet: give me the steps (and any login) when I ask, and I'll carry them out."];
     } else {
       cls = "bad";
       badge = "✗ Failed (UI)";
@@ -5277,15 +5406,19 @@ function renderUiInstructResult(state, d = {}) {
         done ? `It got ${done} step${done === 1 ? "" : "s"} in; each has its screenshot above.` : "It stopped before taking a step.",
       ];
     }
-  } else if (d.passed && d.byHand) {
-    // Some steps were done by the tester in the browser (take control): those
-    // were not tested by the run, so the run is partly tested — never a pass.
+  } else if (d.passed && (d.byHand || d.untested || steps.some((s) => s.untested))) {
+    // Some steps were done by the tester in the browser (take control), or had
+    // no step and were skipped or left unanswered (ask_tester): those were not
+    // tested by the run, so the run is partly tested — never a pass.
     const k = steps.filter((s) => s.byHand).length || Number(d.byHand) || 0;
+    const u = steps.filter((s) => s.untested);
+    const off = k + (u.length || Number(d.untested) || 0);
     cls = "part";
     badge = "◐ Partly tested (UI)";
     lines = [
-      `Partly tested — ${k} of ${n} step${n === 1 ? "" : "s"} ${k === 1 ? "was" : "were"} done by you in the browser, so the run did not test ${k === 1 ? "it" : "them"}.`,
-      `The run did the other ${n - k}, and they all passed.`,
+      `Partly tested — ${off} of ${n} step${n === 1 ? "" : "s"} ${off === 1 ? "was" : "were"} not tested by the run${k ? ` (${k} done by you in the browser)` : ""}.`,
+      ...u.map((s) => String(s.detail || "").replace(/^no step for: /, "Not tested: ")),
+      `The run did the other ${n - off}, and they all passed.`,
     ];
   } else if (d.passed) {
     cls = "ok";
@@ -5318,6 +5451,16 @@ function renderUiInstructResult(state, d = {}) {
         (ev.rule ? `<div><b>Its rule:</b> ${esc(ev.rule.source)}${ev.rule.condition ? ` — <code>${esc(ev.rule.condition)}</code>` : ""}</div>` : ev.appSaid?.length ? `<div><b>Not one of the app's known rules</b> — a fresh re-run decides whether it is a product problem.</div>` : "") +
         (ev.url ? `<div><b>Page:</b> ${esc(ev.url)}</div>` : "") +
         (ev.screenshot ? `<a href="/api/ui-evidence?path=${encodeURIComponent(ev.screenshot)}" target="_blank" rel="noopener"><img class="api-result-shot" alt="The screen when the step failed" src="/api/ui-evidence?path=${encodeURIComponent(ev.screenshot)}"></a>` : "") +
+        // The failed run's video (runVideo.ts, 29 Oct), to watch here; its Playwright trace is a developer's
+        // tool, folded away (Aanya, 29 Oct: "what is this?? Full replay: download trace.zip").
+        (() => {
+          const run = String(d.trace || "").match(/evidence[\\/](plan-[a-z0-9]+)[\\/]trace\.zip$/i)?.[1];
+          const video = run ? `/api/plan-media?run=${encodeURIComponent(run)}&f=video.webm` : "";
+          return (
+            (video ? `<div class="api-result-vid"><b>What happened, as a video:</b><video controls preload="metadata" src="${video}" onerror="this.parentNode.remove()"></video></div>` : "") +
+            (d.trace ? `<details class="api-result-dev"><summary>For developers</summary>A step-by-step replay of every click, with the page as it was: <a href="/api/ui-evidence?path=${encodeURIComponent(d.trace)}" download>download trace.zip</a> and open it at <a href="https://trace.playwright.dev" target="_blank" rel="noopener">trace.playwright.dev</a>.</details>` : "")
+          );
+        })() +
         `</div>`
       : "");
   box.className = `api-result ${cls}`;
@@ -5376,7 +5519,10 @@ function runTestCase(textOverride) {
   const frameImg = $("#live-frame");
   if (framePanel) framePanel.hidden = true;
   es.addEventListener("frame", (ev) => {
-    const { frame } = JSON.parse(ev.data);
+    const data = JSON.parse(ev.data);
+    // The vendor portal's pane, beside the buyer's page (session.js sideFrame).
+    if (data.pane === "side") return void window.spineSession?.sideFrame?.(data);
+    const { frame } = data;
     if (!frame || !frameImg) return;
     frameImg.src = `data:image/jpeg;base64,${frame}`;
     if (framePanel) framePanel.hidden = false;
@@ -5386,6 +5532,9 @@ function runTestCase(textOverride) {
     const { spot } = JSON.parse(ev.data);
     window.spineSession?.spot(spot);
   });
+  // A draft of the plan while the case compiles; the compiled plan (or the explorer, or a refusal) replaces it.
+  es.addEventListener("outline", (ev) => window.spineSession?.outline?.(JSON.parse(ev.data)));
+  for (const t of ["blocked", "explore", "done", "run-error"]) es.addEventListener(t, () => window.spineSession?.draftGone?.());
 
   es.addEventListener("stage", (ev) => {
     const st = JSON.parse(ev.data);
@@ -5509,32 +5658,57 @@ function runTestCase(textOverride) {
   let planNext = 0; // the step running now: the one after the last that finished
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
+    // A warm start (the browser signs in while the case compiles) says so on the working line.
+    if (!window.spineSession?.planLength?.()) {
+      if (/\[plan\] opening the browser and signing in/.test(l)) window.spineSession?.working("Opening the browser and signing in while your case compiles");
+      else if (/\[plan\] signed in; waiting for the compiled steps/.test(l)) window.spineSession?.working("Signed in — the steps are almost ready");
+    }
     const err = l.match(/^\s*(?:Error|TimeoutError):\s*(.+)/);
     if (err && !planError) planError = err[1].trim();
     // "[plan] 3/22 set_title ✓" — the runner's own progress, which is what
     // moves a row from waiting to running to done while you watch.
     // "⊘": a step the tester had already done in the browser — not tested by the run.
-    const m = l.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗| ⊘)?/);
+    const m = l.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗| ⊘)?(.*)$/);
+    // A ⊘ line says why after the mark ("done by you in the browser…", "skipped — you said “skip”").
+    const skipWhy = (m?.[5] ?? "").replace(/^[\s—-]+/, "").trim();
     if (m) {
       planStarted = true;
       const at = Number(m[1]) - 1;
+      // Steps added mid-run (choose_stages inserts the chosen event's stages): the list grows to the
+      // run's new total, and each row is named by the step the run says it is.
+      const total = Number(m[2]);
+      const have = window.spineSession?.planLength?.() ?? 0;
+      if (have && total > have) window.spineSession?.planGrow?.(at, total - have);
+      window.spineSession?.planName?.(at, m[3]);
       const row = checkRows[at];
       const mark = (m[4] ?? "").trim();
       if (row) {
         row._running = !mark;
         row.inconclusive = !mark || mark === "⊘";
         row.pass = mark === "✓";
-        row.verdict = mark ? (mark === "✓" ? "did what it should" : mark === "⊘" ? "done by you in the browser — not tested by the run" : "this step failed") : "running…";
+        row.verdict = mark ? (mark === "✓" ? "did what it should" : mark === "⊘" ? skipWhy || "done by you in the browser — not tested by the run" : "this step failed") : "running…";
         renderAutomation();
       }
-      window.spineSession?.planStep(at, mark ? (mark === "✓" ? "ok" : mark === "⊘" ? "skip" : "bad") : "run", mark === "⊘" ? "Done by you in the browser — not tested by the run." : undefined);
+      window.spineSession?.planStep(at, mark ? (mark === "✓" ? "ok" : mark === "⊘" ? "skip" : "bad") : "run", mark === "⊘" ? (skipWhy ? skipWhy.charAt(0).toUpperCase() + skipWhy.slice(1) : "Done by you in the browser — not tested by the run.") : undefined);
       setRunBar(Number(m[1]), Number(m[2]));
       if (m[4]) planNext = Number(m[1]);
+    }
+    // "[console] {…}": the console errors, warnings and failed calls a step saw (observe.ts) — the Console tab.
+    const con = l.match(/\[console\] (\{.*\})\s*$/);
+    if (con) {
+      try {
+        window.spineSession?.consoleLines?.(JSON.parse(con[1]));
+      } catch {
+        /* a garbled line is not worth a crash */
+      }
     }
     // "[pick] ✗ “Event” — why": an event the run looked at for the running
     // step, and why it was used or passed over — a line under that step.
     const pick = l.match(/\[pick\] ([✓✗·]) (.+)$/);
     if (pick) window.spineSession?.planNote(planNext, pick[2], pick[1] === "✓" ? "ok" : pick[1] === "✗" ? "no" : "info");
+    // "[note] · …": what a long step is doing right now (waiting for a bidding window to end), under that step.
+    const stepNote = l.match(/\[note\] [·] (.+)$/);
+    if (stepNote) window.spineSession?.planNote(planNext, stepNote[1], "info");
     if (/^\[(plan|pick)\]|create-event|erfx/.test(l)) write(l);
   });
   es.addEventListener("plan-result", (ev) => {
@@ -5553,7 +5727,7 @@ function runTestCase(textOverride) {
         (s.detail ? ` — ${s.detail}` : "");
     });
     r.steps.forEach((s, i) =>
-      window.spineSession?.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || "", s.spotlights),
+      window.spineSession?.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || "", s.spotlights, { screen: s.screen, actions: s.actions }),
     );
     renderAutomation();
     setRunBar(r.steps.length, r.steps.length);
@@ -5608,7 +5782,7 @@ function runTestCase(textOverride) {
       // Its bugs, when the app did something wrong on the way; being stuck is not one.
       runId: planVerdicts ? exploring.runId : "",
     });
-    else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false, byHand: planResult?.byHand || 0 });
+    else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false, byHand: planResult?.byHand || 0, untested: planResult?.untested || 0, trace: planResult?.trace });
     // The compiler itself can refuse to run: no step exists yet for the thing
     // the case checks, so it ran nothing rather than a substitute. Exit 0 in
     // that case means "nothing broke while doing nothing" — the opposite of
@@ -5618,7 +5792,7 @@ function runTestCase(textOverride) {
       d.notRun
         ? "Not tested — no step exists yet for what this case checks"
         : d.exitCode === 0
-          ? planResult?.byHand ? "◐ partly tested — some steps were done by you in the browser" : "✓ test case passed"
+          ? planResult?.byHand || planResult?.untested ? "◐ partly tested — some steps were not tested by the run" : "✓ test case passed"
           : !planStarted
             ? `✗ Not tested — the run could not start${planError ? `: ${planError}` : ""}`
             : `✗ test case failed (exit ${d.exitCode})`,

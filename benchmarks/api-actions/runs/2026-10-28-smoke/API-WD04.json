@@ -1,0 +1,419 @@
+{
+ "id": "API-WD04",
+ "text": "Create an RFQ with 1 line item, invite 1 vendor, publish it, withdraw the event with a remark, then try to place a surrogate bid for that vendor; it should be refused.",
+ "expect": "refused",
+ "startedAt": "2026-10-28T10:43:15.839Z",
+ "lines": [
+  "No ready-made case matches — writing an API test from your sentence…",
+  "Plan “Surrogate bid is refused after the RFQ event is withdrawn” on PROCOL DEMO",
+  "Setup: A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+  "  setup · Chosen by the caller: vendor “QA vendor 1”.",
+  "  setup · Sign in as the buyer: worked — Using Procol Support's web-console session for PROCOL DEMO — the app accepted it (role: super_admin).",
+  "  setup · Create the draft event: worked — Draft WlhRY2Rk was created with one line item (14 KG).",
+  "  setup · Add the pricing round: worked — Round 1 (pricing round, RFQ) was attached as Z1hka1Fj; bidding open 16:13–16:33.",
+  "  · act 1: The buyer publishes the event with 1 audience company uuids. — The app accepted it (HTTP 200).",
+  "  · act 2: The buyer withdraws the event with the remarks set to “QA_Platform_Withdrawn_…”, with the status set to “withdrawn”. — The app accepted it (HTTP 200).",
+  "  ✓ act 3: The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor. — The app refused it: “Trade Request not found” (HTTP 422, code 95).",
+  "Verdict: passed — The app refused it, as the case expects: “Trade Request not found”."
+ ],
+ "checks": [
+  {
+   "id": "API-TYPED",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "Surrogate bid is refused after the RFQ event is withdrawn",
+   "type": "functional",
+   "category": "API plan",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "reject",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "14",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "14",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 100,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 1400,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 444803,
+           "trade_product_uuid": "cERrWlpraw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "WERRY1pnTg==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "Z1hka1Fj",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Trade Request not found (code 95)",
+   "durationMs": 14961,
+   "pass": true,
+   "verdict": "api plan passed — The app refused it, as the case expects: “Trade Request not found”.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event with 1 audience company uuids.",
+    "The buyer withdraws the event with the remarks set to “QA_Platform_Withdrawn_…”, with the status set to “withdrawn”.",
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor."
+   ],
+   "expectedResult": "The app refuses the step the case is about with a clear message, and never with a server error.",
+   "apiPlan": {
+    "recipe": "draft_rfq",
+    "setupOk": true,
+    "event": "spine-API-automation-21614116"
+   }
+  },
+  {
+   "id": "API-TYPED·act1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer publishes the event with 1 audience company uuids.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "PATCH /event_groups/WlhRY2Rk",
+   "request": {
+    "method": "PATCH",
+    "path": "/event_groups/WlhRY2Rk",
+    "body": {
+     "attachments": [],
+     "title": "spine-API-automation-37317142",
+     "status": "active",
+     "draft_trade_request_uuids": [
+      "Z1hka1Fj"
+     ],
+     "audience_company_uuids": [
+      "cGNrY1pE"
+     ],
+     "line_items": [],
+     "terms_and_conditions": {
+      "clauses": [],
+      "attachments": []
+     },
+     "show_under_open_events": true,
+     "delete_draft_stage_uuids": [],
+     "amendment_remarks": {
+      "remarks": ""
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 893,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act2",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer withdraws the event with the remarks set to “QA_Platform_Withdrawn_…”, with the status set to “withdrawn”.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "PATCH /event_groups/WlhRY2Rk",
+   "request": {
+    "method": "PATCH",
+    "path": "/event_groups/WlhRY2Rk",
+    "body": {
+     "status": "withdrawn",
+     "withdraw_remark": {
+      "remarks": "QA_Platform_Withdrawn_1793184219513",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 761,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act3",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "14",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "14",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 100,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 1400,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 444803,
+           "trade_product_uuid": "cERrWlpraw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "WERRY1pnTg==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "Z1hka1Fj",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Trade Request not found (code 95)",
+   "durationMs": 457,
+   "pass": true,
+   "verdict": "The app refused it: “Trade Request not found” (HTTP 422, code 95)."
+  }
+ ],
+ "done": {
+  "ok": true,
+  "total": 1
+ },
+ "fatal": null,
+ "ms": 26526
+}

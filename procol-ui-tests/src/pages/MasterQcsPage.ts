@@ -25,6 +25,10 @@ export class MasterQcsPage extends BasePage {
     const grid = this.page.locator("[role='grid']").filter({ visible: true }).first();
     if (!(await grid.count().catch(() => 0))) return null;
     await grid.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+    // The grid renders its rows first and fills the vendor cells after: grey loading bars stand
+    // where the values go. Read once they are gone (21 Oct, B03: read during the bars, every
+    // vendor came back "no bid on this line" although all three had bid).
+    await this.waitForValues(grid);
 
     type Raw = { idx: number | null; header?: Array<{ col: number; name: string }>; heading?: string; label?: string; cells?: Array<{ col: number; text: string }> };
     // In-page code: no named inner functions — tsx's build wraps them in a __name()
@@ -113,5 +117,29 @@ export class MasterQcsPage extends BasePage {
       cur.rows.push({ label: r.label, cells: vendorCols.map((v) => at.get(v.col) ?? "") });
     }
     return { vendors: vendorCols.map((v) => v.name), blocks };
+  }
+
+  /** Until no loading bar is left in the grid and some vendor cell has text (at most 20 s). */
+  private async waitForValues(grid: ReturnType<Page["locator"]>): Promise<void> {
+    const until = Date.now() + 20_000;
+    for (;;) {
+      const st = await grid
+        .evaluate((el) => {
+          const bars = el.querySelectorAll("[class*='skeleton' i], [class*='shimmer' i], [class*='placeholder-glow' i], [aria-busy='true']").length;
+          let filled = 0;
+          for (const row of Array.from(el.querySelectorAll("[role='row']"))) {
+            const cells = Array.from(row.querySelectorAll("[role='gridcell']"));
+            for (const c of cells.slice(1)) if (((c as HTMLElement).innerText || "").trim()) filled++;
+          }
+          return { bars, filled };
+        })
+        .catch(() => ({ bars: 0, filled: 1 }));
+      if (!st.bars && st.filled) return;
+      if (Date.now() > until) {
+        console.log(`[master-qcs] the grid still showed ${st.bars} loading bar(s) and ${st.filled} filled cell(s) after 20 s — reading it as it stands`);
+        return;
+      }
+      await this.page.waitForTimeout(500);
+    }
   }
 }

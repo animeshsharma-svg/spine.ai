@@ -18,11 +18,21 @@
  * Each picture is a JPEG under evidence/<run>/spot-… (quality 72, ~60–120 KB); the same
  * bytes go out as a `[frame]` line, so the dashboard's live view shows the framed screen the
  * moment it is taken, and a `[spot]` line names the file, the step and the control, which the
- * run result keeps per step. Off with UI_SPOTLIGHT=0. At most 160 pictures a run.
+ * run result keeps per step. At most 160 pictures a run.
+ *
+ * SAVED PICTURES ARE OPT-IN since 26 Oct (Aanya: "screenshots taken at every point is not the optimal
+ * way … for each step we can save the console or divs or buttons, but not a screenshot of each
+ * step"). By default every action is kept as WORDS (stepActions: the verb, the control as the locator
+ * names it, the value typed, codes masked) for the step's screen record (observe.ts), and the purple
+ * frame is still drawn and sent to the LIVE VIEW only — nothing saved, no strip ("you removed the
+ * purple highlight thing, i want that", 27 Oct). UI_SPOTLIGHT=1 (or "all") also saves a picture of
+ * every action, for a walk meant to; UI_SPOTLIGHT=0 turns frame and words off.
  */
 import type { Locator, Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { mask } from "../explore/ask.js";
+import { paneOfPage } from "../support/liveCursor.js";
 
 export interface SpotShot {
   file: string;
@@ -56,7 +66,38 @@ const GOOD = "#16a34a"; // the frame colour for a verified assertion
 const MAX_SHOTS = 160;
 
 let dir = "";
-let enabled = process.env.UI_SPOTLIGHT !== "0";
+const MODE = (process.env.UI_SPOTLIGHT ?? "").toLowerCase();
+/** Save a picture of every action (opt-in). */
+let enabled = MODE === "1" || MODE === "all";
+/** Draw the frame on the live view (the default): the purple highlight, not saved. */
+const highlight = MODE !== "0" && MODE !== "off";
+/**
+ * How long a frame stays on the page before the action goes on (Aanya, 29 Oct: "the purple highlighter
+ * steps are going too fast … not too slow not too fast"). The frame was erased the moment its picture
+ * was taken, so on a fast stretch it flashed by. It now holds: 0.6 s for an action, 0.9 s for a green
+ * "verified". UI_SPOTLIGHT_HOLD_MS sets the action's hold (0 for none); the verified one is 1.5× it.
+ */
+const HOLD_MS = Math.max(0, Math.min(3_000, Number(process.env.UI_SPOTLIGHT_HOLD_MS ?? 600) || 0));
+const hold = (ms: number) => (ms ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+/** Shown on the live view only: a framed still sent as a [frame] line, never written to disk. */
+async function liveOnly(page: Page): Promise<void> {
+  const buf = await page.screenshot({ type: "jpeg", quality: 62, timeout: 5_000 }).catch(() => null);
+  if (buf) console.log(`[frame${paneOfPage(page) ? `@${paneOfPage(page)}` : ""}] ${buf.toString("base64")}`);
+}
+/** What each action of the running step did, in words (kept even when no picture is taken). */
+export interface StepAction {
+  verb: string;
+  target: string;
+  value?: string;
+}
+let actions: StepAction[] = [];
+/** The actions of the step that is running now. */
+export function stepActions(): StepAction[] {
+  return actions.slice();
+}
+/** The locator as Playwright describes it — getByRole('button', { name: 'Publish' }) — with no call to the page. */
+const describe = (loc: Locator) => String(loc).replace(/^locator\((.*)\)$/s, "$1").replace(/\s+/g, " ").slice(0, 140);
+const keepValue = (target: string, v: string) => (/password|otp|\bcode\b|passcode|\bpin\b/i.test(target) ? "•••" : v.replace(/\s+/g, " ").slice(0, 60));
 let count = 0;
 let current = { no: 0, name: "plan", total: 0 };
 let perStep: SpotShot[] = [];
@@ -66,7 +107,7 @@ const patched = new WeakSet<object>();
 /** Where this run's pictures go; patches the locator prototype once. */
 export function installSpotlight(page: Page, evidenceDir: string): void {
   dir = evidenceDir;
-  if (!enabled) return;
+  if (MODE === "0" || MODE === "off") return;
   const proto = Object.getPrototypeOf(page.locator("body")) as Record<string, any>;
   if (patched.has(proto)) return;
   patched.add(proto);
@@ -74,7 +115,12 @@ export function installSpotlight(page: Page, evidenceDir: string): void {
     const orig = proto[method];
     if (typeof orig !== "function") continue;
     proto[method] = async function (this: Locator, ...args: unknown[]) {
-      await spotlight(this, verb, method === "fill" || method === "type" || method === "pressSequentially" ? String(args[0] ?? "") : method === "selectOption" ? optionWords(args[0]) : method === "press" ? String(args[0] ?? "") : undefined).catch(() => {});
+      const value = method === "fill" || method === "type" || method === "pressSequentially" ? String(args[0] ?? "") : method === "selectOption" ? optionWords(args[0]) : method === "press" ? String(args[0] ?? "") : undefined;
+      if (actions.length < 40) {
+        const target = describe(this);
+        actions.push({ verb, target, ...(value !== undefined ? { value: keepValue(target, value) } : {}) });
+      }
+      if (enabled || highlight) await spotlight(this, verb, value).catch(() => {});
       return orig.apply(this, args);
     };
   }
@@ -91,6 +137,7 @@ function optionWords(v: unknown): string | undefined {
 export function beginStep(no: number, name: string, total: number): void {
   current = { no, name, total };
   perStep = [];
+  actions = [];
 }
 
 /** The pictures taken during the step that is running now. */
@@ -122,7 +169,8 @@ async function nameOf(loc: Locator): Promise<string> {
  * matches several elements, or the run is over its picture budget.
  */
 async function spotlight(loc: Locator, verb: string, value?: string): Promise<void> {
-  if (!enabled || busy || count >= MAX_SHOTS || !dir) return;
+  const saving = enabled && count < MAX_SHOTS && !!dir;
+  if ((!saving && !highlight) || busy) return;
   const page = loc.page();
   if (page.isClosed()) return;
   busy = true;
@@ -133,9 +181,16 @@ async function spotlight(loc: Locator, verb: string, value?: string): Promise<vo
     // Closing a pop-up the product threw in the way ("Not now" on the notification prompt, a
     // tour's "Skip") is housekeeping, not the test: no picture, or the strip fills with them.
     if (verb === "click" && /^(not now|skip|skip tour|got it|later|maybe later|dismiss|no thanks|remind me later)$/i.test(target)) return;
-    const label = `Step ${current.no}${current.total ? `/${current.total}` : ""} · ${verb}${value && verb !== "press" ? ` “${clip(value, 28)}”` : value ? ` ${value}` : ""} · ${target}`;
+    // What was typed, as the picture may show it: never a code or a password,
+    // never a whole phone number, never a login the tester typed in the chat.
+    const shown = value && /otp|one[- ]?time|verification|\bcode\b|password|passcode|\bpin\b/i.test(target)
+      ? "•••"
+      : value ? mask(value).replace(/\d{6,}(\d{4})/g, "…$1") : value;
+    const label = `Step ${current.no}${current.total ? `/${current.total}` : ""} · ${verb}${shown && verb !== "press" ? ` “${clip(shown, 28)}”` : shown ? ` ${shown}` : ""} · ${mask(target)}`;
     await draw(page, { x: box.x, y: box.y, w: box.width, h: box.height }, label, ACCENT, `${current.name.replace(/_/g, " ")}`);
-    await snap(page, verb, target, { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) });
+    if (saving) await snap(page, verb, target, { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) });
+    else await liveOnly(page);
+    await hold(HOLD_MS);
   } finally {
     await erase(page);
     busy = false;
@@ -144,11 +199,14 @@ async function spotlight(loc: Locator, verb: string, value?: string): Promise<vo
 
 /** A green "verified" picture after an assertion passed. */
 export async function spotlightVerify(page: Page, text: string): Promise<void> {
-  if (!enabled || busy || count >= MAX_SHOTS || !dir || page.isClosed()) return;
+  const saving = enabled && count < MAX_SHOTS && !!dir;
+  if ((!saving && !highlight) || busy || page.isClosed()) return;
   busy = true;
   try {
     await draw(page, null, `✓ Verified · ${clip(text.replace(/_/g, " "), 110)}`, GOOD, `step ${current.no}${current.total ? `/${current.total}` : ""}`);
-    await snap(page, "verify", clip(text, 120));
+    if (saving) await snap(page, "verify", clip(text, 120));
+    else await liveOnly(page);
+    await hold(Math.round(HOLD_MS * 1.5));
   } finally {
     await erase(page);
     busy = false;
@@ -157,7 +215,8 @@ export async function spotlightVerify(page: Page, text: string): Promise<void> {
 
 /** A green frame around one control an assertion looked at (generic expect steps). */
 export async function spotlightMark(loc: Locator, text: string): Promise<void> {
-  if (!enabled || busy || count >= MAX_SHOTS || !dir) return;
+  const saving = enabled && count < MAX_SHOTS && !!dir;
+  if ((!saving && !highlight) || busy) return;
   const page = loc.page();
   if (page.isClosed()) return;
   busy = true;
@@ -165,7 +224,9 @@ export async function spotlightMark(loc: Locator, text: string): Promise<void> {
     const box = await loc.boundingBox({ timeout: 1_500 }).catch(() => null);
     if (!box) return;
     await draw(page, { x: box.x, y: box.y, w: box.width, h: box.height }, `✓ Verified · ${clip(text, 90)}`, GOOD, `step ${current.no}${current.total ? `/${current.total}` : ""}`);
-    await snap(page, "verify", clip(text, 120), { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) });
+    if (saving) await snap(page, "verify", clip(text, 120), { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) });
+    else await liveOnly(page);
+    await hold(Math.round(HOLD_MS * 1.5));
   } finally {
     await erase(page);
     busy = false;
@@ -279,6 +340,6 @@ async function snap(page: Page, action: string, target: string, box?: SpotShot["
   writeFileSync(file, buf);
   const shot: SpotShot = { file, action, target, step: current.no, stepName: current.name, ...(box ? { box } : {}), url: page.url(), at: new Date().toISOString() };
   perStep.push(shot);
-  console.log(`[frame] ${buf.toString("base64")}`);
+  console.log(`[frame${paneOfPage(page) ? `@${paneOfPage(page)}` : ""}] ${buf.toString("base64")}`);
   console.log(`[spot] ${JSON.stringify(shot)}`);
 }

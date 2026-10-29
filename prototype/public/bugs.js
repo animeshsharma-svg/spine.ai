@@ -350,6 +350,9 @@
       actual: pl?.actual || hu.actual || line(/^Actual[:\s]+/i) || hu.what || g.rationale || "",
       ways: pl?.ways ?? [],
       shots: artifacts.filter((a) => a.kind === "screenshot" && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
+      // How it happened: a failed browser run's video, and its step-by-step Playwright replay (29 Oct).
+      videos: artifacts.filter((a) => a.kind === "video" && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
+      replays: artifacts.filter((a) => a.kind === "replay" && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
       links: artifacts.filter((a) => (a.kind === "session" || a.kind === "report") && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
       reply: artifacts.find((a) => a.kind === "reply")?.text ?? "",
       curl,
@@ -420,16 +423,19 @@
   const optOf = (field, v) => FIELDS[field].opts.find((o) => o.v === v) ?? null;
   const labelOf = (field, v) => optOf(field, v)?.label ?? v;
 
-  function pillHtml(m, field) {
+  /** "TO BE TESTED" → "To be tested": the sheet's words, read as words. */
+  const sentence = (t) => { const x = String(t ?? "").toLowerCase(); return x.charAt(0).toUpperCase() + x.slice(1); };
+  function pillHtml(m, field, { quiet = false } = {}) {
     const f = FIELDS[field];
     const v = m[field];
     const o = optOf(field, v);
-    const c = o?.c ?? "";
+    // In the list an open bug's status is grey: the red is kept for what needs a look (Re-open, P0, Blocker).
+    const c = quiet && field === "status" && v === "OPEN" ? "" : o?.c ?? "";
     return (
       `<button type="button" class="bg-pill${c ? ` t-${c}` : ""}${f.mono ? " mono" : ""}" data-field="${field}" ` +
       `aria-haspopup="listbox" aria-expanded="false" aria-label="${h(`${f.label} for ${m.id}: ${labelOf(field, v)}`)}" title="${h(labelOf(field, v))}">` +
       (c ? `<span class="bg-dot c-${c}" aria-hidden="true"></span>` : "") +
-      `<span class="bg-pv">${h(labelOf(field, v))}</span>${icon("chevron-down", "chev")}</button>`
+      `<span class="bg-pv">${h(field === "status" ? sentence(labelOf(field, v)) : labelOf(field, v))}</span>${icon("chevron-down", "chev")}</button>`
     );
   }
 
@@ -445,23 +451,49 @@
     );
   }
 
+  /**
+   * The Artifacts cell (Aanya, 29 Oct: "a column for artifacts for the images or the video links of
+   * where and how the bug occurred"): the screen where it went wrong (a thumbnail, with how many
+   * pictures there are), the run's video, its step-by-step replay, and the run's report. Each opens in
+   * a new tab; the drawer has them all.
+   */
+  function artHtml(m) {
+    const s = storyOf(m);
+    const out = [];
+    // Icons, not words (Aanya, 29 Oct: "so much content"): the picture count, the video, the report. Each opens in a new tab.
+    const chip = (href, ico, n, title) =>
+      `<a class="bg-artchip" href="${h(href)}" target="_blank" rel="noopener" title="${h(title)}" aria-label="${h(title)}">${icon(ico)}${n ? `<span>${n}</span>` : ""}</a>`;
+    if (s.videos[0]) out.push(chip(s.videos[0].href, "video", "", s.videos[0].label));
+    if (s.shots[0]) out.push(chip(s.shots[0].href, "app-window", s.shots.length > 1 ? s.shots.length : "", `${s.shots.length} screenshot${s.shots.length === 1 ? "" : "s"} — ${s.shots[0].label}`));
+    const report = s.links.find((x) => !x.href.startsWith("#"));
+    if (report) out.push(chip(report.href, "file-text", "", report.label));
+    return out.length ? `<div class="bg-arts">${out.join("")}</div>` : "";
+  }
+
+  /** What the developers said, only when they said it: the type, the ETA, a comment (its words on hover). */
+  function devHtml(m) {
+    const out = [];
+    if (m.devType) out.push(`<span class="bg-devtype" title="${h(m.devBy)}">${h(m.devType)}</span>`);
+    if (m.devEta) out.push(`<span class="bg-deveta" title="Dev ETA">${icon("calendar")}${h(ISO.test(m.devEta) ? new Date(m.devEta).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : m.devEta)}</span>`);
+    if (m.devComment) out.push(`<span class="bg-devnote" title="${h(m.devComment)}">${icon("pen-line")}${h(m.devComment.slice(0, 28))}${m.devComment.length > 28 ? "…" : ""}</span>`);
+    return out.join("");
+  }
+
   function rowHtml(m) {
     const picked = st.picked.has(m.key);
     const href = detailHref(m.id);
     return (
       `<tr data-key="${h(m.key)}"${picked ? ' class="is-picked"' : ""}>` +
       `<td class="c-check"><input type="checkbox" data-act="pick"${picked ? " checked" : ""} aria-label="Select ${h(m.id)}" /></td>` +
-      `<td class="c-bug"><div class="bg-l1"><a class="bg-id" href="${h(href)}" data-act="detail">${h(m.id)}</a>` +
-      `<span class="bg-state st-${m.state.k}" title="${h(m.state.why)}">${h(m.state.word)}</span></div>` +
-      `<p class="bg-desc">${h(m.title)}</p>` +
-      `<p class="bg-meta">${h(`${m.module} · ${m.userType} · ${m.seen}`)}</p></td>` +
-      `<td class="c-edit">${pillHtml(m, "status")}</td>` +
-      `<td class="c-edit">${pillHtml(m, "priority")}</td>` +
-      `<td class="c-edit">${pillHtml(m, "blocker")}</td>` +
-      `<td class="c-edit"><div class="bg-cell">${pillHtml(m, "devType")}<span class="bg-by">${h(m.devBy)}</span></div></td>` +
-      `<td class="c-edit">${etaHtml(m)}</td>` +
-      `<td class="c-edit c-comment"><input class="bg-comment" type="text" data-field="devComment" value="${h(m.devComment)}" ` +
-      `placeholder="Add a comment" aria-label="Dev comment for ${h(m.id)}" maxlength="2000" /></td>` +
+      // The bug in two lines — its words, then where it is from — and only what tells this row from the next
+      // (Aanya, 29 Oct: "the bug page feels like so much content"). Blocker, Dev type, ETA and comment are
+      // edited in the bug's panel; the row shows them only when they say something.
+      `<td class="c-bug"><a class="bg-desc" href="${h(href)}" data-act="detail">${h(m.title)}</a>` +
+      `<p class="bg-meta"><span class="bg-id">${h(m.id)}</span> · ${h(m.module)} · ${h(m.seen)} · <span class="bg-state st-${m.state.k}" title="${h(m.state.why)}">${h(m.state.word)}</span></p></td>` +
+      `<td class="c-edit" data-l="Status">${pillHtml(m, "status", { quiet: true })}</td>` +
+      `<td class="c-edit" data-l="Priority"><div class="bg-pri">${pillHtml(m, "priority")}${m.blocker === "YES" ? `<span class="bg-blocker" title="A blocker">Blocker</span>` : ""}</div></td>` +
+      `<td class="c-art" data-l="Evidence">${artHtml(m)}</td>` +
+      `<td class="c-dev" data-l="Developer">${devHtml(m)}</td>` +
       `<td class="c-open"><a class="bg-open" href="${h(href)}" data-act="detail" aria-label="Open ${h(m.id)}">${icon("chevron-right")}</a></td>` +
       `</tr>`
     );
@@ -469,16 +501,16 @@
 
   const HEAD =
     `<thead><tr><th class="c-check" scope="col"><input type="checkbox" data-act="pick-all" aria-label="Select all bugs shown" /></th>` +
-    `<th class="c-bug" scope="col">Bug</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Blocker</th>` +
-    `<th scope="col">Dev type</th><th scope="col">Dev ETA</th><th scope="col">Dev comment</th>` +
+    `<th class="c-bug" scope="col">Bug</th><th scope="col">Status</th><th scope="col">Priority</th>` +
+    `<th scope="col">Evidence</th><th scope="col">Developer</th>` +
     `<th class="c-open" scope="col"><span class="sr-only">Open</span></th></tr></thead>`;
 
   const SKELETON =
     `<div class="bg-card" aria-hidden="true"><table class="bg-table">${HEAD}<tbody>` +
     Array.from({ length: 6 }, () =>
       `<tr class="bg-skel"><td class="c-check"></td><td class="c-bug"><span class="bg-sk w-id"></span><span class="bg-sk w-t"></span><span class="bg-sk w-m"></span></td>` +
-      `<td><span class="bg-sk w-p"></span></td><td><span class="bg-sk w-p" style="width:44px"></span></td><td><span class="bg-sk w-p" style="width:44px"></span></td>` +
-      `<td><span class="bg-sk w-p"></span></td><td><span class="bg-sk w-p"></span></td><td><span class="bg-sk w-p" style="width:120px"></span></td><td></td></tr>`,
+      `<td><span class="bg-sk w-p" style="width:64px"></span></td><td><span class="bg-sk w-p" style="width:44px"></span></td>` +
+      `<td><span class="bg-sk w-p" style="width:56px"></span></td><td><span class="bg-sk w-p" style="width:44px"></span></td><td></td></tr>`,
     ).join("") +
     `</tbody></table></div>`;
 
@@ -493,7 +525,7 @@
         `<button type="button" class="bg-tile" data-sev="${k}" aria-pressed="${st.sev === k}" ` +
         `aria-label="${h(`${label}: ${open} open of ${of.length}. ${st.sev === k ? "Filtering — press to clear" : "Show only these"}`)}">` +
         `<span class="bg-tile-name"><span class="bg-sdot s-${k}" aria-hidden="true"></span>${h(label)}</span>` +
-        `<span class="bg-tile-n"><b>${num(open)}</b><span>open of ${num(of.length)}</span></span></button>`
+        `<span class="bg-tile-n"><b>${num(open)}</b><span>open${open === of.length ? "" : ` of ${num(of.length)}`}</span></span></button>`
       );
     }).join("");
     if (had) box.querySelector(`[data-sev="${had}"]`)?.focus();
@@ -684,6 +716,7 @@
     st.triage[key] = row;
     st.kept.add(key);
     paintRow(key);
+    paintTriage(key);
     afterEdit();
     try {
       const out = await post(key, field, value);
@@ -698,6 +731,7 @@
     } catch {
       st.triage[key] = before;
       paintRow(key);
+      paintTriage(key);
       afterEdit();
       toast("Couldn't save", { label: "Retry", run: () => save(key, field, value) });
       return false;
@@ -989,6 +1023,24 @@
   }
 
   // ── the bug, opened ──────────────────────────────────────────────────────
+  /** Everything a person sets on a bug, in one place: the list shows only what is set. */
+  function triageHtml(m) {
+    const row = (label, ctl) => `<div class="bg-tr"><span class="bg-tr-l">${label}</span><div class="bg-tr-c">${ctl}</div></div>`;
+    return (
+      row("Status", pillHtml(m, "status")) + row("Priority", pillHtml(m, "priority")) + row("Blocker", pillHtml(m, "blocker")) +
+      row("Dev type", `${pillHtml(m, "devType")}<span class="bg-by" title="${h(m.devBy)}">${h(m.devBy)}</span>`) +
+      row("Dev ETA", etaHtml(m)) +
+      row("Dev comment", `<input class="bg-comment" type="text" data-field="devComment" value="${h(m.devComment)}" placeholder="Add a comment" aria-label="Dev comment for ${h(m.id)}" maxlength="2000" />`)
+    );
+  }
+  /** The open panel's triage, again after an edit (the row is painted by paintRow). */
+  function paintTriage(key) {
+    const dr = q$("#bg-drawer");
+    if (!dr || dr.hidden || dr.dataset.key !== key) return;
+    const g = (st.groups ?? []).find((x) => x.defectFingerprint === key);
+    const box = q$(".bg-triage", dr);
+    if (g && box && !box.contains(document.activeElement)) box.innerHTML = triageHtml(model(g));
+  }
   function drawerHtml(m) {
     const s = storyOf(m);
     const fact = (t) => `<span class="bg-fact">${t}</span>`;
@@ -1004,10 +1056,9 @@
       `<div class="bg-dr-body">` +
       `<div class="bg-dr-facts">` +
       fact(`<span class="bg-sdot s-${m.sev}" aria-hidden="true"></span>${h(sevLabel)}`) +
-      fact(h(KIND_LABEL[m.kind] ?? "Product defect")) +
-      fact(`Status ${h(labelOf("status", m.status))}`) + fact(`Priority ${h(m.priority)}`) +
-      fact(`Dev type ${h(m.devType)}`) + fact(h(m.module)) +
+      fact(h(KIND_LABEL[m.kind] ?? "Product defect")) + fact(h(m.module)) + fact(h(m.userType)) +
       `</div>` +
+      `<div class="bg-triage">${triageHtml(m)}</div>` +
       (s.what ? sec("What's wrong", `<p>${h(s.what)}</p>`) : "") +
       (s.where ? sec("Where", `<p>${h(s.where)}</p>`) : "") +
       (s.steps.length ? sec("How to see it", `<ol>${s.steps.map((x) => `<li>${h(x)}</li>`).join("")}</ol>`) : "") +
@@ -1020,6 +1071,11 @@
         ? sec(`Ways it happened (${s.ways.length})`, `<ul class="bg-ways">${s.ways.map((w) => `<li><span>${h(w.what)}</span>${w.result ? `<em>${h(w.result)}</em>` : ""}</li>`).join("")}</ul>`)
         : "") +
       sec("How often", `<p>${h(s.often)} ${h(m.state.why)}.</p>`) +
+      (s.videos.length || s.replays.length
+        ? sec("How it happened", s.videos.map((x) => `<video class="bg-video" src="${h(x.href)}" controls preload="metadata" title="${h(x.label)}"></video>`).join("") +
+          `<ul class="bg-art">${[...s.videos.map((x) => `<li><a href="${h(x.href)}" target="_blank" rel="noopener">${h(x.label)}</a></li>`),
+            ...s.replays.map((x) => `<li><a href="${h(x.href)}" download>${h(x.label)}</a> — open it at <a href="https://trace.playwright.dev" target="_blank" rel="noopener">trace.playwright.dev</a></li>`)].join("")}</ul>`)
+        : "") +
       (s.shots.length
         ? sec("Screenshots", `<div class="bg-shots">${s.shots.map((x) =>
             `<a href="${h(x.href)}" target="_blank" rel="noopener" title="${h(x.label)}"><img src="${h(x.href)}" alt="${h(x.label)}" loading="lazy" /><span>${h(x.label)}</span></a>`).join("")}</div>`)
@@ -1282,6 +1338,20 @@
       if (act === "close") return closeDetail();
       const m = models().find((x) => x.key === dr.dataset.key);
       if (!m) return;
+      const pill = e.target.closest(".bg-pill");
+      if (pill) {
+        if (pop?.trigger === pill) return closePop(true);
+        const field = pill.dataset.field;
+        return openList(pill, {
+          label: `${FIELDS[field].label} for ${m.id}`,
+          options: FIELDS[field].opts,
+          current: m[field],
+          mono: FIELDS[field].mono,
+          onPick: (v) => {
+            if (v !== m[field] || field === "devType") save(m.key, field, v);
+          },
+        });
+      }
       if (act === "copy-curl") {
         try {
           await navigator.clipboard.writeText(X()?.scrub(storyOf(m).curl) ?? storyOf(m).curl);
@@ -1297,12 +1367,32 @@
       if (e.key === "Escape") { e.preventDefault(); closeDetail(); }
       if (e.key === "Tab") {
         // Keep the keyboard in the drawer while it is open.
-        const items = [...dr.querySelectorAll("a[href], button:not(:disabled)")];
+        const items = [...dr.querySelectorAll("a[href], button:not(:disabled), input")];
         const i = items.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1]?.focus(); }
         else if (!e.shiftKey && i === items.length - 1) { e.preventDefault(); items[0]?.focus(); }
       }
     });
+    // The panel's ETA and comment save like the row's did: the date on change, the comment on Enter or leaving it.
+    dr?.addEventListener("change", (e) => {
+      if (e.target.dataset.field !== "devEta") return;
+      const key = dr.dataset.key;
+      if (e.target.value !== (st.triage[key]?.devEta ?? "")) save(key, "devEta", e.target.value);
+    });
+    const commitHere = (t) => {
+      if (t.dataset.field !== "devComment") return;
+      const key = dr.dataset.key;
+      const v = t.value.trim();
+      if (v !== (st.triage[key]?.devComment ?? "")) save(key, "devComment", v);
+    };
+    dr?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.dataset?.field === "devComment") {
+        e.preventDefault();
+        commitHere(e.target);
+        e.target.blur();
+      }
+    });
+    dr?.addEventListener("focusout", (e) => commitHere(e.target));
     q$("#bg-scrim")?.addEventListener("click", closeDetail);
 
     // From a run's page: "Export bugs from this run" (public/session.js).

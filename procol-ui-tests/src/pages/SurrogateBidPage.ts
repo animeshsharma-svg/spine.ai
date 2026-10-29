@@ -30,10 +30,55 @@ export class SurrogateBidPage extends BasePage {
 
   /** The open Add Bid drawer, identified by its own submit control. */
   private drawer() {
-    return this.page
-      .locator(".ant-drawer-content, .ant-modal-content, [role='dialog']")
-      .filter({ has: this.page.getByTestId("submit-bid-button") })
-      .last();
+    const boxes = this.page.locator(".ant-drawer-content, .ant-modal-content, [role='dialog']");
+    // The price sheet's drawer carries submit-bid-button; a technical stage's is a response form
+    // under the same "Add Bid for <vendor>" title with a plain Submit (26 Oct, B31: it opened and
+    // the step said it had not).
+    return boxes.filter({ has: this.page.getByTestId("submit-bid-button") }).or(boxes.filter({ hasText: /add bid for/i })).last();
+  }
+
+  /** What the last addBidFor entered: a priced bid, or a technical stage's response form. */
+  lastKind: "price" | "technical" = "price";
+
+  /**
+   * A technical stage's Add Bid: the vendor's answers to the questionnaire, not a price. Quick
+   * Fill (Same as Requested) where a section offers it, then every answer still marked Required
+   * is typed, then Submit. Returns how many answers were typed.
+   */
+  private async fillTechnicalResponse(drawer: ReturnType<SurrogateBidPage["drawer"]>): Promise<number> {
+    const p = this.page;
+    const quick = drawer.getByText(/^\s*quick\s*fill\s*$/i);
+    for (let i = 0; i < Math.min(await quick.count().catch(() => 0), 10); i++) {
+      await quick.nth(i).click({ timeout: 5_000 }).catch(() => {});
+      // The menu this Quick Fill opened — a visible one: Procol keeps each section's used menu in the page,
+      // hidden, and .first() picked the first section's for the second (29 Oct, plan-mvt753ce).
+      const same = p.getByRole("menuitem", { name: /same as requested/i }).or(p.getByText(/^\s*same as requested\s*$/i)).filter({ visible: true }).last();
+      if (await same.waitFor({ state: "visible", timeout: 2_500 }).then(() => true).catch(() => false)) await same.click({ timeout: 3_000 }).catch(() => {});
+      // Never Escape here: in the Add Bid drawer Escape closes the whole form, unsent (plan-mvt753ce). A menu
+      // left open is closed by clicking its Quick Fill again.
+      else if (await p.locator(".ant-dropdown:not(.ant-dropdown-hidden), [role='menu']").filter({ visible: true }).count().catch(() => 0)) {
+        await quick.nth(i).click({ timeout: 3_000 }).catch(() => {});
+      }
+      await this.pause(800);
+      if (!(await drawer.isVisible().catch(() => false))) throw new Error("the Add Bid form closed while its answers were being filled, before it was submitted");
+    }
+    let typed = 0;
+    for (let round = 0; round < 30; round++) {
+      const empty = drawer.getByText(/^\s*\(required\)\s*\*?\s*$/i).first();
+      if (!(await empty.isVisible().catch(() => false))) break;
+      await empty.scrollIntoViewIfNeeded().catch(() => {});
+      await empty.click({ timeout: 3_000 }).catch(() => {});
+      await empty.dblclick({ timeout: 3_000 }).catch(() => {});
+      // The answer box that just opened, in this form (not the page's last field, which can be the
+      // "Surrogate Bid Reference" box or a search box behind the drawer).
+      const box = drawer.locator("textarea:visible, [contenteditable='true']:visible, input[type='text']:visible").last();
+      if (!(await box.count().catch(() => 0))) break;
+      await box.fill("As per the requested specification", { timeout: 3_000 }).catch(() => {});
+      await p.keyboard.press("Tab").catch(() => {});
+      await this.pause(400);
+      typed++;
+    }
+    return typed;
   }
 
   /**
@@ -43,7 +88,7 @@ export class SurrogateBidPage extends BasePage {
    * navigates — so each candidate tab is tried and the arrival is waited for
    * rather than assumed.
    */
-  async openParticipants(): Promise<boolean> {
+  async openParticipants(stage: "pricing" | "technical" = "pricing"): Promise<boolean> {
     const p = this.page;
     // Publishing redirects, and this runs immediately after. The project page's
     // own tabs arrive with that navigation — without waiting for them,
@@ -69,7 +114,12 @@ export class SurrogateBidPage extends BasePage {
     // whichever stage tab it opens on — once a withdrawn Technical Stage, whose
     // Participants list had no vendors and no Add Bid — so go to the RFQ /
     // auction tab first, skipping any marked Withdrawn.
-    const pricing = p.getByRole("tab").filter({ hasText: /\b(rfq|auction)\b/i }).filter({ hasNotText: /withdrawn|commercials/i }).first();
+    // stage "technical": a two-stage event's Technical Stage, where Add Bid enters the vendor's technical
+    // response (27 Oct, VB04 — the run had gone to the RFQ although the case wanted the technical answer).
+    const pricing = (stage === "technical"
+      ? p.getByRole("tab").filter({ hasText: /technical/i })
+      : p.getByRole("tab").filter({ hasText: /\b(rfq|auction)\b/i })
+    ).filter({ hasNotText: /withdrawn|commercials/i }).first();
     if ((await pricing.count()) && (await pricing.getAttribute("aria-selected").catch(() => null)) !== "true") {
       const label = ((await pricing.textContent().catch(() => "")) ?? "").trim();
       await pricing.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
@@ -86,8 +136,8 @@ export class SurrogateBidPage extends BasePage {
     // Stage tab comes first and has a Participants list too — the vendor picker, no Add Bid —
     // so stopping at the first stage with participants opened the wrong one (2026-10-09).
     const pricingTab = p.getByRole("tab", { name: /^\s*(rfq|auction|reverse auction|forward auction)\b/i }).first();
-    const onTechnical = await p.getByRole("tab", { name: /technical stage/i, selected: true }).count().catch(() => 0);
-    if ((onTechnical || !(await found())) && (await pricingTab.count().catch(() => 0))) {
+    const onTechnical = stage === "technical" ? 0 : await p.getByRole("tab", { name: /technical stage/i, selected: true }).count().catch(() => 0);
+    if ((onTechnical || !(await found())) && stage !== "technical" && (await pricingTab.count().catch(() => 0))) {
       await pricingTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
       await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
       await this.dismissDistractions();
@@ -98,7 +148,7 @@ export class SurrogateBidPage extends BasePage {
       for (let i = 0; i < count; i++) {
         const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
         if (/^(project\s+)?(details|overview|master\s+qcs|analytics|price\s+trends)$/i.test(label)) continue;
-        if (/technical/i.test(label) && (await pricingTab.count().catch(() => 0))) continue;
+        if (stage !== "technical" && /technical/i.test(label) && (await pricingTab.count().catch(() => 0))) continue;
         await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         // Selecting a stage NAVIGATES; its sub-tabs and audience list arrive
         // with the new page. The event header is the signal that it has.
@@ -118,6 +168,17 @@ export class SurrogateBidPage extends BasePage {
       label: "participants-tab",
       timeout: TIMEOUTS.MEDIUM,
     });
+    // A click that lands while the stage page is still arriving is lost: the stage opens on Responses
+    // (27 Oct, VB04). Once more if the list's search box has not come — after giving the first click time, or
+    // both take effect and the late one redraws the page under the Add Bid drawer.
+    const listBox = p.getByPlaceholder(/search vendors?/i).first();
+    if (!(await listBox.waitFor({ state: "visible", timeout: 6_000 }).then(() => true).catch(() => false))) {
+      const tab = p.getByRole("tab", { name: /^\s*participants\s*$/i }).filter({ visible: true }).first();
+      if ((await tab.count()) && (await tab.getAttribute("aria-selected").catch(() => null)) !== "true") {
+        await tab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        console.log("[surrogate] the Participants tab did not open on the first click — clicked it again");
+      }
+    }
     // Wait for the audience list itself. The rows arrive from a separate
     // request after the tab switches, so a fixed pause found an empty list and
     // concluded surrogate bidding was unavailable — when in fact ten Add Bid
@@ -223,9 +284,9 @@ export class SurrogateBidPage extends BasePage {
    *        used when it is absent or matches nobody, since a test that just
    *        wants "a surrogate bid" should not have to know the audience.
    */
-  async addBidFor(vendor: string | undefined, price: number, alreadyBid: string[] = []): Promise<string> {
+  async addBidFor(vendor: string | undefined, price: number, alreadyBid: string[] = [], stage: "pricing" | "technical" = "pricing"): Promise<string> {
     const p = this.page;
-    if (!(await this.openParticipants())) {
+    if (!(await this.openParticipants(stage))) {
       throw new Error(
         "the participant list could not be opened on this event, so no surrogate bid can be entered. " +
           "Surrogate bidding lives on a published trade event's Participants tab.",
@@ -284,14 +345,20 @@ export class SurrogateBidPage extends BasePage {
     // ones — a test that asserts "two bids" would pass having created one.
     if (!vendor && alreadyBid.length) {
       const buttons = p.getByTestId("add-bid-button");
+      let found = false;
+      const offered: string[] = [];
       for (let i = 0; i < (await buttons.count()); i++) {
         const text = await this.rowTextFor(buttons.nth(i));
+        offered.push(text.slice(0, 40));
         if (text && !alreadyBid.some((prev) => text.includes(prev) || prev.includes(text))) {
           button = buttons.nth(i);
           chosen = text.slice(0, 40);
+          found = true;
           break;
         }
       }
+      // Never fall back to "the first": that bid for a vendor the plan had kept for the vendor portal (29 Oct).
+      if (!found) throw new Error(`every vendor offering Add Bid is already taken in this plan (${offered.join(" | ") || "none offered"}) — a surrogate bid for another vendor needs one more vendor on the event`);
     } else if (!vendor) {
       chosen = (await this.rowTextFor(button)).slice(0, 40) || chosen;
     }
@@ -316,17 +383,69 @@ export class SurrogateBidPage extends BasePage {
       }
     }
 
+    // The rows re-render when the list refetches (the "selected vendors" switch, a stage switch just before), and
+    // the drawer belongs to its row: a click during that opened nothing, or a drawer that then vanished (27 Oct,
+    // VB04 on a two-stage RFQ). Let the list settle, and click once more if no drawer comes.
+    await p.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await button.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
     await button.click({ timeout: TIMEOUTS.MEDIUM });
 
     const drawer = this.drawer();
-    const opened = await drawer
+    let opened = await drawer
       .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
       .then(() => true)
       .catch(() => false);
+    if (!opened && (await button.isVisible().catch(() => false))) {
+      console.log("[surrogate] no Add Bid drawer after the first click (the row re-rendered) — clicking Add Bid again");
+      await this.pause(1_500);
+      await button.click({ timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+      opened = await drawer.waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).then(() => true).catch(() => false);
+    }
     if (!opened) throw new Error("the Add Bid drawer did not open after clicking Add Bid");
 
-    const filled = await this.fillBidSheet(drawer, price);
+    this.lastKind = "price";
+    const technical = !(await drawer.getByTestId("submit-bid-button").count().catch(() => 0)) && (await drawer.getByText(/vendor response/i).count().catch(() => 0)) > 0;
+    if (technical) {
+      this.lastKind = "technical";
+      const typed = await this.fillTechnicalResponse(drawer);
+      if (!(await drawer.isVisible().catch(() => false))) throw new Error("the Add Bid form closed before it was submitted — nothing was sent");
+      const send = drawer.getByRole("button", { name: /^\s*submit\s*$/i }).last();
+      if (!(await send.count())) throw new Error("the Add Bid drawer opened as a technical response form, but it has no Submit button");
+      if (await send.isDisabled().catch(() => false)) throw new Error(`the technical response form's Submit stays disabled after Quick Fill and ${typed} typed answer(s) — a required answer is still empty`);
+      await send.click({ timeout: TIMEOUTS.MEDIUM });
+      await this.waitForSpinnerHidden();
+      await this.clickIfPresent([this.page.getByRole("dialog").getByRole("button", { name: /^(yes|confirm|submit|ok)/i })], { label: "surrogate-confirm", timeout: TIMEOUTS.SHORT });
+      await this.pause(1_500);
+      const err = await this.errorToastText(2_000);
+      if (err) throw new Error(`the technical response was rejected: ${err}`);
+      const closed = await drawer.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).then(() => true).catch(() => false);
+      if (!closed) throw new Error("the technical response form was submitted but stayed open, and the app said nothing");
+      console.log(`[surrogate] technical response submitted for ${chosen} (Quick Fill + ${typed} typed answer(s))`);
+      return chosen;
+    }
+
+    // No price at all (a case checking the price is required, 27 Oct SB09): type nothing and judge Submit.
+    if (Number.isNaN(price)) {
+      const submitNoPrice = drawer.getByTestId("submit-bid-button");
+      if (await submitNoPrice.isDisabled().catch(() => false)) {
+        await p.keyboard.press("Escape").catch(() => {});
+        throw new Error("blocked: Submit Bid stays disabled with no price entered — Procol does not take a bid without a price");
+      }
+      await submitNoPrice.click({ timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+      const said = await this.errorToastText(4_000);
+      if (said) throw new Error(`blocked: ${said} — Procol refused the bid with no price`);
+      throw new Error("Procol took a surrogate bid with no price — Submit was enabled and nothing refused it");
+    }
+    let filled = await this.fillBidSheet(drawer, price);
+    // The stage page can re-render under the drawer and close it (27 Oct, VB04: a late tab switch; the Submit
+    // click then waited on a drawer that was gone). Open it once more and type the price again.
+    if (!(await drawer.isVisible().catch(() => false))) {
+      console.log("[surrogate] the Add Bid drawer closed by itself before Submit (the page re-rendered) — opening it again");
+      await this.pause(2_000);
+      await button.click({ timeout: TIMEOUTS.MEDIUM });
+      await drawer.waitFor({ state: "visible", timeout: TIMEOUTS.LONG });
+      filled = await this.fillBidSheet(drawer, price);
+    }
     if (!filled) {
       throw new Error(
         "no price cell in the Add Bid drawer accepted a value, so the submit button stays disabled — " +
@@ -338,6 +457,9 @@ export class SurrogateBidPage extends BasePage {
     // The app disables submit until a price exists; check rather than click
     // blindly, so "nothing happened" is never the report.
     if (await submit.isDisabled().catch(() => false)) {
+      // A price of 0 or below that leaves Submit disabled is Procol refusing the price (27 Oct, SB10: -50),
+      // not the sheet missing the typing — said as "blocked:" so an attempt counts it as the refusal.
+      if (price <= 0) throw new Error(`blocked: Submit Bid stays disabled for a price of ${price} — Procol does not accept it`);
       throw new Error(
         `the drawer accepted ${filled} price(s) but its submit button is still disabled — the values did ` +
           "not register in the sheet's state",

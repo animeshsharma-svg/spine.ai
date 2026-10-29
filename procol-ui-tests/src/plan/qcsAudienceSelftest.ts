@@ -60,22 +60,26 @@ const BAD_RANK = qcs([ALPHA, BETA], [{ heading: "AAC BLOCKS", rows: [["Qty Offer
 // Recorded 14 Oct (evidence/plan-mv7zdopu/03): two vendors tied at ₹1,000, both shown as Rank 2.
 const TIE = qcs(["Sampletest.sas@sasco45.in", "Mehak234 pvt. ltd."], [{ heading: "AAC BLOCKS •1100000401 •Variant 1", rows: [["Qty Offer", "10 Unit", "10 Unit"], ["Rank", "2", "2"], ["RFQ Rate", "₹ 100 /Unit", "₹ 100 /Unit"], ["RFQ Amount", "₹ 1,000", "₹ 1,000"]] }, { heading: "Rfq Final", rows: [["Sum Total", "₹ 1,000", "₹ 1,000"]] }]);
 const PLACEHOLDER = qcs(["Vendor 1"], [{ heading: "AAC BLOCKS", rows: [["Qty Offer", "64 KG"], ["Rank", "1"], ["RFQ Rate", "₹ 87 /KG"], ["RFQ Amount", "₹ 5,568"]] }]);
+// 27 Oct, VB08: a portal bid of 100/unit for 10 units and a surrogate 120/unit for 1 unit — Procol ranked the 100 first.
+const BY_RATE = qcs(["PROCOL TECH PRIVATE LIMITED", "samplevendor@vendortestt.co"], [{ heading: "AAC BLOCKS •1100000401 •Variant 1", rows: [["Qty Offer", "10 Unit", "1 Unit"], ["Rank", "1", "2"], ["RFQ Rate", "₹ 100 /Unit", "₹ 120 /Unit"], ["RFQ Amount", "₹ 1,000", "₹ 120"]] }]);
+// 28 Oct, SB13: an auction grid with a Last Purchase Price row — "Price" is the bid's rate, not that.
+const WITH_LPP = qcs(["PROCOL TECH PRIVATE LIMITED"], [{ heading: "AAC BLOCKS •1100000401 •Variant 1", rows: [["Last Purchase Price", "₹ 50 /Unit"], ["Rank", "1"], ["Auction Rate", "₹ 100 /Unit"], ["Auction Amount", "₹ 1,000"]] }]);
 const NO_GRID = `<html><body><div role="tab">Master QCS</div><p>No bids are placed yet!</p></body></html>`;
 
 /** A published event's Participants list: search, the selected-only switch, rows, pagination (10 a page). */
-function participants(vendors: Array<{ name: string; email: string; selected: boolean }>): string {
+function participants(vendors: Array<{ name: string; email: string; selected: boolean }>, closed = false): string {
   return `<html><body>
 <input placeholder="Search vendors" id="q"/>
 <span>Show only selected vendors</span><button role="switch" class="ant-switch" aria-checked="false" id="sw"></button>
 <ul id="list"></ul><p id="empty" style="display:none">No vendors to show</p>
 <ul class="ant-pagination"><li class="ant-pagination-prev" title="Previous Page">‹</li><li class="ant-pagination-next" title="Next Page" id="next">›</li></ul>
 <script>
-const V=${JSON.stringify(vendors)};let page=0;
+const V=${JSON.stringify(vendors)};const CLOSED=${closed};let page=0;
 function shown(){const q=document.getElementById('q').value.toLowerCase();const only=document.getElementById('sw').getAttribute('aria-checked')==='true';
   return V.filter(v=>(!only||v.selected)&&(v.name+' '+v.email).toLowerCase().includes(q));}
 function render(){const all=shown();const pages=Math.max(1,Math.ceil(all.length/10));if(page>=pages)page=pages-1;
   const rows=all.slice(page*10,page*10+10);
-  document.getElementById('list').innerHTML=rows.map((v,i)=>'<li class="rowItem"><input type="checkbox" '+(v.selected?'checked':'')+' data-i="'+V.indexOf(v)+'"/><p>'+v.name+'</p><p>-</p><p>'+v.email+'</p><p>-</p>'+(v.selected?'<button data-testid="add-bid-button">Add Bid</button>':'')+'<button>Add Price Cap</button></li>').join('');
+  document.getElementById('list').innerHTML=rows.map((v,i)=>CLOSED?'<li class="rowItem"><p>'+v.name+'</p><p>-</p><p>'+v.email+'</p><p>-</p></li>':'<li class="rowItem"><input type="checkbox" '+(v.selected?'checked':'')+' data-i="'+V.indexOf(v)+'"/><p>'+v.name+'</p><p>-</p><p>'+v.email+'</p><p>-</p>'+(v.selected?'<button data-testid="add-bid-button">Add Bid</button>':'')+'<button>Add Price Cap</button></li>').join('');
   document.getElementById('empty').style.display=rows.length?'none':'block';
   const n=document.getElementById('next');n.className='ant-pagination-next'+(page>=pages-1?' ant-pagination-disabled':'');}
 document.getElementById('q').addEventListener('input',()=>{page=0;setTimeout(render,300)});
@@ -91,6 +95,8 @@ const AUDIENCE = participants([
   { name: "Unselected Supplies", email: "uns@vendors.in", selected: false },
   { name: "QA_Platform Vendor 2 1790820862140", email: "qa_1790820862140_v2@example.com", selected: false },
 ]);
+// A closed or withdrawn event's list (27 Oct, evidence/plan-mvpuw549/18): rows keep name/phone/email/code, no checkbox, no buttons.
+const CLOSED_LIST = participants([{ name: "PROCOL TECH PRIVATE LIMITED", email: "test@dummy.com", selected: true }], true);
 const QA_NAMES = async () => [BETA, "QA_Platform Vendor 2 1790820862140"];
 
 interface Case {
@@ -136,6 +142,9 @@ const CASES: Case[] = [
   { name: "one product only skips the Sum Total", html: BAD_TOTAL, step: { step: "expect_qcs_amounts", args: { product: "AAC" } }, expect: "pass" },
   // ── ranks
   { name: "ranks follow the amounts (lowest is Rank 1)", html: GOOD, step: { step: "expect_qcs_ranks", args: {} }, expect: "pass" },
+  { name: "'Price' reads the bid's rate row, never Last Purchase Price (SB13)", html: WITH_LPP, step: { step: "expect_qcs_cell", args: { row: "Price", vendor: 1, number: 100 } }, expect: "pass", says: "Auction Rate" },
+  { name: "'Last Purchase Price' named by the case is still found", html: WITH_LPP, step: { step: "expect_qcs_cell", args: { row: "Last Purchase Price", vendor: 1, number: 50 } }, expect: "pass", says: "Last Purchase Price" },
+  { name: "ranks follow the rate when quantities differ (VB08)", html: BY_RATE, step: { step: "expect_qcs_ranks", args: {} }, expect: "pass", says: "RFQ Rate" },
   { name: "inverted ranks FAIL", html: BAD_RANK, step: { step: "expect_qcs_ranks", args: {} }, expect: "failed", says: "do not follow" },
   { name: "a sell event reads the other way (so the good grid fails there)", html: GOOD, step: { step: "expect_qcs_ranks", args: { order: "highest", product: "AAC" } }, expect: "failed" },
   { name: "a tie at the best amount is recorded, not judged (no false bug)", html: TIE, step: { step: "expect_qcs_ranks", args: {} }, expect: "couldn't tell", says: "tie at the best" },
@@ -149,6 +158,8 @@ const CASES: Case[] = [
   { name: "present:false passes for a vendor nobody has", html: AUDIENCE, step: { step: "expect_participant", args: { vendor: "Nobody Industries", present: false } }, expect: "pass" },
   { name: "the round's vendors are counted over two pages", html: AUDIENCE, step: { step: "expect_participant_count", args: { count: 11 } }, expect: "pass", says: "2 page" },
   { name: "a wrong count FAILS", html: AUDIENCE, step: { step: "expect_participant_count", args: { count: 12 } }, expect: "failed", says: "lists 11" },
+  { name: "a closed event's rows (no checkbox) are still counted", html: CLOSED_LIST, step: { step: "expect_participant_count", args: { count: 1 } }, expect: "pass", says: "PROCOL TECH" },
+  { name: "a closed event's row is listed without Add Bid", html: CLOSED_LIST, step: { step: "expect_participant", args: { vendor: "PROCOL TECH", addBid: false } }, expect: "pass", says: "without Add Bid" },
   { name: "QA-only: without the QA vendor list it is COULD NOT TELL (nobody is clicked)", html: AUDIENCE, qaOnly: true, step: { step: "select_participant", args: { vendor: "Unselected Supplies" } }, expect: "couldn't tell", says: "nobody was selected" },
   { name: "QA-only: a vendor that is not a QA vendor is refused (nobody is clicked)", html: AUDIENCE, qaOnly: true, qaNames: QA_NAMES, step: { step: "select_participant", args: { vendor: "Unselected Supplies" } }, expect: "couldn't tell", says: "QA vendors only" },
   { name: "QA-only: it adds the first QA vendor not yet on the round", html: AUDIENCE, qaOnly: true, qaNames: QA_NAMES, step: { step: "select_participant", args: {} }, expect: "pass", says: "held 11" },

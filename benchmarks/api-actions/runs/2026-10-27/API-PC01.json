@@ -1,0 +1,407 @@
+{
+ "id": "API-PC01",
+ "text": "Create an RFQ with 1 line item, invite 1 vendor, publish it and set a price cap of 100 for that vendor.",
+ "expect": "accepted",
+ "startedAt": "2026-10-26T20:42:38.168Z",
+ "lines": [
+  "No ready-made case matches — writing an API test from your sentence…",
+  "Not covered by this API test: The available vocabulary has no field or operation for setting a vendor-specific price cap of 100..",
+  "Plan “Create and publish an RFQ with one invited vendor” on PROCOL DEMO",
+  "Setup: A fresh draft event with one line item and no rounds.",
+  "  setup · Chosen by the caller: vendor “QA vendor 1”.",
+  "  setup · Sign in as the buyer: worked — Using Procol Support's web-console session for PROCOL DEMO — the app accepted it (role: super_admin).",
+  "  setup · Create the draft event: worked — Draft Z2drY2RY was created with one line item (73 KG).",
+  "  · act 1: The buyer adds a pricing (RFQ) round to the event with 1 audience company uuids. — The app accepted it (HTTP 200).",
+  "  ? act 2: The buyer publishes the event with 1 draft trade request uuids, with 1 audience company uuids. — Not sent: {{act1.data.tradeId}} had no value in this run.",
+  "Verdict: couldn't tell — A value the request needs was not produced by the setup or an earlier step."
+ ],
+ "checks": [
+  {
+   "id": "API-TYPED",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "Create and publish an RFQ with one invited vendor",
+   "type": "functional",
+   "category": "API plan",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": true,
+   "layer": "api",
+   "inputSummary": "setup draft_event",
+   "httpStatus": null,
+   "accepted": false,
+   "message": null,
+   "durationMs": 10644,
+   "pass": false,
+   "verdict": "inconclusive — A value the request needs was not produced by the setup or an earlier step.",
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with 1 audience company uuids.",
+    "The buyer publishes the event with 1 draft trade request uuids, with 1 audience company uuids.",
+    "As the buyer, read the event and check that “status” equals active.",
+    "As the buyer, list the event's invited vendors and check that the reply is not empty.",
+    "As the buyer, read the pricing round and check that “status” equals active; “participants” is not empty."
+   ],
+   "expectedResult": "The app accepts it. Read back afterwards: “status” equals active; the reply is not empty; “status” equals active; “participants” is not empty.",
+   "apiPlan": {
+    "recipe": "draft_event",
+    "setupOk": true,
+    "event": "spine-API-automation-83128234"
+   }
+  },
+  {
+   "id": "API-TYPED·act1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer adds a pricing (RFQ) round to the event with 1 audience company uuids.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /trade/template_input?template_name=trade&additional_fields=order_details",
+   "request": {
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+     "widgets": {
+      "global_price_components": [
+       {
+        "uuid": "cFpwZw==",
+        "name": "QA_Platform_Sum Total",
+        "key_attribute": "gross_total",
+        "input_type": "formula",
+        "widget_type": "default",
+        "configuration": {
+         "field_type": "formula",
+         "mode_type": "read",
+         "precision": 4,
+         "prefix": "₹",
+         "input_group": "amount",
+         "is_removable": true,
+         "formula": "SUM(total_amount)",
+         "is_required": false
+        }
+       }
+      ],
+      "inline_components": [
+       {
+        "name": "QA_Platform_Product",
+        "key_attribute": "product",
+        "input_type": "product",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "creator",
+         "is_required": true,
+         "dropdown_data": "/api/products",
+         "mode_type": "write",
+         "freeze_widget": "primary",
+         "priority": "1",
+         "is_removable": false,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Quantity Requested",
+        "key_attribute": "creator_quantity",
+        "input_type": "quantity",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "creator",
+         "is_required": true,
+         "mode_type": "write",
+         "freeze_widget": "secondary",
+         "suffix": "KG",
+         "priority": "2",
+         "is_removable": false,
+         "input_group": "quantity",
+         "precision": 4,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Delivery location",
+        "key_attribute": "buyer_hub",
+        "input_type": "delivery_location",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "creator",
+         "is_required": true,
+         "mode_type": "write",
+         "priority": "3",
+         "is_removable": false,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Quantity Available",
+        "key_attribute": "participant_quantity",
+        "input_type": "quantity",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "participant",
+         "is_required": true,
+         "is_negotiable": true,
+         "mode_type": "write",
+         "validations": [
+          {
+           "error_message": "Quantity should be greater than the Minimum quantity",
+           "severity": 1,
+           "rule": "floor_quantity<participant_quantity"
+          }
+         ],
+         "freeze_widget": "secondary",
+         "suffix": "KG",
+         "priority": "5",
+         "is_removable": false,
+         "input_group": "quantity",
+         "precision": 4,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Price",
+        "key_attribute": "price",
+        "input_type": "number",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "participant",
+         "is_required": true,
+         "is_negotiable": true,
+         "mode_type": "write",
+         "validations": [
+          {
+           "error_message": "Price should be less than the Cap price",
+           "severity": 1,
+           "rule": "base_price<ceil_price"
+          },
+          {
+           "error_message": "Please change your price at least by mentioned tick price",
+           "severity": 1,
+           "rule": "prev.price-price>=tick_size||prev.price-price<=tick_size"
+          }
+         ],
+         "freeze_widget": "primary",
+         "prefix": "₹",
+         "suffix": "KG",
+         "priority": "4",
+         "is_removable": false,
+         "input_group": "price",
+         "precision": 4,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_GST",
+        "key_attribute": "gst",
+        "input_type": "percentage",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "is_replicable": true,
+         "field_type": "participant",
+         "is_required": false,
+         "mode_type": "write",
+         "suffix": "%",
+         "priority": "6",
+         "is_removable": true,
+         "precision": 4,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Total Amount",
+        "key_attribute": "total_amount",
+        "input_type": "formula",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "creator",
+         "is_required": true,
+         "mode_type": "read",
+         "prefix": "₹",
+         "priority": "7",
+         "formula": "price*participant_quantity+price*participant_quantity*(gst/100)",
+         "is_removable": false,
+         "input_group": "amount",
+         "precision": 4,
+         "options": []
+        }
+       },
+       {
+        "name": "QA_Platform_Product Variant",
+        "key_attribute": "variant",
+        "input_type": "variant",
+        "widget_type": "default",
+        "validation": {},
+        "configuration": {
+         "field_type": "creator",
+         "is_required": true,
+         "mode_type": "write",
+         "freeze_widget": "primary",
+         "priority": "1",
+         "is_removable": false,
+         "options": []
+        }
+       }
+      ]
+     },
+     "data": [
+      {
+       "product": {
+        "key": "product",
+        "value": "product",
+        "uuid": "UWdkWHBjWA==",
+        "event_group_line_item_uuid": "ZERrY1pncA==",
+        "meta": {
+         "qualityParams": [
+          {
+           "name": "QA_Platform_Specs",
+           "value": "As per company"
+          }
+         ]
+        },
+        "configuration": {}
+       },
+       "creator_quantity": {
+        "key": "creator_quantity",
+        "value": 73,
+        "postfix": "KG",
+        "configuration": {
+         "suffix": "KG"
+        }
+       },
+       "buyer_hub": {
+        "key": "buyer_hub",
+        "value": "location",
+        "uuid": "a05aWk4=",
+        "configuration": {}
+       },
+       "participant_quantity": {
+        "key": "participant_quantity",
+        "postfix": "KG",
+        "configuration": {
+         "suffix": "KG"
+        }
+       },
+       "price": {
+        "key": "price",
+        "prefix": "₹",
+        "postfix": "KG",
+        "configuration": {
+         "prefix": "₹",
+         "suffix": "KG"
+        }
+       },
+       "gst": {
+        "key": "gst",
+        "postfix": "%",
+        "configuration": {
+         "suffix": "%"
+        }
+       },
+       "total_amount": {
+        "key": "total_amount",
+        "prefix": "₹",
+        "configuration": {
+         "prefix": "₹"
+        }
+       },
+       "variant": {
+        "uuid": "Z3Baa1prWg==",
+        "configuration": {}
+       },
+       "order": 1
+      }
+     ],
+     "configurations": {
+      "stage_no": 1,
+      "event_group_uuid": "Z2drY2RY",
+      "is_tnc_mandatory": true,
+      "currency_configuration": null,
+      "is_english_auction_enabled": false,
+      "is_alternate_bidding_allowed": false,
+      "order_type": "buy",
+      "rfx_mode": "rfq",
+      "auction_closing_mode": "line_item_based",
+      "rfp_evaluation_mode": "lot_based",
+      "pickup_schedules": false,
+      "bid_start_time": 1793047378,
+      "bid_end_time": 1793048578,
+      "extra_closing_time": 1793048583,
+      "title": "QA_Platform_RFQ",
+      "terms_and_conditions": [
+       "Your evaluation for this event will depend on Gross Total."
+      ],
+      "attachments": [
+       {
+        "type": "t_and_c",
+        "value": []
+       }
+      ],
+      "template_uuid": "RFFEaw==",
+      "savings_configuration": null,
+      "bulk_price": null,
+      "time_extension_value": null,
+      "last_n_minutes_for_time_extension": null,
+      "rank_limit_for_time_extension": null,
+      "dynamic_closing_time_strategy": "price_based",
+      "price_difference": null,
+      "time_difference": null,
+      "end_price": 0,
+      "is_auction_on_base_price": false,
+      "closing_mode": "single",
+      "is_basket_auction": false
+     },
+     "tabs": [],
+     "status": "draft",
+     "audience_company_uuids": [
+      "cGNrY1pE"
+     ],
+     "creation_flow_type": "quick_flow",
+     "use_rfq_quotes_as_bids": false
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 1211,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act2",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer publishes the event with 1 draft trade request uuids, with 1 audience company uuids.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": true,
+   "layer": "api",
+   "inputSummary": "The buyer publishes the event with 1 draft trade request uuids, with 1 audience company uuids.",
+   "httpStatus": null,
+   "accepted": false,
+   "message": null,
+   "durationMs": 0,
+   "pass": false,
+   "verdict": "Not sent: {{act1.data.tradeId}} had no value in this run."
+  }
+ ],
+ "done": {
+  "ok": true,
+  "total": 1
+ },
+ "fatal": null,
+ "ms": 21363
+}

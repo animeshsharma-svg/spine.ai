@@ -37,6 +37,12 @@ export interface QcsAudienceCtx {
   context: PlanContext;
   /** who counts as a QA test vendor — the client's, from the database; the self-test passes its own */
   qaNames?: () => Promise<string[]>;
+  /** surrogate bids this plan typed (runPlan): the price a QCS cell is compared with when no API value exists */
+  typedBids?: Array<{ vendor: string; price: number }>;
+  /** vendors the case named that the participants search did not know when inviting (runPlan) */
+  unmatchedVendors?: string[];
+  /** vendors this plan placed surrogate bids for, in order (runPlan) */
+  surrogateBids?: string[];
 }
 
 const NOT_ON_SCREEN = (what: string) => `couldn't tell — ${what}`;
@@ -75,6 +81,15 @@ function vendorOrThrow(g: QcsGrid, want: unknown, ctx: PlanContext): number {
   const v = vendorIndex(g, want, ctx.vendorName);
   if (v < 0) throw new Error(NOT_ON_SCREEN(`no vendor column matches “${String(want)}” (columns: ${g.vendors.join(" | ")})`));
   return v;
+}
+
+/** The price this run typed for a vendor's surrogate bid: the bid's label starts with the column's name ("PROCOL TECH PRIVATE LIMITED-test@dummy.c" under "PROCOL TECH PRIVATE LIMITED"); one bid and one name match also when shortened. */
+function typedBidFor(bids: Array<{ vendor: string; price: number }> | undefined, column: string | undefined): number | undefined {
+  if (!bids?.length || !column) return undefined;
+  const n = (t: string) => t.toLowerCase().replace(/[^a-z0-9@.]+/g, " ").trim();
+  const c = n(column).replace(/\.{3}$|…$/, "").trim();
+  const hit = bids.filter((b) => n(b.vendor).startsWith(c) || c.startsWith(n(b.vendor)) || n(b.vendor).includes(c));
+  return hit.length ? hit[hit.length - 1].price : bids.length === 1 ? bids[0].price : undefined;
 }
 
 export async function runQcsAudienceStep(x: QcsAudienceCtx, step: PlanStep): Promise<string | null> {
@@ -116,8 +131,11 @@ export async function runQcsAudienceStep(x: QcsAudienceCtx, step: PlanStep): Pro
       let want: string | undefined;
       let wantNumber: number | undefined;
       if (a.key !== undefined) {
-        const val = context.values?.[String(a.key)];
-        if (val === undefined || val === "") throw new Error(NOT_ON_SCREEN(`the API handed this case no value for “${String(a.key)}” (it has: ${Object.keys(context.values ?? {}).join(", ") || "none"})`));
+        // A plan that built its own event has no API values; the price it typed for this vendor's
+        // surrogate bid is the bid price (21 Oct, B04: key bidPrice on a browser-built event).
+        const typed = String(a.key) === "bidPrice" ? typedBidFor(x.typedBids, g.vendors[v]) : undefined;
+        const val = context.values?.[String(a.key)] || (typed !== undefined ? String(typed) : undefined);
+        if (val === undefined || val === "") throw new Error(NOT_ON_SCREEN(`the API handed this case no value for “${String(a.key)}” (it has: ${Object.keys(context.values ?? {}).join(", ") || "none"})${String(a.key) === "bidPrice" ? " and this run typed no bid for that vendor" : ""}`));
         want = val;
         wantNumber = qcsNumber(val) ?? undefined;
       } else if (a.number !== undefined) {
@@ -177,8 +195,22 @@ export async function runQcsAudienceStep(x: QcsAudienceCtx, step: PlanStep): Pro
     case "expect_participant": {
       const list = new ParticipantsPage(page);
       if (!(await list.ensureOpen())) throw new Error(NOT_ON_SCREEN("the Participants list with its “Search vendors” box is not on this screen (open_prepared participants or open_participants first)"));
-      const vendor = String(a.vendor ?? added.get(page)?.vendor ?? context.vendorName ?? "").trim();
+      // No vendor named: the one select_participant added, the case's own, else the one this plan just bid for
+      // (27 Oct, SB04: "place a surrogate bid for an invited vendor who has not bid yet, then check its row").
+      const bidFor = x.surrogateBids?.at(-1)?.replace(/[-\s]+\S*@\S*.*$/, "").replace(/\s+\d{6,}.*$/, "").trim();
+      const vendor = String(a.vendor ?? added.get(page)?.vendor ?? (context.vendorName || bidFor) ?? "").trim();
+      // "an invited vendor who has not bid yet", before any bid: any ticked row that still offers Add Bid is one.
+      if (!vendor && a.addBid === true && a.present !== false && step.step === "expect_participant") {
+        const open = (await list.rows()).filter((r) => r.addBid && r.selected !== false);
+        if (!open.length) throw new Error("no invited vendor on this page offers Add Bid — every listed vendor has bid, or none is invited");
+        return `${open.length} invited vendor(s) on this page offer Add Bid: ${open.slice(0, 5).map((r) => r.name).join(" | ")}`;
+      }
       if (!vendor) throw new Error(NOT_ON_SCREEN("no vendor was named and the case has no vendor of its own (automation needs update)"));
+      // A vendor the participants search did not know when inviting was never on this round (21 Oct,
+      // B05: "Acme Nonexistent Supplier"): its row cannot be there, and that is not the product failing.
+      if (a.present !== false && x.unmatchedVendors?.some((u) => u.toLowerCase() === vendor.toLowerCase())) {
+        throw new Error(NOT_ON_SCREEN(`“${vendor}” was never invited — the participants search knows no vendor by that name, so the invite fell back to the vendors Procol suggests; there is no row of it to check`));
+      }
       if (step.step === "search_participants" || a.present === false) await list.showOnlySelected(false);
       const rows = await list.searchFor(vendor);
       const row = list.rowFor(rows, vendor);

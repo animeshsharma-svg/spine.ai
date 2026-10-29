@@ -5,8 +5,8 @@ import { CONFIG } from "../config.js";
 import { BasePage } from "../pages/BasePage.js";
 import { findByRecipe, listWords, readView, recipeOf, refLocator, viewText, waitForList, type Recipe, type ScreenView } from "./view.js";
 import { SYSTEM, callModel, parseDecision, turnPrompt, type Decision } from "./brain.js";
-import { SAYS_STOP, askTester, offered, type Answer, type Option, type Question } from "./ask.js";
-import { controlHeld, released } from "../support/liveControl.js";
+import { SAYS_STOP, askTester, mask, offered, type Answer, type Option, type Question } from "./ask.js";
+import { controlHeld, handedBackAt, holdStartedAt, released, takeHandSteps, takeTold, type HandStep } from "../support/liveControl.js";
 import { earlierAnswer, forgetAnswer, learnAnswer } from "../support/learnedStore.js";
 
 /**
@@ -46,6 +46,13 @@ export interface ExploreOptions {
   maxSteps?: number;
   /** ask before clicks that send, publish, approve or delete (default on) */
   confirmRisky?: boolean;
+  /**
+   * Ask the tester first, before guessing: the steps, any login, or "try on
+   * your own" (Aanya, 21 Oct: "whatever u dont have, ask the user… dont fool
+   * the user"). Default on; off when the caller has just asked (runPlan's
+   * ask_tester), or UI_EXPLORE_ASK_FIRST=0. Never when a saved route is followed.
+   */
+  askFirst?: boolean;
 }
 
 export interface ExploreStepResult {
@@ -134,6 +141,48 @@ function loadRoute(companyId: number | null, goal: string): SavedRoute | null {
   }
 }
 
+/** Is there a saved route for this goal (one the explorer found, or one a tester showed it)? */
+export function hasRoute(companyId: number | null, goal: string): boolean {
+  return !!loadRoute(companyId, goal);
+}
+
+/**
+ * Keep what a tester did by hand as the route for a goal (Aanya, 26 Oct: "whatever i do in ui,
+ * learn that so that u dont get stuck again"): the next ask for it follows their steps on its
+ * own. Never kept when they typed a code or password, or when there is nothing to repeat.
+ */
+export function saveHandRoute(companyId: number | null, goal: string, hand: { steps: HandStep[]; secret: boolean }, runId: string): string | null {
+  if (hand.secret || !hand.steps.some((h) => h.recipe)) return null;
+  try {
+    mkdirSync(ROUTES_DIR, { recursive: true });
+    const file = routeFile(companyId, goal);
+    const keep: SavedRoute = {
+      goal,
+      companyId,
+      savedAt: new Date().toISOString(),
+      runId,
+      steps: hand.steps.map((h) => ({ action: h.action as Decision["action"], step: h.step, recipe: h.recipe as Recipe | undefined, value: h.value, path: h.path })),
+      told: [`(the tester showed these ${hand.steps.length} steps by hand)`],
+    };
+    writeFileSync(file, JSON.stringify(keep, null, 2));
+    console.log(`[explore] saved the ${hand.steps.length} steps you did by hand as the route for "${mask(goal)}" — the next run follows them itself`);
+    return file;
+  } catch {
+    return null;
+  }
+}
+
+/** A route that reached a goal phrased with the tester's typed instructions, kept under the plain goal too. */
+export function keepRouteAs(companyId: number | null, fromGoal: string, toGoal: string): void {
+  const r = loadRoute(companyId, fromGoal);
+  if (!r) return;
+  try {
+    writeFileSync(routeFile(companyId, toGoal), JSON.stringify({ ...r, goal: toGoal }, null, 2));
+  } catch {
+    /* never changes the verdict */
+  }
+}
+
 /** "Clicked “Submit PO”" → "click “Submit PO”": a step in words, as something about to be done. */
 function nextWords(words: string): string {
   const verbs: Record<string, string> = { clicked: "click", "double-clicked": "double-click", typed: "type", picked: "pick", pressed: "press", opened: "open", ticked: "tick", unticked: "untick", scrolled: "scroll" };
@@ -218,6 +267,7 @@ function onlyLabels(proof: string, view: ScreenView): boolean {
 
 /** The narration lines the dashboard reads (launch() in uiFlowRunner.ts). */
 function tell(e: { n: number; text: string; status: "run" | "ok" | "retry" | "failed" | "info"; why?: string; url?: string; shot?: string; replayed?: boolean }) {
+  e = { ...e, text: mask(e.text), ...(e.why ? { why: mask(e.why) } : {}) };
   console.log(`[explore-step] ${JSON.stringify(e)}`);
   if (e.status !== "run") console.log(`[explore] ${e.n ? `step ${e.n} — ` : ""}${e.text}${e.status === "failed" ? " ✗" : e.status === "ok" ? " ✓" : ""}`);
 }
@@ -236,19 +286,28 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
   const told: string[] = []; // what the tester answered
   let lastResult = "Nothing yet — this is the first look at the screen.";
   let allowRisky = !confirmRisky;
+  // What the tester told the run, as the model reads it (logins included, so they can be typed)…
+  const toldRaw: string[] = [];
+  // …and as everything else sees it: `told`, masked (results, saved routes, the session).
+  const usedLogin = () => mask(goal) !== goal || toldRaw.some((t) => mask(t) !== t);
   const result = (passed: boolean, extra: Partial<ExploreResult> = {}): ExploreResult => ({
-    title: goal,
-    goal,
+    title: mask(goal),
+    goal: mask(goal),
     explored: true,
     passed,
-    steps,
-    told,
+    steps: steps.map((x) => ({ ...x, step: mask(x.step), ...(x.detail ? { detail: mask(x.detail) } : {}) })),
+    told: told.map(mask),
     route: {},
     ...extra,
+    ...(extra.reason ? { reason: mask(extra.reason) } : {}),
+    ...(extra.proof ? { proof: mask(extra.proof) } : {}),
   });
 
+  // Pictures are proof, not a diary (Aanya, 26 Oct: no screenshot per action or per step): an ordinary
+  // action is kept as its words and address; a picture only with UI_SPOTLIGHT=1.
+  const everyAction = process.env.UI_SPOTLIGHT === "1";
   const shoot = async (n: number, words: string): Promise<string | undefined> => {
-    const file = `${String(n).padStart(2, "0")}-${slug(words)}.png`;
+    const file = `${String(n).padStart(2, "0")}-${slug(mask(words))}.png`;
     return page
       .screenshot({ path: join(evidenceDir, file), timeout: 10_000 })
       .then(() => file)
@@ -291,6 +350,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
         const said = before.text || before.option || "";
         tell({ n: 0, text: `I asked this on this screen before — using your earlier answer: “${said}”`, status: "info" });
         told.push(`${q.question} → ${said} (your earlier answer)`);
+        toldRaw.push(`${q.question} → ${said} (your earlier answer)`);
         return { option: before.option && STABLE.has(before.option) ? before.option : null, text: said };
       }
       if (before && reused.has(k)) {
@@ -304,9 +364,11 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     const a = await askTester({ ...q, shot });
     if (a) {
       const said = a.text || a.option || "";
-      told.push(`${q.question} → ${said}`);
+      toldRaw.push(`${q.question} → ${said}`);
+      told.push(`${q.question} → ${mask(said)}`);
       tell({ n: 0, text: `You answered: ${said}`, status: "info" });
-      const keep = LEARNED_KINDS.has(q.kind) && a.option !== "stop" && a.option !== "self" && !(!a.option && SAYS_STOP.test(a.text));
+      // A login typed in an answer is used for this run only: never learned for the next.
+      const keep = mask(said) === said && LEARNED_KINDS.has(q.kind) && a.option !== "stop" && a.option !== "self" && !(!a.option && SAYS_STOP.test(a.text));
       if (keep) learnAnswer(companyId, where, q.question, { option: a.option, text: said });
     }
     return a;
@@ -417,7 +479,8 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
         return;
       }
       case "press": {
-        if (target) await target.press(value || "Enter", { timeout: 10_000 });
+        // In a sheet cell the key belongs to the editor open in it, not the cell (focusing the cell closes it).
+        if (target && kind?.role !== "cell") await target.press(value || "Enter", { timeout: 10_000 });
         else await page.keyboard.press(value || "Enter");
         return;
       }
@@ -505,7 +568,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     return "skip";
   };
 
-  console.log(`[explore] goal: ${goal}`);
+  console.log(`[explore] goal: ${mask(goal)}`);
 
   // ── 1. a route that reached this goal before, followed first ──────────────
   const saved = loadRoute(companyId, goal);
@@ -544,7 +607,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
         break;
       }
       await settle();
-      const shot = await shoot(n, rs.step);
+      const shot = everyAction ? await shoot(n, rs.step) : undefined;
       steps.push({ step: rs.step, status: "ok", detail: `as on the route saved ${day}`, url: pathNow(), shot, ms: Date.now() - started, replayed: true });
       route.push({ ...rs, path: pathNow() });
       done.push(`${rs.step} → now at ${pathNow()}`);
@@ -552,6 +615,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       followed++;
     }
     told.push(...saved.told.map((t) => `(on the saved run) ${t}`));
+    toldRaw.push(...saved.told.map((t) => `(on the saved run) ${t}`));
     lastResult = routeNote ?? `Followed all ${followed} steps of the saved route. Check whether the goal is reached.`;
   }
 
@@ -560,8 +624,12 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     r.route.followed = saved ? saved.savedAt : undefined;
     r.route.followedSteps = saved ? followed : undefined;
     if (!r.passed || !route.length) return r;
-    if (byHandUsed) {
-      console.log("[explore] not saving this route — part of it was done by hand, so it could not be followed on its own");
+    if (byHandUsed && handLost) {
+      console.log("[explore] not saving this route — part of it was done by hand and could not be kept (a code was typed, or nothing was recorded)");
+      return r;
+    }
+    if (usedLogin()) {
+      console.log("[explore] not saving this route — it used a login you typed, which is never kept");
       return r;
     }
     try {
@@ -577,7 +645,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       };
       writeFileSync(file, JSON.stringify(keep, null, 2));
       r.route.savedTo = file;
-      console.log(`[explore] saved this route (${route.length} steps) — the next "${goal}" follows it first`);
+      console.log(`[explore] saved this route (${route.length} steps${handKept ? `, ${handKept} of them done by you by hand` : ""}) — the next "${goal}" follows it first`);
     } catch {
       /* a route that cannot be saved never changes the verdict */
     }
@@ -601,20 +669,40 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
    * record, and the route is not saved — it has a gap only a person filled.
    */
   let byHandUsed = false;
+  /** by-hand parts whose steps could not be kept (a code was typed, or nothing was recorded) */
+  let handLost = false;
+  let handKept = 0;
+  /** when their by-hand steps were last taken into this route (a hold before that is not part of it) */
+  let handSeen = Date.now();
   const byHand = async (asked: boolean): Promise<void> => {
     if (asked) {
-      // The page takes control just before it answers; give the hold a moment to land.
+      // The page takes control just before it answers; give the hold a moment to land. A hold they
+      // already handed back (they took the browser from the live view, then answered) counts too.
       const until = Date.now() + 8_000;
-      while (!controlHeld() && Date.now() < until) await page.waitForTimeout(250);
-      if (!controlHeld()) {
+      while (!controlHeld() && handedBackAt() < handSeen && Date.now() < until) await page.waitForTimeout(250);
+      if (!controlHeld() && handedBackAt() < handSeen) {
         lastResult = "The tester said they would do it themselves but did not take the browser. Carry on toward the goal.";
         return;
       }
     }
-    tell({ n: 0, text: "You have the browser — I'll wait until you hand it back.", status: "info" });
-    await released();
+    if (controlHeld()) {
+      tell({ n: 0, text: "You have the browser — I'll wait until you hand it back.", status: "info" });
+      await released();
+    }
     await settle();
     byHandUsed = true;
+    // What they did, kept in this route: the next run repeats it instead of asking again. Everything
+    // since this route last took their steps — or since this hold began, if it began before that.
+    const hand = takeHandSteps(Math.min(handSeen, holdStartedAt() || handSeen));
+    handSeen = Date.now();
+    if (hand.secret || !hand.steps.some((h) => h.recipe)) handLost = true;
+    else {
+      for (const h of hand.steps) {
+        route.push({ action: h.action as Decision["action"], step: h.step, recipe: h.recipe as Recipe | undefined, value: h.value, path: h.path });
+        done.push(`${h.step} (by the tester) → now at ${h.path}`);
+      }
+      handKept += hand.steps.length;
+    }
     const n = steps.length + 1;
     const shot = await shoot(n, "done-by-hand");
     const words = "You did this part yourself in the browser";
@@ -627,6 +715,29 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       "The tester took the browser, did part of the journey by hand, and handed it back. Look at the SCREEN NOW afresh " +
       "and carry on toward the goal from here — do not redo what they did.";
   };
+
+  // ── 1½. no route and no steps: ask before guessing ─────────────────────────
+  // Aanya, 21 Oct: "whatever u dont have, ask the user for creds or for the
+  // further steps, dont fool the user". The explorer used to start clicking on
+  // its own (a Technical + RFQ case became a single-stage RFQ); it now asks the
+  // tester first, and works from their steps when they give some.
+  if (!saved && (opts.askFirst ?? process.env.UI_EXPLORE_ASK_FIRST !== "0")) {
+    const first = await ask({
+      kind: "question",
+      question: `I have no ready-made steps for this: ${mask(goal)}. How should I do it?`,
+      detail:
+        "Tell me the steps, and any login I need (another user, a second company…): it is used for this run only, never saved or shown. " +
+        "Or let me try it on my own and ask you when I'm unsure, or do it yourself in the browser.",
+      options: [
+        { id: "try", label: "Try it on your own — ask me when you're unsure" },
+        SELF,
+        { id: "stop", label: "Stop here — count it as not tested" },
+      ],
+    });
+    if (stopped(first)) return finish(await fail(first ? "you asked me to stop before I started" : "nobody answered my first question, so I did not guess", "Not tested"));
+    if (first!.option === "self") await byHand(true);
+    else if (!first!.option) lastResult = "The tester told you how to do it (see WHAT THE TESTER HAS TOLD YOU): follow their steps, in order.";
+  }
 
   for (;;) {
     if (steps.length >= budget) {
@@ -641,8 +752,16 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       if (a!.option !== "more") lastResult = `The tester said: "${a!.text}". Follow it.`;
     }
 
-    // The tester pressed Take control on the live view: their turn first.
-    if (controlHeld()) await byHand(false);
+    // The tester pressed Take control on the live view: their turn first. A hold that began and ended
+    // while an action waited (the pointer's hook pauses it) is theirs too, never dropped (Aanya, 28 Oct:
+    // "my platform doesnt ignore it").
+    if (controlHeld() || handedBackAt() > handSeen) await byHand(false);
+    // What the tester typed to the run while it went (the session's composer): followed at this move.
+    for (const t of takeTold()) {
+      toldRaw.push(`the tester, while you worked: ${t}`);
+      lastResult = `The tester just told you, while you were working: "${t}". Follow it now; it overrides your own plan.`;
+      console.log(`[note] · You said “${mask(t).slice(0, 160)}” — following it now.`);
+    }
     await base.dismissDistractions().catch(() => false);
     let view: ScreenView;
     try {
@@ -660,7 +779,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     try {
       raw = await callModel([
         { role: "system", content: SYSTEM },
-        { role: "user", content: turnPrompt({ goal, done, told, lastResult, route: routeHint, screen: viewText(view) }) },
+        { role: "user", content: turnPrompt({ goal, done, told: toldRaw, lastResult, route: routeHint, screen: viewText(view) }) },
       ]);
       modelDown = 0;
     } catch (err) {
@@ -853,7 +972,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     await settle();
     const after = await readView(page).catch(() => null);
     const changed = !after || after.fingerprint !== before;
-    const shot = await shoot(n, words);
+    const shot = everyAction ? await shoot(n, words) : undefined;
     steps.push({ step: words, status: "ok", detail: d.why || undefined, url: pathNow(), shot, ms: Date.now() - started });
     tell({ n, text: words, why: d.why, status: "ok", url: pathNow(), shot });
     route.push({
@@ -877,13 +996,18 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
     // each one changing the screen (so "nothing changed" never fires) and none
     // getting closer. Seen live: click a PO number (selects a cell), click an
     // icon (wrong page), back to Purchase Orders, again, for sixty steps.
+    // A wait is no step toward anything; and a goal that IS waiting (a bidding window to lapse)
+    // re-checks, waits, re-checks by design — D54, 23 Oct, was flagged as circling twice and
+    // never finished. Neither counts here; the step budget still bounds the run.
+    const waitingGoal = /\bwait\b[^.]{0,80}\b(close[sd]?|expire[sd]?|ends?|ended|lapse[sd]?|finish(es|ed)?)\b/i.test(goal);
+    const counts = d.action !== "wait" && !waitingGoal;
     const sig = `${words} @ ${pathNow()}`;
     const seenBefore = trail.filter((x) => x === sig).length;
-    trail.push(sig);
+    if (counts) trail.push(sig);
     const recent = trail.slice(-8);
     const repeats = new Map<string, number>();
     for (const x of recent) repeats.set(x, (repeats.get(x) ?? 0) + 1);
-    const circling = [...repeats.entries()].filter(([, k]) => k >= 3).map(([x]) => x.replace(/ @ .*$/, ""));
+    const circling = counts ? [...repeats.entries()].filter(([, k]) => k >= 3).map(([x]) => x.replace(/ @ .*$/, "")) : [];
     if (circling.length) {
       const sit = await situation();
       const a = await ask({

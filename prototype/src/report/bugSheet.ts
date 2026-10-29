@@ -18,6 +18,7 @@ import {
 import { PAGE_CSS, TEST_CASE_CSS, escapeHtml, humanText, renderTechFold, stamp, trackScript, type WithHuman } from "./shared.js";
 import { plain } from "../checks/caseDisplay.js";
 import { defectsFromObservations } from "./uiObservationDefects.js";
+import { consoleBugsAsDefects } from "./consoleBugs.js";
 
 /**
  * THE BUG REPORT — the platform's findings, as the QA bug sheet.
@@ -360,6 +361,8 @@ export function allDefects(): DefectGroup[] {
     // retries, and the calls the app made in the background that failed. A
     // green journey used to contribute nothing here at all.
     ...uiRunDefects(),
+    // What a tester reported from a run's Console tab (consoleBugs.ts).
+    ...consoleBugsAsDefects(),
   ]
     .filter((g) => {
       if (seen.has(g.defectFingerprint)) return false;

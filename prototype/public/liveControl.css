@@ -10,13 +10,62 @@
   border: 1px solid var(--primary-fill); background: var(--primary-fill); color: var(--on-primary, #fff);
   font: 600 12.5px var(--font-sans); box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
 }
-.lc-back { background: #fff; color: var(--primary-fill); }
+.lc-back { background: var(--primary-fill); color: var(--on-primary, #fff); }
 .lc-note {
   padding: 6px 10px; border-radius: 9px; background: rgba(15, 23, 42, .82); color: #fff;
   font: 500 12.5px/1.35 var(--font-sans);
 }
 .lc-held { box-shadow: inset 0 0 0 3px var(--primary-fill); }
-.lc-held img { cursor: crosshair; }
+.lc-held img { cursor: default; }
+
+/* While they hold it, a browser bar sits on top of the picture: tabs, then back · forward · reload ·
+   address · Hand back (Aanya, 28 Oct: "act like a real browser"). The picture moves down under it. */
+.ss-screen .live-frame-panel.lc-held { padding-top: 82px; }
+.ss-screen .live-frame-panel.lc-held.split { padding-top: 92px; }
+.ss-screen:has(.lc-held) .ss-live { display: none; }
+.lc-chrome {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+  display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px;
+  background: var(--card); border-bottom: 1px solid var(--border); color: var(--text);
+}
+.lc-chrome[hidden] { display: none; }
+.lc-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.lc-tabs::-webkit-scrollbar { display: none; }
+.lc-tab {
+  display: inline-flex; align-items: center; flex: 0 1 200px; min-width: 90px; height: 28px;
+  border-radius: 7px; background: transparent; border: 1px solid transparent;
+}
+.lc-tab.on { background: var(--page); border-color: var(--border-subtle); }
+.lc-tab-b {
+  flex: 1 1 auto; min-width: 0; height: 100%; padding: 0 8px; border: 0; background: none; cursor: pointer;
+  font: 500 12px/1 var(--font-sans); color: var(--text-2); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lc-tab.on .lc-tab-b { color: var(--text-strong); }
+.lc-tab-x, .lc-newtab, .lc-ic {
+  display: grid; place-items: center; flex: none; border: 0; background: none; cursor: pointer; color: var(--text-2);
+}
+.lc-tab-x { width: 22px; height: 22px; margin-right: 3px; border-radius: 5px; }
+.lc-newtab { width: 28px; height: 28px; border-radius: 7px; }
+.lc-ic { width: 32px; height: 32px; border-radius: 8px; }
+.lc-tab-x:hover, .lc-newtab:hover, .lc-ic:hover { background: var(--chip-bg); color: var(--text-strong); }
+.lc-tab-x .ico { width: 12px; height: 12px; }
+.lc-newtab .ico, .lc-ic .ico { width: 16px; height: 16px; }
+.lc-nav { display: flex; align-items: center; gap: 4px; }
+.lc-addr {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+  height: 32px; margin: 0 4px; padding: 0 12px; border-radius: 999px;
+  background: var(--page); border: 1px solid var(--border-subtle);
+}
+.lc-addr:focus-within { border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
+.lc-addr .ico { width: 14px; height: 14px; flex: none; color: var(--text-muted); }
+.lc-addr input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  font: 400 12.5px var(--font-mono); color: var(--text-strong);
+}
+.lc-chrome .lc-back { flex: none; box-shadow: none; }
+:where(.lc-chrome) :is(button, input):focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.lc-held .lc-bar { top: 92px; }
 .lc-ripple {
   position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
   border: 2px solid #f8d24a; pointer-events: none; animation: lc-ping .6s ease-out forwards;

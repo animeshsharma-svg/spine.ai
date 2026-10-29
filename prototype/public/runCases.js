@@ -1,29 +1,42 @@
 /**
- * "Write test cases from this run" — a button under a finished run's DONE box.
+ * TEST CASES FROM A RUN — the "Test cases" tab beside Browser and Requests.
  *
- * It sends what the run's turn shows (the ask, every narrated step and how it
- * ended, as the reader sees it) and the run ids on the box to /api/run-cases
- * (src/routes/runCases.ts), which writes cases grounded in that run: the main
- * flow with this run's result, variations reused from the case library where
- * one fits, and a regression case per failure. They come back as a table to
- * review — tick, edit the scenario or expected result, remove — and only the
- * ticked rows are exported, as Excel (the bug sheet's writer, bugsExport.js)
- * or CSV. The set is kept with the run on the server, with every result, edit
- * and tick: asking again shows it as it was left, and "Write again" makes a
- * fresh set in which each case already run keeps its result.
+ * Aanya, 27 Oct: "the test cases should be visible in the tab right to the
+ * requests, make testcases and give testcases there, good and colorful, less
+ * content". So they no longer open as a big table in the conversation.
  *
- * Kept out of session.js on purpose: it watches the thread for DONE boxes, so
- * the session screen needs no change to carry it.
+ * When a run ends here, what its turn shows (the ask, every narrated step and
+ * how it ended, as the reader sees it) and the run ids on its DONE box go to
+ * /api/run-cases (src/routes/runCases.ts), which writes cases grounded in that
+ * run: the main flow with this run's result, variations reused from the case
+ * library where one fits, and a regression case per failure. They show in the
+ * tab as small cards, coloured by type and by result; a card opens to its
+ * steps, where the test case and its expected result can be edited. Each card
+ * runs as the next turn of this session, and its Pass or Fail waits for a
+ * person to approve or change it. Export (Excel, CSV) takes the kept cases.
+ * The set is kept with the run on the server, with every result and edit:
+ * asking again shows it as it was left, and "Write again" makes a fresh set in
+ * which each case already run keeps its result.
+ *
+ * The DONE box keeps one button, "Test cases", which opens the tab on that
+ * turn's set. A turn started from the tab (a case being run) gets no set of
+ * its own: the tab stays on the set the case came from.
+ *
+ * Kept out of session.js on purpose: it watches the thread for DONE boxes and
+ * the run's end, so the session screen only needed the tab itself.
  */
 (function () {
   const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   /** The export's columns: [header, value, width]. */
   const COLUMNS = [
-    ["ID", (c) => c.id, 9],
+    ["Scenario ID", (c) => c.scenarioId || "", 11],
+    ["Test scenario", (c) => c.scenarioTitle || "", 44],
+    ["Scenario covers", (c) => c.scenarioCovers || "", 40],
+    ["Test case ID", (c) => c.id, 12],
     ["Module", (c) => c.module, 16],
     ["Feature", (c) => c.feature, 18],
-    ["Scenario", (c) => c.scenario, 48],
+    ["Test case", (c) => c.scenario, 48],
     ["Preconditions", (c) => c.preconditions, 34],
     ["Steps", (c) => c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"), 60],
     ["Test data", (c) => c.testData, 26],
@@ -41,43 +54,108 @@
     ["Library case", (c) => c.libraryId || (c.similarTo ? `similar to ${c.similarTo}` : ""), 18],
   ];
 
-  // ── the button, on every finished turn's last DONE box ─────────────────────
+  const ico = (name) => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  const $ = (id) => document.getElementById(id);
+
+  // ── what the tab shows ────────────────────────────────────────────────────
+  /** The set on show, the one being written, and how the reader left the tab. */
+  const TAB = { set: null, writing: null, error: null, sid: undefined, filter: "all", openCards: new Set() };
+  /** Every set written or opened on this page, by run key. */
+  const BY_KEY = new Map();
+  /** The instructions of cases run from the tab: their turns get no set of their own. */
+  const CASE_TEXTS = new Set();
+
+  function showTab() {
+    const show = $("ss-show-right");
+    if (show && !show.hidden) show.click();
+    document.querySelector('.ss-tab[data-tab="cases"]')?.click();
+  }
+  /** A turn that ran and finished: the last DONE box, unless nothing was tested. */
+  function doneBox(turn) {
+    const boxes = turn.querySelectorAll(".ss-call");
+    const box = boxes[boxes.length - 1];
+    if (!box || box.classList.contains("stop")) return null;
+    // Nothing ran ("Not tested": the step-writing AI did not answer, a pasted
+    // list was not run…): there is nothing to write test cases from (21 Oct).
+    if (box.classList.contains("skip") && /^\s*not tested\s*$/i.test(box.querySelector(".ss-call-tag")?.textContent || "")) return null;
+    return box;
+  }
+  // The live turn is told by its instruction (its element is used again for the next turn); a turn kept above, by its mark.
+  const caseTurn = (turn) => (turn.id === "ss-turn" ? CASE_TEXTS.has(window.spineSession?.turn?.text || "") : turn.dataset.fromCases === "1");
+
+  // ── the button on every finished turn, and the run's end ──────────────────
+  let wasOpen = false;
+  /** The turn whose run just ended here, until its DONE box shows (it can land a moment after the run ends). */
+  let ended = null;
   function decorate() {
-    // A turn kept above as it ended is a copy, and a copy's button has no
-    // listener: give it one, so "Write test cases" works on earlier turns too.
-    for (const btn of document.querySelectorAll("#view-run .rc-open")) {
-      if (btn._rc) continue;
-      const box = btn.closest(".ss-call");
-      const turn = btn.closest(".ss-turn, .ss-past");
-      if (!box || !turn) continue;
-      btn._rc = true;
-      btn.addEventListener("click", () => write(turn, box, btn));
+    const ss = window.spineSession;
+    // Another session opened (or Back to the start): the tab starts empty again.
+    if (ss?.id !== TAB.sid) {
+      TAB.sid = ss?.id;
+      Object.assign(TAB, { set: null, writing: null, error: null, filter: "all" });
+      TAB.openCards.clear();
+      paintTab();
     }
-    for (const turn of document.querySelectorAll("#view-run .ss-turn")) {
-      const boxes = turn.querySelectorAll(".ss-call");
-      const box = boxes[boxes.length - 1];
-      if (!box || box.classList.contains("stop") || box.querySelector(".rc-open")) continue;
-      let row = box.querySelector(".ss-call-links");
-      if (!row) {
-        row = document.createElement("div");
-        row.className = "ss-call-links";
-        box.appendChild(row);
+    for (const turn of document.querySelectorAll("#view-run .ss-turn, #view-run .ss-past")) {
+      const box = doneBox(turn);
+      if (!box) continue;
+      let btn = box.querySelector(".rc-open");
+      if (btn && btn._rc) continue;
+      // A turn kept above as it ended is a copy, and a copy's button has no listener: give it one.
+      if (!btn) {
+        if (!turn.classList.contains("ss-turn")) continue;
+        let row = box.querySelector(".ss-call-links");
+        if (!row) {
+          row = document.createElement("div");
+          row.className = "ss-call-links";
+          box.appendChild(row);
+        }
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "rc-open";
+        btn.innerHTML = `${ico("file-text")}Test cases`;
+        row.appendChild(btn);
       }
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "rc-open";
-      btn.innerHTML = `<svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg>Write test cases from this run`;
       btn._rc = true;
-      btn.addEventListener("click", () => write(turn, box, btn));
-      row.appendChild(btn);
+      btn.addEventListener("click", () => {
+        showTab();
+        open(turn);
+      });
     }
     // Only once the run is over: a Both run's API box arrives while the browser part still runs.
-    const live = !!window.spineSession?.open;
-    const current = document.getElementById("ss-turn");
+    const live = !!ss?.open;
+    const current = $("ss-turn");
     for (const b of document.querySelectorAll("#view-run .rc-open")) b.hidden = live && !!current?.contains(b);
+    if (current) {
+      if (caseTurn(current)) current.dataset.fromCases = "1";
+      else delete current.dataset.fromCases;
+    }
+    // A run that just ended here: its cases are written now, so they are ready in the tab.
+    if (wasOpen && !live && current && !caseTurn(current)) ended = { turn: current, at: Date.now() };
+    if (live || (ended && Date.now() - ended.at > 15_000)) ended = null;
+    if (ended && doneBox(ended.turn)) {
+      const turn = ended.turn;
+      ended = null;
+      open(turn, { quiet: true });
+    }
+    wasOpen = live;
+    paintCount();
   }
-  new MutationObserver(() => decorate()).observe(document.body, { childList: true, subtree: true });
+  // At most every 400 ms: the live view changes the page several times a second, and re-reading every
+  // result box on each change slowed the whole page down (27 Oct, "too slow the whole platform").
+  let rcTimer = 0;
+  new MutationObserver(() => {
+    if (!rcTimer) rcTimer = setTimeout(() => ((rcTimer = 0), decorate()), 400);
+  }).observe(document.body, { childList: true, subtree: true });
   setInterval(decorate, 1500);
+  // The tab opened with nothing in it: the latest finished turn's cases.
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest?.('.ss-tab[data-tab="cases"]') || TAB.set || TAB.writing) return;
+    if (window.spineSession?.open) return paintTab();
+    const turns = [...document.querySelectorAll("#view-run .ss-turn, #view-run .ss-past")].filter((t) => doneBox(t) && !caseTurn(t));
+    if (turns.length) open(turns[turns.length - 1]);
+    else paintTab();
+  });
 
   // ── what the run showed ───────────────────────────────────────────────────
   function gather(turn) {
@@ -86,7 +164,7 @@
     const transcript = (turn.innerText || clone.textContent || "")
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l && !/^(write test cases from this run|full report|bugs from this run|export bugs from this run|ui run report|raw output)/i.test(l))
+      .filter((l) => l && !/^(test cases|write test cases from this run|full report|bugs from this run|export bugs from this run|ui run report|raw output)/i.test(l))
       .join("\n");
     const runIds = new Set();
     for (const a of turn.querySelectorAll("a[href], [data-bugs-export]")) {
@@ -107,24 +185,30 @@
     };
   }
 
-  // ── asking for them, and the table to review them in ─────────────────────
-  async function write(turn, box, btn, fresh = false) {
-    let panel = box.nextElementSibling?.classList.contains("rc-panel") ? box.nextElementSibling : null;
-    if (!panel) {
-      panel = document.createElement("section");
-      panel.className = "rc-panel";
-      panel.setAttribute("aria-label", "Test cases from this run");
-      box.after(panel);
+  // ── asking for them ───────────────────────────────────────────────────────
+  /** Show a turn's cases in the tab: the set already on this page, else the one kept with the run, else a new one. */
+  function open(turn, how = {}) {
+    const source = gather(turn);
+    const had = source.key && BY_KEY.get(source.key);
+    if (had) {
+      if (how.quiet && TAB.set === had) return;
+      TAB.set = had;
+      TAB.error = null;
+      return paintTab();
     }
-    btn.disabled = true;
-    panel.innerHTML = fresh
-      ? `<p class="rc-wait" role="status"><span class="rc-dot"></span>Writing a fresh set of test cases from this run. Cases you have already run keep their result. This usually takes under a minute.</p>`
-      : `<p class="rc-wait" role="status"><span class="rc-dot"></span>Getting the test cases for this run — written now if this run has none yet, which usually takes under a minute.</p>`;
-    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (TAB.writing?.source.key && TAB.writing.source.key === source.key) return;
+    write(source);
+  }
+
+  async function write(source, fresh = false) {
+    const job = { source, fresh };
+    TAB.writing = job;
+    TAB.error = null;
+    paintTab();
     try {
       // A result or edit still waiting to be saved goes first, so what comes back has it.
       await flushSaves();
-      const body = JSON.stringify({ ...gather(turn), fresh });
+      const body = JSON.stringify({ ...source, fresh });
       const ask = () => fetch("/api/run-cases", { method: "POST", headers: { "content-type": "application/json" }, body });
       let res;
       try {
@@ -132,99 +216,63 @@
       } catch (e) {
         // "Failed to fetch": the connection dropped before an answer came (seen
         // on 14 Oct after a passing run; the same request answered fine moments
-        // later). Say so and send it once more, rather than ending on an error.
+        // later). Send it once more, rather than ending on an error.
         if (!(e instanceof TypeError)) throw e;
-        const wait = panel.querySelector(".rc-wait");
-        if (wait) wait.innerHTML = `<span class="rc-dot"></span>The connection dropped before the cases came back — retrying once. This can take up to a minute.`;
         res = await ask();
       }
       const d = await res.json();
       if (!res.ok || !Array.isArray(d.cases) || !d.cases.length) throw new Error(d.error || "no test cases came back");
-      render(panel, d, turn);
+      if (TAB.writing !== job) return; // another session or turn took the tab meanwhile
+      const set = {
+        key: d.key || source.key || "",
+        savedAt: d.savedAt || (d.key ? new Date().toISOString() : ""),
+        cases: d.cases.map((c) => ({ ...c, keep: c.keep !== false, unconfirmed: /\(to confirm\)/i.test(c.expected || "") })),
+        note: d.note || "",
+        ask: source.ask || "run",
+        source,
+      };
+      if (set.key) BY_KEY.set(set.key, set);
+      TAB.set = set;
+      TAB.writing = null;
+      TAB.openCards.clear();
+      paintTab();
     } catch (e) {
-      const why = e instanceof TypeError ? "the connection to spine.ai dropped twice (is the dashboard server running?)" : e.message;
-      panel.innerHTML = `<p class="rc-error" role="alert">Couldn't write test cases: ${h(why)}. <button type="button" class="rc-link">Try again</button></p>`;
-      panel.querySelector(".rc-link").addEventListener("click", () => write(turn, box, btn, fresh));
-    } finally {
-      btn.disabled = false;
+      if (TAB.writing !== job) return;
+      TAB.writing = null;
+      TAB.error = { why: e instanceof TypeError ? "the connection to spine.ai dropped twice (is the dashboard server running?)" : e.message, source, fresh };
+      paintTab();
     }
   }
 
-  const TYPE_TONE = { Positive: "pos", Negative: "neg", Edge: "edge", Regression: "reg" };
-  /** The writer's **bold** as bold, everything else escaped. */
-  const rich = (s) => h(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-  /** Pass green, Fail red, not reached amber, suggested neutral. */
-  const statusTone = (st) => (/^pass/i.test(st) ? "ok" : /^fail/i.test(st) ? "bad" : /not reached|not run/i.test(st) ? "warn" : "");
-
-  /**
-   * THE CASES, KEPT — so they can be run.
-   *
-   * A suggested case is an idea the run did not try. Each one can now be run
-   * from here: it becomes the next turn of this session (the chat narrates it,
-   * the browser panel shows it, Sessions keeps it), and its Status becomes what
-   * that run found — Pass, Fail, Not tested — with a link to the run. Run one,
-   * every suggested case, or the ticked ones; they go one at a time, since the
-   * browser is one. The table is drawn from this state, so it can be drawn
-   * again wherever it sits once the turn it belongs to is kept above.
-   */
-  const SETS = new Map();
-  let setNo = 0;
-
-  function render(panel, d, turn) {
-    const set = {
-      id: `rc${++setNo}`,
-      key: d.key || "",
-      savedAt: d.savedAt || (d.key ? new Date().toISOString() : ""),
-      cases: d.cases.map((c) => ({ ...c, keep: c.keep !== false, unconfirmed: /\(to confirm\)/i.test(c.expected || "") })),
-      note: d.note || "",
-      ask: turn.querySelector(".ss-user")?.textContent?.trim() || "run",
-    };
-    SETS.set(set.id, set);
-    panel.dataset.set = set.id;
-    paint(panel, set);
-  }
-
   // ── kept with the run ─────────────────────────────────────────────────────
-  const pending = new Map(); // set id → { t, go }
-  /** Save the table as it stands; typing waits a moment, a result is saved at once. */
+  const pending = new Map(); // set → { t, go }
+  /** Save the set as it stands; typing waits a moment, a result is saved at once. */
   function save(set, now = false) {
     if (!set.key) return Promise.resolve();
-    clearTimeout(pending.get(set.id)?.t);
+    clearTimeout(pending.get(set)?.t);
     const go = () => {
-      pending.delete(set.id);
+      pending.delete(set);
       set.savedAt = new Date().toISOString();
       const cases = set.cases.map(({ run, unconfirmed, ...c }) => c);
       return fetch("/api/run-cases", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: set.key, cases }) }).catch(() => {});
     };
     if (now) return go();
-    pending.set(set.id, { t: setTimeout(go, 700), go });
+    pending.set(set, { t: setTimeout(go, 700), go });
     return Promise.resolve();
   }
   function flushSaves() {
     return Promise.all([...pending.values()].map((p) => (clearTimeout(p.t), p.go())));
   }
-  const clock = (iso) => {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? "" : d.toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  };
-
-  /** Every place this set's table is on the page (the turn it came from may now be kept above). */
-  function repaint(set) {
-    for (const panel of document.querySelectorAll(`.rc-panel[data-set="${set.id}"]`)) paint(panel, set);
-  }
-
-  const isSuggested = (c) => /^suggested$/i.test(c.status || "");
-  const ico = (name) => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-  const RESULT_TONE = { Pass: "ok", Fail: "bad", "Not tested": "warn", Stopped: "warn" };
 
   // ── a person signs off every verdict ──────────────────────────────────────
   /**
    * HUMAN IN THE LOOP. A Pass or Fail that spine.ai gave — the run's own main
    * flow, or a case run from here — is its verdict, not the answer: it waits
-   * for a person to approve it or change it, and the table, the tally and the
+   * for a person to approve it or change it, and the card, the tally and the
    * export say who did and when. Running a case again sends it back for review.
    */
   const verdictNeedsReview = (c) => /^(pass|fail)/i.test(c.status || "");
+  const waitsForReview = (c) => verdictNeedsReview(c) && !c.run && (!c.review?.state || c.review.state === "pending");
   const reviewer = () => {
     try {
       const u = window.spineAuth?.user?.();
@@ -240,167 +288,207 @@
     const when = r.at ? new Date(r.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
     return r.state === "approved" ? `Approved by ${r.by}${when ? ` · ${when}` : ""}` : `Changed from ${r.from} to ${c.status} by ${r.by}${when ? ` · ${when}` : ""}`;
   }
-  function reviewCell(c, i) {
-    if (!verdictNeedsReview(c) || c.run) return "";
-    const r = c.review;
-    if (r?.state === "approved" || r?.state === "changed") return `<div class="rc-rev done">${ico("check")}${h(reviewWords(c))}</div>`;
-    const other = /^pass/i.test(c.status) ? "Fail" : "Pass";
-    return (
-      `<div class="rc-rev wait"><span class="rc-rev-t">Waiting for your review</span>` +
-      `<span class="rc-rev-b"><button type="button" class="rc-btn rc-ok" data-i="${i}">Approve</button>` +
-      `<button type="button" class="rc-btn ghost rc-flip" data-i="${i}" data-to="${other}">Change to ${other}</button></span></div>`
-    );
+
+  // ── the tab ───────────────────────────────────────────────────────────────
+  const TYPES = ["Positive", "Negative", "Boundary", "Edge", "Regression"];
+  const TYPE_TONE = { Positive: "pos", Negative: "neg", Edge: "edge", Boundary: "bnd", Regression: "reg" };
+  /** The writer's **bold** as bold, everything else escaped. */
+  const rich = (s) => h(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  const isSuggested = (c) => /^suggested$/i.test(c.status || "");
+  /** pass · fail · warn (not tested, stopped) · run · queue · todo (suggested) */
+  function state(c) {
+    if (c.run?.state === "running") return "run";
+    if (c.run?.state === "queued") return "queue";
+    if (/^pass/i.test(c.status || "")) return "pass";
+    if (/^fail/i.test(c.status || "")) return "fail";
+    if (/not tested|not reached|not run|stopped/i.test(c.status || "")) return "warn";
+    return "todo";
+  }
+  const STATE_WORD = { run: "Running…", queue: "Queued", todo: "Suggested" };
+
+  function paintCount() {
+    const n = $("ss-tc-n");
+    if (!n) return;
+    const text = TAB.writing ? "…" : TAB.set ? String(TAB.set.cases.length) : "";
+    if (n.textContent !== text) n.textContent = text;
   }
 
-  function resultCell(c, i) {
-    const r = c.run?.state;
-    if (r === "running") return `<span class="rc-st run">Running…</span><div class="rc-src">watch it below</div>`;
-    if (r === "queued") return `<span class="rc-st">Queued</span><button type="button" class="rc-link rc-unq" data-i="${i}">Don't run</button>`;
-    const tone = RESULT_TONE[c.status] ?? statusTone(c.status);
-    return (
-      `<span class="rc-st ${tone}">${h(c.status)}</span>` +
-      (c.why ? `<div class="rc-why">${h(c.why)}</div>` : "") +
-      (c.runId ? `<a class="rc-src rc-go" href="#/session/${encodeURIComponent(c.runId)}">See the run</a>` : c.sourceStep ? `<div class="rc-src">from ${h(c.sourceStep)}</div>` : "") +
-      reviewCell(c, i) +
-      `<button type="button" class="rc-run" data-i="${i}">${ico(c.testedAt || !isSuggested(c) ? "rotate-cw" : "play")}${c.testedAt || !isSuggested(c) ? "Run again" : "Run"}</button>`
-    );
-  }
-
-  function paint(panel, set) {
+  function paintTab() {
+    paintCount();
+    const root = $("ss-tc");
+    if (!root) return;
+    const scroller = root.querySelector(".tc-list");
+    const top = scroller?.scrollTop ?? 0;
+    if (TAB.writing) {
+      root.innerHTML =
+        `<div class="tc-wait" role="status"><span class="tc-spark">${ico("file-text")}</span>` +
+        `<b>${TAB.writing.fresh ? "Writing a fresh set" : "Writing test cases"} from this run</b><span>Usually under a minute.</span></div>` +
+        `<div class="tc-list tc-ghosts" aria-hidden="true">${"<i></i>".repeat(5)}</div>`;
+      return;
+    }
+    if (TAB.error) {
+      root.innerHTML = `<div class="tc-wait tc-err" role="alert"><b>Couldn't write test cases</b><span>${h(TAB.error.why)}</span><button type="button" class="tc-btn" data-act="retry">${ico("rotate-cw")}Try again</button></div>`;
+      root.querySelector('[data-act="retry"]').addEventListener("click", () => write(TAB.error.source, TAB.error.fresh));
+      return;
+    }
+    const set = TAB.set;
+    if (!set) {
+      root.innerHTML = `<div class="tc-wait tc-empty"><span class="tc-spark">${ico("file-text")}</span><b>No test cases yet</b><span>${window.spineSession?.open ? "They are written as soon as this run ends." : "They are written from a run when it ends."}</span></div>`;
+      return;
+    }
     const cases = set.cases;
-    const kinds = ["Positive", "Negative", "Edge", "Regression"].map((k) => [k, cases.filter((c) => c.type === k).length]).filter(([, n]) => n);
-    const tested = cases.filter((c) => c.testedAt);
-    const passed = tested.filter((c) => c.status === "Pass").length;
-    panel.innerHTML =
-      `<div class="rc-head"><h3>Test cases from this run</h3>` +
-      `<p class="rc-sum">${cases.length} cases · ${kinds.map(([k, n]) => `${n} ${k.toLowerCase()}`).join(" · ")}. ` +
-      `“Suggested” cases have not been run yet — run them here to turn each into a Pass or Fail. Scenario and expected result are editable before a run or export.</p>` +
-      (tested.length ? `<p class="rc-tally">${tested.length} run from here: ${passed} passed, ${tested.length - passed} did not.</p>` : "") +
-      (() => {
-        const verdicts = cases.filter(verdictNeedsReview);
-        const waiting = verdicts.filter((c) => !c.review?.state || c.review.state === "pending").length;
-        return verdicts.length ? `<p class="rc-tally ${waiting ? "rc-wait-n" : ""}">${waiting ? `${waiting} of ${verdicts.length} verdicts waiting for your review` : `All ${verdicts.length} verdicts reviewed`}</p>` : "";
-      })() +
-      (set.key ? `<p class="rc-sum rc-kept">Saved with this run${set.savedAt ? ` · updated ${h(clock(set.savedAt))}` : ""}. “Write again” makes a fresh set; cases you have run keep their result.</p>` : "") +
-      (set.note ? `<p class="rc-note">${h(set.note)}</p>` : "") +
+    const tally = { pass: 0, fail: 0, warn: 0, todo: 0, run: 0, queue: 0 };
+    for (const c of cases) tally[state(c)]++;
+    const kinds = TYPES.map((k) => [k, cases.filter((c) => c.type === k).length]).filter(([, n]) => n);
+    if (TAB.filter !== "all" && !kinds.some(([k]) => k === TAB.filter)) TAB.filter = "all";
+    const review = cases.filter(waitsForReview).length;
+    const sug = cases.filter((c) => isSuggested(c) && !c.run).length;
+    const seg = (k, label) => (tally[k] ? `<i class="s-${k}" style="flex:${tally[k]}" title="${tally[k]} ${label}"></i>` : "");
+    const key = (k, label) => (tally[k] ? `<span class="tc-key s-${k}"><i></i>${tally[k]} ${label}</span>` : "");
+
+    // Scenarios, each with its cases, in the order each first appears; a set written before scenarios existed is one unnamed group.
+    const groups = [];
+    cases.forEach((c, i) => {
+      if (TAB.filter !== "all" && c.type !== TAB.filter) return;
+      const id = c.scenarioId || "";
+      let g = groups.find((x) => x.id === id);
+      if (!g) groups.push((g = { id, title: c.scenarioTitle || "", idx: [] }));
+      g.idx.push(i);
+    });
+
+    root.innerHTML =
+      `<div class="tc-top">` +
+      `<div class="tc-title"><h3>Test cases</h3><span class="tc-ask" title="${h(set.ask)}">${h(set.ask)}</span></div>` +
+      `<div class="tc-meter" aria-label="${tally.pass} passed, ${tally.fail} failed, ${tally.todo} not run yet">${seg("pass", "passed")}${seg("fail", "failed")}${seg("warn", "not tested")}${seg("run", "running")}${seg("queue", "queued")}${seg("todo", "not run yet")}</div>` +
+      `<div class="tc-keys">${key("pass", "passed")}${key("fail", "failed")}${key("warn", "not tested")}${key("run", "running")}${key("queue", "queued")}${key("todo", "suggested")}` +
+      (review ? `<span class="tc-key s-review">${ico("hourglass")}${review} to review</span>` : "") +
       `</div>` +
-      `<div class="rc-scroll"><table class="rc-table"><colgroup><col class="w-c"><col class="w-case"><col class="w-exp"><col class="w-res"></colgroup><thead><tr>` +
-      `<th class="rc-c"><input type="checkbox" class="rc-all" aria-label="Select all"></th>` +
-      `<th>Test case</th><th>Expected result</th><th>Result</th>` +
-      `</tr></thead><tbody>` +
-      cases
+      `<div class="tc-filters" role="group" aria-label="Show">` +
+      `<button type="button" class="tc-chip${TAB.filter === "all" ? " on" : ""}" data-f="all">All <b>${cases.length}</b></button>` +
+      kinds.map(([k, n]) => `<button type="button" class="tc-chip t-${TYPE_TONE[k]}${TAB.filter === k ? " on" : ""}" data-f="${k}">${k} <b>${n}</b></button>`).join("") +
+      `</div>` +
+      (set.note ? `<p class="tc-note">${h(set.note)}</p>` : "") +
+      `</div>` +
+      `<div class="tc-list">` +
+      groups
         .map(
-          (c, i) =>
-            `<tr data-i="${i}" class="${c.keep ? "" : "off"}${c.run?.state === "running" ? " running" : ""}">` +
-            `<td class="rc-c"><input type="checkbox" class="rc-keep"${c.keep ? " checked" : ""} aria-label="Select ${h(c.id)}"></td>` +
-            `<td class="rc-case">` +
-            `<div class="rc-line"><span class="rc-id">${h(c.id)}</span><span class="rc-tag ${TYPE_TONE[c.type] || ""}">${h(c.type)}</span><span class="rc-pri">${h(c.priority)}</span></div>` +
-            `<div class="rc-edit rc-scen" contenteditable="true" data-f="scenario" spellcheck="true" aria-label="Scenario">${rich(c.scenario)}</div>` +
-            `<button type="button" class="rc-more" aria-expanded="false">Steps & details</button>` +
-            `<div class="rc-detail" hidden>` +
-            (c.preconditions ? `<p><b>Before:</b> ${h(c.preconditions)}</p>` : "") +
-            `<ol>${(c.steps || []).map((st) => `<li>${rich(st)}</li>`).join("")}</ol>` +
-            (c.testData ? `<p><b>Test data:</b> ${h(c.testData)}</p>` : "") +
-            `<p class="rc-meta">${h([c.module, c.feature, c.layer, c.automated].filter(Boolean).join(" · "))}${c.libraryId ? ` · library ${h(c.libraryId)}` : c.similarTo ? ` · similar to ${h(c.similarTo)}` : ""}</p>` +
-            `</div></td>` +
-            `<td class="rc-exp"><span class="rc-lbl">Expected result</span><div class="rc-edit" contenteditable="true" data-f="expected" spellcheck="true" aria-label="Expected result">${rich(c.expected)}</div></td>` +
-            `<td class="rc-res"><span class="rc-lbl">Result</span>${resultCell(c, i)}</td>` +
-            `</tr>`,
+          (g) =>
+            (g.id && groups.length > 1 ? `<div class="tc-group"><span>${h(g.id)}</span>${h(g.title)}</div>` : "") +
+            g.idx.map((i) => card(cases[i], i)).join(""),
         )
         .join("") +
-      `</tbody></table></div>` +
-      `<div class="rc-bar">` +
-      `<div class="rc-runs">` +
-      `<button type="button" class="rc-btn primary rc-runall">${ico("play")}Run all suggested<span class="rc-n"></span></button>` +
-      `<button type="button" class="rc-btn rc-runsel">${ico("play")}Run ticked<span class="rc-n"></span></button>` +
       `</div>` +
-      `<div class="rc-tools"><span class="rc-count" aria-live="polite"></span>` +
-      `<button type="button" class="rc-btn ghost" data-x="xlsx" title="Export the ticked cases as an Excel sheet">${ico("download")}Excel</button>` +
-      `<button type="button" class="rc-btn ghost" data-x="csv" title="Export the ticked cases as CSV">${ico("download")}CSV</button>` +
-      `<button type="button" class="rc-btn ghost rc-again" title="Write the cases again from this run">${ico("rotate-cw")}Write again</button>` +
-      `</div></div>` +
-      `<p class="rc-hint">Cases run one at a time in the browser on ${h(window.spineSession?.turn?.target?.company || "this client")}, each as the next message in this session. ` +
-      `A case that publishes creates a real event in UAT, and publishing emails the vendors it invites.</p>`;
+      `<div class="tc-foot">` +
+      `<button type="button" class="tc-btn primary" data-act="runall"${sug ? "" : " disabled"}>${ico("play")}Run all suggested<span class="tc-n">${sug}</span></button>` +
+      `<span class="tc-tools">` +
+      `<button type="button" class="tc-icon" data-x="xlsx" title="Export as Excel" aria-label="Export as Excel">${ico("download")}<span>Excel</span></button>` +
+      `<button type="button" class="tc-icon" data-x="csv" title="Export as CSV" aria-label="Export as CSV">${ico("download")}<span>CSV</span></button>` +
+      `<button type="button" class="tc-icon" data-act="again" title="Write the cases again from this run (cases you have run keep their result)" aria-label="Write again">${ico("rotate-cw")}<span>Write again</span></button>` +
+      `</span></div>`;
 
-    const count = () => {
-      const n = cases.filter((c) => c.keep).length;
-      const sug = cases.filter((c) => isSuggested(c) && !c.run).length;
-      const ticked = cases.filter((c) => c.keep && !c.run).length;
-      panel.querySelector(".rc-count").textContent = `${n} of ${cases.length} ticked`;
-      panel.querySelectorAll(".rc-btn[data-x]").forEach((b) => (b.disabled = !n));
-      const all = panel.querySelector(".rc-all");
-      all.checked = n === cases.length;
-      all.indeterminate = n > 0 && n < cases.length;
-      const ra = panel.querySelector(".rc-runall");
-      ra.querySelector(".rc-n").textContent = String(sug);
-      ra.disabled = !sug;
-      const rs = panel.querySelector(".rc-runsel");
-      rs.querySelector(".rc-n").textContent = String(ticked);
-      rs.disabled = !ticked;
-    };
-    panel.querySelectorAll("tbody tr").forEach((tr) => {
-      const i = Number(tr.dataset.i);
-      const c = cases[i];
-      tr.querySelector(".rc-keep").addEventListener("change", (e) => {
-        c.keep = e.target.checked;
-        tr.classList.toggle("off", !c.keep);
-        count();
-        save(set);
-      });
-      tr.querySelectorAll(".rc-edit").forEach((ed) =>
-        ed.addEventListener("input", () => {
-          c[ed.dataset.f] = ed.textContent.trim();
-          save(set);
-        }),
-      );
-      const more = tr.querySelector(".rc-more");
-      more.addEventListener("click", () => {
-        const det = tr.querySelector(".rc-detail");
-        det.hidden = !det.hidden;
-        more.setAttribute("aria-expanded", String(!det.hidden));
-      });
-      tr.querySelector(".rc-run")?.addEventListener("click", () => enqueue(set, [i]));
-      tr.querySelector(".rc-ok")?.addEventListener("click", () => {
-        c.review = { state: "approved", by: reviewer(), at: new Date().toISOString() };
-        save(set, true);
-        repaint(set);
-      });
-      tr.querySelector(".rc-flip")?.addEventListener("click", (e) => {
-        const to = e.currentTarget.dataset.to;
-        c.review = { state: "changed", by: reviewer(), at: new Date().toISOString(), from: c.status };
-        c.status = to;
-        save(set, true);
-        repaint(set);
-      });
-      tr.querySelector(".rc-unq")?.addEventListener("click", () => unqueue(set, i));
-    });
-    panel.querySelector(".rc-all").addEventListener("change", (e) => {
-      for (const c of cases) c.keep = e.target.checked;
-      panel.querySelectorAll(".rc-keep").forEach((b) => (b.checked = e.target.checked));
-      panel.querySelectorAll("tbody tr").forEach((tr) => tr.classList.toggle("off", !e.target.checked));
-      count();
-      save(set);
-    });
-    panel.querySelector(".rc-runall").addEventListener("click", () => enqueue(set, cases.map((c, i) => (isSuggested(c) && !c.run ? i : -1)).filter((i) => i >= 0)));
-    panel.querySelector(".rc-runsel").addEventListener("click", () => enqueue(set, cases.map((c, i) => (c.keep && !c.run ? i : -1)).filter((i) => i >= 0)));
+    const list = root.querySelector(".tc-list");
+    list.scrollTop = top;
+    root.querySelectorAll(".tc-chip").forEach((b) =>
+      b.addEventListener("click", () => {
+        TAB.filter = b.dataset.f;
+        paintTab();
+      }),
+    );
+    root.querySelectorAll(".tc-card").forEach((el) => wire(set, el));
+    root.querySelector('[data-act="runall"]').addEventListener("click", () => enqueue(set, cases.map((c, i) => (isSuggested(c) && !c.run ? i : -1)).filter((i) => i >= 0)));
     const name = () => {
       const ask = set.ask.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
       return `spine-test-cases-${ask || "run"}-${new Date().toISOString().slice(0, 10)}`;
     };
-    panel.querySelectorAll(".rc-btn[data-x]").forEach((b) =>
+    root.querySelectorAll("[data-x]").forEach((b) =>
       b.addEventListener("click", () => {
         const rows = cases.filter((c) => c.keep);
         if (b.dataset.x === "xlsx" && window.spineBugExport?.xlsx) window.spineBugExport.xlsx(rows, { name: name(), sheet: "Test cases", columns: COLUMNS });
         else csv(rows, name());
       }),
     );
-    panel.querySelector(".rc-again").addEventListener("click", () => {
-      const box = panel.previousElementSibling;
-      const btn = box?.querySelector(".rc-open");
-      const turn = panel.closest(".ss-turn, .ss-past");
-      if (box && btn && turn) write(turn, box, btn, true);
+    root.querySelector('[data-act="again"]').addEventListener("click", () => set.source && write(set.source, true));
+  }
+
+  /** One case: type, id and priority; what it tests; what should happen; its result and one action. */
+  function card(c, i) {
+    const st = state(c);
+    const opened = TAB.openCards.has(i);
+    const word = STATE_WORD[st] || c.status || "Suggested";
+    const action =
+      st === "run"
+        ? `<button type="button" class="tc-link" data-act="watch">Watch in Browser</button>`
+        : st === "queue"
+          ? `<button type="button" class="tc-link" data-act="unqueue">Don't run</button>`
+          : `<button type="button" class="tc-run" data-act="run" title="${c.testedAt || !isSuggested(c) ? "Run again" : "Run"}">${ico(c.testedAt || !isSuggested(c) ? "rotate-cw" : "play")}${c.testedAt || !isSuggested(c) ? "Again" : "Run"}</button>`;
+    const r = c.review;
+    const reviewed = verdictNeedsReview(c) && !c.run && (r?.state === "approved" || r?.state === "changed");
+    return (
+      `<article class="tc-card t-${TYPE_TONE[c.type] || "none"} s-${st}${opened ? " open" : ""}${c.keep ? "" : " off"}" data-i="${i}">` +
+      `<div class="tc-row"><span class="tc-type">${h(c.type || "Case")}</span><span class="tc-id">${h(c.id)}</span>${c.priority ? `<span class="tc-pri">${h(c.priority)}</span>` : ""}` +
+      `<span class="tc-st s-${st}">${h(word)}</span></div>` +
+      `<p class="tc-name"${opened ? ` contenteditable="true" spellcheck="true" data-f="scenario" aria-label="Test case"` : ""}>${rich(c.scenario)}</p>` +
+      `<p class="tc-exp"><span aria-hidden="true">→</span><span${opened ? ` contenteditable="true" spellcheck="true" data-f="expected" aria-label="Expected result"` : ""}>${rich(c.expected)}</span></p>` +
+      (c.why && st !== "todo" ? `<p class="tc-why">${h(c.why)}</p>` : "") +
+      (waitsForReview(c)
+        ? `<div class="tc-review"><span>Is this ${h(c.status)} right?</span><button type="button" class="tc-btn ok" data-act="approve">${ico("check")}Approve</button><button type="button" class="tc-btn ghost" data-act="flip">Change to ${/^pass/i.test(c.status) ? "Fail" : "Pass"}</button></div>`
+        : reviewed
+          ? `<p class="tc-reviewed">${ico("check")}${h(reviewWords(c))}</p>`
+          : "") +
+      `<div class="tc-acts">${action}<button type="button" class="tc-link" data-act="more" aria-expanded="${opened}">${opened ? "Less" : "Steps"}</button>` +
+      (c.runId ? `<a class="tc-link" href="#/session/${encodeURIComponent(c.runId)}">See the run</a>` : "") +
+      `</div>` +
+      (opened
+        ? `<div class="tc-detail">` +
+          (c.preconditions ? `<p><b>Before</b> ${h(c.preconditions)}</p>` : "") +
+          (c.steps?.length ? `<ol>${c.steps.map((s) => `<li>${rich(s)}</li>`).join("")}</ol>` : "") +
+          (c.testData ? `<p><b>Data</b> ${h(c.testData)}</p>` : "") +
+          `<label class="tc-keep"><input type="checkbox"${c.keep ? " checked" : ""}> In the export</label>` +
+          `</div>`
+        : "") +
+      `</article>`
+    );
+  }
+
+  function wire(set, el) {
+    const i = Number(el.dataset.i);
+    const c = set.cases[i];
+    const on = (act, fn) => el.querySelector(`[data-act="${act}"]`)?.addEventListener("click", fn);
+    on("run", () => enqueue(set, [i]));
+    on("unqueue", () => unqueue(set, i));
+    on("watch", () => document.querySelector('.ss-tab[data-tab="browser"]')?.click());
+    on("more", () => {
+      if (TAB.openCards.has(i)) TAB.openCards.delete(i);
+      else TAB.openCards.add(i);
+      paintTab();
     });
-    count();
+    on("approve", () => {
+      c.review = { state: "approved", by: reviewer(), at: new Date().toISOString() };
+      save(set, true);
+      repaint(set);
+    });
+    on("flip", () => {
+      const to = /^pass/i.test(c.status) ? "Fail" : "Pass";
+      c.review = { state: "changed", by: reviewer(), at: new Date().toISOString(), from: c.status };
+      c.status = to;
+      save(set, true);
+      repaint(set);
+    });
+    el.querySelectorAll("[contenteditable][data-f]").forEach((ed) =>
+      ed.addEventListener("input", () => {
+        c[ed.dataset.f] = ed.textContent.trim();
+        save(set);
+      }),
+    );
+    el.querySelector(".tc-keep input")?.addEventListener("change", (e) => {
+      c.keep = e.target.checked;
+      el.classList.toggle("off", !c.keep);
+      save(set);
+    });
+  }
+
+  function repaint(set) {
+    if (TAB.set === set) paintTab();
   }
 
   // ── running cases, one at a time ──────────────────────────────────────────
@@ -455,10 +543,12 @@
     const c = job.set.cases[job.i];
     c.run = { state: "running" };
     current = job;
+    const text = caseText(c);
+    CASE_TEXTS.add(text);
     repaint(job.set);
     const started = ss.runCase({
       display: `Run ${c.id}: ${c.scenario}`,
-      text: caseText(c),
+      text,
       mode: /^api$/i.test(c.layer || "") ? "api" : "ui",
       onEnd: (o) => done(job, o),
     });

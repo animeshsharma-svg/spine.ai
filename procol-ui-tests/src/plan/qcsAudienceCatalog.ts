@@ -26,7 +26,7 @@ export const QCS_AUDIENCE_STEPS: StepSpec[] = [
     name: "expect_qcs_cell",
     assertion: true,
     purpose:
-      "On Master QCS, read ONE cell of the comparison grid — a row (\"Qty Offer\", \"Rank\", \"RFQ Rate\", \"RFQ Amount\", \"Sum Total\", …) for one vendor column on one line item — and assert it. Compare with a fixed value, a number, or a value the API holds for this case (key). With no comparison it asserts the cell is filled. Row labels follow the template; the closest label is used and named in the result.",
+      "On Master QCS, read ONE cell of the comparison grid — a row (\"Qty Offer\", \"Rank\", \"RFQ Rate\", \"RFQ Amount\", \"Sum Total\", …) for one vendor column on one line item — and assert it. Compare with a fixed value, a number, or a value the API holds for this case (key). With no comparison it asserts the cell is filled. Row labels follow the template; the closest label is used and named in the result. A key (a value the API holds) exists only on a PREPARED state (open_prepared); in a plan that creates its own event, compare with number = the price the plan typed into place_surrogate_bid.",
     args: {
       row: 'the row label as the screen shows it, e.g. "Rank", "Qty Offer", "RFQ Rate", "Sum Total"',
       vendor: "vendor name or 1-based column number (optional; the only column, or the case's vendor)",
@@ -73,7 +73,7 @@ export const QCS_AUDIENCE_STEPS: StepSpec[] = [
     name: "expect_participant",
     assertion: true,
     purpose:
-      "On a published event's Participants list, search a vendor and assert ITS ROW (the name is read from the row, not from a button): that it is listed (present) or not, whether its box is ticked (selected = on this round), and whether it offers Add Bid. Use for \"the vendor's row is visible with its Add Bid control\", \"the vendor appears in the selected list\", \"no Add Bid for this vendor\".",
+      "On a published event's Participants list, search a vendor and assert ITS ROW (the name is read from the row, not from a button): that it is listed (present) or not, whether its box is ticked (selected = on this round), and whether it offers Add Bid. Use for \"the vendor's row is visible with its Add Bid control\", \"the vendor appears in the selected list\", \"no Add Bid for this vendor\". A vendor the case itself calls nonexistent or made up (\"Acme Nonexistent Supplier\") is never asserted present: assert the fallback instead — expect_participant_count{atLeast:1}, or present:false for that name.",
     args: {
       vendor: "vendor name or email (optional; the vendor select_participant added in this plan, else the case's own vendor)",
       present: "true (default) the row must be listed; false it must not be",

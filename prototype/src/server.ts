@@ -37,9 +37,12 @@ import { JourneyTrail } from "./ui/journeySteps.js";
 import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
+import { DECATHLON_ID, decathFeatures } from "./clients/decath.js";
+import { buildUiState } from "./ui/uiSetup.js";
+import { prepFor } from "./ui/uiCasePrep.js";
 import { readEnvVar, readToken, tokenClientChoices } from "./tokenClient.js";
 import { qaVendorsFor } from "./checks/matrixVendors.js";
-import { compileApiPlan, applyLineItemCount } from "./agents/apiPlanner.js";
+import { compileApiPlan, applyLineItemCount, applyFromPr, repairBidActs, strictOutcome, applyPriceCap } from "./agents/apiPlanner.js";
 import { runApiPlan, planCheckResults } from "./checks/apiPlanRunner.js";
 import { inputProblem, latestRfpRunId, readRfpRun, readRfpRunHtml, rfpFeatureCases, rfpJourney, rfpReady, runRfp } from "./rfpRunner.js";
 import { defectsFromRfpRun } from "./report/rfpDefects.js";
@@ -50,16 +53,18 @@ import { runCheck } from "./checks/engine.js";
 import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
-import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, runUiExplore, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, runUiExplore, readPlanResult, clampLineItems, readStuck, readLearned, runTeach, handPlan, callOffWarm, clearWarmMarker, type UiRunEvent } from "./ui/uiFlowRunner.js";
 import { buildPlanRun, deletePlanRun, listPlanRuns, savePlanRun } from "./ui/planRunStore.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
+import * as plannerApi from "./agents/planner.js";
+import { compileCached } from "./agents/compileCache.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { allDefects, renderBugSheet, stillOpenFor } from "./report/bugSheet.js";
-import { planShotPath, plainPending, withPlain } from "./report/plainBugs.js";
+import { planMediaPath, planShotPath, plainPending, withPlain } from "./report/plainBugs.js";
 import { uiRunDefects } from "./report/uiFrictionDefects.js";
 import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
 import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
@@ -81,6 +86,7 @@ import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
 import { dispatch as dispatchRoute } from "./routes/index.js";
+import { loadConsoleBugs, reportConsoleBug } from "./report/consoleBugs.js";
 
 /**
  * WHICH IDS A REAL RUN HAD, so Run tests can promise what a run will build.
@@ -255,6 +261,9 @@ const CLIENTS = [
   { id: 32461, name: "Demo Account 2", note: "BOQ on" },
   { id: 39490, name: "M/s Moon Beverages", note: "workspace client · BOQ off" },
   { id: 47053, name: "GMMCO LIMITED", note: "vendor onboarding v2 · contactless bulk upload · dedup on GST+address+pincode+account group" },
+  // Aanya, 21 Oct: "set it as a new client — decathlon". Its users sit in their own
+  // sub-companies; role tests (PO visibility) sign in on screen as each role.
+  { id: 57675, name: "DECATHLON SPORTS INDIA", note: "PO flow · role-based PO visibility (general user, validators, approvers)" },
 ];
 
 // Cache capability maps so re-selecting a client is instant.
@@ -318,6 +327,40 @@ const server = createServer(async (req, res) => {
      * on what started it, and the reader pressing the button does not care
      * which.
      */
+    /**
+     * SAVE A RUN — keep it on purpose (Aanya, 27 Oct: "for each run, give the option to save the run
+     * and discard if it is not useful, minimal buttons"). Saved runs carry a star in Sessions and have
+     * their own filter; Discard is /api/run-delete below.
+     *   GET  /api/run-save            → { saved: { <runId>: { at } } }
+     *   POST /api/run-save { run, saved: true | false }
+     */
+    if (path === "/api/run-save") {
+      const file = join(DATA_DIR, "run-saved.json");
+      const read = (): Record<string, { at: string }> => {
+        try {
+          return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+        } catch {
+          return {};
+        }
+      };
+      if (req.method === "POST") {
+        let raw = "";
+        for await (const c of req) raw += c;
+        const b = (() => { try { return JSON.parse(raw || "{}"); } catch { return {}; } })();
+        const id = String(b?.run ?? "");
+        if (!/^[\w.-]{3,80}$/.test(id)) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ ok: false, error: "no run id given" }));
+        }
+        const all = read();
+        if (b?.saved === false) delete all[id];
+        else all[id] = { at: new Date().toISOString() };
+        writeFileSync(file, JSON.stringify(all, null, 1));
+        return json(res, { ok: true, saved: !!all[id] });
+      }
+      return json(res, { saved: read() });
+    }
+
     if (path === "/api/run-delete") {
       const id = url.searchParams.get("run") ?? "";
       if (!id) {
@@ -330,6 +373,17 @@ const server = createServer(async (req, res) => {
         deleteTrail(id) ? "journey trail" : null,
         deletePlanRun(id) ? "typed browser run" : null,
       ].filter(Boolean);
+      // A discarded run is no longer a saved one.
+      try {
+        const file = join(DATA_DIR, "run-saved.json");
+        if (existsSync(file)) {
+          const all = JSON.parse(readFileSync(file, "utf8"));
+          if (all[id]) {
+            delete all[id];
+            writeFileSync(file, JSON.stringify(all, null, 1));
+          }
+        }
+      } catch {}
       return json(res, { deleted: removed.length > 0, removed, runId: id });
     }
 
@@ -550,15 +604,22 @@ const server = createServer(async (req, res) => {
         ],
       }));
 
-      const journeys = listTrails(20).map((t) => ({
+      const journeys = listTrails(20).map((t) => {
+        // A suite that states its own verdict (decath "RBV_003 ⊘ NOT TESTED — …"): a case it did
+        // not test is inconclusive, though Playwright exited 0 (it read "passed", 21 Oct).
+        const said = (t.steps ?? []).filter((st) => st.phase === "decath");
+        const notTested = t.exitCode === 0 && said.some((st) => /⊘ NOT TESTED/.test(st.text)) && !said.some((st) => /✓ PASS/.test(st.text));
+        return {
         id: t.runId,
         ts: t.startedAt,
         request: `browser journey: ${t.flowKey}`,
         companyName: t.companyId ? String(t.companyId) : null,
-        headline: t.stoppedAt?.text ?? null,
-        passed: t.exitCode === 0 ? 1 : 0,
+        headline: notTested ? (said.find((st) => /⊘ NOT TESTED/.test(st.text))?.text ?? null) : t.stoppedAt?.text ?? null,
+        // "RBV_016 · Verify … — expected: …": the case as it was when it ran (sheets get renumbered).
+        title: said[0]?.text?.match(/^(\S+ · .+?) — expected:/)?.[1] ?? null,
+        passed: t.exitCode === 0 && !notTested ? 1 : 0,
         failed: t.exitCode === 0 ? 0 : 1,
-        inconclusive: 0,
+        inconclusive: notTested ? 1 : 0,
         checks: 0,
         findings: 0,
         mismatches: 0,
@@ -570,7 +631,8 @@ const server = createServer(async (req, res) => {
           { label: "🖥 UI report", href: `/api/ui-report?run=${q(t.runId)}` },
           { label: "🐞 Bug sheet", href: `/api/bug-report?run=${q(t.runId)}` },
         ],
-      }));
+        };
+      });
 
       const poRuns = listPoRuns(20).map((r) => ({
         id: r.runId,
@@ -613,6 +675,8 @@ const server = createServer(async (req, res) => {
           explored: r.explored,
           // steps the tester did in the browser: Sessions reads the run as "Partly tested"
           byHand: r.byHand || 0,
+          // parts with no step, skipped or unanswered (ask_tester): also "Partly tested"
+          untested: r.untested || 0,
           steps: r.steps.length,
           // the step strip, one entry per step
           items: r.steps.map((s) => (s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "nc")),
@@ -788,7 +852,8 @@ const server = createServer(async (req, res) => {
            * otherwise the reply says what it could not express.
            */
           send("line", { line: "No ready-made case matches — writing an API test from your sentence…" });
-          const compiled = applyLineItemCount(await compileApiPlan({ text }, { llm: true, allowReason: false }).catch(() => null as any));
+          // An event from a purchase request is planned in code (apiPlanner applyFromPr); the rest by the compiler.
+          const compiled = strictOutcome(await applyPriceCap(await repairBidActs(await applyFromPr(applyLineItemCount(await compileApiPlan({ text }, { llm: true, allowReason: false }).catch(() => null as any)), text), text), text), text);
           if (!compiled?.plan || compiled.coverage === "none" || compiled.errors?.length) {
             const row = noMatchRow();
             row.message = compiled?.gaps?.length
@@ -917,6 +982,8 @@ const server = createServer(async (req, res) => {
       // The base URL is part of the identity of this answer: the same company
       // on a different host is a different configuration, and keying without
       // it served the previous environment's tree after switching.
+      // Decathlon: its own modules and the decath suite's cases (src/clients/decath.ts).
+      if (Number(cid) === DECATHLON_ID) return json(res, decathFeatures());
       const cacheKey = `features:${cid ?? "none"}:${baseOverride(url) ?? "default"}`;
       const cached = featureCache.get(cacheKey);
       if (cached && Date.now() - cached.at < FEATURE_CACHE_MS) {
@@ -1329,6 +1396,46 @@ const server = createServer(async (req, res) => {
         return;
       }
 
+      /**
+       * WARM START (Aanya, 27 Oct: "too slow", "boring for the user watching"): the browser starts
+       * with the compile, not after it — it opens and signs in (≈10 s) while the case compiles
+       * (15–25 s), so the live view is busy from the first second and the steps start as soon as
+       * they exist. The plan is handed over when compiled (handPlan); a case that ends up not
+       * running a plan here — the explorer takes it, nothing compiled, it was stopped — calls the
+       * warm run off (callOffWarm), and that run ends without testing anything or being kept.
+       * warm=0 (or SPINE_WARM_START=0) starts the browser after the compile, as before.
+       */
+      const warmId = `plan-${Date.now().toString(36)}`;
+      const warmOn = !dryRun && url.searchParams.get("warm") !== "0" && process.env.SPINE_WARM_START !== "0";
+      let warmTo: ((e: UiRunEvent) => void) | null = null; // the plan's own handler, once handed over
+      let warmEnded = false;
+      let warmOff = false;
+      let warmDone: () => void = () => {};
+      const warmGone = new Promise<void>((r) => (warmDone = r));
+      const warm = warmOn
+        ? runUiPlan({ plan: null, warm: true, companyId: c, runId: warmId, headed, showLogin, slowMo }, (e) => {
+            const ending = e.type === "done" || e.type === "run-error";
+            if (warmTo) return warmTo(e);
+            if (ending) {
+              warmEnded = true;
+              warmDone();
+              if (warmOff) clearWarmMarker(warmId);
+              return;
+            }
+            // Before the hand-over: the live view and the sign-in lines go out; nothing after a call-off.
+            if (!warmOff) send(e.type, e);
+          })
+        : null;
+      /** No plan for the warm browser after all: stop it, and wait (≤8 s) until it has let the browser go. */
+      const callOff = async (why: string) => {
+        if (!warm || warmOff || warmTo) return;
+        warmOff = true;
+        callOffWarm(warmId, why);
+        warm.stop();
+        await Promise.race([warmGone, new Promise((r) => setTimeout(r, 8_000))]);
+      };
+      req.on("close", () => void callOff("the session closed while the case compiled"));
+
       try {
         send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
         // The company's line-item ceiling, read alongside the compile: the
@@ -1340,7 +1447,23 @@ const server = createServer(async (req, res) => {
             return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
           })
           .catch(() => 0);
-        const compiled = await compileTestCase(testCase);
+        // A draft of the plan in the first second, no model (planner.quickOutline), while the compile
+        // runs — not sent when the compile is back within 400 ms (a reused one), so nothing flickers.
+        const quick = (plannerApi as unknown as { quickOutline?: (t: string) => { title: string; steps: unknown[]; draft: true } }).quickOutline;
+        const outlineTimer = quick
+          ? setTimeout(() => {
+              try {
+                const o = quick(testCase);
+                if (o?.steps?.length) send("outline", o);
+              } catch {
+                /* no draft: the compiled plan still comes */
+              }
+            }, 400)
+          : null;
+        // "Run it again" and the same words again reuse their compiled steps (agents/compileCache.ts).
+        const cachedCompile = await compileCached(testCase, compileTestCase).finally(() => outlineTimer && clearTimeout(outlineTimer));
+        const compiled = cachedCompile.result;
+        if (cachedCompile.reused) send("note", { line: `Reused the steps compiled for this exact case ${Math.max(1, Math.round((cachedCompile.ageMs ?? 0) / 60_000))} min ago — the compiler and its steps have not changed since.` });
         const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
         if (overLimit) {
           compiled.warnings = [...(compiled.warnings ?? []), overLimit];
@@ -1382,6 +1505,7 @@ const server = createServer(async (req, res) => {
          * the blocked branch below still says so.
          */
         if (explores) {
+          await callOff("the explorer works this case out in its own browser");
           const runId = `plan-${Date.now().toString(36)}`;
           send("explore", {
             runId,
@@ -1411,6 +1535,7 @@ const server = createServer(async (req, res) => {
 
         // An empty plan would "pass" in zero steps. Say what is missing instead.
         if (noSteps) {
+          await callOff("there is no step for this case");
           send("log", { line: `[plan] not run — the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}` });
           send("done", { exitCode: 0, notRun: true });
           res.end();
@@ -1427,6 +1552,7 @@ const server = createServer(async (req, res) => {
          * offers the default as a suggestion — `force=1` runs it deliberately.
          */
         if (compiled.source === "fallback" && url.searchParams.get("force") !== "1") {
+          await callOff("the case could not be compiled into steps");
           // Why, in the reader's terms: the model never answered (so try again),
           // or the words could not become steps. The purchase-to-bill note only
           // when the case is about those modules — after a model outage it read
@@ -1451,9 +1577,34 @@ const server = createServer(async (req, res) => {
           return;
         }
 
-        const runId = `plan-${Date.now().toString(36)}`;
+        /**
+         * A plan that opens an API-built event (open_prepared) needs that event built first —
+         * the screen-case runner does it (scripts/run-ui-cases.ts); a typed case never did, so
+         * "On an event where a vendor has already bid, open the vendor's bid on the Responses
+         * tab…" failed at step 1 with nothing built (B13, 22 Oct). The state is read from the
+         * case's own words (uiCasePrep.prepFor) and built through the API (uiSetup.buildUiState).
+         */
+        if (compiled.plan.steps.some((st: { step: string }) => st.step === "open_prepared") && !(compiled.plan as any).context) {
+          const p = prepFor({ id: "typed", group: "", title: testCase, setup: testCase, steps: "", expected: "" } as any);
+          if (p.ok && p.prepared && p.state !== "none") {
+            send("stage", { name: "prepare", line: `Building the event this case starts from through the API (${p.state}${p.technical ? ", with a technical stage" : ""})` });
+            const built = await buildUiState(c, p.state as any, { technical: p.technical, auction: (p as any).auction });
+            if (!built.ok || !built.context) {
+              await callOff("the event this case starts from could not be built");
+              send("blocked", { reason: `the event this case starts from could not be built through the API: ${built.why ?? "no reason given"}`, suggestion: compiled.plan.steps.map((st: { step: string }) => st.step) });
+              send("done", { exitCode: 1 });
+              res.end();
+              return;
+            }
+            const x = built.context as any;
+            (compiled.plan as any).context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
+            send("note", { line: `Built through the API in ${Math.round((x.builtInMs ?? 0) / 1000)}s: ${x.title}` });
+          }
+        }
+
+        const runId = warmId;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)`, runId });
-        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+        const onRun = (e: UiRunEvent) => {
           const ending = e.type === "done" || e.type === "run-error";
           if (ending) {
             // The result and the verdict go out before the end event: the
@@ -1472,9 +1623,24 @@ const server = createServer(async (req, res) => {
           }
           send(e.type, e);
           if (ending) res.end();
-        });
+        };
+        // The warm browser takes the plan, signed in already; one that died before it was handed a plan
+        // (a sign-in that failed, say) is replaced by a fresh run of the same id, as before warm starts.
+        let stop: () => void;
+        if (warm && !warmEnded && !warmOff) {
+          warmTo = onRun;
+          handPlan(runId, compiled.plan);
+          stop = warm.stop;
+        } else if (warmOff) {
+          // Called off because the session closed while the case compiled: nobody to run it for.
+          res.end();
+          return;
+        } else {
+          ({ stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, onRun));
+        }
         req.on("close", () => stop());
       } catch (err: any) {
+        await callOff("the case could not be compiled");
         send("run-error", { line: `could not compile that test case: ${err?.message ?? err}` });
         res.end();
       }
@@ -3151,6 +3317,31 @@ const server = createServer(async (req, res) => {
       return res.end(readFileSync(file));
     }
 
+    // A failed plan run's video (seekable: byte ranges) or its Playwright trace (a download, opened at
+    // trace.playwright.dev) — the bug list's Artifacts.
+    if (path === "/api/plan-media") {
+      const f = url.searchParams.get("f") ?? "";
+      const file = planMediaPath(url.searchParams.get("run") ?? "", f);
+      if (!file) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("no such video or replay");
+      }
+      const body = readFileSync(file);
+      if (f === "trace.zip") {
+        res.writeHead(200, { "content-type": "application/zip", "content-disposition": `attachment; filename="${url.searchParams.get("run")}-trace.zip"`, "cache-control": "no-store" });
+        return res.end(body);
+      }
+      const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ""));
+      if (range && (range[1] || range[2])) {
+        const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
+        const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+        res.writeHead(206, { "content-type": "video/webm", "accept-ranges": "bytes", "content-range": `bytes ${start}-${end}/${body.length}`, "content-length": end - start + 1, "cache-control": "no-store" });
+        return res.end(body.subarray(start, end + 1));
+      }
+      res.writeHead(200, { "content-type": "video/webm", "accept-ranges": "bytes", "content-length": body.length, "cache-control": "no-store" });
+      return res.end(body);
+    }
+
     if (path === "/api/ui-shot") {
       const rel = url.searchParams.get("f") ?? "";
       const file = uiShotPath(rel);
@@ -3183,6 +3374,27 @@ const server = createServer(async (req, res) => {
     // ── API: a person's edits to the bug sheet ──────────────────────────
     // One field per request, keyed on the defect's fingerprint, kept apart from
     // what the platform derives so a re-run never overwrites a decision.
+    // ── API: console lines a tester reported as bugs from a run's Console tab ──
+    // GET: the fingerprints already reported (so the tab can say so); POST: report one.
+    if (path === "/api/console-bugs") {
+      if (req.method === "POST") {
+        let payload: any;
+        try {
+          payload = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "body must be JSON" }));
+        }
+        if (!payload.text) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "text is required" }));
+        }
+        const bug = reportConsoleBug(payload);
+        return json(res, { ok: true, fingerprint: bug.fingerprint, sightings: bug.sightings.length });
+      }
+      return json(res, { reported: loadConsoleBugs().map((b) => ({ fingerprint: b.fingerprint, sightings: b.sightings.length })) });
+    }
+
     if (path === "/api/bug-triage") {
       if (req.method === "POST") {
         const raw = await readBody(req);

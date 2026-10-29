@@ -1,0 +1,374 @@
+{
+ "id": "API-PC02",
+ "text": "Create an RFQ with 1 line item, invite 1 vendor, publish it, set a price cap of 100 for that vendor, then place a surrogate bid of 120 for that vendor; it should be refused because it is above the cap.",
+ "expect": "refused",
+ "startedAt": "2026-10-26T22:50:19.328Z",
+ "lines": [
+  "No ready-made case matches — writing an API test from your sentence…",
+  "Plan “Price cap of 100, then a surrogate bid of 120 (refused)” on PROCOL DEMO",
+  "Setup: A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+  "  setup · Chosen by the caller: vendor “QA vendor 1”.",
+  "  setup · Sign in as the buyer: worked — Using Procol Support's web-console session for PROCOL DEMO — the app accepted it (role: super_admin).",
+  "  setup · Create the draft event: worked — Draft Y2daY2RY was created with one line item (90 KG).",
+  "  setup · Add the pricing round: worked — Round 1 (pricing round, RFQ) was attached as Z2daa1Fa; bidding open 04:20–04:40.",
+  "  setup · Publish the event to the invited vendor: worked — “spine-API-automation-47369814” is now active with 1 round, visible to 1 invited vendor.",
+  "  setup · Read the event back: worked — The event reads back as active with 1 round.",
+  "  · act 1: The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it). — The app accepted it (HTTP 200).",
+  "  ✓ act 2: The buyer enters a bid on a vendor's behalf (surrogate bid). — The app refused it: “Price cannot be more than the allowed price” (HTTP 422, code 38).",
+  "Verdict: passed — The app refused it, as the case expects: “Price cannot be more than the allowed price”."
+ ],
+ "checks": [
+  {
+   "id": "API-TYPED",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "Price cap of 100, then a surrogate bid of 120 (refused)",
+   "type": "functional",
+   "category": "API plan",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "reject",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "90",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "90",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 120,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 10800,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 443379,
+           "trade_product_uuid": "WlpwUVpraw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "ZE5rTlpncA==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "Z2daa1Fa",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Price cannot be more than the allowed price (code 38)",
+   "durationMs": 18206,
+   "pass": true,
+   "verdict": "api plan passed — The app refused it, as the case expects: “Price cannot be more than the allowed price”.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it).",
+    "The buyer enters a bid on a vendor's behalf (surrogate bid)."
+   ],
+   "expectedResult": "The app refuses the step the case is about with a clear message, and never with a server error.",
+   "apiPlan": {
+    "recipe": "published_rfq",
+    "setupOk": true,
+    "event": "spine-API-automation-47369814"
+   }
+  },
+  {
+   "id": "API-TYPED·act1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer sets the invited vendor's price cap on the round (a bid must be strictly below it).",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "PATCH /trade/Z2daa1Fa/update_vendor_validations",
+   "request": {
+    "method": "PATCH",
+    "path": "/trade/Z2daa1Fa/update_vendor_validations",
+    "body": {
+     "productwise_vendor_validations": {
+      "WlpwUVpraw==": {
+       "cGNrY1pE": 100
+      }
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 487,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act2",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /bids/template_input",
+   "request": {
+    "method": "POST",
+    "path": "/bids/template_input",
+    "body": {
+     "company_uuid": "cGNrY1pE",
+     "currency_preference": null,
+     "sheets": {
+      "global_price_components": {
+       "global_data": {
+        "cGNrY1pE": {}
+       }
+      },
+      "inline_components": {
+       "data": {
+        "cGNrY1pE": [
+         {
+          "action": {
+           "value": null,
+           "configuration": {
+            "mode_type": "hidden"
+           },
+           "key": "action"
+          },
+          "status": {
+           "value": null,
+           "label": null,
+           "key": "status",
+           "type": "checkbox"
+          },
+          "serial_number": {
+           "value": 1,
+           "key": "serial_number"
+          },
+          "creator_quantity": {
+           "value": "90",
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "creator_quantity",
+           "postfix": "KG"
+          },
+          "participant_quantity": {
+           "value": "90",
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "suffix": "KG"
+           },
+           "key": "participant_quantity",
+           "postfix": "KG"
+          },
+          "price": {
+           "validations": [],
+           "configuration": {
+            "unit_type": "KG",
+            "prefix": "₹",
+            "suffix": "/KG"
+           },
+           "key": "price",
+           "postfix": "/KG",
+           "prefix": "₹",
+           "value": 120,
+           "precision": 2
+          },
+          "gst": {
+           "validations": [],
+           "configuration": {
+            "suffix": "%"
+           },
+           "key": "gst",
+           "postfix": "%"
+          },
+          "total_amount": {
+           "configuration": {
+            "prefix": "₹"
+           },
+           "key": "total_amount",
+           "prefix": "₹",
+           "value": 10800,
+           "precision": 2
+          },
+          "product": {
+           "value": "product",
+           "id": 1759355,
+           "uuid": "UWdkWHBjWA==",
+           "trade_product_id": 443379,
+           "trade_product_uuid": "WlpwUVpraw==",
+           "trade_product_category_uuid": "TkRkRFhn",
+           "unit_type": "KG",
+           "product_code": "1100000401",
+           "event_group_line_item_uuid": "ZE5rTlpncA==",
+           "is_rate_only": false,
+           "event_group_line_item_status": "active",
+           "qualities": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "key": "product"
+          },
+          "variant": {
+           "uuid": "Z3Baa1prWg==",
+           "value": "Variant 1",
+           "quality_params": [
+            {
+             "name": "QA_Platform_Specs",
+             "value": "As per company"
+            }
+           ],
+           "status": "active",
+           "attachments": null,
+           "key": "variant"
+          },
+          "buyer_hub": {
+           "uuid": "a05aWk4=",
+           "value": "location",
+           "key": "buyer_hub"
+          }
+         }
+        ]
+       }
+      }
+     },
+     "trade_request_uuid": "Z2daa1Fa",
+     "surrogate_remarks": {
+      "remarks": "",
+      "attachments": []
+     }
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Price cannot be more than the allowed price (code 38)",
+   "durationMs": 449,
+   "pass": true,
+   "verdict": "The app refused it: “Price cannot be more than the allowed price” (HTTP 422, code 38)."
+  }
+ ],
+ "done": {
+  "ok": true,
+  "total": 1
+ },
+ "fatal": null,
+ "ms": 27846
+}

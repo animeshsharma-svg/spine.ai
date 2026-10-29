@@ -1,0 +1,369 @@
+{
+  "about": "Event actions: Withdraw at any phase (project ⋮ → Withdraw Project, or a stage's Settings → Withdraw), Add Price Cap on Participants, and the other event-menu items. Written 27 Oct 2026 for Aanya ('if user asks to withdraw the event at any phase of time, then ui must go here … add price cap, if anything from these options is asked by user remember to open this and perform the activity'). Every case makes its own event, so nothing another team owns is withdrawn or changed. 'to confirm' marks an expectation nobody has checked against Procol's own rules yet. Status: draft until Aanya approves the expectations.",
+  "cases": [
+    {
+      "id": "WD01",
+      "n": 1,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, then withdraw the project with the remark \"spine.ai withdrawal test\" and check it shows as withdrawn.",
+      "note": "live event, no bids",
+      "expect": "complete",
+      "must": "Withdraw Project with a remark; the event shows Withdrawn.",
+      "data": {
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD02",
+      "n": 2,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, place a surrogate bid for that vendor, then withdraw the project and check it shows as withdrawn.",
+      "note": "live event after a bid",
+      "expect": "complete",
+      "must": "A bid in, then the project withdrawn; it shows Withdrawn.",
+      "data": {
+        "bid_vendors": 1,
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD03",
+      "n": 3,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, then withdraw only the RFQ stage from its Settings menu with the reason \"spine.ai stage withdrawal\" and check it shows as withdrawn.",
+      "note": "stage-level Withdraw (Settings)",
+      "expect": "complete",
+      "must": "Settings → Withdraw with a reason; the RFQ stage shows Withdrawn.",
+      "data": {
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD04",
+      "n": 4,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, then try to withdraw the project without entering a withdrawal remark.",
+      "note": "the remark is required",
+      "expect": "app_refuses",
+      "must": "Yes, Withdraw Project stays disabled (or is refused) without a remark; the event stays live.",
+      "data": {
+        "published": true,
+        "withdrawn": false
+      }
+    },
+    {
+      "id": "WD05",
+      "n": 5,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, then try to withdraw the RFQ stage from Settings without giving a reason.",
+      "note": "the stage reason is required",
+      "expect": "app_refuses",
+      "must": "Procol refuses the stage withdrawal with no reason; the event stays live.",
+      "data": {
+        "published": true,
+        "withdrawn": false
+      }
+    },
+    {
+      "id": "WD06",
+      "n": 6,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create a technical + RFQ event with 1 line item, invite 1 vendor, publish it and withdraw the project while the technical stage is live, then check it shows as withdrawn.",
+      "note": "two stages, withdrawn during the technical stage",
+      "expect": "complete",
+      "must": "A Technical + RFQ project withdrawn; it shows Withdrawn.",
+      "data": {
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD07",
+      "n": 7,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an auction with one item, invite a vendor, publish it, then withdraw the project and check it shows as withdrawn.",
+      "note": "an auction",
+      "expect": "complete",
+      "must": "A live auction withdrawn; it shows Withdrawn.",
+      "data": {
+        "stages": [
+          "auction"
+        ],
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD08",
+      "n": 8,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ event from an existing PR, invite 1 vendor, publish it, then withdraw the project and check it shows as withdrawn.",
+      "note": "an event made from a PR (its quantities go back to the PR)",
+      "expect": "complete",
+      "must": "A PR-made RFQ withdrawn; it shows Withdrawn.",
+      "data": {
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD09",
+      "n": 9,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, withdraw the project, then check that no vendor offers Add Bid on Participants.",
+      "note": "no surrogate bid once withdrawn",
+      "expect": "app_refuses",
+      "must": "After the withdrawal, no Add Bid on Participants.",
+      "data": {
+        "withdrawn": true,
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "WD10",
+      "n": 10,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, place a surrogate bid, end the bidding, then withdraw the project and check it shows as withdrawn.",
+      "note": "after bidding has ended (to confirm: Procol may still allow it)",
+      "expect": "complete",
+      "must": "Bidding ended, then the project withdrawn; it shows Withdrawn.",
+      "data": {
+        "bid_vendors": 1,
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "WD11",
+      "n": 11,
+      "section": "WD",
+      "sectionName": "Withdraw",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, withdraw the project, then check the ⋮ menu no longer offers Withdraw Project.",
+      "note": "a withdrawn project cannot be withdrawn again (to confirm)",
+      "expect": "app_refuses",
+      "must": "The ⋮ menu has no Withdraw Project (or it is greyed out) after the withdrawal.",
+      "data": {
+        "withdrawn": true
+      }
+    },
+    {
+      "id": "PC01",
+      "n": 12,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and add a price cap of 100 for that vendor.",
+      "note": "the basic price cap",
+      "expect": "complete",
+      "must": "Add Price Cap saved at 100 for the vendor.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "PC02",
+      "n": 13,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, add a price cap of 100 for that vendor, then try to place a surrogate bid of 120 for that vendor.",
+      "note": "a bid above the cap (to confirm how Procol refuses it)",
+      "expect": "app_refuses",
+      "must": "The surrogate bid of 120 is refused because it is above the cap of 100; no bid saved.",
+      "data": {
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "PC03",
+      "n": 14,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, add a price cap of 100 for that vendor, then place a surrogate bid of 90 for that vendor.",
+      "note": "a bid under the cap",
+      "expect": "complete",
+      "must": "Cap 100, then a surrogate bid of 90 accepted.",
+      "data": {
+        "bid_vendors": 1,
+        "latest_bid_price": 90
+      }
+    },
+    {
+      "id": "PC04",
+      "n": 15,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, add a price cap of 100 for that vendor, then try to place a surrogate bid of exactly 100 for that vendor.",
+      "note": "a bid equal to the cap — Procol's template rule is base_price < ceil_price (\"Price should be less than the Cap price\"), so equal is refused (seen in the template, 27 Oct)",
+      "expect": "app_refuses",
+      "must": "The bid of 100 (equal to the cap) is refused: the price must be below the cap.",
+      "data": {
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "PC05",
+      "n": 16,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an auction with one item, invite a vendor, publish it, add a price cap of 50 for that vendor and try to place a surrogate bid of 60.",
+      "note": "the stress prompt F65, now that Add Price Cap has a step",
+      "expect": "app_refuses",
+      "must": "On the auction, the bid of 60 is refused above the cap of 50; no bid saved.",
+      "data": {
+        "stages": [
+          "auction"
+        ],
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "PC06",
+      "n": 17,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and try to add a price cap for that vendor without entering any value.",
+      "note": "an empty cap (to confirm)",
+      "expect": "app_refuses",
+      "must": "OK is disabled or Procol refuses an empty price cap.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "PC07",
+      "n": 18,
+      "section": "PC",
+      "sectionName": "Price cap",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and try to add a price cap of -10 for that vendor.",
+      "note": "a negative cap (to confirm)",
+      "expect": "app_refuses",
+      "must": "Procol refuses a negative price cap.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN01",
+      "n": 19,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and extend the submission time by 30 minutes from Settings.",
+      "note": "Settings → Extend Submission Time",
+      "expect": "complete",
+      "must": "Increase Event Time → 30 minutes → Ok, and Procol confirms it.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN02",
+      "n": 20,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, open Order Activity from Settings and check it shows that the event was created.",
+      "note": "Settings → Order Activity",
+      "expect": "complete",
+      "must": "The Activity drawer says \"You created the event …\".",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN03",
+      "n": 21,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, open Send Reminders from the project's ⋮ menu and check it lists the pending offer submissions, without sending anything.",
+      "note": "⋮ → Send Reminders (no reminder is sent)",
+      "expect": "complete",
+      "must": "The Send Reminders drawer lists Offer submissions with a pending count.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN04",
+      "n": 22,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and open Shared With from Settings.",
+      "note": "Settings → Shared With",
+      "expect": "complete",
+      "must": "Shared With opens.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN05",
+      "n": 23,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and check that Recreate Order is greyed out in Settings.",
+      "note": "a greyed-out item",
+      "expect": "app_refuses",
+      "must": "Recreate Order is shown greyed out on a live RFQ.",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN06",
+      "n": 24,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and, with no bids yet, check that Send Bulk Counter Offer is greyed out in Settings.",
+      "note": "no bids → no bulk counter offer",
+      "expect": "app_refuses",
+      "must": "Send Bulk Counter Offer is greyed out with no bids.",
+      "data": {
+        "published": true,
+        "bid_vendors": 0
+      }
+    },
+    {
+      "id": "MN07",
+      "n": 25,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and open Rejected Bids from Settings.",
+      "note": "Settings → Rejected Bids",
+      "expect": "complete",
+      "must": "Rejected Bids opens (empty on a new event).",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN08",
+      "n": 26,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it, open Edit Evaluation Time from Settings and check it shows when the evaluation ends.",
+      "note": "Settings → Edit Evaluation Time",
+      "expect": "complete",
+      "must": "The dialog says \"Evaluation will end at …\".",
+      "data": {
+        "published": true
+      }
+    },
+    {
+      "id": "MN09",
+      "n": 27,
+      "section": "MN",
+      "sectionName": "Event menus",
+      "prompt": "Create an RFQ with 1 line item, invite 1 vendor, publish it and convert it to an auction from Settings.",
+      "note": "Settings → Convert to Auction (stress B09-style)",
+      "expect": "complete",
+      "must": "Convert to Auction → Continue opens the converted auction's create screen.",
+      "data": {
+        "published": true
+      }
+    }
+  ]
+}

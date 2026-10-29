@@ -86,14 +86,10 @@ export class CounterOfferPage extends BasePage {
   }
 
   /**
-   * Open the drawer for this vendor, fill the counter price, send it.
-   * Returns what it did, in words; throws with the screen's own words when the
-   * product refuses or the control is not offered.
+   * The stage's Responses grid — where each vendor's header carries its Counter Offer action.
    */
-  async sendCounterOffer(opts: { vendor?: string; price: number; remark?: string }): Promise<string> {
+  private async openResponsesGrid(): Promise<void> {
     const p = this.page;
-    await this.dismissDistractions();
-
     // 0 · the right grid. The comparison grid that carries the header action
     //     area is the STAGE's (layerDetails.jsx, the RFQ / Auction tab); the
     //     project-level Master QCS renders the same bids without it. If we are
@@ -125,6 +121,41 @@ export class CounterOfferPage extends BasePage {
       await this.waitForSpinnerHidden();
     }
     await p.locator("[role='columnheader'], .rdg-header-row").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+  }
+
+  /**
+   * Can a counter offer be sent on this event's bids? Read on the Responses grid before the
+   * case relies on the event: Procol shows Counter Offer greyed out on a surrogate bid (the
+   * buyer entered it for the vendor), so an event whose only bid is one cannot take the case
+   * (26 Oct: "M3M-Bestq_API-…" had one surrogate bid, and the step tried a disabled button).
+   */
+  async canCounterOffer(): Promise<{ ok: boolean; why: string }> {
+    await this.dismissDistractions();
+    await this.openResponsesGrid();
+    const buttons = this.page.getByRole("button", { name: /^counter offer$/i });
+    const n = await buttons.count();
+    // An older grid keeps it in each vendor's caret menu: nothing to judge here, the step looks there.
+    if (!n) return { ok: true, why: "its bids are on the Responses grid" };
+    for (let i = 0; i < n; i++) if (await buttons.nth(i).isEnabled().catch(() => false)) return { ok: true, why: "Counter Offer is offered on its bids" };
+    const surrogate = await this.page.getByText(/^surrogate bid$/i).count().catch(() => 0);
+    return {
+      ok: false,
+      why: surrogate
+        ? `its only bid${n > 1 ? "s are" : " is a"} surrogate bid${n > 1 ? "s" : ""} (entered by the buyer for the vendor), and Procol greys out Counter Offer on those`
+        : `Counter Offer is greyed out on ${n > 1 ? "all its bids" : "its bid"}`,
+    };
+  }
+
+  /**
+   * Open the drawer for this vendor, fill the counter price, send it.
+   * Returns what it did, in words; throws with the screen's own words when the
+   * product refuses or the control is not offered.
+   */
+  async sendCounterOffer(opts: { vendor?: string; price: number; remark?: string }): Promise<string> {
+    const p = this.page;
+    await this.dismissDistractions();
+
+    await this.openResponsesGrid();
 
     // 1 · the per-vendor control: `<Button id={CTA_ID.counterOffer}>Counter
     //     Offer</Button>` in the header's action area, rendered when the bid is
@@ -186,6 +217,23 @@ export class CounterOfferPage extends BasePage {
       );
     }
     await control.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    // While the bid's cells are still loading (grey bars) the button is greyed too (27 Oct, VB09: a vendor-portal
+    // bid opened seconds after it was placed). Wait for the grid before calling it refused.
+    const loading = p.locator("[role='grid'] .ant-skeleton, [role='grid'] [class*='skeleton']").filter({ visible: true }).first();
+    for (const until = Date.now() + 20_000; Date.now() < until; ) {
+      if (!(await control.isDisabled().catch(() => false))) break;
+      if (!(await loading.isVisible().catch(() => false)) && Date.now() > until - 12_000) break;
+      await p.waitForTimeout(700);
+    }
+    if (await control.isDisabled().catch(() => false)) {
+      const surrogate = (await header.getByText(/surrogate bid/i).count().catch(() => 0)) || (await p.getByText(/^surrogate bid$/i).count().catch(() => 0));
+      const whose = opts.vendor ? `${opts.vendor}'s bid` : "the bid";
+      throw new Error(
+        surrogate
+          ? `blocked: Counter Offer is greyed out on ${whose}: it is a surrogate bid (entered by the buyer for the vendor), and Procol does not allow a counter offer on a surrogate bid`
+          : `blocked: Counter Offer is shown but greyed out on ${whose} — Procol is not offering a counter offer on it right now`,
+      );
+    }
     await this.click([control], { label: "counter-offer:open", timeout: TIMEOUTS.MEDIUM });
 
     // 2 · the drawer, and its sheet.

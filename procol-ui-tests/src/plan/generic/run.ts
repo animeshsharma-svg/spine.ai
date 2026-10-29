@@ -418,6 +418,15 @@ async function execute(
       const now = await fieldValue(field);
       if (value && !norm(now).includes(norm(value))) throw new Error(`typed "${value}" into ${describe(t)} but the field now shows "${now}"`);
       noteSeen(targetWords(t)[0], page.url(), found.strategy);
+      // A search box commits on Enter: typing alone left the events list unfiltered (23 Oct, E01:
+      // "Search Title" held the text, the list still showed live events, and "No Results found"
+      // never came). Submit it unless the plan says not to.
+      const searchy = /search/i.test(`${describe(t)} ${await field.getAttribute("placeholder").catch(() => "") ?? ""} ${await field.getAttribute("type").catch(() => "") ?? ""}`);
+      if (value && searchy && a.submit !== false) {
+        await field.press("Enter", { timeout: 5_000 }).catch(() => page.keyboard.press("Enter").catch(() => {}));
+        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+        return { detail: `${describe(t)} now holds "${now}" — submitted with Enter`, strategy: found.strategy };
+      }
       return { detail: `${describe(t)} now holds "${now}"`, strategy: found.strategy };
     }
 
@@ -788,6 +797,13 @@ async function attempt(
     }
     if (innerErr && !/disabled/i.test(innerErr.message)) throw new Error(`could not tell: the attempt itself failed (${innerErr.message.split("\n")[0]}) — that is our failure, not the app's refusal`);
     return { detail: `blocked: nothing opened after ${innerName} on a ready screen${innerDetail ? ` (${innerDetail})` : ""}`, strategy: controlStrategy };
+  }
+
+  // Evidence 0: the inner step saw the refusal itself and said so ("blocked: …" — a withdraw with no remark,
+  // a price cap with no value, eventMenuSteps.ts). Its words are the evidence (27 Oct).
+  const innerSaid = innerErr ? innerErr.message.split("\n")[0] : innerDetail;
+  if (innerSaid?.startsWith("blocked:") && (!because || innerSaid.toLowerCase().includes(because.toLowerCase()))) {
+    return { detail: innerSaid, strategy: controlStrategy ?? "the step's own check" };
   }
 
   // Evidence 2: a refusal message — new toast in the journal, or on screen.

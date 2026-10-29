@@ -290,6 +290,25 @@ async function waitUntil(sec: number, capMs: number, why: string, onLine: (l: st
 }
 
 /** The pricing round's line, as one reader sees it (bid pricing and surrogate bids need it). */
+/**
+ * The technical round's questionnaire, as the console reads it before a surrogate technical response:
+ * GET /v1/trade/:id/schema?response_type=template → sheets.forms[] — each form's page_uuids and its vendor
+ * questions (page_response_headers; "read" ones, like the evaluator's score, are not the vendor's to answer).
+ */
+async function techPages(api: any, trade: string): Promise<BodyArgs["techPages"] | undefined> {
+  const r = await send(api, "GET", `/v1/trade/${trade}/schema?response_type=template&additional_fields=order_details`);
+  const forms: any[] = r.data?.sheets?.forms ?? [];
+  if (!r.ok || !forms.length) return undefined;
+  const pages: NonNullable<BodyArgs["techPages"]> = [];
+  for (const f of forms) {
+    const questions = (f.page_response_headers ?? [])
+      .filter((h: any) => h?.key_attribute && h?.configuration?.mode_type !== "read")
+      .map((h: any) => ({ key: String(h.key_attribute), required: h?.configuration?.is_required === true || h?.is_required === true }));
+    for (const page of f.page_uuids ?? []) pages.push({ page: String(page), questions });
+  }
+  return pages.length ? pages : undefined;
+}
+
 async function tradeProduct(api: any, trade: string): Promise<BodyArgs["tradeProduct"] | undefined> {
   const E = await Endpoints();
   const r = await send(api, "GET", E.tradeDetails(trade));
@@ -354,13 +373,51 @@ async function placeBid(rc: RunCtx, inst: SetupInstance, who: "vendor" | "vendor
 const SETUP_BUDGET_MS = 12 * 60_000;
 const WAIT_CAP_MS = 6 * 60_000;
 
+type PrPick = { prUuid: string; prNo?: string; lines: Array<{ uuid: string; productUuid: string; qualityUuid: string; unit: string; qty: number; hubUuid?: string; name?: string; productCode?: string; itemNo?: string }> };
+
+/**
+ * An open purchase request with `items` material lines that can still go on an event (active, open
+ * quantity left, not dormant), and those lines with what the draft needs: the product's quality
+ * (its first variant), the PR's unit and open quantity, the delivery place. Material lines only: a
+ * service line becomes several items on the event, so a count asked for would not hold.
+ */
+async function pickPrLines(buyer: any, items: number): Promise<PrPick | { why: string }> {
+  const q = encodeURIComponent(JSON.stringify({ status: ["active"] }));
+  let prs: any[] = [];
+  try {
+    const r: any = await buyer.get(`/purchase_requests?page=1&page_size=50&filters=${q}&tab=active`);
+    prs = r?.purchase_requests ?? r?.data ?? [];
+  } catch (e) {
+    return { why: `the open purchase requests could not be read: ${(e as Error).message.slice(0, 160)}` };
+  }
+  const usable = (l: any) => l?.uuid && l?.product_uuid && l.status === "active" && l.line_item_type === "material" && Number(l.quantity_open) > 0 && !l.dormant_locked && l?.data?.uom;
+  const fits = prs.map((p) => ({ p, ls: (p?.line_items ?? []).filter(usable) })).filter((x) => x.p?.uuid && x.ls.length >= items);
+  // Exactly that many lines first: "a PR with 2 line items" is one, not a PR of 5 with 2 taken.
+  const pick = fits.find((x) => x.ls.length === items) ?? fits[0];
+  if (!pick) return { why: `no open purchase request on the first page has ${items} material line${items === 1 ? "" : "s"} with quantity left to put on an event` };
+  const lines: PrPick["lines"] = [];
+  for (const l of pick.ls.slice(0, items)) {
+    let prod: any = null;
+    try {
+      prod = await buyer.get(`/products/${encodeURIComponent(l.product_uuid)}`);
+    } catch {
+      prod = null;
+    }
+    const p = prod?.product ?? prod;
+    const quality = p?.variants?.[0]?.uuid;
+    if (!quality) return { why: `the product of PR ${pick.p?.data?.prNo ?? pick.p.uuid}'s line ${l.uuid} has no variant to put on an event` };
+    lines.push({ uuid: String(l.uuid), productUuid: String(l.product_uuid), qualityUuid: String(quality), unit: String(l.data.uom), qty: Number(l.quantity_open), ...(l.buyer_hub_uuid ? { hubUuid: String(l.buyer_hub_uuid) } : {}), name: String(p?.name ?? l?.data?.shortText ?? l.product_uuid), ...(l.product_code ? { productCode: String(l.product_code) } : {}), ...(l?.data?.prLno ? { itemNo: String(l.data.prLno) } : {}) });
+  }
+  return { prUuid: String(pick.p.uuid), prNo: pick.p?.data?.prNo ? String(pick.p.data.prNo) : undefined, lines };
+}
+
 /** Build the recipe on a fresh record. Never throws. */
-async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number): Promise<SetupInstance> {
+async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number, fromPr?: { items?: number }): Promise<SetupInstance> {
   const t0 = Date.now();
   const cat = rc.client.ctx.catalog ?? {};
   const cfg = await Config();
-  const unit0 = String(cfg?.testData?.quantityUnit ?? "KG");
-  const qty0 = Number(cfg?.testData?.quantityValue) || 50;
+  let unit0 = String(cfg?.testData?.quantityUnit ?? "KG");
+  let qty0 = Number(cfg?.testData?.quantityValue) || 50;
   const vals: Record<string, string | number> = {
     stamp: String(Date.now()),
     ...(cat.productUuid ? { productUuid: cat.productUuid } : {}),
@@ -385,6 +442,23 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number): Promi
     return { result: { recipe: recipe.id, ok: true, steps: [], ms: 0 }, vals, unit: unit0, qty: qty0, at: Date.now() };
   }
 
+  // From a purchase request: its lines are the draft's, and every later body uses the first one.
+  let pr: PrPick | undefined;
+  if (fromPr) {
+    const got = await pickPrLines(rc.client.ctx.buyerApi, Math.max(1, Math.floor(fromPr.items ?? 1)));
+    if ("why" in got) return fail(got.why);
+    pr = got;
+    const l0 = pr.lines[0];
+    vals.productUuid = l0.productUuid;
+    vals.productQualityUuid = l0.qualityUuid;
+    if (l0.hubUuid) vals.locationUuid = l0.hubUuid;
+    vals.prUuid = pr.prUuid;
+    if (pr.prNo) vals.prNo = pr.prNo;
+    unit0 = l0.unit;
+    qty0 = l0.qty;
+    rc.onLine(`Setup: purchase request ${pr.prNo ?? pr.prUuid} — ${pr.lines.map((l) => `${l.name} (${l.qty} ${l.unit} open)`).join("; ")}`);
+  }
+
   const et = EVENT_TYPES[recipe.eventType];
   const plan: JourneyPlan = {
     wanted: true,
@@ -405,7 +479,7 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number): Promi
         baseURL: rc.baseURL,
         stageSeconds,
         journeyBudgetMs: SETUP_BUDGET_MS,
-        ...(lineItems && lineItems > 1 ? { lineItemCount: lineItems } : {}),
+        ...(pr ? { fromPr: pr } : lineItems && lineItems > 1 ? { lineItemCount: lineItems } : {}),
         ...(v1 ? { choose: { vendor: { uuid: v1.vendorCompanyUuid, email: v1.email, name: `QA vendor ${v1.n}` } } } : {}),
         onStep: (st) => rc.onLine(`  setup · ${st.title}: ${st.verdict} — ${st.actual}`),
         onLine: (l) => rc.onLine(`  setup · ${l}`),
@@ -699,7 +773,7 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
 
   // ── setup (fresh, or reused only by a read-only plan) ──
   const readOnly = plan.act.every((a) => OPS[a.op]?.kind === "read");
-  const key = `${rc.companyId}:${recipe.id}:${plan.setup.lineItems ?? 1}`;
+  const key = `${rc.companyId}:${recipe.id}:${plan.setup.lineItems ?? 1}${plan.setup.fromPr ? `:pr${plan.setup.fromPr.items ?? 1}` : ""}`;
   let inst: SetupInstance;
   let reused = false;
   const cached = opts.setupCache?.get(key);
@@ -708,7 +782,7 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
     reused = true;
     rc.onLine(`Setup: reusing the ${recipe.id} record another read-only plan built (nothing in this plan writes).`);
   } else {
-    inst = await buildSetup(rc, recipe, plan.setup.lineItems);
+    inst = await buildSetup(rc, recipe, plan.setup.lineItems, plan.setup.fromPr);
     if (inst.result.ok && opts.setupCache && readOnly) opts.setupCache.set(key, inst);
   }
   const setup: SetupResult = { ...inst.result, ...(reused ? { reused: true } : {}) };
@@ -806,9 +880,10 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
         const vendorFor = a.params?.vendor ?? (who === "vendor2" ? "vendor2" : "vendor");
         const vu = String(tc.vals[vendorFor === "vendor2" ? "vendor2Uuid" : "vendorUuid"] ?? "");
         const args = bodyArgs(rc, { ...inst, vals: tc.vals }, vu);
-        args.price = a.params?.price ?? 100;
-        if (a.op === "price_bid" || a.op === "surrogate_bid") {
-          args.tradeProduct = await tradeProduct(a.op === "surrogate_bid" ? rc.client.ctx.buyerApi : api, args.pricingTradeUuid);
+        // null: a surrogate bid with no price (the builder leaves it out)
+        args.price = a.params?.price === null ? null : (a.params?.price ?? 100);
+        if (a.op === "price_bid" || a.op === "surrogate_bid" || a.op === "price_cap") {
+          args.tradeProduct = await tradeProduct(a.op === "price_bid" ? api : rc.client.ctx.buyerApi, args.pricingTradeUuid);
           if (!args.tradeProduct) {
             emit({ n, phase: "act", title, actor: actorWord, expected: OUTCOME_SAY[expect], actual: "The round's line could not be read, so the bid could not be priced.", verdict: "couldn't tell", ms: Date.now() - t, decisive: a.decisive });
             verdict = "couldn't tell";
@@ -816,7 +891,16 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
             break;
           }
         }
-        if (a.op === "submit_bid") args.total = args.price * args.qty;
+        if (a.op === "surrogate_tech_response") {
+          args.techPages = args.technicalTradeUuid ? await techPages(rc.client.ctx.buyerApi, args.technicalTradeUuid) : undefined;
+          if (!args.techPages) {
+            emit({ n, phase: "act", title, actor: actorWord, expected: OUTCOME_SAY[expect], actual: "The technical round's questionnaire could not be read, so the response could not be built.", verdict: "couldn't tell", ms: Date.now() - t, decisive: a.decisive });
+            verdict = "couldn't tell";
+            reason = "The technical round's questionnaire could not be read, so the surrogate technical response in the case could not be built.";
+            break;
+          }
+        }
+        if (a.op === "submit_bid") args.total = (args.price ?? 0) * args.qty;
         if (a.op === "add_rfq_round" || a.op === "add_rfp_round") {
           // the window must be long enough for the steps after it
           args.nowSec = nowSec();

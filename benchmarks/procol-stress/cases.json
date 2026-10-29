@@ -1,0 +1,885 @@
+{
+ "source": "docs/STRESS-PROMPTS.md (Animesh, 21 Oct 2026)",
+ "client": "PROCOL DEMO (198678) on UAT",
+ "status": "draft: expected results need Aanya's approval",
+ "cases": [
+  {
+   "id": "A01",
+   "n": 1,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with one RFQ stage, 3 line items, invite 1 vendor and publish it.",
+   "note": "baseline",
+   "expect": "complete",
+   "must": "One RFQ stage with 3 line items, 1 vendor invited, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "rfq"
+    ],
+    "line_items": 3,
+    "vendors_min": 1
+   }
+  },
+  {
+   "id": "A02",
+   "n": 2,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with a technical stage and an RFQ stage, fill the questionnaire, assign an evaluator, 2 line items, and publish.",
+   "note": "two-stage schedule (both stages must end together)",
+   "expect": "complete",
+   "must": "Technical + RFQ stages, questionnaire and evaluator set, 2 line items, published; both stages end together.",
+   "data": {
+    "published": true,
+    "stages": [
+     "technical",
+     "rfq"
+    ],
+    "line_items": 2
+   }
+  },
+  {
+   "id": "A03",
+   "n": 3,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with a technical stage and an auction stage and publish it.",
+   "note": "rfp + auction",
+   "expect": "complete",
+   "must": "Technical + auction stages, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "technical",
+     "auction"
+    ]
+   }
+  },
+  {
+   "id": "A04",
+   "n": 4,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with an auction stage and 5 line items and publish it.",
+   "note": "bigger sheet",
+   "expect": "complete",
+   "must": "One auction stage with 5 line items, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "auction"
+    ],
+    "line_items": 5
+   }
+  },
+  {
+   "id": "A05",
+   "n": 5,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with 25 line items and publish it.",
+   "note": "sheet filling at scale, scroll",
+   "expect": "complete",
+   "must": "25 line items, published.",
+   "data": {
+    "published": true,
+    "line_items": 25
+   }
+  },
+  {
+   "id": "A06",
+   "n": 6,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with 70 line items and publish it.",
+   "note": "the company's line-item ceiling (65 for non-BOQ): publish should be refused, not pass",
+   "expect": "app_refuses",
+   "must": "Procol refuses to publish 70 line items (the company's limit is 65); nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A07",
+   "n": 7,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ, add 3 line items, then remove 2 of them and publish.",
+   "note": "remove_line_items on a fresh draft",
+   "expect": "complete",
+   "must": "3 items added, 2 removed: published with exactly 1 line item.",
+   "data": {
+    "published": true,
+    "line_items": 1
+   }
+  },
+  {
+   "id": "A08",
+   "n": 8,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ with 2 line items and save it as a draft, then find it under Drafts.",
+   "note": "draft path",
+   "expect": "complete",
+   "must": "Saved as a draft with 2 line items (not published) and found under Drafts.",
+   "data": {
+    "published": false,
+    "draft": true,
+    "line_items": 2
+   }
+  },
+  {
+   "id": "A09",
+   "n": 9,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage RFQ with line-item awarding and publish it.",
+   "note": "configuration drawer",
+   "expect": "complete",
+   "must": "Single-stage RFQ with line-item awarding, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "rfq"
+    ],
+    "awarding": "line_item"
+   }
+  },
+  {
+   "id": "A10",
+   "n": 10,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage rank-based auction with lot awarding, 2 items, and publish it.",
+   "note": "auction strategy",
+   "expect": "complete",
+   "must": "Single-stage rank-based auction, lot awarding, 2 items, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "auction"
+    ],
+    "line_items": 2,
+    "awarding": "lot"
+   }
+  },
+  {
+   "id": "A11",
+   "n": 11,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage price-based auction with line-item awarding and publish it.",
+   "note": "strategy × awarding",
+   "expect": "complete",
+   "must": "Single-stage price-based auction with line-item awarding, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "auction"
+    ],
+    "awarding": "line_item"
+   }
+  },
+  {
+   "id": "A12",
+   "n": 12,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage traffic-light auction with a green range of 80 to 120 and publish it.",
+   "note": "range before Save",
+   "expect": "complete",
+   "must": "Single-stage traffic-light auction, green range 80 to 120, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "auction"
+    ]
+   }
+  },
+  {
+   "id": "A13",
+   "n": 13,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage RFP, fill the questionnaire, assign an evaluator and publish it.",
+   "note": "the single-stage RFP screen (own evaluator select)",
+   "expect": "complete",
+   "must": "Single-stage RFP with questionnaire and evaluator, published.",
+   "data": {
+    "published": true,
+    "stages": [
+     "technical"
+    ]
+   }
+  },
+  {
+   "id": "A14",
+   "n": 14,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a single-stage RFQ and save it as a draft.",
+   "note": "must be refused honestly: that screen has no Save as draft",
+   "expect": "honest_gap",
+   "must": "spine.ai says it cannot save this screen as a draft (the screen has no Save as draft).",
+   "data": {}
+  },
+  {
+   "id": "A15",
+   "n": 15,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a BOQ project, choose a BOQ template, add 2 line items and publish.",
+   "note": "BOQ items arrive by upload only: expect \"cannot be expressed\", never a fake pass",
+   "expect": "honest_gap",
+   "must": "spine.ai says BOQ items can only be uploaded, so it cannot test this; no fake pass.",
+   "data": {}
+  },
+  {
+   "id": "A16",
+   "n": 16,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ with one line item whose quantity is -5 and try to publish.",
+   "note": "inline validation on a numeric cell",
+   "expect": "app_refuses",
+   "must": "Procol rejects quantity -5 in the sheet; the event is not published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A17",
+   "n": 17,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ with one line item whose quantity is \"ten\" and try to publish.",
+   "note": "text in a number cell",
+   "expect": "app_refuses",
+   "must": "Procol rejects the text \"ten\" in the quantity cell; the event is not published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A18",
+   "n": 18,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ and publish it without choosing a template.",
+   "note": "Participants and Publish stay locked",
+   "expect": "app_refuses",
+   "must": "Participants and Publish stay locked without a template; nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A19",
+   "n": 19,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ and publish it without any line items.",
+   "note": "\"Please choose a template and add a product\"",
+   "expect": "app_refuses",
+   "must": "Procol says \"Please choose a template and add a product\"; nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A20",
+   "n": 20,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ with 2 line items and publish it without inviting any vendor.",
+   "note": "publish blocked with no participants",
+   "expect": "app_refuses",
+   "must": "Publish is blocked with no vendor invited; nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A21",
+   "n": 21,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an RFQ with a line item and publish it without a title.",
+   "note": "title required",
+   "expect": "app_refuses",
+   "must": "Procol requires a title; nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A22",
+   "n": 22,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create a technical stage only, add a questionnaire but no evaluator, and publish.",
+   "note": "\"Please add Evaluator\"",
+   "expect": "app_refuses",
+   "must": "Procol says \"Please add Evaluator\"; nothing is published.",
+   "data": {
+    "published": false
+   }
+  },
+  {
+   "id": "A23",
+   "n": 23,
+   "section": "A",
+   "sectionName": "Create and publish",
+   "prompt": "Create an eRFX project with both an RFQ stage and an auction stage.",
+   "note": "impossible composition: must be refused/reshaped, never composed",
+   "expect": "honest_gap",
+   "must": "spine.ai refuses or reshapes the impossible RFQ + auction combination; it never builds it.",
+   "data": {}
+  },
+  {
+   "id": "B24",
+   "n": 24,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ with 2 line items, invite 2 vendors, place a surrogate bid for each and open Master QCS.",
+   "note": "two invited, two distinct bids",
+   "expect": "complete",
+   "must": "2 vendors invited, a surrogate bid for each (2 bids from 2 vendors), Master QCS opened.",
+   "data": {
+    "published": true,
+    "line_items": 2,
+    "vendors_min": 2,
+    "bids": 2,
+    "bid_vendors": 2
+   }
+  },
+  {
+   "id": "B25",
+   "n": 25,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ, invite 1 vendor, place a surrogate bid, then place a second surrogate bid for the same vendor.",
+   "note": "Add Bid is gone after a bid: expect the refusal, not a second bid",
+   "expect": "app_refuses",
+   "must": "The second surrogate bid for the same vendor is refused (Add Bid is gone): 1 bid only.",
+   "data": {
+    "published": true,
+    "bids": 1
+   }
+  },
+  {
+   "id": "B26",
+   "n": 26,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ, invite 3 vendors and place surrogate bids for all three, then compare them on Master QCS.",
+   "note": "three bids, vendor coherence",
+   "expect": "complete",
+   "must": "3 vendors invited, 3 surrogate bids from 3 vendors, compared on Master QCS.",
+   "data": {
+    "published": true,
+    "vendors_min": 3,
+    "bids": 3,
+    "bid_vendors": 3
+   }
+  },
+  {
+   "id": "B27",
+   "n": 27,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ, invite the vendor \"QA_Platform Vendor 1\" by name and place a surrogate bid for that vendor.",
+   "note": "named vendor by search",
+   "expect": "complete",
+   "must": "\"QA_Platform Vendor 1\" invited by name and a surrogate bid placed for that vendor.",
+   "data": {
+    "published": true,
+    "bids": 1,
+    "bid_vendor_name": "QA_Platform Vendor 1"
+   }
+  },
+  {
+   "id": "B28",
+   "n": 28,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ and invite the vendor \"Acme Nonexistent Supplier\" by name.",
+   "note": "a name the search cannot find: falls back to invite-all, says so",
+   "expect": "honest_gap",
+   "must": "spine.ai says \"Acme Nonexistent Supplier\" was not found and that it invited others instead; it never claims Acme was invited.",
+   "data": {}
+  },
+  {
+   "id": "B29",
+   "n": 29,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an auction with one item, invite a vendor and place a surrogate bid of 100, then a revised bid of 90 for the same vendor.",
+   "note": "revision on an auction",
+   "expect": "complete",
+   "must": "Auction with one item: bid of 100, then revised to 90 for the same vendor.",
+   "data": {
+    "published": true,
+    "stages": [
+     "auction"
+    ],
+    "latest_bid_price": 90
+   }
+  },
+  {
+   "id": "B30",
+   "n": 30,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ with one item, invite a vendor, place a surrogate bid, close the event and try to place another surrogate bid.",
+   "note": "no bid after the window (unless the tenant allows surrogate post-expiry)",
+   "expect": "app_refuses",
+   "must": "No new surrogate bid once the event is closed: still 1 bid.",
+   "data": {
+    "bids": 1,
+    "closed": true
+   }
+  },
+  {
+   "id": "B31",
+   "n": 31,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create a technical-only event, invite a vendor and place a surrogate bid.",
+   "note": "surrogate bids are not possible on a technical stage: expect a refusal",
+   "expect": "app_refuses",
+   "must": "Surrogate bids are not possible on a technical stage: Procol refuses, no bid.",
+   "data": {
+    "bids": 0
+   }
+  },
+  {
+   "id": "B32",
+   "n": 32,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ, publish it, convert it to a knockout auction and place a surrogate bid.",
+   "note": "knockout forbids surrogate bids",
+   "expect": "app_refuses",
+   "must": "A knockout auction forbids surrogate bids: Procol refuses, no bid.",
+   "data": {
+    "bids": 0
+   }
+  },
+  {
+   "id": "B33",
+   "n": 33,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ, invite a vendor, place a surrogate bid and send a counter offer of 90 to that vendor.",
+   "note": "Counter Offer is disabled on a surrogate bid: expect the honest refusal",
+   "expect": "app_refuses",
+   "must": "Counter Offer is disabled on a surrogate bid: the run reports the refusal.",
+   "data": {
+    "bids": 1
+   }
+  },
+  {
+   "id": "B34",
+   "n": 34,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "On an event where a vendor has already bid, send a counter offer of 90 and confirm it was sent.",
+   "note": "prepared \"bid\" state, counter offer on the vendor's own bid",
+   "expect": "complete",
+   "must": "Counter offer of 90 sent on the vendor's own bid, and shown as sent.",
+   "data": {}
+  },
+  {
+   "id": "B35",
+   "n": 35,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "On an event where a vendor has already bid, send a counter offer and have the vendor accept it from the supplier portal.",
+   "note": "vendor-portal step, QA vendor identity",
+   "expect": "complete",
+   "must": "Counter offer sent and accepted by the vendor in the supplier portal.",
+   "data": {}
+  },
+  {
+   "id": "B36",
+   "n": 36,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "On an event where a vendor has already bid, open the vendor's bid on the Responses tab and verify the bid price and total match what the API holds.",
+   "note": "expect_api_value on bidPrice / bidTotal",
+   "expect": "complete",
+   "must": "The bid price and total on the Responses tab match what Procol's API holds.",
+   "data": {}
+  },
+  {
+   "id": "B37",
+   "n": 37,
+   "section": "B",
+   "sectionName": "Vendors, bids and bidding rules",
+   "prompt": "Create an RFQ with 2 items, invite a vendor, place a surrogate bid, then reject that vendor's quote from the Responses tab.",
+   "note": "reject participant flow",
+   "expect": "complete",
+   "must": "The vendor's quote is rejected from the Responses tab.",
+   "data": {
+    "published": true,
+    "bids": 1
+   }
+  },
+  {
+   "id": "C38",
+   "n": 38,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "Create an RFQ with 3 line items, invite 1 vendor, place a surrogate bid and award that vendor.",
+   "note": "the full chain with the wait for the window to close",
+   "expect": "complete",
+   "must": "3 line items, 1 vendor bid, the window closed and the vendor awarded.",
+   "data": {
+    "line_items": 3,
+    "bids": 1,
+    "awarded": true
+   }
+  },
+  {
+   "id": "C39",
+   "n": 39,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event with bids in, start awarding, allocate every line to the vendor and check the counters read 3/3 items and 1/1 vendors.",
+   "note": "counters with explicit values",
+   "expect": "complete",
+   "must": "Every line allocated to the vendor; the counters read 3/3 items and 1/1 vendors.",
+   "data": {
+    "awarded": true
+   }
+  },
+  {
+   "id": "C40",
+   "n": 40,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event with bids in, start awarding and submit the proposal, then approve the award.",
+   "note": "approval flow",
+   "expect": "complete",
+   "must": "Award proposal submitted and approved.",
+   "data": {
+    "proposal": true,
+    "awarded": true
+   }
+  },
+  {
+   "id": "C41",
+   "n": 41,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event with an award proposal, open the proposal and submit it with the required remarks left empty.",
+   "note": "required-field refusal on the proposal",
+   "expect": "app_refuses",
+   "must": "Submitting the proposal with required remarks empty is refused.",
+   "data": {}
+  },
+  {
+   "id": "C42",
+   "n": 42,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an awarded event, create a purchase order and check the PO lists the awarded items.",
+   "note": "create_po + expect_po_items",
+   "expect": "complete",
+   "must": "A purchase order is created and lists the awarded items.",
+   "data": {
+    "po": true
+   }
+  },
+  {
+   "id": "C43",
+   "n": 43,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event with bids in, award the vendor and then try to place another surrogate bid.",
+   "note": "bidding after award",
+   "expect": "app_refuses",
+   "must": "After the award, no new surrogate bid can be placed.",
+   "data": {
+    "awarded": true
+   }
+  },
+  {
+   "id": "C44",
+   "n": 44,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event with bids in, open Master QCS and verify the L1 vendor is the one with the lowest total.",
+   "note": "comparison logic",
+   "expect": "complete",
+   "must": "Master QCS marks as L1 the vendor with the lowest total.",
+   "data": {}
+  },
+  {
+   "id": "C45",
+   "n": 45,
+   "section": "C",
+   "sectionName": "Closing, awarding, proposal, PO",
+   "prompt": "On an event where a vendor has bid, close the event and open Master QCS before any award.",
+   "note": "closed state, Start Awarding offered",
+   "expect": "complete",
+   "must": "The closed event's Master QCS opens before any award and offers Start Awarding.",
+   "data": {
+    "closed": true
+   }
+  },
+  {
+   "id": "D46",
+   "n": 46,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it and extend the submission time by 30 minutes from the Settings menu.",
+   "note": "extend bidding time",
+   "expect": "complete",
+   "must": "Published, then the submission time extended by 30 minutes from Settings.",
+   "data": {
+    "published": true,
+    "extended_minutes": 30
+   }
+  },
+  {
+   "id": "D47",
+   "n": 47,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it and withdraw it with a remark.",
+   "note": "withdraw needs a remark",
+   "expect": "complete",
+   "must": "Published, then withdrawn with a remark.",
+   "data": {
+    "withdrawn": true
+   }
+  },
+  {
+   "id": "D48",
+   "n": 48,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ scheduled to start in 2 hours, publish it and reschedule it to start 4 hours from now.",
+   "note": "upcoming-only Reschedule dialog",
+   "expect": "complete",
+   "must": "Scheduled 2 hours ahead, published, then rescheduled to start 4 hours from now.",
+   "data": {
+    "published": true,
+    "starts_in_hours": 4
+   }
+  },
+  {
+   "id": "D49",
+   "n": 49,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it, create a new version, remove one line item and publish the version.",
+   "note": "BUG-86 territory (removing items blocks the version's publish)",
+   "expect": "known_bug",
+   "must": "BUG-86: removing a line item blocks the new version's publish. The run must stop there and report it (green only if fixed).",
+   "data": {}
+  },
+  {
+   "id": "D50",
+   "n": 50,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it, create a new version and publish it without changing anything.",
+   "note": "version keeps the stage schedule on one preset",
+   "expect": "complete",
+   "must": "A new version published without changes.",
+   "data": {
+    "published": true,
+    "versions_min": 2
+   }
+  },
+  {
+   "id": "D51",
+   "n": 51,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create a technical + RFQ project, publish it, create a new version and publish it.",
+   "note": "the copy drops the evaluator and questionnaire (chained recovery)",
+   "expect": "complete",
+   "must": "Technical + RFQ project versioned and the version published (evaluator and questionnaire re-added).",
+   "data": {
+    "published": true,
+    "versions_min": 2
+   }
+  },
+  {
+   "id": "D52",
+   "n": 52,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it and convert it to an auction, then publish the converted auction.",
+   "note": "conversion opens a new tab; continue there",
+   "expect": "complete",
+   "must": "Converted to an auction and the converted auction published (in the new tab).",
+   "data": {
+    "converted_to": "auction"
+   }
+  },
+  {
+   "id": "D53",
+   "n": 53,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it and convert it to a dutch auction with a price difference of 5.",
+   "note": "dutch via conversion",
+   "expect": "complete",
+   "must": "Converted to a dutch auction with a price difference of 5.",
+   "data": {
+    "converted_to": "auction"
+   }
+  },
+  {
+   "id": "D54",
+   "n": 54,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, set the bidding window to 3 minutes, publish it and wait for it to close, then confirm it shows under History.",
+   "note": "the smallest preset is 30 min: the app keeps 30; the plan must report that honestly",
+   "expect": "honest_gap",
+   "must": "The app keeps the 30-minute minimum; spine.ai says so and does not claim a 3-minute window.",
+   "data": {}
+  },
+  {
+   "id": "D55",
+   "n": 55,
+   "section": "D",
+   "sectionName": "Live event actions, schedule, versions",
+   "prompt": "Create an RFQ, publish it and force-close it now from the Settings menu.",
+   "note": "\"End\" needs trade_force_close on the tenant: expect it to be absent on PROCOL DEMO",
+   "expect": "honest_gap",
+   "must": "Force close (End) is not available on PROCOL DEMO; spine.ai reports it absent instead of passing.",
+   "data": {}
+  },
+  {
+   "id": "E56",
+   "n": 56,
+   "section": "E",
+   "sectionName": "The list, search and navigation",
+   "prompt": "Open the events list and search for an event titled \"this title does not exist anywhere\".",
+   "note": "empty state, no random row click",
+   "expect": "complete",
+   "must": "The search shows the empty state; no row is opened.",
+   "data": {}
+  },
+  {
+   "id": "E57",
+   "n": 57,
+   "section": "E",
+   "sectionName": "The list, search and navigation",
+   "prompt": "Open the events list, switch to History and open the first closed event's Master QCS.",
+   "note": "navigation on an existing closed event",
+   "expect": "complete",
+   "must": "History tab, first closed event, its Master QCS opened.",
+   "data": {}
+  },
+  {
+   "id": "E58",
+   "n": 58,
+   "section": "E",
+   "sectionName": "The list, search and navigation",
+   "prompt": "Create an RFQ, publish it, go back to the events list and open the same event by its title.",
+   "note": "find the plan's own event, not another",
+   "expect": "complete",
+   "must": "The run's own event is found again by its title in the list and opened.",
+   "data": {
+    "published": true
+   }
+  },
+  {
+   "id": "E59",
+   "n": 59,
+   "section": "E",
+   "sectionName": "The list, search and navigation",
+   "prompt": "Open the Drafts tab and open a draft that has a technical stage.",
+   "note": "reopen a two-stage draft",
+   "expect": "complete",
+   "must": "A draft with a technical stage is reopened from Drafts.",
+   "data": {}
+  },
+  {
+   "id": "E60",
+   "n": 60,
+   "section": "E",
+   "sectionName": "The list, search and navigation",
+   "prompt": "Open the events list, switch to Recurring and confirm the tab lists recurring events or an empty state.",
+   "note": "recurring tab",
+   "expect": "complete",
+   "must": "The Recurring tab shows recurring events or an empty state.",
+   "data": {}
+  },
+  {
+   "id": "F61",
+   "n": 61,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an RFQ and verify the vendor receives an email invitation.",
+   "note": "no mail step exists: must be \"cannot be expressed\"",
+   "expect": "honest_gap",
+   "must": "No email step exists: spine.ai says it cannot test the email invitation.",
+   "data": {}
+  },
+  {
+   "id": "F62",
+   "n": 62,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an RFQ and verify the event is visible to a buyer in another company.",
+   "note": "needs a second company: must be refused",
+   "expect": "honest_gap",
+   "must": "Needs a buyer in a second company: spine.ai refuses.",
+   "data": {}
+  },
+  {
+   "id": "F63",
+   "n": 63,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an RFQ, publish it and check the vendor sees the bid count.",
+   "note": "vendor-portal visibility: refused or partial, never silently passed",
+   "expect": "honest_gap",
+   "must": "Vendor-side bid count: spine.ai refuses or tests only part and names the gap; never a silent pass.",
+   "data": {}
+  },
+  {
+   "id": "F64",
+   "n": 64,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an RFQ and check that the audit log records the publish.",
+   "note": "no audit-log step: must be refused",
+   "expect": "honest_gap",
+   "must": "No audit-log step: spine.ai refuses.",
+   "data": {}
+  },
+  {
+   "id": "F65",
+   "n": 65,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an auction where the price cap is 50 and place a surrogate bid of 60.",
+   "note": "price cap step missing on eRFX: expect partial with the gap named",
+   "expect": "honest_gap",
+   "must": "No price-cap step on eRFX: spine.ai tests only part and names the missing price cap.",
+   "data": {}
+  },
+  {
+   "id": "F66",
+   "n": 66,
+   "section": "F",
+   "sectionName": "Honesty traps",
+   "prompt": "Create an RFQ with a lot-based award and two lots.",
+   "note": "lots have no browser step: expect \"cannot be expressed\"",
+   "expect": "honest_gap",
+   "must": "Lots have no browser step: spine.ai says it cannot test this.",
+   "data": {}
+  }
+ ]
+}

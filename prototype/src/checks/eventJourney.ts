@@ -155,6 +155,15 @@ export interface JourneyRunOptions {
    */
   lineItemCount?: number;
   /**
+   * START FROM A PURCHASE REQUEST (Aanya, 27 Oct: the API tests of "create an RFQ / RFP + RFQ /
+   * auction … event from an existing PR"). The draft is made from these PR lines — each linked by
+   * pr_line_item_uuid and pr_id, with the PR's own product, unit and open quantity, as the console's
+   * Purchase Cart → Create Project sends it — instead of catalog products. Procol re-checks each line
+   * when a round is added (557 not open, 558 over the open quantity, 559 another unit), so the unit
+   * and quantity are never swapped for others on a refusal.
+   */
+  fromPr?: { prUuid: string; prNo?: string; lines: Array<{ uuid: string; productUuid: string; qualityUuid: string; unit: string; qty: number; hubUuid?: string; name?: string; productCode?: string; itemNo?: string }> };
+  /**
    * More vendors to invite besides the one that signs in and bids (company
    * uuids, QA vendors only). They are only invited: every vendor step still
    * acts as the first vendor.
@@ -350,7 +359,7 @@ interface EventBuild {
   eventGroupUuid?: string;
   lineItemUuid?: string;
   /** every line item Procol created, in order — lineItemUuid is the first */
-  lineItems?: Array<{ uuid: string; productUuid: string; qualityUuid: string }>;
+  lineItems?: Array<{ uuid: string; productUuid: string; qualityUuid: string; qty?: number; unit?: string; prLineUuid?: string; prNo?: string; productCode?: string; itemNo?: string }>;
   /** the round trades, in the order they were attached */
   trades: Array<{ kind: StageKind; uuid: string }>;
   /** what the publish call answered */
@@ -554,7 +563,8 @@ async function fire(api: any, method: string, path: string, body?: unknown): Pro
  * on a technical round — or the round quotes and evaluates only the first.
  */
 function withEveryLineItem(body: any, sk: StageKind, lines: EventBuild["lineItems"]): void {
-  if (!lines || lines.length < 2) return;
+  // A PR's line is linked on the round too — even a single one (PR_ON_THE_ROUND below).
+  if (!lines || (lines.length < 2 && !lines[0]?.prLineUuid)) return;
   if (sk === "rfp" && Array.isArray(body?.forms) && body.forms.length >= 2) {
     const [general, form] = body.forms;
     body.forms = [general, ...lines.map((li, i) => ({ ...form, order: 2 + i, event_group_line_item_uuid: li.uuid }))];
@@ -566,6 +576,29 @@ function withEveryLineItem(body: any, sk: StageKind, lines: EventBuild["lineItem
       ...row,
       product: { ...row.product, uuid: li.productUuid, event_group_line_item_uuid: li.uuid },
       variant: { ...row.variant, uuid: li.qualityUuid },
+      // A PR's lines each keep their own unit and quantity (Procol refuses another unit, 559).
+      /**
+       * PR_ON_THE_ROUND: Procol links a PR line to the event — and moves it to In Progress — when the
+       * ROUND names it, as the console's round does (recorded 27 Oct, recordings/pr-to-rfq-publish):
+       * product.pr_line_item_uuid + product_code, and pr_number / material_code / item_no /
+       * parent_item_no on the row. Sent on the draft alone, the link was dropped: the API's events
+       * from a PR came back with no pr_no and the PR stayed Open.
+       */
+      ...(li.prLineUuid
+        ? {
+            product: { ...row.product, uuid: li.productUuid, event_group_line_item_uuid: li.uuid, pr_line_item_uuid: li.prLineUuid, ...(li.productCode ? { product_code: li.productCode } : {}) },
+            ...(li.prNo ? { pr_number: { key: "pr_number", value: li.prNo, configuration: {} } } : {}),
+            ...(li.productCode ? { material_code: { key: "material_code", value: li.productCode, configuration: {} } } : {}),
+            ...(li.itemNo ? { item_no: { key: "item_no", value: li.itemNo, configuration: {} }, parent_item_no: { key: "parent_item_no", value: li.itemNo, configuration: {} } } : {}),
+          }
+        : {}),
+      ...(li.unit && row.creator_quantity
+        ? {
+            creator_quantity: { ...row.creator_quantity, value: li.qty ?? row.creator_quantity.value, postfix: li.unit, configuration: { ...row.creator_quantity.configuration, suffix: li.unit } },
+            ...(row.participant_quantity ? { participant_quantity: { ...row.participant_quantity, postfix: li.unit, configuration: { ...row.participant_quantity.configuration, suffix: li.unit } } } : {}),
+            ...(row.price ? { price: { ...row.price, postfix: li.unit, configuration: { ...row.price.configuration, suffix: li.unit } } } : {}),
+          }
+        : {}),
       order: i + 1,
     }));
   }
@@ -885,6 +918,8 @@ const createDraft: StepSpec = {
   kind: "create_draft",
   needs: (j, _ev, done) => needBuyer(j, done),
   expected: (j) => {
+    const pr = j.opts.fromPr;
+    if (pr) return `A draft event is created for ${j.company} from purchase request ${pr.prNo ?? pr.prUuid}: ${pr.lines.length === 1 ? "its line" : `its ${pr.lines.length} lines`} (${pr.lines.map((l) => `${l.name ?? l.productUuid} ${l.qty} ${l.unit}`).join("; ")}), each linked to its PR line, and comes back with ${pr.lines.length === 1 ? "its id" : `${pr.lines.length} line item ids`}.`;
     const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
     return `A draft event is created for ${j.company} with ${n === 1 ? "one line item" : `${n} line items, each a different catalog product`} (${j.qty} ${j.unit}${n === 1 ? "" : " each"}) and comes back with ${n === 1 ? "its id" : `${n} line item ids`}.`;
   },
@@ -895,13 +930,25 @@ const createDraft: StepSpec = {
       quantityValue: j.qty,
       productQualityUuid: j.catalog.productQualityUuid,
     });
-    const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
+    const pr = j.opts.fromPr;
+    const n = pr ? pr.lines.length : Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
     // One product sent twice is kept once by Procol: "2 line items" made an
     // event with one, and the step still said two. Each line item is now a
     // different product from the company's catalog, and the count reported is
     // the one Procol answers with.
-    const products = [{ uuid: j.catalog.productUuid, qualityUuid: j.catalog.productQualityUuid }, ...(n > 1 ? await moreProducts(j, n - 1) : [])];
-    if (Array.isArray(body.line_items) && body.line_items.length === 1 && products.length > 1) {
+    const products: Array<{ uuid: string; qualityUuid: string; qty?: number; unit?: string }> = pr
+      ? pr.lines.map((l) => ({ uuid: l.productUuid, qualityUuid: l.qualityUuid, qty: l.qty, unit: l.unit }))
+      : [{ uuid: j.catalog.productUuid, qualityUuid: j.catalog.productQualityUuid }, ...(n > 1 ? await moreProducts(j, n - 1) : [])];
+    if (pr) {
+      // The PR's lines, linked as the console's Create Project links them.
+      body.line_items = pr.lines.map((l) => ({
+        product_uuid: l.productUuid,
+        quantity: { unitSymbol: l.unit, value: l.qty },
+        product_quality_uuid: l.qualityUuid,
+        pr_line_item_uuid: l.uuid,
+        pr_id: pr.prUuid,
+      }));
+    } else if (Array.isArray(body.line_items) && body.line_items.length === 1 && products.length > 1) {
       body.line_items = products.map((p) => ({ ...body.line_items[0], product_uuid: p.uuid, product_quality_uuid: p.qualityUuid }));
     }
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.eventGroups(), body);
@@ -912,7 +959,19 @@ const createDraft: StepSpec = {
     if (!ids.length) return { call, reply, shortfall: `draft ${uuid} came back without a line item id` };
     ev.eventGroupUuid = String(uuid);
     ev.lineItemUuid = ids[0];
-    ev.lineItems = ids.map((id, i) => ({ uuid: id, productUuid: products[i]?.uuid ?? j.catalog.productUuid, qualityUuid: products[i]?.qualityUuid ?? j.catalog.productQualityUuid }));
+    ev.lineItems = ids.map((id, i) => ({
+      uuid: id,
+      productUuid: products[i]?.uuid ?? j.catalog.productUuid,
+      qualityUuid: products[i]?.qualityUuid ?? j.catalog.productQualityUuid,
+      ...(products[i]?.unit ? { qty: products[i].qty, unit: products[i].unit } : {}),
+      ...(pr?.lines[i] ? { prLineUuid: pr.lines[i].uuid, ...(pr.prNo ? { prNo: pr.prNo } : {}), ...(pr.lines[i].productCode ? { productCode: pr.lines[i].productCode } : {}), ...(pr.lines[i].itemNo ? { itemNo: pr.lines[i].itemNo } : {}) } : {}),
+    }));
+    if (pr) {
+      const made = `Draft ${uuid} was created from purchase request ${pr.prNo ?? pr.prUuid} with ${ids.length === 1 ? "one line item" : `${ids.length} line items`}, each linked to its PR line`;
+      const produced = { eventGroupUuid: String(uuid), lineItemUuid: ids[0], lineItemUuids: ids.join(","), lineItems: String(ids.length), prUuid: pr.prUuid, ...(pr.prNo ? { prNo: pr.prNo } : {}) };
+      if (ids.length < n) return { call, reply, produced, shortfall: `${made}: the PR's ${n} lines were sent and Procol kept ${ids.length}` };
+      return { call, reply, actual: `${made}.`, produced };
+    }
     const made = `Draft ${uuid} was created with ${ids.length === 1 ? "one line item" : `${ids.length} line items`} (${j.qty} ${j.unit}${ids.length === 1 ? "" : " each"})`;
     const produced = { eventGroupUuid: String(uuid), lineItemUuid: ids[0], lineItemUuids: ids.join(","), lineItems: String(ids.length) };
     if (products.length < n)
@@ -1594,6 +1653,25 @@ function journeyTiming(now: number, durSec: number, delaySec = 0): StageTiming {
 const WAIT_CAP_MS = 5 * 60 * 1000;
 const WAIT_GRACE_SEC = 8;
 
+/**
+ * Each attached round's end as Procol holds it (extra closing time, else the bid end), read
+ * back from the server. The times this run asked for are not enough: on 21 Oct the technical
+ * round was asked to close at 17:00:05, Procol kept it open until 17:00:38, and the
+ * evaluator's score sent in between was refused "Order not active".
+ */
+async function heldCloseTimes(j: Journey, ev: EventBuild): Promise<number[]> {
+  const out: number[] = [];
+  for (const t of ev.trades ?? []) {
+    if (!t?.uuid) continue;
+    const { reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(t.uuid));
+    const d = reply.data ?? {};
+    const v = d.extra_closing_time ?? d.trade_config?.extra_closing_time ?? d.ending_at ?? d.trade_config?.ending_at;
+    const sec = typeof v === "number" ? (v > 1e12 ? Math.floor(v / 1000) : v) : v ? Math.floor(new Date(v).getTime() / 1000) : 0;
+    if (sec > 0) out.push(sec);
+  }
+  return out;
+}
+
 const waitClose: StepSpec = {
   kind: "wait_close",
   needs: (j, ev, done) => {
@@ -1604,8 +1682,9 @@ const waitClose: StepSpec = {
     j.closeTimes.length
       ? `The bidding window closes at ${hhmmss(Math.max(...j.closeTimes))}; the run waits for it (plus ${WAIT_GRACE_SEC} seconds) before evaluating or awarding.`
       : `The run waits for the bidding window to close (plus ${WAIT_GRACE_SEC} seconds) before evaluating or awarding.`,
-  run: async (j) => {
-    const closesAt = Math.max(...j.closeTimes);
+  run: async (j, ev) => {
+    // The later of what this run asked for and what Procol holds (heldCloseTimes).
+    const closesAt = Math.max(...j.closeTimes, ...(await heldCloseTimes(j, ev)));
     const due = (closesAt + WAIT_GRACE_SEC) * 1000 - Date.now();
     if (due <= 0) return { ms: 0, actual: `The window had already closed at ${hhmmss(closesAt)}; no wait was needed.` };
     // Never past the journey's own budget: the steps after the wait need time too.
@@ -1760,7 +1839,14 @@ const evalScore: StepSpec = {
       formUuid: j.evalForm!.uuid,
       score,
     });
-    const { call, reply } = await fire(j.actors.evaluatorApi, "POST", j.s.Endpoints.evaluations(), body);
+    let { call, reply } = await fire(j.actors.evaluatorApi, "POST", j.s.Endpoints.evaluations(), body);
+    // Procol moves a round out of bidding a few seconds after its end; a score sent in that
+    // gap is refused "Order not active". Once more, after a short wait — then it is the answer.
+    if (!reply.ok && /order not active/i.test(JSON.stringify(reply.data ?? reply.errorCode ?? ""))) {
+      j.opts.onLine?.("the score was refused “Order not active” — the round is still closing; trying once more in 20 s");
+      await sleep(20_000);
+      ({ call, reply } = await fire(j.actors.evaluatorApi, "POST", j.s.Endpoints.evaluations(), body));
+    }
     if (!reply.ok) return { call, reply };
     if (reply.data?.success === false) return { call, reply, shortfall: "the app answered success: false" };
     j.evalScored = true;
@@ -2468,7 +2554,8 @@ async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: Journey
     // Not while another vendor has its turn: its failing sign-in or bid is that
     // vendor's result, and rebuilding the event would undo the first vendor's bid.
     // Nor, with the event's own vendors, a "next vendor" — the alternatives are QA vendors.
-    if (c?.choice && (c.cls === "data-choice" || c.cls === "timing") && !j.firstVendor && !(c.choice === "vendor" && j.opts.eventVendors)) {
+    // Nor a PR's unit or product: they are the PR's own, and a refusal of them is the result.
+    if (c?.choice && (c.cls === "data-choice" || c.cls === "timing") && !j.firstVendor && !(c.choice === "vendor" && j.opts.eventVendors) && !(j.opts.fromPr && (c.choice === "unit" || c.choice === "product"))) {
       const choice = c.choice;
       const origin = backtrackOrigin(kinds, i, choice);
       const fromValue = choiceLabel(j, choice);
@@ -2770,6 +2857,16 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     j.vendorName = ch.vendor.name ?? ch.vendor.email;
   }
   if (opts.quantity && opts.quantity > 0) j.qty = opts.quantity;
+  // From a PR: its first line is the product, unit, quantity and place every single-row body uses.
+  if (opts.fromPr?.lines.length) {
+    const l0 = opts.fromPr.lines[0];
+    j.catalog.productUuid = l0.productUuid;
+    j.catalog.productQualityUuid = l0.qualityUuid;
+    if (l0.hubUuid) j.catalog.locationUuid = l0.hubUuid;
+    j.unit = l0.unit;
+    j.qty = l0.qty;
+    opts.onLine?.(`Starting from purchase request ${opts.fromPr.prNo ?? opts.fromPr.prUuid}: ${opts.fromPr.lines.map((l) => `${l.name ?? l.productUuid} — ${l.qty} ${l.unit}`).join("; ")}.`);
+  }
   const chosen = Object.entries(ch).filter(([, v]) => v !== undefined && v !== "");
   if (chosen.length) opts.onLine?.(`Chosen by the caller: ${chosen.map(([k, v]) => `${k} “${typeof v === "object" ? (v as any).name ?? (v as any).email : v}”`).join(", ")}.`);
   if (Object.keys(forced).length) opts.onLine?.(`Test mode: first choice forced — ${Object.entries(forced).map(([k, v]) => `${CHOICE_WORD[k as ChoiceKind] ?? k} “${v}”`).join(", ")}.`);

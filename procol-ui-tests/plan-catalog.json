@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T07:53:27.915Z",
+  "generatedAt": "2026-10-29T07:24:50.850Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -83,6 +83,82 @@
       "assertion": true
     },
     {
+      "name": "withdraw_event",
+      "purpose": "WITHDRAW an event, at any phase (live, after bids, after bidding closed, on any stage). The whole PROJECT is withdrawn from the project's ⋮ menu (the icon right after \"Messages\") → \"Withdraw Project\" → \"Withdrawal Remarks\" → \"Yes, Withdraw Project\"; one STAGE from that stage tab's Settings ▾ → \"Withdraw\" → \"Please enter reason…\" → Yes. Use for any \"withdraw / cancel the event / project / RFQ / auction\" in a case: scope \"project\" (default) for the event or project, \"stage\" when the case withdraws one round (e.g. \"withdraw the RFQ stage\"). noReason:true presses confirm with no remark — for cases that check the remark is required (the step reports Procol's refusal as blocked). Follow with expect_withdrawn.",
+      "args": {
+        "scope": "\"project\" (default) or \"stage\"",
+        "stage": "the stage tab for scope \"stage\": \"rfq\" | \"rfp\" (technical) | \"auction\" (optional; the first stage tab otherwise)",
+        "reason": "the withdrawal remark (optional; a default is typed)",
+        "noReason": "true to confirm with NO remark — a case about the remark being required (optional)"
+      }
+    },
+    {
+      "name": "expect_withdrawn",
+      "purpose": "Assert the event is withdrawn — read from Procol's own records (project or stage, as withdraw_event did), with the page's \"Withdrawn\" shown beside. Use after withdraw_event.",
+      "args": {},
+      "assertion": true
+    },
+    {
+      "name": "event_menu",
+      "purpose": "Open the event menu that holds an action and choose it — for ANY of these words in a case: from the project's ⋮ menu (beside Messages): \"Send Reminders\", \"Withdraw Project\"; from a stage tab's Settings ▾: \"Shared With\", \"Extend Submission Time\", \"Withdraw\", \"Convert to Auction\", \"Rejected Bids\", \"Order Activity\", \"Edit Evaluation Time\", \"Send Bulk Counter Offer\", \"Recreate Order\", \"Reschedule Event\". The step goes to a stage tab when needed. What each opens (check THESE words, not the item's name): Shared With → a “Participation Summary” drawer (Invited · Seen · Bid Placed · Bid Not Placed); Order Activity → an “Activity” drawer (“You created the event …”); Send Reminders → a “Send Reminders” drawer (“Offer submissions” with “N Pending” and View — never press Notify, that messages the vendor); Rejected Bids → “Rejected Bids”; Edit Evaluation Time → “Edit Evaluation Time” (“Evaluation will end at …”). What the item opens (a dialog, drawer or popover) stays open for the next steps (expect_text on its words, click on its buttons, do_on_screen for the rest) unless close:true. Prefer withdraw_event, extend_submission_time, convert_to_auction or reschedule_event where they fit; this is for the rest. A greyed-out item fails the step — to CHECK it is greyed out use expect_menu_item{enabled:false}.",
+      "args": {
+        "item": "the menu item's words, e.g. \"Order Activity\"",
+        "stage": "\"rfq\" | \"rfp\" | \"auction\" — whose Settings menu (optional)",
+        "close": "true to close what it opened again (optional)"
+      }
+    },
+    {
+      "name": "expect_menu_item",
+      "purpose": "Assert what an event menu offers: open the menu that holds the item (project ⋮ or a stage's Settings), read it, close it. enabled:false — the item is there but greyed out (e.g. \"Recreate Order\" on a live RFQ, \"Send Bulk Counter Offer\" with no bids); present:false — the menu does not offer it (e.g. \"Withdraw Project\" after the project is withdrawn).",
+      "args": {
+        "item": "the menu item's words",
+        "enabled": "false when it must be greyed out (optional; default it must be enabled)",
+        "present": "false when the menu must not offer it (optional)",
+        "stage": "\"rfq\" | \"rfp\" | \"auction\" (optional)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "extend_submission_time",
+      "purpose": "On a published stage, Settings ▾ → \"Extend Submission Time\" → \"Increase Event Time\": choose \"15 minutes\", \"30 minutes\" or \"an hour\" → Ok. Use for \"extend / increase the bidding / submission time\". Returns the end time before the change and Procol's answer.",
+      "args": {
+        "by": "\"15 minutes\" (default) | \"30 minutes\" | \"an hour\"",
+        "stage": "\"rfq\" | \"rfp\" | \"auction\" (optional)"
+      }
+    },
+    {
+      "name": "add_price_cap",
+      "purpose": "On a published RFQ's or auction's Participants list, a vendor's \"+ Add Price Cap\" → \"Add Price Cap for <vendor>\" → a price cap on every product (the cap applies to the Net Price) → OK. Use for any \"price cap\" / \"maximum price\" / \"ceiling price\" for a vendor. Put it BEFORE the surrogate bid it should limit. With no vendor named, the first ticked participant. A case that checks a cap is required or must be positive: noPrice:true, or a price of 0 or below — the step then reports Procol's refusal as blocked. To check the cap was saved, follow with expect_price_cap (never do_on_screen).",
+      "args": {
+        "vendor": "vendor name (optional)",
+        "price": "the cap, a number (default 100)",
+        "noPrice": "true to press OK with no cap entered (optional)"
+      }
+    },
+    {
+      "name": "expect_price_cap",
+      "purpose": "Assert a vendor's SAVED price cap: on Participants the row's \"Add Price Cap\" becomes \"Edit Price Cap\" once saved; the step opens it, reads every product's Price cap and closes WITHOUT saving. Use for \"verify / check / inspect / confirm the price cap (is N)\" after add_price_cap. With no price, the cap add_price_cap just saved.",
+      "args": {
+        "vendor": "vendor name (optional)",
+        "price": "the cap it must read (optional; default the one just added)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "expect_responses",
+      "purpose": "The BUYER's view of who responded on a stage, after vendors bid (place_bid from the vendor portal, place_surrogate_bid from the console): the stage's Responses tab, reloaded, has one column per vendor that responded — a surrogate one is tagged \"Surrogate Bid\", one from the vendor portal is not — and \"Participation : x / y\" (responded / invited). Same on an RFQ, a technical stage (RFP) and an auction. Use for \"the buyer sees the response(s)\", \"both bids show for the buyer\", \"N of M vendors responded\". On a two-stage event check each stage with stage:\"rfp\" / \"rfq\".",
+      "args": {
+        "count": "how many vendor columns (responses) exactly (optional)",
+        "atLeast": "at least this many (optional)",
+        "surrogate": "how many are tagged Surrogate Bid (optional)",
+        "direct": "how many came from the vendor portal — no Surrogate Bid tag (optional)",
+        "vendors": "vendor names that must have a column (optional)",
+        "participation": "\"2/3\" — responded / invited (optional)",
+        "stage": "\"rfq\" | \"rfp\" | \"auction\" — whose Responses (optional; default the first stage)"
+      },
+      "assertion": true
+    },
+    {
       "name": "open_event_settings",
       "purpose": "On a published event's page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: \"Reschedule Event\" (only while the event is UPCOMING), \"Convert to Auction\" (published RFQ), \"Extend Bidding Time\", \"Withdraw\" and more. Use before click{role:\"menuitem\", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. \"Send Bulk Counter Offer\" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden. A DRAFT reopens on its create screen, which has NO Settings menu at all: to prove an action is not offered on a draft, use expect_hidden{name} for that action on the draft screen — never click a \"Settings\" button there.",
       "args": {}
@@ -102,7 +178,7 @@
     },
     {
       "name": "expect_add_stage_options",
-      "purpose": "Assert what the create screen's icon-only \"+\" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the \"+\" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the \"+\" tooltip must contain (e.g. \"Remove RFQ to add Auction\"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the \"+\" is always disabled.",
+      "purpose": "Assert what the create screen's icon-only \"+\" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the \"+\" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the \"+\" tooltip must contain (e.g. \"Remove RFQ to add Auction\") — ONLY with disabled:true, since an enabled \"+\" has no reason. To check which stages are OFFERED, compose exactly ONE stage first — with two stages the \"+\" is always disabled.",
       "args": {
         "disabled": "true | false (optional)",
         "offers": "[\"RFQ\", \"Auction\", \"Technical Stage\"] (optional)",
@@ -136,7 +212,7 @@
     },
     {
       "name": "place_counter_offer",
-      "purpose": "Buyer side, on Master QCS after a vendor has bid: open the vendor's Counter Offer from their column header, enter a counter price in the drawer's sheet, add a remark and send it. The product offers the control only while the bid is live and active. Use open_master_qcs first.",
+      "purpose": "Buyer side, on Master QCS after a vendor has bid: open the vendor's Counter Offer from their column header, enter a counter price in the drawer's sheet, add a remark and send it. The product offers the control only while the bid is live and active. Use open_master_qcs first. To CHECK Counter Offer is greyed out (e.g. on a surrogate bid) use attempt{step:\"place_counter_offer\", expect:\"refused\"} — the control sits in the vendor column's header, where expect_disabled does not look.",
       "args": {
         "vendor": "vendor name whose bid to counter (default: the first with a Counter Offer control)",
         "price": "the counter price (number)",
@@ -153,10 +229,11 @@
     },
     {
       "name": "close_event",
-      "purpose": "On a PUBLISHED event's page, make the event CLOSED: Settings → \"End <status>\" (the product's force-end, where the tenant allows it) — otherwise wait for the bidding window to lapse. Pair it with set_schedule{minutes: 3} before publish so the wait is short. Use before cases that need a closed event (Master QCS on a closed event, awarding after bidding has ended).",
+      "purpose": "On a PUBLISHED event's page, make the event CLOSED: Settings → \"End <status>\" (the product's force-end, where the tenant allows it) — otherwise wait for the bidding window to lapse. The product's shortest window is 30 minutes (set_schedule{minutes: 30}), so a wait costs about half an hour. This step IS the waiting: a case that says to wait for the window to close, expire or end uses close_event{natural: true} — never ask_tester. Use before cases that need a closed event (Master QCS on a closed event, awarding after bidding has ended, evaluating a technical stage — it is evaluated once its window has closed).",
       "args": {
         "remark": "remark for the end-time modal (optional)",
-        "maxWaitMinutes": "when the tenant has no force-end, how long to wait for the bidding window to lapse (default 6)"
+        "natural": "true when the case says to WAIT for the window to close: never force-end it",
+        "maxWaitMinutes": "how long to wait for the bidding window to lapse (default 36)"
       }
     },
     {
@@ -164,7 +241,8 @@
       "purpose": "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Returns to the event this plan created when it created one. When the case names no event and the plan creates none, leave id and title out: the run opens the Live events list and clicks the event that best fits the steps after it — one with bids in and bidding over for Master QCS, awarding and counter offers (its own test events first); one still open for quotes otherwise. No search. Never invent a title.",
       "args": {
         "id": "project id from a URL (optional)",
-        "title": "event title the case names (optional; leave out to return to this plan's event, or to let the run pick a fitting existing one)"
+        "title": "event title the case names (optional; leave out to return to this plan's event, or to let the run pick a fitting existing one)",
+        "purpose": "\"evaluation\" when the case scores a vendor's technical response: the run picks an event whose TECHNICAL stage has closed with a vendor's answer waiting (optional)"
       }
     },
     {
@@ -198,6 +276,55 @@
       "args": {
         "vendor": "vendor name (optional)"
       },
+      "assertion": true
+    },
+    {
+      "name": "ask_tester",
+      "purpose": "THE PART OF THE CASE NO OTHER STEP CAN DO: put this step exactly where it belongs in the order (e.g. after publish, for \"sign in as the evaluator and score the technical response\") and keep every step you DO have before and after it. The run stops there and asks the tester in the chat for the steps or a login (another user, a second company…), then carries them out; if the tester skips it, that part is reported as not tested. Use it instead of returning no steps or guessing: never drop a case because one part has no step, and never mark such a case as covered. One ask_tester per missing part (at most one per plan: ask once, for the one thing the platform truly cannot do — a credential it does not hold, a screen it has never seen), and list the same part under cannotExpress. Never ask_tester to sign in or to open a list the steps can reach. Before it, use the steps that DO exist for everything around it — a vendor's technical response is place_bid (it answers the Technical Stage of a two-stage event), a closed round is close_event — and name in `need` ONLY what no step can do, in one short plain sentence (\"sign in as the assigned evaluator and score the vendor's technical response\"), never the parts other steps do.",
+      "args": {
+        "need": "the missing part in the tester's words, as a task: \"sign in as the assigned evaluator and score the vendor's technical response\""
+      }
+    },
+    {
+      "name": "do_on_screen",
+      "purpose": "A PART NO OTHER STEP CAN DO, BUT ONE THE BUYER CAN DO ON SCREEN IN THIS SESSION (no other login, company, inbox or vendor portal): the run works it out in this browser itself, one action at a time with a screenshot each, and the step passes only when the screen proves the goal (then it counts as tested). If it gets stuck it asks the tester, as ask_tester does. Put it exactly where the part belongs in the order and keep every step you DO have before and after it. An event made from a PR is NOT this step: it starts with open_purchase_requisitions. Use ask_tester instead for anything that needs another user, another company, an email or the supplier portal.",
+      "args": {
+        "goal": "the part as a task with the screen it must end on: \"open an approved purchase request and create an event from it; stop on the event's create screen showing the PR's line items\""
+      }
+    },
+    {
+      "name": "open_purchase_requisitions",
+      "purpose": "FIRST STEP of an event made FROM A PURCHASE REQUEST (\"from a PR\", \"from the existing PR\"): open Purchase Requisitions. Then pr_tab{tab:\"Open\"}, select_pr, purchase_items, choose_stages, expect_pr_items, each stage's steps (switch_stage when more than one, select_template, fill_questionnaires + assign_evaluator for Technical, fill_sheet for RFQ / Auction), then set_title, set_schedule, invite_vendor, publish. Never open_create or add_line_items for such an event: it is made from the PR and keeps its items."
+    },
+    {
+      "name": "pr_tab",
+      "purpose": "On Purchase Requisitions, switch to a tab. Only an Open PR can become an event, so use \"Open\" before select_pr (never Completed, In Progress, Rejected or Deleted).",
+      "args": {
+        "tab": "\"Open\" (default) | \"In Progress\" | \"Completed\" | \"Rejected\" | \"Deleted\""
+      }
+    },
+    {
+      "name": "select_pr",
+      "purpose": "Tick one PR's box on the current tab (the first row, or the PR the case names) and check that Purchase Items turns on. A case that wants \"a PR with N line items\" sets items: N — the step finds a PR with that many line items on the tab (each row is one line item) and ticks all of them.",
+      "args": {
+        "pr": "the PR number the case names (optional)",
+        "items": "how many of one PR's line items to tick, for \"a PR with 2 line items\" (optional)"
+      }
+    },
+    {
+      "name": "purchase_items",
+      "purpose": "Click Purchase Items (never Actions) for the ticked PR, then Start New Project."
+    },
+    {
+      "name": "choose_stages",
+      "purpose": "Pick the new event's stages and create it. Give `stages` ONLY when the case names the event (\"technical event\" → [\"rfp\"], \"technical + RFQ\" → [\"rfp\",\"rfq\"]); with none the run asks the tester (Technical, RFQ, Auction, Technical + RFQ, Technical + Auction) and adds that event's stage steps itself. RFQ and Auction never go together.",
+      "args": {
+        "stages": "from \"rfp\" (technical) | \"rfq\" | \"auction\" — only what the case names (optional)"
+      }
+    },
+    {
+      "name": "expect_pr_items",
+      "purpose": "Assert the new event's create screen lists the PR's line items (the Items badge is above zero).",
       "assertion": true
     },
     {
@@ -272,7 +399,7 @@
     },
     {
       "name": "add_line_items",
-      "purpose": "Add line items through the Manage Line Items drawer.",
+      "purpose": "Add line items through the Manage Line Items drawer. NEVER after open_create{path:\"boq\"}: BOQ line items arrive by sheet upload only, which no step does — a BOQ case that adds items gets one ask_tester for the upload (or cannotExpress), never add_line_items.",
       "args": {
         "count": "how many (1-50)",
         "search": "optional product search text to use for all of them",
@@ -282,6 +409,13 @@
     {
       "name": "fill_sheet",
       "purpose": "Fill the pricing sheet for every line item on screen."
+    },
+    {
+      "name": "fill_required",
+      "purpose": "Fill every mandatory field still empty on the create screen (whatever this client makes mandatory — custom fields, Payment Terms, dates, dropdowns), on every stage tab. Publish already does this for a case that expects the publish to go through; use it alone only to say so explicitly.",
+      "args": {
+        "said": "optional — the app's refusal naming what is missing (\"Payment Terms and Conditions are mandatory\"); the control with that name is opened, filled and saved"
+      }
     },
     {
       "name": "fill_questionnaires",
@@ -300,10 +434,10 @@
     },
     {
       "name": "invite_vendor",
-      "purpose": "Put vendors on the event. Name them when the test cares WHICH vendor bids — a bid test must be able to sign in as that company — otherwise the product's own audience is used.",
+      "purpose": "Put vendors on the event. With no vendors named, the runner presses the product's own Invite Vendor and takes every vendor the products map to — the normal case. Name vendors ONLY when the test case itself names them (then each is searched for and added). count is EXACTLY the number the case says (“invite 2 vendors” = count:2) — never a spare: on a two-stage event the same vendors are on both stages, and one vendor may answer one stage by surrogate and another from the portal.",
       "args": {
-        "vendors": "array of vendor names, e.g. [\"AMD\"]",
-        "count": "minimum number of participants required; fails if the audience cannot supply it"
+        "vendors": "array of vendor names copied from the test case — omit unless the case names a vendor; never invent one",
+        "count": "minimum number of participants required (e.g. 2 when two vendors must bid); QA test vendors top it up when the suggestion is short"
       }
     },
     {
@@ -312,7 +446,7 @@
     },
     {
       "name": "save_draft",
-      "purpose": "Save as draft instead of publishing."
+      "purpose": "Save as draft instead of publishing. NOT on a single-stage screen (open_create{path:\"single-stage\"}): it has no Save as draft — for a case that asks to save one there, assert expect_count{role:\"button\", name:\"Save as draft\", count:0}, which is the product's answer."
     },
     {
       "name": "expect_line_items",
@@ -342,7 +476,7 @@
     },
     {
       "name": "place_bid",
-      "purpose": "Sign into the VENDOR PORTAL as a vendor on the event and submit a quote for the event just published. This is the vendor bidding for themselves. Each place_bid without a vendor signs in as a DIFFERENT vendor on the event (the next one with a portal login that has not bid yet), so two vendors bidding = invite_vendor{count:2}, then place_bid twice — no vendor names needed.",
+      "purpose": "Sign into the VENDOR PORTAL as a vendor on the event and submit a quote for the event just published. This is the vendor bidding for themselves. Each place_bid without a vendor signs in as a DIFFERENT vendor on the event (the next one with a portal login that has not bid yet), so two vendors bidding = invite_vendor{count:2}, then place_bid twice — no vendor names needed. On a Technical + RFQ (two-stage) event ONE place_bid does both: it answers and submits the Technical Stage, then quotes the RFQ at the price (seen 27 Oct, VB04) — never a second step or ask_tester for the quote. It IS the vendor's technical response an evaluation needs; if Procol keeps Submit Quote disabled after the technical answer, the step says so. The vendor portal opens BESIDE the buyer's page in the live view, and the buyer's page stays open: follow with expect_responses (the buyer sees it). A case where one vendor bids from the portal and the buyer enters a surrogate bid for ANOTHER: invite_vendor{count:2}, place_surrogate_bid with no vendor and place_bid with no vendor, in the case's order — the surrogate bid never takes the portal vendor.",
       "args": {
         "vendor": "optional: a vendor name the test case gives, or a number (1, 2, …) for the 1st, 2nd … vendor on the event; default: the next vendor that has not bid yet",
         "price": "number, default 100"
@@ -350,17 +484,27 @@
     },
     {
       "name": "place_surrogate_bid",
-      "purpose": "Enter a bid FOR a vendor from the buyer console, without leaving it (surrogate bidding). Use when the test says the buyer bids on a vendor's behalf. Not available for knockout or dutch auctions, nor for technical stages.",
+      "purpose": "Enter a bid FOR a vendor from the buyer console, without leaving it (surrogate bidding). Use when the test says the buyer bids on a vendor's behalf. Not available for knockout or dutch auctions. On a TECHNICAL stage the row's Add Bid opens the vendor's technical response, and the step answers it (seen 27 Oct on a technical-only event: Participants offer + Add Bid, no Add Price Cap). A price Procol refuses (0 or below keeps Submit Bid disabled) is reported as blocked — wrap it in attempt{step:\"place_surrogate_bid\", args:{price}, expect:\"refused\"}. A bid submitted with NO price: attempt{step:\"place_surrogate_bid\", args:{noPrice:true}, expect:\"refused\"}.",
       "args": {
         "vendor": "vendor name; defaults to the first vendor offering Add Bid",
-        "price": "number, default 100"
+        "price": "number, default 100",
+        "noPrice": "true to submit with no price (a case about the price being required)",
+        "stage": "\"rfp\" on a two-stage (RFP + RFQ) event to enter the vendor's TECHNICAL response on the Technical Stage; default the pricing stage (RFQ / auction)"
+      }
+    },
+    {
+      "name": "evaluate_technical",
+      "purpose": "EVALUATOR SCORING of a technical (RFP) stage, after close_event: the stage's assigned evaluator signs in to a tab of their own beside the buyer's (Procol lets only them score), gives each vendor's technical answer a score label (the client's list, e.g. Preference P1 / P2 / P3, On Trial, Technically Not Accepted - TNA) with a remark, and Submits each line item. Use for “score / evaluate the technical responses”, “as the evaluator …”, “submit the evaluation”. Always after close_event (scoring opens only in the evaluation time that follows); before award_event.",
+      "args": {
+        "scores": "optional: one label for every vendor (\"Preference P1\"), labels per vendor in column order, or numbers per vendor (higher = better label, e.g. [8, 6]); default the best label for all",
+        "remark": "optional remark (required by Procol; a default is used)"
       }
     },
     {
       "name": "award_event",
-      "purpose": "Award the event after bidding: Master QCS -> Start Awarding -> allocate line items -> Create Proposal -> submit. Needs a published event that has at least one bid.",
+      "purpose": "Award the event after bidding: Master QCS -> Start Awarding -> allocate line items -> Create Proposal -> submit, ALL in this one step. Use it for ANY case that awards (“award the line / event to …”, “award in Master QCS”), after close_event; follow with expect_awarded (and approve_award when the case approves). Never start_awarding + expect_awarded for an award: start_awarding only enters the screen. Needs a closed event with bids.",
       "args": {
-        "vendor": "vendor to award to; defaults to whichever bid can be allocated"
+        "vendor": "whom to award: a vendor name the case gives, or \"lowest\" (Rank 1 on Master QCS — “the lowest bidder”), \"surrogate\" (the vendor the buyer bid for in this plan), \"portal\" (a vendor who bid from the vendor portal); default whichever bid can be allocated"
       }
     },
     {
@@ -385,7 +529,7 @@
     },
     {
       "name": "start_awarding",
-      "purpose": "On Master QCS of a closed event with bids, press Start Awarding (or Bid Selection Proposal when a draft proposal exists) and land on the awarding screen. Use for cases about entering the award flow."
+      "purpose": "On Master QCS of a closed event with bids, press Start Awarding (or Bid Selection Proposal when a draft proposal exists) and land on the awarding screen. Use ONLY for cases about the awarding screen itself (its counters, allocating by hand); to award, use award_event."
     },
     {
       "name": "allocate_award",
@@ -417,7 +561,7 @@
       "name": "expect_publish_blocked",
       "purpose": "Assert the event CANNOT be published yet: press Publish and confirm either the confirm button is disabled or the app refuses. Use for tests about a precondition not being met.",
       "args": {
-        "because": "optional substring of the message you expect"
+        "because": "optional: words of the APP'S OWN message, never a paraphrase. Without participants the app says \"Please add participants to proceed!\" — and it checks participants FIRST, so a publish missing a template or line items is refused with that message too; a technical stage without an evaluator: \"Please add Evaluator to all the line items in the Technical Stage\""
       },
       "assertion": true
     },
@@ -714,7 +858,7 @@
     {
       "name": "expect_qcs_cell",
       "assertion": true,
-      "purpose": "On Master QCS, read ONE cell of the comparison grid — a row (\"Qty Offer\", \"Rank\", \"RFQ Rate\", \"RFQ Amount\", \"Sum Total\", …) for one vendor column on one line item — and assert it. Compare with a fixed value, a number, or a value the API holds for this case (key). With no comparison it asserts the cell is filled. Row labels follow the template; the closest label is used and named in the result.",
+      "purpose": "On Master QCS, read ONE cell of the comparison grid — a row (\"Qty Offer\", \"Rank\", \"RFQ Rate\", \"RFQ Amount\", \"Sum Total\", …) for one vendor column on one line item — and assert it. Compare with a fixed value, a number, or a value the API holds for this case (key). With no comparison it asserts the cell is filled. Row labels follow the template; the closest label is used and named in the result. A key (a value the API holds) exists only on a PREPARED state (open_prepared); in a plan that creates its own event, compare with number = the price the plan typed into place_surrogate_bid.",
       "args": {
         "row": "the row label as the screen shows it, e.g. \"Rank\", \"Qty Offer\", \"RFQ Rate\", \"Sum Total\"",
         "vendor": "vendor name or 1-based column number (optional; the only column, or the case's vendor)",
@@ -759,7 +903,7 @@
     {
       "name": "expect_participant",
       "assertion": true,
-      "purpose": "On a published event's Participants list, search a vendor and assert ITS ROW (the name is read from the row, not from a button): that it is listed (present) or not, whether its box is ticked (selected = on this round), and whether it offers Add Bid. Use for \"the vendor's row is visible with its Add Bid control\", \"the vendor appears in the selected list\", \"no Add Bid for this vendor\".",
+      "purpose": "On a published event's Participants list, search a vendor and assert ITS ROW (the name is read from the row, not from a button): that it is listed (present) or not, whether its box is ticked (selected = on this round), and whether it offers Add Bid. Use for \"the vendor's row is visible with its Add Bid control\", \"the vendor appears in the selected list\", \"no Add Bid for this vendor\". A vendor the case itself calls nonexistent or made up (\"Acme Nonexistent Supplier\") is never asserted present: assert the fallback instead — expect_participant_count{atLeast:1}, or present:false for that name.",
       "args": {
         "vendor": "vendor name or email (optional; the vendor select_participant added in this plan, else the case's own vendor)",
         "present": "true (default) the row must be listed; false it must not be",
@@ -797,6 +941,14 @@
     "expect_sheet_columns",
     "open_add_stage_menu",
     "expect_sheet_cells",
+    "withdraw_event",
+    "expect_withdrawn",
+    "event_menu",
+    "expect_menu_item",
+    "extend_submission_time",
+    "add_price_cap",
+    "expect_price_cap",
+    "expect_responses",
     "open_event_settings",
     "reschedule_event",
     "expect_add_stage_options",
@@ -812,6 +964,14 @@
     "remove_line_items",
     "accept_counter_offer",
     "expect_counter_offer_accepted",
+    "ask_tester",
+    "do_on_screen",
+    "open_purchase_requisitions",
+    "pr_tab",
+    "select_pr",
+    "purchase_items",
+    "choose_stages",
+    "expect_pr_items",
     "capture_screen",
     "open_participants",
     "open_master_qcs",
@@ -824,6 +984,7 @@
     "select_template",
     "add_line_items",
     "fill_sheet",
+    "fill_required",
     "fill_questionnaires",
     "assign_evaluator",
     "set_schedule",
@@ -836,6 +997,7 @@
     "expect_error",
     "place_bid",
     "place_surrogate_bid",
+    "evaluate_technical",
     "award_event",
     "approve_award",
     "create_po",
@@ -1023,7 +1185,8 @@
       "Add Evaluator",
       "Quantity",
       "RFQ",
-      "Technical Stage"
+      "Technical Stage",
+      "Rank on lot"
     ],
     "line_items_drawer": [
       "Manage Line Items",
@@ -1099,7 +1262,13 @@
       "tab:Participant Remarks",
       "Add Bid",
       "Live",
-      "RFQ"
+      "RFQ",
+      "Rejected Bids",
+      "Participation Summary",
+      "Offer submissions",
+      "1 Pending",
+      "You created the event",
+      "Evaluation will end at"
     ],
     "stage_page": [
       "Loading your event details...",
@@ -1143,7 +1312,9 @@
       "Convert to Auction",
       "Continue",
       "Send Bulk Counter Offer",
-      "Approval in Progress"
+      "Approval in Progress",
+      "Technical Stage",
+      "RFQ"
     ],
     "responses": [
       "button:View by",
@@ -1180,7 +1351,11 @@
       "Use RFQ quotes as initial bids",
       "Send",
       "You must change atleast one column to send counter offer",
-      "Reschedule Event"
+      "Reschedule Event",
+      "Order Activity",
+      "Extend Submission Time",
+      "Withdraw",
+      "Live"
     ],
     "master_qcs": [
       "tab:Master QCS",
@@ -1521,6 +1696,6 @@
   },
   "labelCounts": {
     "fromSource": 530,
-    "seenLive": 50
+    "seenLive": 64
   }
 }

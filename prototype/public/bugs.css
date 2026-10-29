@@ -30,22 +30,29 @@
 .bg-head h1 { margin: 0; font: 600 26px/1.2 var(--font-sans); letter-spacing: -0.01em; color: var(--text-strong); }
 .bg-sub { margin: 4px 0 0; font: 400 13px/1.45 var(--font-sans); color: var(--text-2); }
 .bg-ctx:empty { display: none; }
-.bg-ctx .ctx-bar { justify-content: flex-end; }
+.bg-ctx .ctx-bar { justify-content: flex-end; gap: 2px; }
+/* Client and environment are where you are: quiet until hover, as on Sessions. */
+.bg-ctx .ctx-picker { background: transparent; border-color: transparent; }
+.bg-ctx .ctx-picker:hover, .bg-ctx .ctx-picker[aria-expanded="true"] { background: var(--tint-bg); border-color: var(--border-subtle); }
 
 /* ── severity tiles ───────────────────────────────────────────────────── */
-.bg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-.bg-tile {
-  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
-  padding: 12px 14px; border-radius: 10px;
-  background: var(--card); border: 1px solid var(--border);
-  color: inherit; text-align: left; cursor: pointer;
-  transition: background-color .15s ease, border-color .15s ease;
+/* One card split four ways; the 1px gap over a border-coloured back draws
+   the hairlines, so they stay right when the four wrap 2×2 on a phone. */
+.bg-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border);
 }
-.bg-tile:hover { border-color: var(--border-strong); }
-.bg-tile[aria-pressed="true"] { background: var(--primary-tint); border-color: var(--primary-border-2); }
-.bg-tile-name { display: inline-flex; align-items: center; gap: 8px; font: 400 13px/1.2 var(--font-sans); color: var(--text-2); }
+.bg-tile {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  padding: 12px 16px; border: 0; border-radius: 0;
+  background: var(--card); color: inherit; text-align: left; cursor: pointer;
+  transition: background-color .15s ease;
+}
+.bg-tile:hover { background: var(--tint-bg); }
+.bg-tile[aria-pressed="true"] { background: var(--primary-tint); box-shadow: inset 0 -2px 0 var(--primary); }
+.bg-tile-name { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1.2 var(--font-sans); color: var(--text-2); }
 .bg-tile-n { display: inline-flex; align-items: baseline; gap: 6px; }
-.bg-tile-n b { font: 600 24px/1 var(--font-sans); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.bg-tile-n b { font: 600 22px/1 var(--font-sans); color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .bg-tile-n span { font: 400 12px/1 var(--font-sans); color: var(--text-2); }
 .bg-sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-muted); }
 .bg-sdot.s-critical { background: var(--bad-dot); }
@@ -55,23 +62,27 @@
 
 /* ── toolbar ──────────────────────────────────────────────────────────── */
 .bg-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.bg-scope { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--chip-bg); }
-.bg-scope button {
-  height: 30px; padding: 0 12px; border: 0; border-radius: 999px;
-  background: transparent; color: var(--text);
-  font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+.bg-scope {
+  display: inline-flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--card);
 }
-.bg-scope button:hover { color: var(--text-strong); }
-.bg-scope button[aria-pressed="true"] { background: var(--card); color: var(--text-strong); box-shadow: var(--shadow-xs); }
+.bg-scope button {
+  height: 30px; padding: 0 11px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-2);
+  font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+.bg-scope button:hover { color: var(--text-strong); background: var(--row-hover); }
+.bg-scope button[aria-pressed="true"] { background: var(--chip-bg); color: var(--text-strong); }
 
 .bg-pillbtn {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 36px; padding: 0 12px 0 14px; border-radius: 999px;
+  height: 38px; padding: 0 10px 0 12px; border-radius: 10px;
   border: 1px solid var(--border-subtle); background: var(--card); color: var(--text-2);
   font: 400 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
 }
 .bg-pillbtn b { font-weight: 600; color: var(--text-strong); }
-.bg-pillbtn:hover { border-color: var(--border-strong); }
+.bg-pillbtn:hover { border-color: var(--border-strong); background: var(--tint-bg); }
 .bg-pillbtn .ico { width: 14px; height: 14px; opacity: .6; }
 
 .bg-runchip {
@@ -92,7 +103,7 @@
 .bg-search {
   flex: 1 1 200px; max-width: 280px; min-width: 0;
   display: flex; align-items: center; gap: 8px;
-  height: 36px; padding: 0 12px; border-radius: 999px;
+  height: 38px; padding: 0 12px; border-radius: 10px;
   border: 1px solid var(--border-subtle); background: var(--card);
 }
 .bg-search:focus-within { border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
@@ -110,7 +121,7 @@
 
 .bg-export {
   display: inline-flex; align-items: center; gap: 8px;
-  height: 36px; padding: 0 12px 0 14px; border-radius: 999px; border: 0;
+  height: 38px; padding: 0 12px 0 14px; border-radius: 8px; border: 0;
   background: var(--primary); color: var(--on-primary);
   font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
   transition: background-color .15s ease;
@@ -153,15 +164,53 @@
 }
 .bg-table th:first-child { border-top-left-radius: 12px; }
 .bg-table th:last-child { border-top-right-radius: 12px; }
-.bg-table td { padding: 12px 8px; vertical-align: top; border-bottom: 1px solid var(--border); }
+.bg-table td { padding: 12px 8px; vertical-align: middle; border-bottom: 1px solid var(--border); }
 .bg-table th:first-child, .bg-table td:first-child { padding-left: 14px; }
 .bg-table tbody tr:last-child td { border-bottom: 0; }
 .bg-table tbody tr:hover td { background: var(--row-hover); }
 .bg-table tbody tr.is-picked td { background: var(--primary-tint); }
 .bg-table .c-check { width: 24px; padding-right: 4px; }
 .bg-table .c-bug { min-width: 300px; }
+/* the editable columns take what they need; the Bug column gets the rest */
+.bg-table td.c-edit { width: 1%; white-space: nowrap; }
+.bg-table td.c-comment { min-width: 130px; }
+.bg-table td.c-art { width: 1%; }
+
+/* ── Artifacts: where and how it happened (29 Oct) ────────────────────── */
+.bg-arts { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; }
+.bg-thumb {
+  position: relative; display: block; width: 52px; height: 34px; flex: none;
+  border: 1px solid var(--border-subtle); border-radius: 6px; overflow: hidden; background: var(--page);
+}
+.bg-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.bg-thumb span {
+  position: absolute; right: 2px; bottom: 2px; padding: 1px 4px; border-radius: 4px;
+  background: rgba(20, 18, 14, .72); color: #fff; font: 500 9.5px/1.2 var(--font-mono);
+}
+.bg-thumb:hover { border-color: var(--primary-border-2); }
+.bg-artchip {
+  display: inline-flex; align-items: center; gap: 3px; height: 26px; min-width: 26px; padding: 0 5px; border-radius: 6px;
+  justify-content: center; background: transparent; color: var(--text-2); text-decoration: none; font: 500 11px/1 var(--font-mono);
+}
+.bg-artchip .ico { width: 15px; height: 15px; flex: none; }
+.bg-artchip:hover { background: var(--chip-bg); color: var(--text-strong); }
+.bg-none { color: var(--text-muted); }
+/* The panel: what a person sets on the bug, label and control on a line. */
+.bg-triage {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+}
+.bg-tr { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bg-tr-l { font: 500 10.5px/1.2 var(--font-mono); letter-spacing: .5px; text-transform: uppercase; color: var(--text-2); }
+.bg-tr-c { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.bg-tr-c .bg-pill { margin-left: -8px; }
+.bg-tr-c .bg-by { max-width: none; }
+.bg-tr .bg-eta, .bg-tr .bg-comment { margin-left: 0; border-color: var(--border-subtle); }
+.bg-tr:last-child { grid-column: 1 / -1; }
+.bg-triage .bg-pill .chev { opacity: .5; }
+.bg-video { display: block; width: 100%; max-height: 340px; margin-bottom: 8px; border-radius: 8px; background: #0a0a0a; }
 .bg-table .c-open { width: 28px; padding-left: 0; padding-right: 10px; }
-.bg-table input[type="checkbox"] { width: 16px; height: 16px; margin: 6px 0 0; accent-color: var(--primary); cursor: pointer; }
+.bg-table input[type="checkbox"] { display: block; width: 16px; height: 16px; margin: 0; accent-color: var(--primary); cursor: pointer; }
 .bg-table th input[type="checkbox"] { margin-top: 0; }
 
 .bg-l1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
@@ -171,8 +220,22 @@
 .bg-state.st-broken { color: var(--bad-text); }
 .bg-state.st-passing { color: var(--ok-text); }
 .bg-state.st-hand { color: var(--text-2); }
-.bg-desc { margin: 3px 0 0; font: 500 13px/1.45 var(--font-sans); color: var(--text-strong); overflow-wrap: anywhere; }
+/* The row is the bug's words, then one quiet line of where it is from (29 Oct). */
+.bg-desc { display: block; font: 500 13.5px/1.45 var(--font-sans); color: var(--text-strong); text-decoration: none; overflow-wrap: anywhere; }
+a.bg-desc:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong); }
 .bg-meta { margin: 3px 0 0; font: 400 12px/1.45 var(--font-sans); color: var(--text-2); overflow-wrap: anywhere; }
+.bg-meta .bg-id { font-size: 11.5px; color: var(--text-2); }
+.bg-meta .bg-state { font-size: 12px; }
+.bg-pri { display: flex; align-items: center; gap: 6px; }
+.bg-blocker {
+  padding: 2px 7px; border-radius: 5px; background: var(--bad-bg); color: var(--bad-text);
+  font: 600 10.5px/1.3 var(--font-sans); letter-spacing: .2px; white-space: nowrap;
+}
+.bg-table td.c-dev { width: 1%; white-space: nowrap; }
+.c-dev { font: 400 12px/1.4 var(--font-sans); color: var(--text-2); }
+.c-dev > span { display: flex; align-items: center; gap: 4px; }
+.c-dev .ico { width: 12px; height: 12px; flex: none; color: var(--text-muted); }
+.bg-devtype { font: 500 11.5px/1.4 var(--font-mono); color: var(--text); }
 
 .bg-open {
   display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
@@ -183,15 +246,20 @@
 
 /* ── an editable cell: a pill that opens a listbox ────────────────────── */
 .bg-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+/* Quiet by default: words with a coloured dot, no fill. The row you point
+   at shows the chevrons, and the pill you point at gets its fill, so it
+   still reads as something to change without nine filled pills a row. */
 .bg-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 8px 0 10px; border-radius: 999px; border: 0;
-  background: var(--chip-bg); color: var(--text);
-  font: 600 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  height: 28px; padding: 0 6px 0 8px; margin-left: -8px; border-radius: 7px; border: 0;
+  background: transparent; color: var(--text);
+  font: 500 12.5px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color .15s ease;
 }
-.bg-pill:hover { box-shadow: 0 0 0 1px var(--border-strong); }
-.bg-pill[aria-expanded="true"] { box-shadow: 0 0 0 1px var(--border-strong); }
-.bg-pill .chev { width: 12px; height: 12px; opacity: .45; flex: none; }
+.bg-pill:hover, .bg-pill[aria-expanded="true"] { background: var(--chip-bg); }
+.bg-pill .chev { width: 12px; height: 12px; opacity: 0; flex: none; transition: opacity .15s ease; }
+.bg-table tr:hover .bg-pill .chev, .bg-pill:focus-visible .chev, .bg-pill[aria-expanded="true"] .chev { opacity: .5; }
+@media (hover: none) { .bg-pill .chev { opacity: .5; } }
 .bg-pill .bg-pv { max-width: 118px; overflow: hidden; text-overflow: ellipsis; }
 .bg-pill.is-saving { opacity: .7; }
 .bg-pill.mono { font-family: var(--font-mono); font-weight: 500; letter-spacing: .2px; }
@@ -200,18 +268,27 @@
 .bg-dot.c-blue { background: var(--primary); }
 .bg-dot.c-amber { background: var(--warn-dot); }
 .bg-dot.c-green { background: var(--ok-dot); }
-.bg-pill.t-red { background: var(--bad-bg); color: var(--bad-text); }
-.bg-pill.t-blue { background: var(--primary-tint-2); color: var(--primary-text); }
-.bg-pill.t-amber { background: var(--warn-bg); color: var(--warn-text); }
-.bg-pill.t-green { background: var(--ok-bg); color: var(--ok-text); }
-.bg-by { font: 400 11px/1.35 var(--font-sans); color: var(--text-2); max-width: 128px; overflow-wrap: anywhere; }
+.bg-pill.t-red { color: var(--bad-text); }
+.bg-pill.t-blue { color: var(--primary-text); }
+.bg-pill.t-amber { color: var(--warn-text); }
+.bg-pill.t-green { color: var(--ok-text); }
+.bg-pill.t-red:hover, .bg-pill.t-red[aria-expanded="true"] { background: var(--bad-bg); }
+.bg-pill.t-blue:hover, .bg-pill.t-blue[aria-expanded="true"] { background: var(--primary-tint-2); }
+.bg-pill.t-amber:hover, .bg-pill.t-amber[aria-expanded="true"] { background: var(--warn-bg); }
+.bg-pill.t-green:hover, .bg-pill.t-green[aria-expanded="true"] { background: var(--ok-bg); }
+/* who set the dev type ("by spine.ai"); why it was set is on hover */
+.bg-by { display: block; max-width: 132px; font: 400 11px/1.35 var(--font-sans); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-cell { gap: 2px; }
 
 .bg-eta {
   position: relative; display: inline-flex; align-items: center; gap: 6px;
-  height: 30px; padding: 0 10px; border-radius: 999px;
-  border: 1px dashed var(--border-strong); color: var(--text-2); cursor: text;
+  height: 30px; padding: 0 8px; margin-left: -9px; border-radius: 8px;
+  border: 1px solid transparent; color: var(--text-muted); cursor: text;
+  transition: border-color .15s ease, color .15s ease;
 }
-.bg-eta.has-value { border-style: solid; border-color: var(--border-subtle); color: var(--text-strong); }
+.bg-eta.has-value { color: var(--text-strong); }
+.bg-table tr:hover .bg-eta { border-color: var(--border-subtle); color: var(--text-2); }
+.bg-table tr:hover .bg-eta.has-value { color: var(--text-strong); }
 .bg-eta:focus-within { border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
 .bg-eta .ico { width: 14px; height: 14px; flex: none; }
 .bg-eta input {
@@ -223,12 +300,14 @@
 }
 .bg-eta input::-webkit-datetime-edit { padding: 0; }
 .bg-comment {
-  width: 100%; min-width: 104px; height: 30px; padding: 0 10px; border-radius: 8px;
-  border: 1px dashed var(--border-strong); background: transparent; color: var(--text-strong);
+  width: 100%; min-width: 104px; height: 30px; padding: 0 8px; margin-left: -9px; border-radius: 8px;
+  border: 1px solid transparent; background: transparent; color: var(--text-strong);
   font: 400 12px var(--font-sans);
+  transition: border-color .15s ease;
 }
-.bg-comment:not(:placeholder-shown) { border-style: solid; border-color: var(--border-subtle); }
-.bg-comment::placeholder { color: var(--text-2); }
+.bg-table tr:hover .bg-comment { border-color: var(--border-subtle); }
+.bg-comment::placeholder { color: var(--text-muted); }
+.bg-table tr:hover .bg-comment::placeholder { color: var(--text-2); }
 .bg-comment:focus { outline: 0; border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
 .bg-comment.is-saving { opacity: .7; }
 
@@ -406,7 +485,11 @@
 @keyframes bgShimmer { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) {
   .bg-sk { animation: none; }
-  .bg-tile, .bg-export { transition: none; }
+  .bg-tile, .bg-export, .bg-scope button, .bg-pill, .bg-pill .chev, .bg-eta, .bg-comment { transition: none; }
+}
+/* a touch screen has no hover: the boxes stay drawn */
+@media (hover: none) {
+  .bg-eta, .bg-comment { border-color: var(--border-subtle); }
 }
 
 /* ── narrow: each row stacks into a card ──────────────────────────────── */
@@ -431,6 +514,22 @@
   .bg-table .c-open { order: 1; flex: 0 0 auto; width: auto; padding: 0; }
   .bg-table .c-edit { order: 2; flex: 0 0 auto; }
   .bg-table .c-comment { flex: 1 1 220px; }
+  .bg-table td.c-art:empty, .bg-table td.c-dev:empty { display: none; }
+  /* the card's order: the bug, then Status · Priority · Evidence · Developer; the arrow sits top right */
+  .bg-table td.c-art { order: 3; }
+  .bg-table td.c-dev { order: 4; }
+  .bg-table td.c-open { position: absolute; right: 8px; top: 12px; }
+  .bg-table .c-bug { flex-basis: calc(100% - 40px); }
+  .bg-table td.c-art, .bg-table td.c-dev { display: block; padding: 0 10px 0 0; border: 0; width: auto; }
+  .bg-table td.c-art[data-l]::before, .bg-table td.c-dev[data-l]::before,
+  .bg-table td.c-edit[data-l]::before {
+    content: attr(data-l); display: block; margin-bottom: 2px;
+    font: 500 10.5px/1.2 var(--font-mono); letter-spacing: .4px; color: var(--text-2);
+  }
+  .bg-table td.c-edit { width: auto; padding-right: 10px; }
+  .bg-table td.c-comment { min-width: 0; }
+  .bg-pill, .bg-eta, .bg-comment { margin-left: 0; }
+  .bg-eta, .bg-comment { border-color: var(--border-subtle); }
   .bg-table tbody tr.bg-skel { display: block; padding: 14px 16px; }
   .bg-table tbody tr.bg-skel td { padding: 4px 0; }
 }
@@ -440,7 +539,8 @@
   .bg-search { max-width: none; flex-basis: 100%; order: 5; }
   .bg-spacer { display: none; }
   .bg-scope button, .bg-pillbtn, .bg-export, .bg-search, .bg-selbar button { min-height: 44px; }
-  .bg-pill { height: 44px; padding: 0 12px 0 14px; }
+  .bg-pill { height: 40px; padding: 0 10px; background: transparent; box-shadow: inset 0 0 0 1px var(--border-subtle); }
+  .bg-table .bg-pill { margin-left: 0; }
   .bg-eta, .bg-comment { height: 44px; }
   .bg-opt { min-height: 44px; }
   .bg-table input[type="checkbox"] { width: 22px; height: 22px; }

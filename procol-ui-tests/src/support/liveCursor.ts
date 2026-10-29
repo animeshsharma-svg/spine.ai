@@ -27,8 +27,9 @@ import { released, wireLiveView } from "./liveControl.js";
  * so locators, getByText, the accessibility snapshot and Playwright's own
  * "does this element receive the click" check never see it.
  *
- * UI_LIVE_CURSOR=0 keeps the frames and drops the arrow. UI_CURSOR_LABEL
- * changes the pill's word.
+ * OFF by default since 21 Oct 2026 (Aanya: "we can remove the spine.ai arrow, the purple
+ * screenshots are enough"): the spotlight pictures (spotlight.ts) frame every action already.
+ * UI_LIVE_CURSOR=1 brings the arrow back; UI_CURSOR_LABEL changes the pill's word.
  */
 
 /** A frame on this beat when nothing else took one. */
@@ -43,7 +44,8 @@ const FRAME_WAIT_MS = 1_500;
 const POINTED = ["click", "dblclick", "tap", "fill", "pressSequentially", "type", "press", "check", "uncheck", "setChecked", "hover", "selectOption", "setInputFiles"] as const;
 const CLICKS = new Set(["click", "dblclick", "tap", "check", "uncheck", "setChecked", "selectOption"]);
 
-type Feed = { page: Page; chain: Promise<void>; pending: number; last: number; stopped: boolean; paused: boolean };
+/** pane "" is the main view (the buyer); "side" streams beside it (the vendor portal, sideFrames). */
+type Feed = { page: Page; chain: Promise<void>; pending: number; last: number; stopped: boolean; paused: boolean; pane: "" | "side" };
 const feeds = new WeakMap<Page, Feed>();
 /** The feeds streaming now — so a vendor's page can take the live view for a while (focusFrames). */
 const active = new Set<Feed>();
@@ -54,10 +56,10 @@ let hooked = false;
  * the pointer lands. Returns the function that stops it (closing the page
  * stops it too).
  */
-export function startLiveFrames(page: Page): () => void {
-  const feed: Feed = { page, chain: Promise.resolve(), pending: 0, last: 0, stopped: false, paused: false };
-  // "Take control" (liveControl.ts) acts on the page the live view shows.
-  wireLiveView(viewPage, (p) => void frameNow(p));
+export function startLiveFrames(page: Page, pane: "" | "side" = ""): () => void {
+  const feed: Feed = { page, chain: Promise.resolve(), pending: 0, last: 0, stopped: false, paused: false, pane };
+  // "Take control" (liveControl.ts) acts on the page the live view shows, and shows another tab with focusFrames.
+  wireLiveView(viewPage, (p) => void frameNow(p), focusFrames, panePage);
   feeds.set(page, feed);
   active.add(feed);
   enableLiveCursor(page);
@@ -75,6 +77,12 @@ export function startLiveFrames(page: Page): () => void {
   return stop;
 }
 
+/** Where each frame also goes (runVideo.ts keeps a failed run's frames as its video); null: nowhere. */
+let frameSink: ((page: Page, pane: "" | "side", jpeg: Buffer) => void) | null = null;
+export function setFrameSink(sink: typeof frameSink): void {
+  frameSink = sink;
+}
+
 /** Print one frame. Queued behind the one in flight, so frames arrive in the order taken. */
 function frameNow(page: Page): Promise<void> {
   const feed = feeds.get(page);
@@ -85,7 +93,8 @@ function frameNow(page: Page): Promise<void> {
       if (feed.stopped || page.isClosed()) return;
       const buf = await page.screenshot({ type: "jpeg", quality: 40, timeout: 5_000 });
       feed.last = Date.now();
-      console.log(`[frame] ${buf.toString("base64")}`);
+      console.log(`[frame${feed.pane ? `@${feed.pane}` : ""}] ${buf.toString("base64")}`);
+      frameSink?.(page, feed.pane, buf);
     } catch {
       // Mid-navigation or the page just closed — skip this one, not fatal.
     } finally {
@@ -93,6 +102,42 @@ function frameNow(page: Page): Promise<void> {
     }
   });
   return feed.chain;
+}
+
+/**
+ * Show another page BESIDE the main one while it is driven — the vendor portal next to the buyer's console
+ * (Aanya, 27 Oct: "can we show two tabs in parallel, so that buyer's tab stays open and in the side vendor's
+ * portal can be opened"). Both pages keep streaming; the side's frames go out as "[frame@side] <jpeg>" and
+ * its caption as "[pane@side] {label, state}". stop() takes a last frame and marks the pane done, so the
+ * vendor's submitted screen stays beside the buyer's while the buyer looks for the response.
+ *
+ * Only a server that draws two panes sets UI_SIDE_FRAMES=1 (uiFlowRunner.ts); with any other the vendor
+ * page takes the one view for a while instead (focusFrames), as before.
+ */
+export function sideFrames(page: Page, label: string): { stop: () => Promise<void>; relabel: (label: string) => void } {
+  if (!active.size) return { stop: async () => {}, relabel: () => {} };
+  if (process.env.UI_SIDE_FRAMES !== "1") {
+    const release = focusFrames(page);
+    return { stop: async () => release(), relabel: () => {} };
+  }
+  let caption = label;
+  const say = (state: "live" | "done") => console.log(`[pane@side] ${JSON.stringify({ label: caption, state })}`);
+  say("live");
+  const stopFeed = startLiveFrames(page, "side");
+  let stopped = false;
+  return {
+    relabel: (l: string) => {
+      caption = l;
+      if (!stopped) say("live");
+    },
+    stop: async () => {
+      if (stopped) return;
+      await frameNow(page).catch(() => {});
+      stopped = true;
+      stopFeed();
+      say("done");
+    },
+  };
 }
 
 /**
@@ -109,6 +154,24 @@ export function viewPage(): Page | undefined {
   return shown;
 }
 
+/**
+ * Which picture of the live view a page is shown in: "side" for the vendor portal beside the buyer, ""
+ * for the main one (also for a page with no feed of its own). spotlight.ts tags its framed stills with it,
+ * so a vendor's highlighted click never lands in the buyer's picture (Aanya, 29 Oct: "when we are working
+ * on vendor portal, why does it click on both sides buyer and vendor").
+ */
+export function paneOfPage(page: Page): "" | "side" {
+  const f = feeds.get(page);
+  return f && !f.stopped ? f.pane : "";
+}
+
+/** The page a picture of the live view shows now: "" the main one, "side" the vendor portal beside it. */
+export function panePage(pane: "" | "side"): Page | undefined {
+  let shown: Page | undefined;
+  for (const f of active) if (f.pane === pane && !f.paused && !f.stopped && !f.page.isClosed()) shown = f.page;
+  return shown;
+}
+
 export function focusFrames(page: Page): () => void {
   if (!active.size) return () => {};
   const paused = [...active].filter((f) => !f.paused);
@@ -122,7 +185,7 @@ export function focusFrames(page: Page): () => void {
 
 /** Hook the pointer into Locator's actions (once per process). startLiveFrames calls it. */
 export function enableLiveCursor(page: Page): void {
-  if (hooked || process.env.UI_LIVE_CURSOR === "0") return;
+  if (hooked || process.env.UI_LIVE_CURSOR !== "1") return;
   hooked = true;
   const label = (process.env.UI_CURSOR_LABEL || "spine.ai").slice(0, 24);
   const proto = Object.getPrototypeOf(page.locator("html")) as Record<string, unknown>;

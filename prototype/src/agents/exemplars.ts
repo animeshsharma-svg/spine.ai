@@ -368,7 +368,7 @@ function wordShare(query: string, e: Exemplar, list: Exemplar[]): number {
 }
 
 const RECIPE_STATE: Record<string, string> = {
-  none: "none", draft_event: "draft", draft_rfq: "draft", draft_rfp_rfq: "draft", published_rfq: "open", published_rfq_short: "open",
+  none: "none", draft_event: "draft", draft_rfq: "draft", draft_rfp_rfq: "draft", draft_auction: "draft", draft_rfp_auction: "draft", published_rfq: "open", published_rfq_short: "open",
   published_rfp_rfq: "open", rfq_with_bid: "with-bid", rfq_with_2_bids: "with-bid", rfp_rfq_with_tech_response: "with-bid",
   closed_rfq: "closed", closed_rfq_with_bid: "closed", closed_rfq_with_2_bids: "closed", closed_rfp_rfq_with_tech_response: "closed", awarded_rfq: "awarded",
 };

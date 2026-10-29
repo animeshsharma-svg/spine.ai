@@ -73,7 +73,21 @@ export const RECOVERY: Array<{ when: RegExp; why: string; steps: PlanStep[] }> =
   },
   { when: /choose a template and add a product/i, why: "a stage needs a template and a product before participants and publish", steps: [{ step: "select_template" }, { step: "add_line_items", args: { count: 1 } }] },
   { when: /select a valid column for savings/i, why: "the savings column comes from the template — the stage has none", steps: [{ step: "select_template" }] },
+  // LAST, so the specific ones above win: anything else this client makes mandatory (Payment Terms, T&C, a custom
+  // field, a date, a dropdown) is filled on screen — a client switch must not stop a run at a basic field (29 Oct).
+  {
+    when: /\b(mandatory|required)\b|please (fill|select|add|enter|choose|provide)|can(no|')t be (empty|blank)|cannot be empty|\bis empty\b|\bare empty\b/i,
+    why: "this client makes it mandatory — the run fills it",
+    steps: [{ step: "fill_required" }],
+  },
 ];
+
+/** fill_required carries the app's own words, so it can open the control they name. */
+export function recoveryWith(text: string): { why: string; steps: PlanStep[] } | null {
+  const r = recoveryFor(text);
+  if (!r) return null;
+  return { why: r.why, steps: r.steps.map((st) => (st.step === "fill_required" ? { ...st, args: { ...(st.args ?? {}), said: text } } : st)) };
+}
 
 export function recoveryFor(text: string): { why: string; steps: PlanStep[] } | null {
   const r = RECOVERY.find((x) => x.when.test(text));

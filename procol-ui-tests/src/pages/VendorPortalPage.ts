@@ -170,7 +170,30 @@ export class VendorPortalPage extends BasePage {
       ],
       { label: "open-event-by-title", timeout: TIMEOUTS.MEDIUM },
     );
-    if (!matched && match) throw new NotOnEventError(match, this.page.url());
+    if (!matched && match) {
+      // An event published seconds ago can be missing from the portal's list on the first look (27 Oct, VB06:
+      // the invited vendor "did not have" the event, the run fell back to another vendor). One more look.
+      await this.pause(8_000);
+      await this.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await this.dismissDistractions();
+      const again = await this.find(
+        [this.page.getByPlaceholder(/search/i), this.page.getByRole("textbox", { name: /search/i })],
+        { label: "vendor-search", timeout: TIMEOUTS.SHORT },
+      );
+      if (again) {
+        await again.fill(match);
+        await this.pause(1500);
+      }
+      const second = await this.clickIfPresent(
+        [this.page.getByText(new RegExp(match, "i")), this.page.getByRole("link", { name: new RegExp(match, "i") })],
+        { label: "open-event-by-title-again", timeout: TIMEOUTS.MEDIUM },
+      );
+      if (!second) throw new NotOnEventError(match, this.page.url());
+      console.log(`[bid] “${match}” showed on the vendor portal on the second look`);
+      await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
+      await this.dismissDistractions();
+      return;
+    }
     if (!matched) {
       await this.click(
         [
@@ -260,25 +283,50 @@ export class VendorPortalPage extends BasePage {
     this.price = price;
     if (this.stage === "technical") return this.fillTechnical();
     await this.pause(1200);
+    // The sheet arrives after the tab switch (right after a technical answer, the RFQ tab only just unlocked).
+    await this.page.locator("[role='columnheader']").filter({ hasText: /price/i }).first().waitFor({ state: "attached", timeout: 15_000 }).catch(() => {});
     // The submission sheet is an ARIA grid (role=columnheader / role=row /
     // role=cell), not an HTML table. Find the Price column index among the
     // column headers, then edit that cell in each data row.
+    // textContent, not innerText: a sheet below the fold is not drawn yet and its innerText is "" — the RFQ of a
+    // two-product PR event read no Price column and quoted nothing (29 Oct, E2E01). No named helper in a page
+    // callback (tsx's __name, LESSONS 33).
     const info = await this.page.evaluate(() => {
-      const txt = (e: Element) => (e as HTMLElement).innerText?.trim().replace(/\s+/g, " ") || "";
       const headers = [...document.querySelectorAll("[role='columnheader']")];
-      const priceIdx = headers.findIndex((h) => /price/i.test(txt(h)));
+      const priceIdx = headers.findIndex((h) => /price/i.test((h.textContent || "").replace(/\s+/g, " ")));
       return {
         priceIdx,
-        headers: headers.map((h) => txt(h)).slice(0, 15),
+        headers: headers.map((h) => (h.textContent || "").trim().replace(/\s+/g, " ")).slice(0, 15),
         rowCount: document.querySelectorAll("[role='row']").length,
         url: location.href,
-        buttons: [...new Set([...document.querySelectorAll("button")].map((b) => txt(b)).filter(Boolean))].slice(0, 20),
+        buttons: [...new Set([...document.querySelectorAll("button")].map((b) => (b.textContent || "").trim().replace(/\s+/g, " ")).filter(Boolean))].slice(0, 20),
       };
     });
-    if (info.priceIdx < 0) {
+    // The grid draws only the columns scrolled into view. An event made from a PR adds PR Number, Item Code, Line
+    // Item No, Parent Item Number… and pushes Price off to the right, out of the page altogether (29 Oct, E2E01:
+    // headers ended at "Quantity Requested"). Scroll each grid sideways until a Price header exists; then fill by
+    // its aria-colindex, which the grid keeps the same for the header and every row.
+    let priceCol: string | null = null;
+    for (let step = 0; step < 12; step++) {
+      priceCol = await this.page
+        .locator("[role='columnheader']")
+        .filter({ hasText: /price/i })
+        .first()
+        .getAttribute("aria-colindex")
+        .catch(() => null);
+      if (priceCol) break;
+      await this.page
+        .evaluate(() => {
+          for (const g of document.querySelectorAll("[role='grid'], .rdg")) (g as HTMLElement).scrollLeft += 500;
+        })
+        .catch(() => {});
+      await this.pause(400);
+    }
+    if (info.priceIdx < 0 && !priceCol) {
       console.log("BID_DIAG=" + JSON.stringify(info));
       return 0;
     }
+    if (priceCol) console.log(`[vendor] the Price column is column ${priceCol} of the sheet`);
 
     // Data rows = all role=row except the header row. Cells may be role=cell OR
     // role=gridcell OR plain grid divs.
@@ -297,7 +345,8 @@ export class VendorPortalPage extends BasePage {
         }
         continue;
       }
-      const cell = cells.nth(info.priceIdx);
+      const cell = priceCol ? row.locator(`[aria-colindex="${priceCol}"]`).first() : cells.nth(info.priceIdx);
+      await cell.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
       if (!(await cell.isVisible().catch(() => false))) continue;
       await cell.click().catch(() => {});
       let input = cell.locator("input, textarea, [contenteditable='true']").first();
@@ -386,6 +435,7 @@ export class VendorPortalPage extends BasePage {
     await p.getByText(/submission sheet/i).first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
     await p.locator("textarea").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
     await this.pause(600);
+    await this.openEveryProductSection();
     // "Specifications Provided": a sheet column (required where the row says
     // "Specs*"). The sheet's own "Quick Fill" copies the requested
     // specifications into it, so it is pressed first, as a vendor would
@@ -431,6 +481,26 @@ export class VendorPortalPage extends BasePage {
       await this.pause(300);
       specs++;
     }
+    // Check, and type again whatever is still empty: each product's table scrolls on its own, and one pass left
+    // the third product's required "Product Description*" blank (29 Oct, E2E01 on PR 0260000031).
+    for (let pass = 0; pass < 2; pass++) {
+      const left = await this.markEmptySpecs();
+      if (!left) break;
+      console.log(`[vendor] ${left} specification cell(s) still empty — typing them again`);
+      for (let i = 0; i < Math.min(left, 30); i++) {
+        const cell = p.locator(`[data-spine-spec="${i}"]`).first();
+        await cell.scrollIntoViewIfNeeded().catch(() => {});
+        await cell.evaluate((el) => el.scrollIntoView({ block: "center", inline: "center" })).catch(() => {});
+        await this.pause(300);
+        await cell.click({ timeout: 3_000 }).catch(() => {});
+        await cell.dblclick({ timeout: 3_000 }).catch(() => {});
+        const box = cell.locator("input, textarea, [contenteditable='true']").first();
+        if (await box.count().catch(() => 0)) await box.fill("As requested", { timeout: 3_000 }).catch(() => {});
+        else await p.keyboard.type("As requested", { delay: 15 });
+        await p.keyboard.press("Enter").catch(() => {});
+        await this.pause(400);
+      }
+    }
     specs += quickFilled;
     this.quickFilled = quickFilled;
     // The questions: every empty answer box on the sheet.
@@ -450,6 +520,30 @@ export class VendorPortalPage extends BasePage {
   }
 
   /**
+   * Bring every product's spec table onto the page. An event made from a PR carries one section per product
+   * ("2. Portable Toilet SIT 2 | Code: 39000080"), each with its own required rows, and a section's table is drawn
+   * only once it has been scrolled to (29 Oct, RFX-19477: the second product's "Product Description*" stayed
+   * empty and Procol kept the answer a draft — "Please fill all required fields"). Opens a closed one too.
+   */
+  private async openEveryProductSection(): Promise<number> {
+    const p = this.page;
+    const heads = p.getByRole("button", { name: /^\s*\d+\.\s.*\|\s*code:/i });
+    const n = Math.min(await heads.count().catch(() => 0), 20);
+    for (let i = 0; i < n; i++) {
+      const h = heads.nth(i);
+      await h.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+      if ((await h.getAttribute("aria-expanded").catch(() => null)) === "false") await h.click({ timeout: 3_000 }).catch(() => {});
+      await this.pause(700);
+    }
+    // and to the foot of the sheet, so the last table is drawn too
+    await p.mouse.wheel(0, 4000).catch(() => {});
+    await this.pause(800);
+    await p.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+    if (n > 1) console.log(`[vendor] opened all ${n} product sections of the submission sheet`);
+    return n;
+  }
+
+  /**
    * Mark each empty cell of the sheet's "Specifications Provided" column
    * (data-spine-spec="0", "1", …) and say how many there are. Marks from an
    * earlier look are cleared first, so the numbers always start at 0.
@@ -463,15 +557,18 @@ export class VendorPortalPage extends BasePage {
         for (const table of document.querySelectorAll("table, [role='grid']")) {
           const grid = table.getAttribute("role") === "grid";
           const rows = [...table.querySelectorAll(grid ? "[role='row']" : "tr")];
-          const cellsOf = (r: Element) => [...r.querySelectorAll(grid ? "[role='columnheader'], [role='gridcell']" : ":scope > th, :scope > td")];
-          const head = rows.find((r) => /specifications provided/i.test((r as HTMLElement).innerText));
+          // No named helper in a page callback: tsx wraps it in __name, which the page does not have (LESSONS 33).
+          const cellSel = grid ? "[role='columnheader'], [role='gridcell']" : ":scope > th, :scope > td";
+          // textContent, not innerText: a product's table below the fold is not drawn yet, and its innerText
+          // is "" (29 Oct, RFX-19477: the second product's required spec was never seen, so never filled).
+          const head = rows.find((r) => /specifications provided/i.test(r.textContent || ""));
           if (!head) continue;
-          const col = cellsOf(head).findIndex((c) => /specifications provided/i.test((c as HTMLElement).innerText));
+          const col = [...head.querySelectorAll(cellSel)].findIndex((c) => /specifications provided/i.test(c.textContent || ""));
           if (col < 0) continue;
           for (const r of rows) {
             if (r === head) continue;
-            const cell = cellsOf(r)[col] as HTMLElement | undefined;
-            if (!cell || (!all && (cell.innerText || "").trim())) continue;
+            const cell = [...r.querySelectorAll(cellSel)][col] as HTMLElement | undefined;
+            if (!cell || (!all && (cell.textContent || "").trim())) continue;
             cell.setAttribute("data-spine-spec", String(n++));
           }
         }

@@ -160,8 +160,10 @@ export async function buildUiState(
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
   plan.steps = plan.steps.slice(0, stop + 1);
   // A technical event's vendor answers the technical round too before the pricing bid.
-  // States that must stay open get an hour; closed/awarded get the shortest window the run can wait out.
-  const stageSeconds = state === "closed" || state === "proposal" || state === "awarded" ? 75 : 3600;
+  // States that must stay open get an hour; closed/awarded get a short window the run can wait out
+  // — 3 minutes, not 75 s: on 23 Oct (C04) one vendor GET took 30 s on UAT and the bid arrived after
+  // a 75 s round had closed ("Order not active"), so the state was never built.
+  const stageSeconds = state === "closed" || state === "proposal" || state === "awarded" ? 180 : 3600;
   let r: any;
   try {
     r = await withWatchdog(

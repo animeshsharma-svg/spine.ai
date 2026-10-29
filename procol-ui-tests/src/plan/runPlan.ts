@@ -1,4 +1,4 @@
-import { Page, expect } from "@playwright/test";
+import { Page, expect, test, type Locator } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
@@ -6,7 +6,7 @@ import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
-import { eventGroupByTitle, ordersOfEventGroup, type DbOrder } from "../db/verifyRows.js";
+import { bidsOfEventGroup, eventGroupByTitle, ordersOfEventGroup, type DbOrder } from "../db/verifyRows.js";
 import { decodeProcolId } from "../crosscheck/ids.js";
 import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
@@ -15,29 +15,37 @@ import { SingleStagePage } from "../pages/SingleStagePage.js";
 import { generateEventTitle } from "../helpers/data.js";
 import { buildProducts } from "../master/params.js";
 import { WidgetConfig } from "../helpers/inlineSheet.js";
-import { PlanStep, TestPlan } from "./steps.js";
+import { PlanStep, STEP_CATALOG, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
-import { appRuleFor, recoveryFor } from "../oracle/appRules.js";
+import { appRuleFor, recoveryFor, recoveryWith, type AppRule } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
 import { runQcsAudienceStep } from "./qcsAudienceSteps.js";
-import { installObserver, observe, shareObserver, type Observation } from "./observe.js";
+import { installObserver, observe, shareObserver, type Observation, type ScreenRecord } from "./observe.js";
 import { screenInventory } from "./inventory.js";
-import { installSpotlight, beginStep, stepShots, spotlightVerify, spotlightMap, type SpotShot } from "./spotlight.js";
+import { installSpotlight, beginStep, stepShots, stepActions, spotlightVerify, spotlightMap, type SpotShot, type StepAction } from "./spotlight.js";
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
-import { focusFrames } from "../support/liveCursor.js";
-import { askTester, SAYS_STOP } from "../explore/ask.js";
-import { failedVendorEmails, learnVendorLogin, learnedVendorLogins } from "../support/learnedStore.js";
+import { sideFrames } from "../support/liveCursor.js";
+import { askTester, SAYS_STOP, mask } from "../explore/ask.js";
+import { explore, hasRoute, keepRouteAs, saveHandRoute } from "../explore/explorer.js";
+import { earlierAnswer, failedVendorEmails, learnAnswer, learnVendorLogin, learnedVendorLogins } from "../support/learnedStore.js";
 import { invitedVendorNames } from "../db/eventAudience.js";
 import { lookUpVendor, vendorNameForEmail } from "../support/vendorDirectory.js";
-import { controlHeld, handedBackAt, released } from "../support/liveControl.js";
-import { needOf, roundNow, cannotTakeBid, takesBid } from "../db/pickEvent.js";
+import { controlHeld, handedBackAt, handPart, released, takeHandSteps, pendingTold, takeTold } from "../support/liveControl.js";
+import { needOf, roundNow, cannotTakeBid, takesBid, evaluationEvents, eventRoute, stagesOfEvent, usersNamed, responsesOf } from "../db/pickEvent.js";
+import { loginAsCompany, signInUser, type SignedIn } from "../db/dbLogin.js";
+import { orchestrate } from "../support/orchestrator.js";
+import { EvaluationPage } from "../pages/EvaluationPage.js";
+import { runEventMenuStep, type EventMenuState } from "./eventMenuSteps.js";
+import { MasterQcsPage } from "../pages/MasterQcsPage.js";
+import { amountLabels, cellAt, lineBlocks, qcsNumber, rowLabels, vendorIndex } from "./qcsModel.js";
+import { fillRequiredFields, fillWhatTheAppNamed, sweepSaid, MANDATORY_SAID, type SweepResult } from "../support/requiredFields.js";
 
 /** The QA vendors invite_vendor put on this run's event (one plan per process). */
 /** The vendors on the event, as invite_vendor last saw them — who a bid step may sign in as. */
@@ -46,6 +54,8 @@ let invitedVendors: string[] = [];
 let invitedFromDb = false;
 /** Who has already bid from the vendor portal in this plan — the next bid picks someone else. */
 let biddersUsed: string[] = [];
+/** The rows ("<name>-<email>") the buyer entered a surrogate bid for in this plan — not portal bidders. */
+let surrogateFor: string[] = [];
 const QA_EMAIL = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
 
 /**
@@ -57,7 +67,10 @@ const QA_EMAIL = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
  * With SPINE_QA_VENDORS_ONLY=1 it is the client's QA test vendor instead.
  */
 async function bidderEmail(want?: unknown): Promise<string> {
-  const used = (e: string) => biddersUsed.some((u) => u.toLowerCase() === e.toLowerCase());
+  // Used: a vendor that already bid from the portal in this plan, or one the buyer surrogate-bid for (signing in as
+  // that vendor only offers "Revise Quote" on the buyer's bid — 27 Oct, VB06).
+  const used = (e: string) =>
+    biddersUsed.some((u) => u.toLowerCase() === e.toLowerCase()) || surrogateFor.some((t) => t.toLowerCase().includes(e.toLowerCase()));
   // The vendors this run may sign in as, in a fixed order: the profile's own
   // vendor first (as before), then the rest of the event's vendors with a login.
   let pool: Array<{ name: string; email: string }>;
@@ -125,6 +138,60 @@ function sameVendor(shown: string, name: string): boolean {
   if (a === b) return true;
   const cut = a.match(/^(.{6,}?)\s*(?:…|\.{2,3})$/);
   return !!cut && b.startsWith(cut[1]);
+}
+
+/** A surrogateFor row ("<name>-<email>", cut at 40) → the vendor's name as Procol's grids show it. */
+function rowName(row: string): string {
+  const t = row.trim();
+  const dash = t.indexOf("-");
+  if (dash < 0) return t;
+  // "samplevendor@vendortestt.co-samplevendor": the name IS the email, before the dash.
+  if (t.indexOf("@") >= 0 && t.indexOf("@") < dash) return t.slice(0, dash).trim();
+  return t.replace(/-[^-]*@.*$/, "").trim();
+}
+
+/**
+ * Whom award_event allocates to: a vendor name as given, or what a case says in words —
+ * "lowest" (Rank 1 on Master QCS, else the lowest rate), "surrogate" (the vendor the buyer bid for in this plan),
+ * "portal" (a vendor who bid from the vendor portal: on the grid, and not one the buyer bid for).
+ */
+async function awardVendor(s: RunState, want: string | undefined): Promise<string | undefined> {
+  if (!want) return undefined;
+  const w = want.trim().toLowerCase();
+  const surrogateNames = surrogateFor.map(rowName).filter(Boolean);
+  if (/^(surrogate|the surrogate vendor|surrogate vendor)$/.test(w)) return surrogateNames[0] ?? want;
+  if (!/^(lowest|lowest bidder|l1|rank 1|cheapest|portal|portal vendor|direct|the portal vendor)$/.test(w)) return want;
+  await new AwardPage(s.page).openMasterQcs().catch(() => false);
+  const g = await new MasterQcsPage(s.page).read().catch(() => null);
+  if (!g?.vendors.length) throw new Error(`the award is for “${want}”, but Master QCS shows no vendor columns to choose from`);
+  if (/portal|direct/.test(w)) {
+    const pick = g.vendors.find((v) => !surrogateNames.some((n) => n && (v.toLowerCase().includes(n.toLowerCase()) || n.toLowerCase().includes(v.toLowerCase()))));
+    if (!pick) throw new Error(`no vendor on Master QCS bid from the vendor portal (the buyer bid for ${surrogateNames.join(", ") || "nobody"})`);
+    console.log(`[award] “${want}” → ${pick}`);
+    return pick;
+  }
+  const labels = rowLabels(g);
+  const rank = labels.find((l) => /^rank$/i.test(l.trim()));
+  const rate = amountLabels(labels, {}).rate;
+  for (const b of lineBlocks(g)) {
+    const r = rank ? b.rows.find((x) => x.label === rank) : undefined;
+    const i = r ? r.cells.findIndex((c) => qcsNumber(c) === 1) : -1;
+    if (i >= 0) {
+      console.log(`[award] “${want}” → ${g.vendors[i]} (Rank 1 on Master QCS)`);
+      return g.vendors[i];
+    }
+    const rr = rate ? b.rows.find((x) => x.label === rate) : undefined;
+    if (rr) {
+      const vals = rr.cells.map((c) => qcsNumber(c));
+      const best = Math.min(...vals.filter((v): v is number => v !== null));
+      const j = vals.indexOf(best);
+      if (j >= 0) {
+        console.log(`[award] “${want}” → ${g.vendors[j]} (lowest ${rate}: ${best})`);
+        return g.vendors[j];
+      }
+    }
+  }
+  throw new Error(`the award is for “${want}”, but Master QCS shows no Rank or rate to tell who that is`);
 }
 
 /** bidderEmail ran out: no vendor on the event this run can sign in as (yet). */
@@ -201,8 +268,12 @@ export interface StepResult {
   detail?: string;
   /** done by the tester in the browser (take control), not by the run: never counted as tested */
   byHand?: boolean;
+  /** no step for it and not done (skipped, or nobody answered the run's question): not tested */
+  untested?: boolean;
   /** For generic steps: which locator strategy found the element (role+name, label, text, healer…). */
   strategy?: string;
+  /** the step itself failed; the tester said how to finish it and the run did that on the same screen */
+  continuedAsTold?: string;
   ms: number;
   /** What the person would have seen when this step failed or was recovered. */
   evidence?: {
@@ -215,6 +286,10 @@ export interface StepResult {
   };
   /** The run broke one of the app's rules by its own setup, satisfied it, and retried. */
   recovered?: { appSaid: string; rule: string; why: string; did: string[] };
+  /** What was on screen after the step, in words (observe.ts) — kept for every step instead of a picture. */
+  screen?: ScreenRecord;
+  /** What the step did, action by action, in words (spotlight.ts stepActions). */
+  actions?: StepAction[];
   /** The spotlight pictures taken during this step: each action framed, each assertion verified (spotlight.ts). */
   spotlights?: SpotShot[];
 }
@@ -225,13 +300,30 @@ export interface PlanResult {
   passed: boolean;
   /** how many steps the tester did by hand — the run is then only partly tested, never passed */
   byHand?: number;
+  /** how many parts had no step and were not done (ask_tester skipped or unanswered) — partly tested */
+  untested?: number;
   /** The observation pass: what the runner saw on each screen it visited (observe.ts). */
   observations?: Observation[];
 }
 
+/** ask_tester parts handed to the explorer in this run (each gets its own evidence folder). */
+let gapCount = 0;
+
 interface RunState {
+  /** the tester did part of this run by hand: a later step's work may already be in Procol */
+  handDone?: boolean;
+  /** set by place_surrogate_bid when Procol already holds what it was about to enter (done by hand) */
+  alreadyByHand?: string;
+  /** the case asserts a refusal: nothing is filled for it that it did not ask for */
+  negativeCase?: boolean;
   /** set by runStep when the tester had already done this step in the browser */
   didByHand?: boolean;
+  /** set by ask_tester when a part with no step was not done: why, in words */
+  notTested?: string;
+  /** the tester was already asked about this failure and chose to stop: the step's failure is not asked about again */
+  noHold?: boolean;
+  /** what the event-menu steps did (a withdrawal, price caps) */
+  menuState?: EventMenuState;
   /** The screen a failed step was really on (the vendor's page, for a bid), used as the step's evidence. */
   failObservation?: Observation;
   events: EventsPage;
@@ -252,6 +344,14 @@ interface RunState {
   bidSubmitted: boolean;
   /** Vendors already surrogate-bid for, so a second bid picks a different one. */
   surrogateBids: string[];
+  /** Each surrogate bid this run typed: whom for, at what price — what a QCS cell is compared with when no API value exists. */
+  typedBids: Array<{ vendor: string; price: number }>;
+  /** Bids placed from the vendor portal in this plan: who signed in, the unit price typed, when. */
+  portalBids?: Array<{ email: string; price: number; at: number }>;
+  /** Vendors the case named that the participants search did not know (invite_vendor): never on the round. */
+  unmatchedVendors: string[];
+  /** The events-list tab filter_events chose (Drafts, History, …): a later search must keep it. */
+  listTab?: string;
   /** Whether an award has been submitted, so expect_awarded can tell. */
   awarded: boolean;
   /** The template select_template applied, for expect_template_selected. */
@@ -262,10 +362,30 @@ interface RunState {
   closed?: boolean;
   /** Whether the vendor accepted the counter offer in this plan. */
   counterOfferAccepted?: boolean;
+  /** evaluate_technical scored and submitted the technical stage */
+  evaluated?: boolean;
+  /** which stage each surrogate bid in surrogateBids went to */
+  surrogateStage?: Map<string, "technical" | "pricing">;
   /** remember{} values for expect_remembered (generic steps). */
   memory: Record<string, { target: Target; text: string }>;
   /** The steps still to come — what an event picked for open_event must be ready for. */
   later?: string[];
+  /** the whole plan's steps: choose_stages adds each picked stage's steps right after itself */
+  planSteps?: PlanStep[];
+  /** the purchase request this run made its event from */
+  prNo?: string;
+  /** how many of that PR's line items were ticked (select_pr{items}) */
+  prItems?: number;
+  /** the steps after the current one, with their arguments (what an evaluation case reads) */
+  laterPlan?: PlanStep[];
+  /** The event open_event picked from the Live list (the case named none and the plan built none). */
+  picked?: string;
+  /** the picked event was chosen for an evaluation: its technical window is already over */
+  pickedForEvaluation?: boolean;
+  /** Events an earlier attempt failed on: the tester chose another event, so the next pick passes them over. */
+  avoidEvents?: string[];
+  /** Those attempts, in words — said under open_event once another event is picked. */
+  attempts?: string[];
   /** Toast-journal marks: before the previous step, and before this one. */
   prevMark: number;
   curMark: number;
@@ -286,6 +406,29 @@ const asInt = (v: unknown, fallback: number): number => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 };
+
+/**
+ * The app's words name the case's reason when every meaningful word of the reason is in them.
+ * A plan paraphrases the app (21 Oct, A22: "Please add Evaluator in the Technical Stage" against
+ * the app's "Please add Evaluator to all the line items in the Technical Stage"), and a whole-
+ * phrase match failed a refusal that was exactly the one the case asked for.
+ */
+const REASON_FILLER = new Set(["a", "an", "the", "to", "in", "on", "of", "for", "and", "or", "is", "be", "please", "all", "any", "this", "that"]);
+function namesReason(said: string, because: string): boolean {
+  const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w && !REASON_FILLER.has(w));
+  const have = new Set(words(said));
+  const want = words(because);
+  return want.length > 0 && want.every((w) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`));
+}
+/**
+ * Procol checks participants before the template and the products (projectCreation.jsx:1607):
+ * with no template or no product the Participants control stays locked, so "Please add
+ * participants to proceed!" IS the refusal a no-template / no-line-item case gets (A18, A19).
+ */
+const PARTICIPANTS_FIRST = /please add participants/i;
+const BEFORE_PARTICIPANTS = /\b(template|line items?|products?)\b/i;
+const participantsFirstNote = (because: string): string =>
+  ` — Procol checks participants first: with no ${because.toLowerCase().replace(/^please\s+/, "")} the Participants control stays locked, so this is the refusal the case expects`;
 
 const asStages = (v: unknown): StageKey[] => {
   const valid: StageKey[] = ["rfp", "rfq", "auction"];
@@ -314,6 +457,25 @@ function onSingleStage(s: RunState): boolean {
  * "Select Templates" picker, no stage tab strip) as well as by its address — the
  * address alone missed it, and the eRFX steps then "succeeded" while doing nothing.
  */
+/** A refusal the dashboard's catalog does not list but that says something is mandatory: the client's own rule. */
+function mandatoryRefusal(said: string[], step: string): { t: string; rule: AppRule } | null {
+  // Only on the buyer's create screen: a vendor's or an evaluator's form is filled by its own step.
+  if (!CREATE_SCREEN_STEP.test(step)) return null;
+  const t = said.find((x) => MANDATORY_SAID.test(x));
+  return t ? { t, rule: { message: t, source: "a field this client makes mandatory", via: "screen" } } : null;
+}
+
+/** The sheet's required cells still empty, each filled by whatever kind of value it takes (fillRequiredCellAnyway). */
+async function fillEmptyRequiredCells(s: RunState): Promise<SweepResult> {
+  const out: SweepResult = { filled: [], left: [] };
+  for (const c of await s.create.emptyRequiredSheetCells().catch(() => [])) {
+    const v = await s.create.fillRequiredCellAnyway(c.row, c.key).catch(() => null);
+    if (v) out.filled.push({ field: `sheet “${c.column}” (line ${c.row})`, value: v });
+    else out.left.push(`sheet “${c.column}” (line ${c.row})`);
+  }
+  return out;
+}
+
 async function isSingleStageScreen(s: RunState): Promise<boolean> {
   if (onSingleStage(s)) return true;
   const url = s.page.url();
@@ -566,16 +728,142 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
  * needs a vendor on its pricing round offered Add Bid; Master QCS, awarding
  * and counter offers need bids in. Anything else: an open event will do.
  */
-const bidsNext = (later: string[]) => later.some((x) => /^(place_surrogate_bid|open_participants)$/.test(x));
+const bidsNext = (later: string[]) => {
+  // A bid that comes AFTER closing or awarding is the refusal the case checks, not a bid to place
+  // now: such a case needs bids in and bidding over (23 Oct, C06: "award the vendor and then try
+  // another surrogate bid" passed over every closed event with bids, asking for an open round).
+  const bid = later.findIndex((x) => /^(place_surrogate_bid|open_participants)$/.test(x));
+  const closes = later.findIndex((x) => /^(open_master_qcs|start_awarding|allocate_award|award_event|close_event|expect_award)/.test(x));
+  return bid >= 0 && (closes < 0 || bid < closes);
+};
 
 async function fitsCase(s: RunState, later: string[], title?: string): Promise<{ ok: boolean; why: string }> {
   if (bidsNext(later)) return new SurrogateBidPage(s.page).canAddBid(title);
+  // A counter offer needs a bid that takes one — not a surrogate bid, on which Procol greys it out.
+  if (later.some((x) => /^place_counter_offer$/.test(x))) return new CounterOfferPage(s.page).canCounterOffer();
   if (later.some((x) => /^(open_master_qcs|start_awarding|allocate_award|award_event|expect_award|place_counter_offer|expect_counter_offer)/.test(x))) {
     await new AwardPage(s.page).openMasterQcs().catch(() => false);
     const none = await s.page.getByText(/no bids (are|have been) placed/i).first().waitFor({ state: "visible", timeout: 6_000 }).then(() => true).catch(() => false);
     return none ? { ok: false, why: "its Master QCS says no bids are placed yet" } : { ok: true, why: "its Master QCS has bids to compare" };
   }
   return { ok: true, why: "it is open" };
+}
+
+/** Remember the event the tester opened by hand for this kind of case: the next run tries it first. */
+function rememberPick(s: RunState, need: string): string {
+  const m = s.page.url().match(/\/project\/([^/?#]+)/);
+  if (!m) return "";
+  learnAnswer(Number(process.env.COMPANY_ID) || null, `pick:${need}`, "the event to use", { option: "event", text: JSON.stringify({ uuid: m[1], title: s.title ?? null }) });
+  return " — remembered, so the next run of this kind of case tries this event first";
+}
+
+/** The event the tester opened by hand for this kind of case before, if any. */
+function learnedPick(need: string): { uuid: string; title: string | null; at: string } | null {
+  const a = earlierAnswer(Number(process.env.COMPANY_ID) || null, `pick:${need}`, "the event to use");
+  if (!a?.text) return null;
+  try {
+    const v = JSON.parse(a.text);
+    return v?.uuid ? { uuid: String(v.uuid), title: v.title ?? null, at: String((a as any).at ?? "") } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Does the rest of the case evaluate a technical response (an evaluator scoring)? */
+function evaluatesNext(s: RunState, a: Record<string, unknown>): boolean {
+  if (a.purpose === "evaluation") return true;
+  return (s.laterPlan ?? []).some((x) => /evaluat|\bscor(e|es|ing)\b/i.test(String(x.args?.goal ?? x.args?.need ?? "")));
+}
+
+const inIst = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+/**
+ * AN EVENT READY FOR A TECHNICAL EVALUATION (Aanya, 26 Oct: "if i mention evaluation then u
+ * must know that it will include technical stage then find suitable event for that").
+ * From the database (evaluationEvents): a live event whose technical stage closed with a
+ * vendor's answer waiting and nothing evaluated yet. It opens by its route, found from its RFX
+ * reference, so the API journey's untitled events can be used. None ready: the tester is asked,
+ * and "create" builds one (technical + RFQ, a vendor's technical answer, the window let close).
+ */
+async function pickForEvaluation(s: RunState): Promise<string> {
+  const avoid = new Set(s.avoidEvents ?? []);
+  const passed: string[] = [];
+  const ready = (await evaluationEvents()) ?? [];
+  // The event the tester opened by hand for an evaluation before goes first — while it is still ready.
+  const learned = learnedPick("evaluation");
+  if (learned?.title) ready.sort((x, y) => Number(y.title === learned.title) - Number(x.title === learned.title));
+  for (const ev of ready) {
+    const name = ev.title ?? ev.ref;
+    if (avoid.has(name) || avoid.has(ev.ref)) continue;
+    const uuid = await eventRoute(s.page, ev.ref, { byRef: true });
+    if (!uuid) {
+      passed.push(`“${name}”: its page could not be found from ${ev.ref}`);
+      console.log(`[pick] ✗ “${name}” — no page found for ${ev.ref}`);
+      continue;
+    }
+    const where = await s.events.openEvent({ id: uuid });
+    s.title = name;
+    s.picked = name;
+    s.pickedForEvaluation = true;
+    const shown = learned?.title && ev.title === learned.title ? "it is the event you opened by hand for an evaluation before, and " : "";
+    const why = `${shown}its technical stage closed for answers on ${inIst(ev.at)} with ${ev.answers} vendor answer${ev.answers === 1 ? "" : "s"} waiting and no evaluation submitted yet`;
+    console.log(`[pick] ✓ “${name}” (${ev.ref}) — ${why}`);
+    const before = passed.length ? ` Passed over first — ${passed.join("; ")}.` : "";
+    return `no event was named, so the run picked “${name}” (${ev.ref}) for the evaluation — ${why}; opened at ${where}.${before}`;
+  }
+  const wants = "a live event whose technical stage has closed with a vendor's technical answer waiting to be evaluated";
+  const answer = await askTester({
+    kind: "stuck",
+    question: `No event is ready for an evaluation — it needs ${wants}. What should I do?`,
+    detail: passed.length ? `Passed over — ${passed.join("; ")}.` : "The database shows none on this client right now.",
+    options: [
+      { id: "create", label: "Create one for this case (technical + RFQ stages, a vendor answers the technical stage, then its 30-minute window closes) — publishing emails the vendor it invites" },
+      { id: "self", label: "I'll open one myself in the browser" },
+      { id: "stop", label: "Stop here" },
+    ],
+  });
+  if (!answer || answer.option === "stop") throw new Error(`no event is ready for an evaluation — it needs ${wants}${answer ? ", and you chose to stop here" : ""}.`);
+  if (answer.option === "self") {
+    for (let t = 0; t < 40 && !controlHeld(); t++) await new Promise((r) => setTimeout(r, 200));
+    await released();
+    if (!/\/project\//.test(s.page.url())) throw new Error("the browser was handed back without an event open — open the event's page, then hand back");
+    s.title = (await s.page.locator("h1, h2, [class*='title' i]").first().textContent().catch(() => ""))?.trim() || s.title;
+    s.pickedForEvaluation = true;
+    return `you opened the event yourself in the browser (${new URL(s.page.url()).pathname})${rememberPick(s, "evaluation")}`;
+  }
+  if (answer.option === "create") return createEventForEvaluation(s);
+  const title = answer.text.trim();
+  const where = await s.events.openEvent({ title });
+  s.title = title;
+  return `opened “${title}”, the event you named, at ${where}`;
+}
+
+/** A fresh event for an evaluation case: technical + RFQ, the run's vendor answers the technical stage, the window closes. */
+async function createEventForEvaluation(s: RunState): Promise<string> {
+  const steps: PlanStep[] = [
+    { step: "open_create", args: { path: "erfx" } },
+    { step: "set_title" },
+    { step: "compose_stages", args: { stages: ["rfp", "rfq"] } },
+    { step: "switch_stage", args: { stage: "rfp" } },
+    { step: "select_template" },
+    { step: "add_line_items", args: { count: 1 } },
+    { step: "fill_questionnaires" },
+    { step: "assign_evaluator" },
+    { step: "switch_stage", args: { stage: "rfq" } },
+    { step: "select_template" },
+    { step: "fill_sheet" },
+    { step: "set_schedule", args: { minutes: 30 } },
+    { step: "invite_vendor", args: { count: 1 } },
+    { step: "publish" },
+    { step: "expect_published" },
+    { step: "place_bid" },
+    { step: "close_event", args: { natural: true } },
+  ];
+  for (const [k, st] of steps.entries()) {
+    const detail = await runStep(s, st);
+    console.log(`[plan] creating an event for this evaluation ${k + 1}/${steps.length} ${st.step} ✓ ${detail ?? ""}`);
+  }
+  return `no event was ready, so (as you chose) the run created “${s.title}” with a technical stage, had its vendor answer it, and let the technical window close`;
 }
 
 /**
@@ -611,7 +899,7 @@ async function noFittingEvent(s: RunState, need: "bids" | "live", later: string[
     await released();
     if (!/\/project\//.test(s.page.url())) throw new Error("the browser was handed back without an event open — open the event's page, then hand back");
     s.title = (await s.page.locator("h1, h2, [class*='title' i]").first().textContent().catch(() => ""))?.trim() || s.title;
-    return `you opened the event yourself in the browser (${new URL(s.page.url()).pathname})`;
+    return `you opened the event yourself in the browser (${new URL(s.page.url()).pathname})${rememberPick(s, need)}`;
   }
   if (answer.option === "create") return createEventForCase(s, need);
   // A typed reply: the event to use, by its title.
@@ -664,8 +952,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   // as a negative ("attempt publish") with the same healed code.
   const expectation = await runExpectationStep({ page: s.page, context: s.context, prevMark: s.prevMark, stepNo: s.stepNo }, step);
   if (expectation !== null) return expectation;
-  const qcsOrAudience = await runQcsAudienceStep({ page: s.page, context: s.context }, step);
+  const qcsOrAudience = await runQcsAudienceStep({ page: s.page, context: s.context, typedBids: s.typedBids, unmatchedVendors: s.unmatchedVendors, surrogateBids: s.surrogateBids }, step);
   if (qcsOrAudience !== null) return qcsOrAudience;
+  // The event menus: Withdraw (project ⋮ or stage Settings), Add Price Cap, Extend Submission Time, any item (eventMenuSteps.ts).
+  const menuStep = await runEventMenuStep({ page: s.page, state: (s.menuState ??= {}) }, step);
+  if (menuStep !== null) return menuStep;
   const generic = await runGenericStep(s, step, (inner) => runStep(s, inner));
   if (generic) {
     s.lastStrategy = generic.strategy;
@@ -684,6 +975,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const tab = String(a.tab ?? "Live");
       if (!/\/orders/.test(s.page.url())) await s.events.goto();
       const active = await s.events.openTab(tab);
+      s.listTab = tab;
       return `events list on the "${active}" tab`;
     }
     case "expect_event_in_list": {
@@ -694,13 +986,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // again, bounded (3 tries, 20 s apart), before saying it is not there.
       for (let attempt = 1; attempt <= 3; attempt++) {
         await s.events.searchByTitle(title);
-        if (await s.events.hasEventMatching(title)) return `"${title}" is in the list${attempt > 1 ? ` (found on search ${attempt})` : ""}`;
+        // The search lands on the Live tab (21 Oct, A08: a saved draft looked for under Live, "No
+        // Results found"): go back to the tab the plan chose before reading the rows.
+        if (s.listTab && !/^live$/i.test(s.listTab)) await s.events.openTab(s.listTab).catch(() => {});
+        const where = s.listTab && !/^live$/i.test(s.listTab) ? ` on the ${s.listTab} tab` : "";
+        if (await s.events.hasEventMatching(title)) return `"${title}" is in the list${where}${attempt > 1 ? ` (found on search ${attempt})` : ""}`;
         if (attempt < 3) {
           await s.page.waitForTimeout(20_000);
           await s.events.goto();
         }
       }
-      throw new Error(`no event titled "${title}" in the list after searching for it three times over 40 s`);
+      throw new Error(`no event titled "${title}" in the list${s.listTab && !/^live$/i.test(s.listTab) ? ` (${s.listTab} tab)` : ""} after searching for it three times over 40 s`);
     }
     case "expect_event_status": {
       const status = String(a.status ?? "").trim();
@@ -708,13 +1004,49 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const title = String(a.title ?? s.title ?? "");
       if (!title) throw new Error("expect_event_status needs a title, and this plan has not created an event to look for");
       if (!/\/orders/.test(s.page.url())) await s.events.goto();
+      // The list filters a moment after the search (29 Oct, plan-mvt5ckot: looked 0.2 s after Enter, while
+      // the unfiltered list still showed), so wait for the row; and an event is not always on the tab the
+      // plan opened — a technical stage whose bidding ended stays on Live through its evaluation window —
+      // so the other tabs are searched too, and the step says where it was found.
+      const findRow = async (ms: number): Promise<string | null> => {
+        const until = Date.now() + ms;
+        for (;;) {
+          const r = await s.events.rowTextFor(title);
+          if (r || Date.now() > until) return r;
+          await s.page.waitForTimeout(500);
+        }
+      };
       await s.events.searchByTitle(title);
-      const row = await s.events.rowTextFor(title);
-      if (!row) throw new Error(`no row titled "${title}" in the list after searching for it`);
-      if (!row.toLowerCase().includes(status.toLowerCase())) {
-        throw new Error(`the row for "${title}" reads: ${row.slice(0, 200)} — no "${status}" in it`);
+      let row = await findRow(12_000);
+      let where = "";
+      if (!row) {
+        for (const tab of ["Live", "History", "Drafts"]) {
+          const on = await s.events.openTab(tab).catch(() => "");
+          if (!on) continue;
+          await s.events.searchByTitle(title);
+          row = await findRow(8_000);
+          if (row) {
+            where = ` (on the ${on} tab)`;
+            break;
+          }
+        }
       }
-      return `"${title}" shows "${status}"`;
+      if (!row) throw new Error(`no row titled "${title}" on the Live, History or Drafts tab after searching for it`);
+      // Procol's own word for a status is not always the case's: a saved draft's row reads
+      // "To Be Scheduled" (23 Oct, A08: found on the Drafts tab, then failed on the word "Draft").
+      // Bidding that has ended reads "Closed" or "Completed" — or, on a stage with evaluation time,
+      // "Evaluation time" while that window runs (29 Oct, plan-mvt5ckot: "29m : 49s Evaluation time").
+      const SAYS: Record<string, RegExp> = {
+        draft: /\bdraft\b|to be scheduled/i,
+        closed: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended/i,
+        ended: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended|\bended\b/i,
+      };
+      const said = SAYS[status.toLowerCase()] ? SAYS[status.toLowerCase()].exec(row)?.[0] : row.toLowerCase().includes(status.toLowerCase()) ? status : undefined;
+      if (!said) {
+        throw new Error(`the row for "${title}"${where} reads: ${row.slice(0, 200)} — no "${status}" in it`);
+      }
+      if (/evaluation/i.test(said)) return `"${title}"${where} shows "${said}" — bidding has ended and the event is in its evaluation window; Procol lists it as ${status} once that window is over`;
+      return said.toLowerCase() === status.toLowerCase() ? `"${title}"${where} shows "${status}"` : `"${title}"${where} shows "${said}" — Procol's word for ${status}`;
     }
     case "expect_template_selected": {
       const shown = await s.create.appliedTemplateName();
@@ -784,9 +1116,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "open_event_settings": {
       // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
       // has a "⋮". Open the first stage tab when the gear is not on screen, then fall back to "⋮".
+      // The project page may still be on its loading spinner right after publish (D07): let it render.
+      await new EventDetailPage(s.page).waitForProjectPage();
       let gear = s.page.getByTestId("event-settings-button").filter({ visible: true }).first();
       if (!(await gear.count().catch(() => 0))) {
-        const tab = s.page.getByRole("tab", { name: /^(rfq|auction|rfp|technical stage|rfi)\b/i }).first();
+        // Procol's "Project Details | RFQ | Master QCS" bar is not always role=tab (23 Oct, D01: on
+        // /details the RFQ tab was there and this found nothing): match its text on a tab or link too.
+        const tab = s.page
+          .getByRole("tab", { name: /^(rfq|auction|rfp|technical stage|rfi)\b/i })
+          .or(s.page.locator(".ant-tabs-tab, [role='tab'], a").filter({ hasText: /^\s*(RFQ|Auction|RFP|RFI|Technical Stage)\s*$/ }))
+          .first();
         if (await tab.isVisible().catch(() => false)) {
           await tab.click({ timeout: 8_000 }).catch(() => {});
           await gear.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
@@ -826,10 +1165,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (a.disabled === false && m.buttonDisabled) problems.push('the "+" is disabled');
       for (const want of (Array.isArray(a.offers) ? a.offers : []) as string[]) if (!have.some((h) => h.includes(norm(want)))) problems.push(`"${want}" is not offered`);
       for (const no of (Array.isArray(a.absent) ? a.absent : []) as string[]) if (have.some((h) => h.includes(norm(no)))) problems.push(`"${no}" IS offered`);
-      if (a.reason && !norm(m.tooltip).includes(norm(String(a.reason)))) problems.push(`the "+" tooltip reads "${m.tooltip || "(none)"}", not "${a.reason}"`);
+      // The reason is the disabled "+"'s tooltip. An enabled "+" has none: the stage the case
+      // asked for is then simply left out of the menu, which is the refusal (21 Oct, A23: Auction
+      // absent beside an RFQ, and the check failed on a tooltip an enabled "+" never shows).
+      if (a.reason && m.buttonDisabled && !norm(m.tooltip).includes(norm(String(a.reason)))) problems.push(`the "+" tooltip reads "${m.tooltip || "(none)"}", not "${a.reason}"`);
+      const noTip = a.reason && !m.buttonDisabled ? ` (the "+" is enabled, so there is no tooltip to read: what the case refuses is left out of the menu)` : "";
       const seen = `${m.buttonDisabled ? "the + is disabled" : `offers ${m.items.join(", ") || "nothing"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
       expect(problems, `add-stage menu: ${seen}`).toEqual([]);
-      return `add-stage menu as expected: ${seen}`;
+      return `add-stage menu as expected: ${seen}${noTip}`;
     }
     case "open_stage_menu": {
       const stage = a.stage ? asStages([a.stage])[0] : undefined;
@@ -904,14 +1247,30 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "place_counter_offer": {
       if (!/\/project\//.test(s.page.url())) throw new Error("place_counter_offer needs the published event's page with Master QCS open — publish, take a bid, open_master_qcs first");
-      // No price named: counter just under the vendor's bid the API placed (95 %, 2 dp).
-      const bid = Number(s.context.values?.bidPrice);
+      // No price named: counter just under the vendor's bid (95 %, 2 dp) — the bid the API placed,
+      // else the rate the comparison grid shows for that vendor (21-22 Oct, B12: an existing event
+      // picked from the Live list has no API values, and the step stopped "needs a positive price").
+      let bid = Number(s.context.values?.bidPrice);
+      let from = "the bid the API placed";
+      if (a.price === undefined && !(Number.isFinite(bid) && bid > 0)) {
+        const g = await new MasterQcsPage(s.page).read().catch(() => null);
+        if (g?.vendors.length) {
+          const v = vendorIndex(g, a.vendor);
+          const rate = amountLabels(rowLabels(g), {}).rate;
+          const cell = v >= 0 && rate ? cellAt(lineBlocks(g), rate, v) : undefined;
+          const n = qcsNumber(cell?.text);
+          if (n !== null && n > 0) {
+            bid = n;
+            from = `the “${rate}” the grid shows for ${g.vendors[v]}`;
+          }
+        }
+      }
       const price = a.price !== undefined ? Number(a.price) : Number.isFinite(bid) && bid > 0 ? Math.round(bid * 95) / 100 : NaN;
       if (!Number.isFinite(price) || price <= 0) throw new Error('place_counter_offer needs a positive "price"');
       const co = new CounterOfferPage(s.page);
       const detail = await co.sendCounterOffer({ vendor: a.vendor ? String(a.vendor) : undefined, price, remark: a.remark ? String(a.remark) : undefined });
       s.counterOfferSent = true;
-      return detail;
+      return a.price === undefined ? `${detail} (counter at 95% of ${from}: ${price})` : detail;
     }
     case "expect_counter_offer_sent": {
       if (!s.counterOfferSent) throw new Error("no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
@@ -921,9 +1280,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return "the grid marks the bid with a counter offer";
     }
     case "close_event": {
+      // An event picked for an evaluation is someone's event whose technical window is already
+      // over: closing it (the old plans did, 26 Oct) would end its other rounds for nothing.
+      if (s.pickedForEvaluation && !s.projectId) return "left the picked event as it is — its technical stage is already closed for answers, and this run does not close an event it did not create";
       if (!/\/project\//.test(s.page.url())) throw new Error("close_event needs a published event's page — publish and expect_published (or open_event) first");
       const detail = new EventDetailPage(s.page);
-      let done = await detail.forceEnd(a.remark ? String(a.remark) : undefined);
+      // natural: the case says to WAIT for the window to close (D54: "wait for it to close"), so the
+      // product's force-end is not used even where the tenant offers it.
+      let done = a.natural === true || a.natural === "true" ? "waiting for the window to lapse (the case asks to wait, not to end it)" : await detail.forceEnd(a.remark ? String(a.remark) : undefined);
       if (/waiting for the window to lapse/.test(done)) {
         // The smallest duration preset is well above a few minutes; wait long
         // enough for it (the step refuses up front if the row says longer).
@@ -960,9 +1324,33 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // and when none fits the tester is asked — create one, pick one, or stop.
       if (!a.id && !a.title && !s.projectId) {
         const later = s.later ?? [];
+        // An evaluation needs a technical stage with answers waiting: picked from the database,
+        // opened by its route (untitled API events included), never a list card's guess.
+        if (evaluatesNext(s, a)) return await pickForEvaluation(s);
         const need = needOf(later);
-        const tried: string[] = [];
+        // Events an earlier attempt of this case failed on are not picked again.
+        const tried: string[] = [...(s.avoidEvents ?? [])];
         const passed: string[] = [];
+        // The event the tester opened by hand for this kind of case before: tried first, while it still fits.
+        const learned = learnedPick(need);
+        const learnedName = learned ? learned.title ?? learned.uuid : "";
+        if (learned && !tried.includes(learnedName)) {
+          tried.push(learnedName);
+          try {
+            await s.events.openEvent({ id: learned.uuid });
+            const fit = await fitsCase(s, later, learned.title ?? undefined);
+            if (fit.ok) {
+              s.title = learnedName;
+              s.picked = learnedName;
+              console.log(`[pick] ✓ “${learnedName}” — the event you opened by hand for this kind of case; ${fit.why}`);
+              return `no event was named, so the run used “${learnedName}”, the event you opened by hand for this kind of case before — ${fit.why}.`;
+            }
+            passed.push(`“${learnedName}” (the event you opened by hand before): ${fit.why}`);
+            console.log(`[pick] ✗ “${learnedName}” — the event you opened by hand before no longer fits: ${fit.why}`);
+          } catch (e) {
+            passed.push(`“${learnedName}” (the event you opened by hand before): it could not be opened`);
+          }
+        }
         // "[pick] ✓|✗|· …": each event looked at and why it was used or passed
         // over — shown under this step in the session (planNote), so a run that
         // finds nothing says what it tried.
@@ -998,9 +1386,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           const fit = await fitsCase(s, later, p.title);
           if (fit.ok) {
             s.title = p.title;
+            s.picked = p.title;
             console.log(`[pick] ✓ “${p.title}” — ${fit.why}`);
             const before = passed.length ? ` Passed over first — ${passed.join("; ")}.` : "";
-            return `no event was named, so the run picked “${p.title}” from ${p.where} — ${p.why}; ${fit.why}.${before}`;
+            const earlier = s.attempts?.length ? ` Tried before, and you chose another event — ${s.attempts.join("; ")}.` : "";
+            return `no event was named, so the run picked “${p.title}” from ${p.where} — ${p.why}; ${fit.why}.${before}${earlier}`;
           }
           skip(p.title, fit.why);
         }
@@ -1009,6 +1399,30 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!id && !title) throw new Error("open_event needs an id or a title, and this plan has not created an event to return to");
       const where = await s.events.openEvent({ id, title });
       if (title && !s.title) s.title = title;
+      // An evaluation needs a technical stage. An event without one is said in one line, with a way on
+      // (Aanya, 27 Oct: her "now evaluate it" on an RFQ-only event got a paragraph and a stuck explorer).
+      if (evaluatesNext(s, a)) {
+        const eg = decodeProcolId(s.page.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? (title ? (await eventGroupByTitle(title).catch(() => undefined))?.id : undefined);
+        const stages = eg ? await stagesOfEvent(eg) : null;
+        if (stages?.length && !stages.includes("technical")) {
+          const name = id ?? title;
+          const has = [...new Set(stages)].map((x) => (x === "rfq" ? "RFQ" : "Auction")).join(" + ");
+          const answer = await askTester({
+            kind: "stuck",
+            question: `${name} has no technical stage (${has} only), so there is no evaluator.`,
+            options: [
+              { id: "pick", label: "Use an event with a technical answer waiting" },
+              { id: "stop", label: "Stop here" },
+            ],
+          });
+          if (answer?.option === "pick" || (answer && !answer.option && /\b(use|pick|another|other|yes|ok)\b/i.test(answer.text))) {
+            s.projectId = undefined;
+            return `${name} has no technical stage (${has} only), so ${await pickForEvaluation(s)}`;
+          }
+          s.noHold = true; // already asked: a failure here is not asked about again
+          throw new Error(`${name} has no technical stage (${has} only), so it has no evaluator — an evaluation needs a technical stage`);
+        }
+      }
       return `opened ${id ? `event ${id}` : `"${title}"`} at ${where}`;
     }
     case "accept_counter_offer": {
@@ -1017,12 +1431,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!browser) throw new Error("no browser available to open a vendor session");
       const vendorCtx = await browser.newContext();
       const vendorPage = await vendorCtx.newPage();
-      // The live view follows the vendor into the portal, then comes back.
-      const release = focusFrames(vendorPage);
+      // The vendor portal streams beside the buyer's page (sideFrames), then stays on its last frame.
+      const side = sideFrames(vendorPage, "Vendor portal");
       try {
         const portal = new VendorPortalPage(vendorPage);
-        // Signed in as the client's QA test vendor, never a real supplier.
-        const email = await bidderEmail();
+        // The vendor the counter offer went to: the one who bid from the vendor portal in this plan (27 Oct, VB09 —
+        // "the next vendor who has not bid" found nobody, since that vendor had bid), else the event's first.
+        const email = biddersUsed.length ? biddersUsed[biddersUsed.length - 1] : await bidderEmail();
+        side.relabel(`Vendor portal · ${email}`);
         await portal.goto();
         const how = await portal.login(email);
         await portal.openEvent(s.title);
@@ -1030,7 +1446,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         s.counterOfferAccepted = true;
         return `${detail} (signed in as ${email} with ${how})`;
       } finally {
-        release();
+        await side.stop();
         await vendorCtx.close().catch(() => {});
       }
     }
@@ -1263,6 +1679,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "add_line_items": {
       if (await isSingleStageScreen(s)) {
+        // A single-stage RFP's template is a questionnaire: there is no price sheet to type a
+        // product into (21 Oct, A13 stopped here). Say so and go on — the questionnaire and the
+        // evaluator are that case; if the product wants line items too, Publish says so itself.
+        const questionnaire = await s.page.getByRole("button", { name: /^(rfp|rfi)\b/i }).first().isVisible().catch(() => false);
+        const sheet = await s.page.locator(".data-grid-container").first().isVisible({ timeout: 3_000 }).catch(() => false);
+        if (questionnaire && !sheet) return "no line items entered: this single-stage RFP's template is a questionnaire, with no price sheet to add products to";
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
@@ -1295,7 +1717,70 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
       await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
-      return "sheet filled";
+      /**
+       * REQUIRED CELLS STILL EMPTY: ask for them by name and type the answer in — never "sheet filled"
+       * over an empty required cell (Aanya, 27 Oct: "if it declines to publish because mandatory fields
+       * are not filled, then it should fill the fields … or ask the user for it"). The publish refusal
+       * "Sheet partially filled" brings the run back here too. The explorer is not used: it could not
+       * reach the grid's cells (plan-mvpncvcu clicked the locked Product cell three times).
+       */
+      // First every kind a client's column can be, by the run itself — the tester is asked only if none takes.
+      const auto = await fillEmptyRequiredCells(s);
+      let left = await s.create.emptyRequiredSheetCells();
+      if (!left.length) return `sheet filled${auto.filled.length ? ` — ${sweepSaid({ filled: auto.filled, left: [] })}` : ""}`;
+      const said =(cells: typeof left) => cells.map((c) => `“${c.column}”${cells.some((o) => o.row !== c.row) || c.row > 1 ? ` (line ${c.row})` : ""}`).join(", ");
+      const answer = await askTester({
+        kind: "question",
+        question: `The sheet has ${left.length === 1 ? "a required cell" : `${left.length} required cells`} I could not fill: ${said(left)}. What should I type?`,
+        detail: `Type one value for all of them, or one per column (for example “${left[0].column}: 10”). Publish is refused while they are empty.`,
+        options: [{ id: "stop", label: "Stop here — mark it failed" }],
+      });
+      if (!answer || answer.option === "stop" || SAYS_STOP.test(answer.text ?? "")) {
+        throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty — the app refuses to publish ("Sheet partially filled")${answer ? "" : ", and nobody said what to type"}`);
+      }
+      // "Price: 10, dgfgfd: test" → per column; anything else → the same value everywhere.
+      const per = new Map<string, string>();
+      for (const part of String(answer.text).split(/[,;\n]+/)) {
+        const m = part.match(/^\s*([^:=]+?)\s*[:=]\s*(.+?)\s*$/);
+        if (m) per.set(m[1].toLowerCase(), m[2]);
+      }
+      const valueFor = (c: (typeof left)[number]) =>
+        [...per].find(([name]) => c.column.toLowerCase().includes(name) || name.includes(c.column.toLowerCase()) || name === c.key.toLowerCase())?.[1] ?? (per.size ? "" : String(answer.text).trim());
+      const typed: string[] = [];
+      for (const c of left) {
+        const v = valueFor(c);
+        if (v && (await s.create.typeIntoSheetCell(c.row, c.key, v))) typed.push(`${c.column} “${v}”`);
+      }
+      left = await s.create.emptyRequiredSheetCells();
+      if (left.length) throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty after typing your answer`);
+      return `sheet filled — the required ${typed.length === 1 ? "cell" : "cells"} the template did not fill, with what you gave: ${typed.join(", ")}`;
+    }
+    case "fill_required": {
+      // What the app named first (its drawer filled and saved), then every stage tab's mandatory fields.
+      const said = String(a.said ?? "").trim();
+      const named = said ? await fillWhatTheAppNamed(s.page, said) : null;
+      const all: SweepResult = { filled: [...(named?.sweep.filled ?? [])], left: [...(named?.sweep.left ?? [])] };
+      const take = (r: SweepResult) => {
+        all.filled.push(...r.filled);
+        all.left.push(...r.left.filter((l) => !all.left.includes(l)));
+      };
+      if (/sheet/i.test(said)) {
+        await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1).catch(() => {});
+        const cells = await fillEmptyRequiredCells(s);
+        all.filled.push(...cells.filled);
+        all.left.push(...cells.left);
+      }
+      take(await fillRequiredFields(s.page));
+      const stages = (await isSingleStageScreen(s)) ? [] : await s.create.currentStages().catch(() => [] as StageKey[]);
+      if (stages.length > 1) {
+        for (const st of stages) {
+          await s.create.switchToStageTab({ rfp: /technical stage/i, rfq: /\bRFQ\b/i, auction: /\bauction\b/i }[st]).catch(() => {});
+          take(await fillRequiredFields(s.page));
+        }
+        s.widgets = {};
+      }
+      const opened = named ? `opened “${named.opened}”${named.saved ? " and saved it" : ""}; ` : "";
+      return opened + (sweepSaid(all) || "no mandatory field was left empty on screen");
     }
     case "fill_questionnaires": {
       if (await isSingleStageScreen(s)) {
@@ -1335,7 +1820,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       const n = await s.create.assignEvaluatorToAllLineItems();
       if (!n) throw new Error("no evaluator could be assigned, and a technical stage cannot publish without one");
-      return `${n} evaluator control(s)`;
+      // The app wants an evaluator on EVERY line item of the technical stage: say when fewer got one.
+      const items = s.lineItemsAdded || 0;
+      return items > n ? `${n} evaluator control(s) for ${items} line items — the app refuses to publish until every line item has one` : `${n} evaluator control(s)`;
     }
     case "set_schedule": {
       if (await isSingleStageScreen(s)) {
@@ -1382,8 +1869,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorCtx = await browser.newContext();
       const vendorPage = await vendorCtx.newPage();
       shareObserver(s.page, vendorPage);
-      // The live view follows the vendor into the portal, then comes back.
-      const release = focusFrames(vendorPage);
+      // The vendor portal streams beside the buyer's page (sideFrames), then stays on its last frame.
+      const side = sideFrames(vendorPage, "Vendor portal");
       try {
         const portal = new VendorPortalPage(vendorPage);
         // A vendor on the event: the one named (vendor: "<name>" or vendor: 2),
@@ -1415,6 +1902,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
             found = await anotherVendor(s, (err as Error).message);
             email = found.email;
           }
+          side.relabel(`Vendor portal · ${email}`);
           await portal.goto();
           try {
             how = await portal.login(email);
@@ -1453,6 +1941,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         await portal.submitBid();
         const ok = await portal.bidSubmitted();
         s.bidSubmitted = ok;
+        if (ok) (s.portalBids ??= []).push({ email, price: Number(a.price ?? 100), at: Date.now() });
         if (!ok) throw new Error("the vendor portal did not confirm the quote as submitted");
         if (portal.stage === "technical") {
           return `technical response submitted from the vendor portal as ${email}, signed in with ${how} — ${portal.lastFill}`;
@@ -1463,20 +1952,127 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         s.failObservation = (await observe(vendorPage, s.stepNo, "place_bid", { force: true }).catch(() => null)) ?? undefined;
         throw err;
       } finally {
-        release();
+        await side.stop();
         await vendorCtx.close().catch(() => {});
+      }
+    }
+    case "evaluate_technical": {
+      // The stage's evaluator scores each vendor's technical answer and submits (29 Oct). Procol lets only the
+      // ASSIGNED evaluator score and never offers the event's creator as one, so the evaluator signs in to a tab of
+      // their own beside the buyer's (Aanya chose this, 29 Oct — as the API journey already does). UAT only.
+      if (!/\/project\//.test(s.page.url())) throw new Error("evaluate_technical needs the event's page — publish (or open_event) and close_event first");
+      const projectUrl = s.page.url().replace(/(\/project\/[^/?#]+).*$/, "$1/details");
+      await s.page.goto(projectUrl, NAV).catch(() => {});
+      await s.page.getByRole("tab", { name: /technical/i }).first().click({ timeout: 10_000 }).catch(() => {});
+      const evalLine = s.page.locator("p, div").filter({ hasText: /^\s*evaluator:/i }).last();
+      await evalLine.waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
+      // "Evaluator: SK Satish Kumar Kaushik": the avatar's initials are their own element; the name is the last text.
+      const evaluator = ((await evalLine
+        .evaluate((el) => {
+          const texts: string[] = [];
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            const t = (walker.currentNode.textContent || "").trim();
+            if (t) texts.push(t);
+          }
+          return texts.filter((t) => !/^evaluator:?$/i.test(t)).pop() || "";
+        })
+        .catch(() => "")) || String(a.evaluator ?? "")).trim();
+      if (!evaluator) throw new Error("the technical stage names no evaluator on its page, so nobody can score it");
+      const companyId = Number(process.env.COMPANY_ID) || 198678;
+      const candidates = process.env.UI_EVALUATOR_USER_ID ? [Number(process.env.UI_EVALUATOR_USER_ID)] : await usersNamed(evaluator);
+      if (!candidates.length) throw new Error(`the evaluator is ${evaluator}, and no user of that name could be found to sign in as`);
+      const browser = s.page.context().browser();
+      if (!browser) throw new Error("no browser available to open the evaluator's tab");
+      const evalCtx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+      await orchestrate(evalCtx).catch(() => {});
+      const evalPage = await evalCtx.newPage();
+      const side = sideFrames(evalPage, `Evaluator · ${evaluator}`);
+      try {
+        // Their saved session, or the login screen when Procol has expired it (signInUser).
+        const tried: string[] = [];
+        let signedIn: SignedIn | null = null;
+        for (const id of candidates) {
+          signedIn = await signInUser(evalPage, companyId, id, evaluator).catch((e) => (tried.push((e instanceof Error ? e.message : String(e)).split("\n")[0]), null));
+          if (signedIn) break;
+        }
+        if (!signedIn) throw new Error(`${evaluator} (the stage's evaluator) could not be signed in — ${tried.join("; ")}`);
+        if (signedIn.how === "on-screen") console.log(`[evaluate] ${evaluator} signed in on the login screen (${signedIn.fellBackBecause})`);
+        const ev = new EvaluationPage(evalPage);
+        await ev.open(projectUrl);
+        // scores: one label for all, labels per vendor (column order), or numbers per vendor (higher = better label).
+        const raw = Array.isArray(a.scores) ? a.scores.map(String) : a.scores !== undefined ? String(a.scores).split(/\s*,\s*/) : [];
+        const numeric = raw.length > 0 && raw.every((x) => /^-?\d+(\.\d+)?$/.test(x));
+        const pick = (i: number, _vendor: string, labels: string[]) => {
+          if (!raw.length) return labels[0];
+          if (numeric) {
+            const n = raw.map(Number);
+            const rank = [...n].sort((x, y) => y - x).indexOf(n[Math.min(i, n.length - 1)]);
+            return labels[Math.min(rank, labels.length - 1)];
+          }
+          const want = raw[Math.min(i, raw.length - 1)];
+          return labels.find((l) => l.toLowerCase() === want.toLowerCase()) ?? labels.find((l) => l.toLowerCase().includes(want.toLowerCase())) ?? want;
+        };
+        const r = await ev.scoreAll(pick, String(a.remark ?? "Scored by the spine.ai test run"));
+        if (r.refused.length) throw new Error(`the evaluation did not go through: ${r.refused.join("; ")}`);
+        if (!r.scored.length) throw new Error(`${evaluator} found no “Add Evaluation” to score — the evaluation time may be over, or every vendor is scored already`);
+        if (!r.submitted) throw new Error(`the scores were saved but no line item's Submit went through`);
+        s.evaluated = true;
+        return `${evaluator} (the stage's evaluator, signed in beside the buyer) scored ${r.scored.map((x) => `${x.vendor}: ${x.label}`).join(", ")} and submitted ${r.submitted} line item(s)`;
+      } catch (err) {
+        s.failObservation = (await observe(evalPage, s.stepNo, "evaluate_technical", { force: true }).catch(() => null)) ?? undefined;
+        throw err;
+      } finally {
+        await side.stop();
+        await evalCtx.close().catch(() => {});
       }
     }
     case "place_surrogate_bid": {
       const surrogate = new SurrogateBidPage(s.page);
-      const who = await surrogate.addBidFor(
-        a.vendor ? String(a.vendor) : undefined,
-        Number(a.price ?? 100),
-        s.surrogateBids,
-      );
+      // noPrice: the case submits the bid with no price (27 Oct, SB09) — NaN tells the page to type none.
+      const price = a.noPrice === true || a.price === null || a.price === "" ? NaN : Number(a.price ?? 100);
+      // With no vendor named, never the vendor who bids from the vendor portal in this plan — the one who
+      // already did, or the one a later place_bid signs in as (27 Oct: "from one vendor submit surrogate
+      // response, from other, login into that vendor"). Rows read "<name>-<email>", so the email matches.
+      const portal = a.vendor ? [] : [...biddersUsed, ...(s.later?.includes("place_bid") ? [await bidderEmail().catch(() => "")] : [])].filter(Boolean);
+      const onStage = /^(rfp|technical)/i.test(String(a.stage ?? "")) ? "technical" : "pricing";
+      // Only this stage's surrogate bids count as "already bid": the technical answer entered for a vendor does not
+      // stop its price bid (29 Oct, E2E01: both vendors were skipped and the bid fell back to the portal vendor).
+      const sameStage = s.surrogateBids.filter((w) => (s.surrogateStage?.get(w) ?? "pricing") === onStage);
+      const who = await surrogate.addBidFor(a.vendor ? String(a.vendor) : undefined, price, [...sameStage, ...portal], onStage).catch(async (err) => {
+        // ALREADY DONE BY HAND (29 Oct, plan-mvt753ce): stuck at the technical response, the tester took the browser
+        // and entered the RFQ bid of 100 as well; the next step found no "Add Bid" (that vendor had bid) and failed,
+        // then held the browser again for nothing. After a by-hand part, Procol's own record decides: a surrogate
+        // response of this kind for a vendor this step could have chosen means the step is done.
+        if (!s.handDone) throw err;
+        const eg = decodeProcolId(s.page.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "");
+        const fits = (v: string) => (a.vendor ? v.toLowerCase().includes(String(a.vendor).toLowerCase()) : ![...sameStage, ...portal].some((x) => x && (v.toLowerCase().includes(x.toLowerCase()) || x.toLowerCase().includes(v.toLowerCase()))));
+        const found =
+          onStage === "pricing"
+            ? (eg ? await bidsOfEventGroup(eg).catch(() => []) : []).find((b) => b.by_buyer && fits(b.vendor) && (Number.isNaN(price) || b.price == null || Math.abs(b.price - price) < 0.001))
+            : ((eg ? await responsesOf(eg) : null) ?? []).find((r) => r.kind === "technical" && r.surrogate && fits(r.vendor));
+        if (!found) throw err;
+        s.alreadyByHand = `${onStage === "pricing" ? `a surrogate bid${"price" in found && found.price != null ? ` of ${found.price}` : ""}` : "a surrogate technical response"} for ${found.vendor} is already in Procol — you entered it in the browser earlier`;
+        return found.vendor;
+      });
+      if (s.alreadyByHand) {
+        const said = s.alreadyByHand;
+        s.alreadyByHand = undefined;
+        (s.surrogateStage ??= new Map()).set(who, onStage);
+        s.surrogateBids.push(who);
+        surrogateFor.push(who);
+        if (onStage === "pricing") s.typedBids.push({ vendor: who, price });
+        s.bidSubmitted = true;
+        return `already done: ${said}`;
+      }
+      (s.surrogateStage ??= new Map()).set(who, surrogate.lastKind === "technical" ? "technical" : onStage);
       s.surrogateBids.push(who);
+      surrogateFor.push(who);
+      s.typedBids.push({ vendor: who, price });
       s.bidSubmitted = true;
-      return `surrogate bid entered for ${who}`;
+      return surrogate.lastKind === "technical"
+        ? `technical response entered for ${who} — on a technical stage Procol's Add Bid is the vendor's answers to the questionnaire, not a price`
+        : `surrogate bid entered for ${who}`;
     }
     case "start_awarding": {
       const award = new AwardPage(s.page);
@@ -1499,8 +2095,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "award_event": {
       const award = new AwardPage(s.page);
+      // "the lowest bidder" / "the surrogate vendor" / "the portal vendor" → the name the awarding grid shows (29 Oct).
+      const who = await awardVendor(s, a.vendor ? String(a.vendor) : undefined);
       await award.startAwarding();
-      const allocated = await award.allocate(a.vendor ? String(a.vendor) : undefined);
+      const allocated = await award.allocate(who);
       const outcome = await award.createAndSubmitProposal();
       s.awarded = true;
       return `awarded ${allocated.items} line item(s) to ${allocated.vendors} vendor(s) — ${outcome}`;
@@ -1508,9 +2106,24 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "expect_awarded":
       expect(s.awarded, "nothing was awarded in this plan, so there is no award to confirm").toBe(true);
       return "the event is awarded";
-    case "expect_bid_submitted":
+    case "expect_bid_submitted": {
       expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
-      return "the bid is submitted";
+      // Procol's own record, not only the run's word for it (Aanya, 29 Oct: "how did the vendor bid without
+      // filling price, or did it fill but it doesn't show here??" — the portal's last picture, taken while
+      // the sheet reloaded, showed empty prices; the bid held 95 on all 3 lines, ₹33,535).
+      const title = s.title ?? "";
+      const eg = decodeProcolId(s.page.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? (title ? (await eventGroupByTitle(title).catch(() => undefined))?.id : undefined);
+      const bids = eg ? await bidsOfEventGroup(eg).catch(() => null) : null;
+      if (!bids) return "the bid is submitted (the portal said so; Procol's database could not be read to confirm it)";
+      const mine = bids.filter((b) => !b.by_buyer);
+      const want = s.portalBids?.[s.portalBids.length - 1];
+      if (want && !mine.length) throw new Error("the portal said the bid was submitted, but Procol has no bid from a vendor on this event");
+      const last = mine[mine.length - 1] ?? bids[bids.length - 1];
+      if (!last) throw new Error("Procol has no bid on this event");
+      if (want && last.price != null && Math.abs(last.price - want.price) > 0.001) throw new Error(`Procol holds ${last.vendor}'s bid at ${last.price}, not the ${want.price} typed`);
+      const money = last.amount != null ? `, total ₹${last.amount.toLocaleString("en-IN")}` : "";
+      return `Procol holds ${last.vendor}'s bid: ${last.price ?? "no price"}${last.lines > 1 ? ` on each of ${last.lines} lines` : ""}${money}`;
+    }
     case "invite_vendor": {
       if (await isSingleStageScreen(s)) {
         // The invite rule (spine/animesh, 21 Oct): a vendor the case names is searched for;
@@ -1544,6 +2157,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // A count the case names is exact: that many vendors, each one this run can bid as.
       const exact = a.count !== undefined && !names.length;
       const invited = await s.create.inviteVendors({ names, count: min, exact });
+      // A named vendor the search did not know never reached the round (the invite fell back to
+      // the product's suggested list): a later check on that vendor has nothing to find.
+      for (const nm of names) if (!invited.some((x) => x.toLowerCase() === nm.toLowerCase()) && !s.unmatchedVendors.includes(nm)) s.unmatchedVendors.push(nm);
       if (s.create.leftCreateScreen()) {
         const id = s.page.url().match(/\/project\/([^/?#]+)/)?.[1];
         if (id) s.projectId = s.projectId ?? id;
@@ -1593,9 +2209,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       // A count the case named is exact: undo a late pre-fill of Procol's suggestions.
       await s.create.keepExactInvite();
+      // Whatever this client makes mandatory is filled before pressing Publish — a case that expects the publish
+      // to go through is not about those fields (29 Oct). A case asserting a refusal gets nothing it did not ask for.
+      const pre = s.negativeCase ? null : await fillRequiredFields(s.page).catch(() => null);
       await s.create.publishAndAwaitOutcome(s.title);
       s.projectId = s.create.projectId() ?? s.projectId;
-      return `published as ${s.create.projectId()}`;
+      return `published as ${s.create.projectId()}${pre && sweepSaid(pre) ? ` — first ${sweepSaid(pre)}` : ""}`;
     case "save_draft":
       // The single-stage screen offers only "Publish Event" (captured 2026-10-21): say so
       // rather than spend ten seconds looking for a button the product does not draw there.
@@ -1644,7 +2263,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const captured = s.create.lastQuantityError;
       const err = captured ?? (await s.create.errorToastText(5_000));
       expect(err, "the app was expected to refuse this").toBeTruthy();
-      if (a.contains) expect(err ?? "").toContain(String(a.contains));
+      // Case aside: a plan writes "quantity" for the app's "Quantity should be …".
+      if (a.contains) expect((err ?? "").toLowerCase(), `the app's words: ${err}`).toContain(String(a.contains).toLowerCase());
       return captured ? `app said (caught as it appeared): ${err}` : `app said: ${err}`;
     }
     case "expect_publish_blocked": {
@@ -1652,7 +2272,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // Blocked before publish could be reached. Judge the app's words against the reason.
         const said = (/“([^”]*)”/.exec(s.earlyRefusal)?.[1] ?? /reads: “([^”]*)/.exec(s.earlyRefusal)?.[1] ?? s.earlyRefusal).toLowerCase();
         const because = String(a.because ?? "").toLowerCase().trim();
-        if (because && !said.includes(because)) {
+        if (because && !said.includes(because) && !namesReason(said, because)) {
+          if (PARTICIPANTS_FIRST.test(said) && BEFORE_PARTICIPANTS.test(because)) return `blocked before publish — ${s.earlyRefusal}${participantsFirstNote(because)}`;
           throw new Error(`publishing was blocked earlier, but the app's words do not name the reason — the case expects "${because}"; ${s.earlyRefusal}`);
         }
         return `blocked before publish — ${s.earlyRefusal}`;
@@ -1702,10 +2323,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // (the product checks participants before the template, so a publish
         // with neither is refused for participants).
         const n = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-        if (a.because && !n(refusal).includes(n(String(a.because)))) {
+        if (a.because && !n(refusal).includes(n(String(a.because))) && !namesReason(String(refusal), String(a.because))) {
           if (/created successfully|published successfully|event (is )?live/i.test(String(refusal))) {
             throw new Error(`publishing was ALLOWED — the app said "${refusal}"; the case expects it to be refused with "${a.because}" (check the plan really built the case's starting condition)`);
           }
+          if (PARTICIPANTS_FIRST.test(String(refusal)) && BEFORE_PARTICIPANTS.test(String(a.because))) return `blocked: ${refusal}${participantsFirstNote(String(a.because))}`;
           throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
         }
         return `blocked: ${refusal}`;
@@ -1723,11 +2345,19 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (Number.isFinite(n)) note = ` The published event shows ${n} participant(s)` + (n === 0 ? " — an event nobody can bid on was published: a product defect." : " — the product audience supplied them from the line items, so this tenant cannot reach the case's premise of no participants.");
         throw new Error(`publishing was expected to be blocked, but the app published ${BasePage.projectIdFromUrl(p.url())}${participantsNote}.${note}`);
       }
+      // The app refused the quantity as it was typed (add_line_items caught that toast) and now
+      // Publish does nothing: nothing was published and the case's refusal was already given
+      // (21 Oct, A16: −5 refused at entry, then Publish silent for 20 s). Blocked, with the
+      // silent Publish said.
+      const typed = s.create.lastQuantityError;
+      const wn = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (typed && (!a.because || wn(typed).includes(wn(String(a.because))) || namesReason(typed, String(a.because)))) {
+        return `blocked: the event did not publish — the app had refused the quantity when it was typed (“${typed}”); pressing Publish then did nothing for 20 s, with no message of its own${participantsNote}`;
+      }
       // Neither: no message, no modal refusal, no navigation — and nothing to
-      // find in the events list afterwards. For a case that expects a message
-      // ("Please add participants to proceed!") this is the finding.
+      // find in the events list afterwards. For a case that expects a message this is the finding.
       throw new Error(
-        `publishing was expected to be blocked WITH a message, but the app neither refused visibly nor published: after Publish the page stayed at ${new URL(startUrl).pathname} with no toast, no inline message and no navigation for 20s${participantsNote}. A silent no-op where the case expects "Please add participants to proceed!".`,
+        `publishing was expected to be blocked WITH a message, but the app neither refused visibly nor published: after Publish the page stayed at ${new URL(startUrl).pathname} with no toast, no inline message and no navigation for 20s${participantsNote}. A silent no-op where the case expects ${a.because ? `“${a.because}”` : "a refusal"}.`,
       );
     }
     case "expect_stages": {
@@ -1744,14 +2374,352 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       expect(have.sort(), `the stage tabs read ${have.join(", ")}`).toEqual(want.sort());
       return `stages are ${have.join(", ")}`;
     }
+    case "open_purchase_requisitions":
+    case "pr_tab":
+    case "select_pr":
+    case "purchase_items":
+    case "choose_stages":
+    case "expect_pr_items":
+      return prStep(s, step.step, a);
+    case "do_on_screen": {
+      /**
+       * A PART THE RUN WORKS OUT ON SCREEN ITSELF (Aanya, 26 Oct: "my playwright has capacity
+       * to take ss and test"). The explorer does it in this browser, a screenshot per action,
+       * and it counts as tested only when the screen proves the goal. Stuck, it asks the tester
+       * exactly as ask_tester does — what a person then does by hand is still theirs.
+       */
+      const goal = String(a.goal ?? a.need ?? "").trim().replace(/\.$/, "");
+      if (!goal) throw new Error("do_on_screen needs a goal");
+      const gapRun = `${process.env.QA_RUN_ID || "plan"}-gap${++gapCount}`;
+      const done = await explore(s.page, { goal, runId: gapRun, companyId: Number(process.env.COMPANY_ID) || null, askFirst: false });
+      if (done.byHand) s.didByHand = true;
+      if (done.passed) return `done on screen: ${goal}${done.proof ? ` — the screen shows “${mask(done.proof)}”` : ""}`;
+      return askForPart(s, `${goal} (I tried on screen and stopped: ${mask(done.reason ?? "it stopped")})`, { learnAs: goal, triedOnScreen: true });
+    }
+    case "ask_tester":
+      return askForPart(s, String(a.need ?? a.what ?? "this part of the case"));
     default:
       // validatePlan should have caught this long before now.
       throw new Error(`unknown step "${step.step}"`);
   }
 }
 
+/**
+ * AN EVENT MADE FROM A PURCHASE REQUEST, one step at a time (Aanya, 26 Oct: "after we select the pr,
+ * we go to purchase item … then start new project then … select technical stage … if the user doesnt
+ * specify then stop and ask"; "break it into steps like u did for events"). The steps click what the
+ * screen names — the explorer kept opening Actions — and only fall back to working a screen out (a
+ * route the tester shows is learned) where Procol's own words are not found.
+ */
+const STAGE_WORDS: Record<string, string> = { rfp: "Technical", rfq: "RFQ", auction: "Auction" };
+const STAGE_LABEL: Record<string, RegExp> = { rfp: /^\s*(technical( stage)?|rfp)\s*$/i, rfq: /^\s*rfq( stage)?\s*$/i, auction: /^\s*auction( stage)?\s*$/i };
+const EVENT_CHOICES = [
+  { id: "rfp", label: "Technical" },
+  { id: "rfq", label: "RFQ" },
+  { id: "auction", label: "Auction" },
+  { id: "rfp+rfq", label: "Technical + RFQ" },
+  { id: "rfp+auction", label: "Technical + Auction" },
+];
+function stagesFrom(text: string): string[] {
+  const t = text.toLowerCase();
+  const out: string[] = [];
+  if (/technical|\brfp\b|\btech\b/.test(t)) out.push("rfp");
+  if (/\brfq\b/.test(t)) out.push("rfq");
+  if (/auction/.test(t)) out.push("auction");
+  return out;
+}
+
+const visibleNow = (l: Locator, ms = 8_000) => l.first().waitFor({ state: "visible", timeout: ms }).then(() => true).catch(() => false);
+
+async function prStep(s: RunState, name: string, a: Record<string, unknown>): Promise<string> {
+  const page = s.page;
+  switch (name) {
+    case "open_purchase_requisitions": {
+      await page.goto(`${CONFIG.appUrl.replace(/\/$/, "")}/purchase-requisitions?tab=active`, NAV);
+      await s.events.dismissDistractions().catch(() => false);
+      const ok = await visibleNow(page.getByText(/^\s*purchase requisitions\s*$/i), 20_000);
+      expect(ok, `the Purchase Requisitions screen did not open (at ${new URL(page.url()).pathname})`).toBe(true);
+      return "opened Purchase Requisitions";
+    }
+    case "pr_tab": {
+      const tab = String(a.tab ?? "Open");
+      const t = page.getByRole("tab", { name: new RegExp(`^\\s*${tab}\\b`, "i") }).or(page.getByText(new RegExp(`^\\s*${tab}\\s*$`, "i")));
+      expect(await visibleNow(t), `no “${tab}” tab on Purchase Requisitions`).toBe(true);
+      await t.first().click();
+      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
+      const count = (await page.getByRole("tab", { name: new RegExp(`^\\s*${tab}\\b`, "i") }).first().innerText().catch(() => "")).replace(/\D+/g, " ").trim();
+      return `on the ${tab} tab${count ? ` (${count} PRs)` : ""}`;
+    }
+    case "select_pr": {
+      const rows = page.locator("tbody tr, .ant-table-row").filter({ has: page.locator("input[type='checkbox']") });
+      expect(await visibleNow(rows, 20_000), "no PR rows with a tick-box on this tab").toBe(true);
+      // Each row of the list is ONE line item, drawn twice: the frozen columns (tick-box, PR NO) in one
+      // table and the rest in another, joined by data-row-key. Read them as one line per key.
+      const lines = await page.evaluate(() => {
+        const byKey = new Map<string, { key: string; pr: string; text: string }>();
+        document.querySelectorAll("tr[data-row-key]").forEach((tr) => {
+          const key = tr.getAttribute("data-row-key") ?? "";
+          const cur = byKey.get(key) ?? { key, pr: "", text: "" };
+          const pr = [...tr.querySelectorAll('a[href*="/purchase-requisitions/"]')].map((x) => (x.textContent ?? "").trim()).find((t) => /^\d{5,}$/.test(t));
+          if (pr) cur.pr = pr;
+          const t = ((tr as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim();
+          if (t.length > cur.text.length) cur.text = t;
+          byKey.set(key, cur);
+        });
+        return [...byKey.values()].filter((l) => l.key);
+      });
+      /**
+       * "A PR with N line items" (Aanya, 27 Oct): a PR NO on at least N rows of this tab; all N of its
+       * rows ticked. Material rows are preferred: a service row ("2 Services") becomes several line
+       * items on the create screen, so a count asked for would not hold.
+       */
+      const want = a.pr ? 0 : asInt(a.items, 0);
+      if (want > 1) {
+        const groups = new Map<string, typeof lines>();
+        for (const l of lines) if (l.pr) groups.set(l.pr, [...(groups.get(l.pr) ?? []), l]);
+        const service = (l: (typeof lines)[number]) => /\bservices?\b/i.test(l.text) || /(^|\s)S(\s|$)/.test(l.text.slice(0, 40));
+        const fits = [...groups].filter(([, ls]) => ls.length >= want);
+        const pick = fits.find(([, ls]) => !ls.slice(0, want).some(service)) ?? fits[0];
+        if (!pick) {
+          const most = Math.max(0, ...[...groups.values()].map((ls) => ls.length));
+          throw new Error(`no PR on this page of the tab has ${want} line items (the most one PR has here is ${most})`);
+        }
+        const [pr, ls] = pick;
+        for (const l of ls.slice(0, want)) {
+          const box = page.locator(`tr[data-row-key="${l.key}"] input[type='checkbox']`).filter({ visible: true }).first();
+          await box.check({ force: true }).catch(async () => {
+            await page.locator(`tr[data-row-key="${l.key}"] .ant-checkbox-wrapper`).filter({ visible: true }).first().click();
+          });
+          expect(await box.isChecked(), `PR ${pr}'s line “${l.text.slice(0, 50)}” did not tick`).toBe(true);
+        }
+        s.prNo = pr;
+        s.prItems = want;
+        const pi = page.getByRole("button", { name: /purchase items/i });
+        expect(await pi.first().isEnabled().catch(() => false), "Purchase Items stayed greyed out after ticking the PR's lines").toBe(true);
+        const kinds = ls.slice(0, want).some(service) ? " (service lines: Procol may list more items on the create screen)" : "";
+        return `ticked ${want} line items of PR ${pr}${kinds} — and Purchase Items is on`;
+      }
+      const row = a.pr ? rows.filter({ hasText: String(a.pr) }).first() : rows.first();
+      expect(await visibleNow(row), `no PR “${a.pr}” on this tab`).toBe(true);
+      const box = row.locator("input[type='checkbox']").first();
+      await box.check({ force: true }).catch(async () => {
+        await row.locator(".ant-checkbox-wrapper, .ant-checkbox, label").first().click();
+      });
+      expect(await box.isChecked(), "the PR's tick-box did not tick").toBe(true);
+      s.prNo = (await row.locator("a").first().innerText().catch(() => "")).trim() || undefined;
+      // The PR NO sits in the frozen-column copy of the row; read it by the row's key when the row had none.
+      if (!s.prNo || !/^\d{5,}$/.test(s.prNo)) {
+        const key = await row.getAttribute("data-row-key").catch(() => null);
+        s.prNo = lines.find((l) => l.key === key)?.pr || undefined;
+      }
+      const item = (await row.innerText().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 70);
+      const pi = page.getByRole("button", { name: /purchase items/i });
+      const on = await pi.first().isEnabled().catch(() => false);
+      expect(on, "Purchase Items stayed greyed out after ticking the PR").toBe(true);
+      return `ticked PR ${s.prNo ?? "(first row)"} — ${item} — and Purchase Items is on`;
+    }
+    case "purchase_items": {
+      // Purchase Items → its menu's "Start New Project" → the Purchase Cart ("1 PR | 1 Line Item").
+      // The event's stages are ticked in the cart, under Create Project's arrow (choose_stages).
+      const pi = page.getByRole("button", { name: /purchase items/i });
+      expect(await visibleNow(pi), "no Purchase Items button").toBe(true);
+      await pi.first().click();
+      const start = page.getByRole("menuitem", { name: /start new project/i }).or(page.getByText(/^\W*start new project\s*$/i));
+      expect(await visibleNow(start, 8_000), "Purchase Items did not offer Start New Project").toBe(true);
+      await start.first().click();
+      const cart = page.getByText(/purchase cart/i);
+      expect(await visibleNow(cart, 15_000), "Start New Project did not open the Purchase Cart").toBe(true);
+      const size = (await page.getByText(/\d+\s*PR\s*\|\s*\d+\s*Line Item/i).first().innerText().catch(() => "")).trim();
+      // A PR's N lines were ticked (select_pr{items}): the cart must hold all N.
+      if (s.prItems) {
+        const inCart = Number(size.match(/(\d+)\s*Line Item/i)?.[1] ?? 0);
+        expect(inCart, `the Purchase Cart should hold the ${s.prItems} line items ticked on PR ${s.prNo} — it reads “${size || "no count"}”`).toBe(s.prItems);
+      }
+      return `Purchase Items → Start New Project opened the Purchase Cart${size ? ` (${size})` : ""}${s.prNo ? ` for PR ${s.prNo}` : ""}`;
+    }
+    case "choose_stages": {
+      let stages = (Array.isArray(a.stages) ? a.stages : []).map(String).filter((x) => x in STAGE_WORDS);
+      let asked = "";
+      if (!stages.length) {
+        const answer = await askTester({
+          kind: "question",
+          question: "Which event should I make from the PR?",
+          detail: "The case does not say which stages the event has. Pick one, or type it (for example “technical + RFQ”). RFQ and Auction cannot be in one event.",
+          options: EVENT_CHOICES.map((c) => ({ id: c.id, label: c.label })),
+        });
+        if (!answer) throw new Error("not run: the case does not say which event to make from the PR, and nobody answered which (Technical, RFQ, Auction, Technical + RFQ or Technical + Auction)");
+        stages = answer.option && EVENT_CHOICES.some((c) => c.id === answer.option) ? String(answer.option).split("+") : stagesFrom(answer.text);
+        if (!stages.length) throw new Error(`the answer “${answer.text}” names no stage — Technical, RFQ or Auction`);
+        asked = ` (you chose ${stages.map((x) => STAGE_WORDS[x]).join(" + ")})`;
+        // The picked stages' own steps, each its own row, right after the check on the PR's items.
+        const plan = s.planSteps;
+        if (plan && !plan.some((x) => ["select_template", "fill_questionnaires", "fill_sheet"].includes(x.step))) {
+          const here = (s.stepNo ?? 1) - 1;
+          const after = plan.findIndex((x, k) => k > here && x.step === "expect_pr_items");
+          plan.splice((after >= 0 ? after : here) + 1, 0, ...stageSteps(stages));
+        }
+      }
+      if (stages.includes("rfq") && stages.includes("auction")) throw new Error("RFQ and Auction cannot be in one event — Procol offers no auction stage after an RFQ (A23)");
+      const names = stages.map((x) => STAGE_WORDS[x]).join(" + ");
+      // In the Purchase Cart: Create Project's arrow lists the stages as tick-boxes (Technical Stage,
+      // RFQ, Auction); tick the case's, then Create Project, which stays greyed until one is ticked.
+      const BOX: Record<string, RegExp> = { rfp: /^\s*technical( stage)?\s*$/i, rfq: /^\s*rfq( stage)?\s*$/i, auction: /^\s*auction( stage)?\s*$/i };
+      const option = (st: string) => page.getByRole("checkbox", { name: BOX[st] }).or(page.getByRole("menuitemcheckbox", { name: BOX[st] })).or(page.getByText(BOX[st]));
+      // Once a stage is ticked the button reads "Create Project 1" (a count of the ticked stages).
+      const create = page.getByRole("button", { name: /^\s*create project\s*\d*\s*$/i });
+      const before = page.url();
+      let done = "";
+      try {
+        if (!(await visibleNow(option(stages[0]), 2_500))) {
+          const group = page.locator(".ant-btn-group, .ant-dropdown-button, .ant-space-compact, [class*='btn-group' i]").filter({ hasText: /create project/i });
+          const arrow = group.locator("button").last();
+          if (await visibleNow(arrow, 3_000)) await arrow.click();
+          else await page.getByText(/^\s*start new project\s*$/i).first().click({ timeout: 3_000 });
+        }
+        for (const st of stages) {
+          const opt = option(st).first();
+          expect(await visibleNow(opt, 6_000), `no “${STAGE_WORDS[st]}” choice under Create Project`).toBe(true);
+          const box = page.getByRole("checkbox", { name: BOX[st] }).first();
+          if (await box.isVisible().catch(() => false)) {
+            if (!(await box.isChecked().catch(() => false))) await box.check({ force: true }).catch(() => opt.click());
+          } else await opt.click();
+        }
+        if (a.dry === true || a.dry === "true") return `ticked ${names} under Create Project (dry: Create Project not clicked)`;
+        await expect(create.first(), "Create Project stayed greyed out after ticking the stages").toBeEnabled({ timeout: 8_000 });
+        await create.first().click();
+        await page.waitForURL((u) => u.toString() !== before, { timeout: 30_000 }).catch(() => {});
+        await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+        await s.create.waitForSpinnerHidden().catch(() => {});
+        if (page.url() !== before) done = `ticked ${names} under Create Project and created the event — it opened at ${new URL(page.url()).pathname}`;
+      } catch (e) {
+        console.log(`[pr] the Purchase Cart did not match what was expected (${(e as Error).message.split("\n")[0]}) — working it out on screen, inside the cart`);
+      }
+      if (done) return `${done}${asked}`;
+      // The cart looks different from the last time: worked out on screen, kept inside the cart (the
+      // explorer once left for Events and made a blank event). What a tester then shows is learned.
+      const goal =
+        `In the open Purchase Cart (stay in it — never go to Events or Create Event): set the new project's stages to ${names} and nothing else ` +
+        `(they are tick-boxes under the arrow next to Create Project), then click Create Project; stop when the new event's page opens`;
+      const companyId = Number(process.env.COMPANY_ID) || null;
+      const gapRun = `${process.env.QA_RUN_ID || "plan"}-gap${++gapCount}`;
+      const r = await explore(page, { goal, runId: gapRun, companyId, askFirst: false });
+      if (r.byHand) s.didByHand = true;
+      // A blank event made elsewhere is caught by the next step (expect_pr_items: the PR's items must be listed).
+      if (r.passed && !/purchase-requisitions/i.test(new URL(page.url()).pathname)) {
+        return `created the event with ${names} from the Purchase Cart, worked out on screen${asked}`;
+      }
+      return `${await askForPart(s, `${goal} (I tried on screen and stopped: ${mask(r.reason ?? "it stopped")})`, { learnAs: goal, triedOnScreen: true })}${asked}`;
+    }
+    case "expect_pr_items": {
+      await s.create.waitForSpinnerHidden().catch(() => {});
+      let badge: number | null = null;
+      for (let k = 0; k < 10 && !badge; k++) {
+        badge = await s.create.lineItemCountBadge().catch(() => null);
+        if (!badge) await page.waitForTimeout(1_000);
+      }
+      expect(badge ?? 0, `the create screen lists no line items from PR ${s.prNo ?? ""} (at ${new URL(page.url()).pathname})`).toBeGreaterThan(0);
+      if (s.prItems) expect(badge ?? 0, `the create screen should list the ${s.prItems} line items ticked on PR ${s.prNo} — it lists ${badge}`).toBeGreaterThanOrEqual(s.prItems);
+      return `the create screen lists ${badge} line item${badge === 1 ? "" : "s"} from PR ${s.prNo ?? ""}`.trim();
+    }
+  }
+  throw new Error(`unknown PR step ${name}`);
+}
+
+/** Each stage's own steps, on its own tab: a template, then questionnaires + evaluator (Technical) or the sheet. */
+export function stageSteps(stages: string[]): PlanStep[] {
+  const out: PlanStep[] = [];
+  for (const stage of stages) {
+    if (stages.length > 1) out.push({ step: "switch_stage", args: { stage } });
+    out.push({ step: "select_template" });
+    if (stage === "rfp") out.push({ step: "fill_questionnaires" }, { step: "assign_evaluator" });
+    else out.push({ step: "fill_sheet" });
+  }
+  return out;
+}
+
+/** A part of the case with no step: ask the tester for the steps, or let them do it by hand. */
+async function askForPart(s: RunState, needText: string, learn: { learnAs?: string; triedOnScreen?: boolean } = {}): Promise<string> {
+  const companyId = Number(process.env.COMPANY_ID) || null;
+  const goal = (learn.learnAs ?? needText).trim().replace(/\.$/, "");
+  // Shown by hand before (or worked out from typed steps): follow that first, and ask only if it no
+  // longer gets there (Aanya, 26 Oct: "whatever i do in ui, learn that so that u dont get stuck again").
+  let routeNote = "";
+  if (!learn.triedOnScreen && hasRoute(companyId, goal)) {
+    const gapRun = `${process.env.QA_RUN_ID || "plan"}-gap${++gapCount}`;
+    const done = await explore(s.page, { goal, runId: gapRun, companyId, askFirst: false });
+    if (done.byHand) s.didByHand = true;
+    if (done.passed) return `done on screen the way it was shown before: ${goal}${done.proof ? ` — the screen shows “${mask(done.proof)}”` : ""}`;
+    routeNote = ` The steps shown for this before no longer got there (${mask(done.reason ?? "it stopped")}).`;
+  }
+  /**
+   * NO STEP FOR THIS PART: ASK, DON'T GUESS (Aanya, 21 Oct: "whatever u dont
+   * have, ask the user for creds or for the further steps, dont fool the
+   * user… we want the real metrics"). The run asks in the chat; typed steps
+   * or a login are carried out here, on this page, by the explorer; what is
+   * skipped or left unanswered is not tested, and what the tester does by
+   * hand is theirs. Nothing here is ever counted as tested unless the run did it.
+   */
+  const need = needText.trim().replace(/\.$/, "");
+  // Said plainly (Aanya, 21 Oct: "what does it mean"): the part, what it
+  // takes in short numbered pieces, and an example of an answer.
+  // One sentence of the part, never the whole goal (Aanya, 27 Oct: "why is it giving so many big paras, no one will read so").
+  const first = need.split(/(?<=[.!?])\s+/)[0].replace(/[.\s]+$/, "");
+  const short = first.length > 150 ? `${first.slice(0, 147).replace(/\s+\S*$/, "")}…` : first;
+  const lower = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+  const example = /evaluat|scor/i.test(need)
+    ? "“Sign in as the evaluator (phone …, code …), open Technical Stage → Evaluate, give 4/5, submit.”"
+    : /vendor|supplier/i.test(need)
+      ? "“Sign in to the vendor portal as <vendor> (email …, code …), open the event, …, then check ….”"
+      : "“Open …, click …, type …, then check ….”";
+  const askedAt = Date.now();
+  const answer = await askTester({
+    kind: "question",
+    question: `I can't do this part on my own yet: ${lower(short)}. How should I do it?`,
+    detail: `${routeNote ? routeNote.trim() + " " : ""}Type the steps and any login (kept as •••), e.g. ${example} Or do it yourself, or skip it — either way it counts as not tested.`,
+    options: [
+      { id: "self", label: "I'll do it myself in the browser" },
+      { id: "skip", label: "Skip it — count it as not tested" },
+    ],
+  });
+  if (!answer) {
+    s.notTested = `no step for: ${need} — nobody answered the question, so it was not tested`;
+    return s.notTested;
+  }
+  if (answer.option === "skip" || (!answer.option && (SAYS_STOP.test(answer.text) || /^\s*(skip|leave it|not now|no)\b/i.test(answer.text)))) {
+    s.notTested = `no step for: ${need} — you chose to skip it, so it was not tested`;
+    return s.notTested;
+  }
+  if (answer.option === "self") {
+    // The card's option presses Take control (or they took it from the live view and handed it back,
+    // which answers the card); carry on from the page handed back.
+    const hand = await handPart(askedAt);
+    s.didByHand = true;
+    // Their steps become the route for this part: the next run does it on its own (and only then is it tested).
+    const kept = saveHandRoute(companyId, goal, hand, process.env.QA_RUN_ID || "plan");
+    const note = kept
+      ? ` — your ${hand.steps.length} step${hand.steps.length === 1 ? "" : "s"} are saved, so the next run does this itself`
+      : hand.secret
+        ? " — not saved for next time: a code or password was typed"
+        : "";
+    return `you did this in the browser: ${need}${note}`;
+  }
+  // Typed: the tester's steps (and any login), carried out here.
+  const gapRun = `${process.env.QA_RUN_ID || "plan"}-gap${++gapCount}`;
+  const opts = { goal: `${need}. The tester's instructions: ${answer.text}`, runId: gapRun, companyId: Number(process.env.COMPANY_ID) || null, askFirst: false };
+  const done = await explore(s.page, opts);
+  if (done.byHand) s.didByHand = true;
+  // Typed steps that got there: kept under the plain part too, so the next run needs no instructions.
+  if (done.passed && done.route?.savedTo) keepRouteAs(companyId, opts.goal, goal);
+  if (!done.passed) {
+    s.notTested = `no step for: ${need} — following your steps did not get there (${mask(done.reason ?? "it stopped")}), so it was not tested`;
+    return s.notTested;
+  }
+  return `followed your steps for: ${need}${done.proof ? ` — the screen shows “${mask(done.proof)}”` : ""}`;
+}
+
 export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   biddersUsed = [];
+  surrogateFor = [];
   const s: RunState = {
     events: new EventsPage(page),
     create: new CreateEventPage(page),
@@ -1763,11 +2731,14 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     lineItemsAdded: 0,
     bidSubmitted: false,
     surrogateBids: [],
+    typedBids: [],
+    unmatchedVendors: [],
     awarded: false,
     memory: {},
     prevMark: 0,
     curMark: 0,
     context: plan.context ?? {},
+    planSteps: plan.steps,
     stepNo: 0,
   };
 
@@ -1778,11 +2749,18 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   installObserver(page, runId);
   installSpotlight(page, joinInv(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
   /** The observation pass after a step — bounded, and never the reason a step fails. */
-  const look = async (i: number, name: string, force: boolean) => {
+  // `picture`: a screenshot too — only where a step failed (Aanya, 26 Oct: no picture per step).
+  // `at`: the step's result, which gets the screen in words and what the step did.
+  const look = async (i: number, name: string, force: boolean, picture = false, at?: number) => {
     const o = await Promise.race([
-      observe(page, i + 1, name, { force }).catch(() => null),
+      observe(page, i + 1, name, { force, picture }).catch(() => null),
       new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
     ]);
+    if (at !== undefined && results[at]) {
+      if (o?.screen) results[at].screen = o.screen;
+      const acts = stepActions();
+      if (acts.length) results[at].actions = acts;
+    }
     if (o && (o.findings.length || o.screenshot)) observations.push(o);
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
   };
@@ -1790,12 +2768,41 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   let recoveries = 0;
   const recoveredRules = new Set<string>();
   const BLOCK_ASSERTION_STEPS = new Set(["expect_publish_blocked", "expect_error", "expect_message", "attempt", "expect_field_error"]);
+  // a case asserting a refusal: publish fills no mandatory field for it (it may be about one)
+  s.negativeCase = plan.steps.some((st) => BLOCK_ASSERTION_STEPS.has(st.step) || st.step === "skip");
   /** index of the block assertion to jump to after an early refusal */
   let jumpTo = -1;
   const BLOCK_ASSERTIONS = ["expect_publish_blocked", "expect_error", "expect_message"];
 
-  for (const [i, step] of plan.steps.entries()) {
+  // A message typed to the run while it goes: "stop" ends it, "skip" skips the next step. Anything else
+  // waits for a step that can use it — the on-screen steps (explorer) read it at their next move.
+  const COMMAND = /^\s*(stop|abort|cancel|end it|stop (the|this) (run|test)|skip( (this|the next|next) step)?)\s*[.!]*\s*$/i;
+  const kept = new Set<string>();
+  let stoppedBy = "";
+
+  // An index loop: a case that failed on a picked event can start again from open_event.
+  for (let i = 0; i < plan.steps.length; i++) {
+    const step = plan.steps[i];
     const started = Date.now();
+    if (!failed && !stoppedBy) {
+      const cmd = takeTold((t) => COMMAND.test(t))[0];
+      if (cmd && /^\s*skip/i.test(cmd)) {
+        results.push({ step: step.step, args: step.args, status: "skipped", untested: true, detail: `skipped — you said “${cmd.trim()}”`, ms: 0 });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ skipped — you said “${cmd.trim()}”`);
+        continue;
+      }
+      if (cmd) stoppedBy = cmd.trim();
+      for (const t of pendingTold()) {
+        if (kept.has(t)) continue;
+        kept.add(t);
+        console.log(`[note] · Your message “${t.slice(0, 160)}” is kept — the next on-screen step reads it at its first move.`);
+      }
+    }
+    if (stoppedBy) {
+      results.push({ step: step.step, args: step.args, status: "skipped", untested: true, detail: `not run — you said “${stoppedBy}”`, ms: 0 });
+      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ not run — you said “${stoppedBy}”`);
+      continue;
+    }
     if (jumpTo > i) {
       results.push({ step: step.step, args: step.args, status: "skipped", detail: "not reached — the app refused an earlier step, which the block assertion below judges", ms: 0 });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} — not reached (the app refused earlier)`);
@@ -1819,6 +2826,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.lastStrategy = undefined;
       s.stepNo = i + 1;
       s.later = plan.steps.slice(i + 1).map((x) => x.step);
+      s.laterPlan = plan.steps.slice(i + 1);
       beginStep(i + 1, step.step, plan.steps.length);
       const detail = await runStep(s, step);
       // Done by the tester in the browser, not by the run: recorded as such and
@@ -1829,10 +2837,28 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ done by you in the browser, not tested by the run`);
         continue;
       }
+      // A part with no step that was not done (ask_tester): not tested, never a pass.
+      if (s.notTested) {
+        const why = s.notTested;
+        s.notTested = undefined;
+        results.push({ step: step.step, args: step.args, status: "skipped", untested: true, detail: why, ms: Date.now() - started });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ not tested — ${why}`);
+        continue;
+      }
       if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail ? ` — ${detail}` : ""}`).catch(() => {});
+      // They took the browser in the middle of this step and did something (Aanya, 28 Oct: "my platform
+      // doesnt ignore it"): said on the step, and the step counts as helped by hand, not tested alone.
+      const helped = takeHandSteps(started).steps;
+      if (helped.length) {
+        const did = helped.map((h) => h.step).slice(0, 6).join("; ");
+        results.push({ step: step.step, args: step.args, status: "ok", byHand: true, detail: `${detail ?? ""} — you also did by hand while it ran: ${did}`.replace(/^ — /, ""), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ with your help by hand: ${did}`);
+        await look(i, step.step, i === plan.steps.length - 1, false, results.length - 1);
+        continue;
+      }
       results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
-      await look(i, step.step, i === plan.steps.length - 1);
+      await look(i, step.step, i === plan.steps.length - 1, false, results.length - 1);
     } catch (err) {
       // Keep the first line AND the locator Playwright names in its call log.
       // Reporting only "locator.click: Timeout 15000ms exceeded" cost an
@@ -1851,7 +2877,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         // a refusal is an error or a warning — "Proposal submitted successfully" explains no failure
         ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
       ].filter((t, k, all) => t && all.indexOf(t) === k);
-      const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+      const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? mandatoryRefusal(said, step.step);
       let ruledLast: typeof ruled = null;
       let lastRefusal: string | null = null;
 
@@ -1864,10 +2890,10 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       // then its questionnaire sections. Each retry is judged afresh, and a DIFFERENT known
       // rule is recovered too — bounded by the run's cap and never the same rule twice.
       let cur = ruled;
-      let recovery = cur ? recoveryFor(cur.t) : null;
+      let recovery = cur ? recoveryWith(cur.t) : null;
       const chain: Array<{ appSaid: string; rule: string; why: string; did: string[] }> = [];
       let recoveredStep = false;
-      while (cur && recovery && !negative && recoveries < 3 && !recoveredRules.has(cur.rule!.message)) {
+      while (cur && recovery && !negative && recoveries < 5 && !recoveredRules.has(cur.rule!.message)) {
         recoveries++;
         recoveredRules.add(cur.rule!.message);
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ↻ the app refused: "${cur.t}" — its rule (${cur.rule!.source}); ${recovery.why}. Doing ${recovery.steps.map((x) => x.step).join(" + ")}, then retrying`);
@@ -1893,7 +2919,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
           if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail2 ? ` — ${detail2}` : ""}`).catch(() => {});
           results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
           console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from ${chain.map((c) => `"${c.appSaid}"`).join(" and ")})`);
-          await look(i, step.step, false);
+          await look(i, step.step, false, false, results.length - 1);
           recoveredStep = true;
           break;
         } catch (retryErr) {
@@ -1903,8 +2929,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
             ...((/rejected by the app:\s*(.+)$/i.exec(m2)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(m2)![1].trim()] : []),
             ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
           ].filter((t, k, all) => t && all.indexOf(t) === k);
-          cur = said2.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
-          recovery = cur ? recoveryFor(cur.t) : null;
+          cur = said2.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? mandatoryRefusal(said2, step.step);
+          recovery = cur ? recoveryWith(cur.t) : null;
           if (cur) ruledLast = cur;
           lastRefusal = m2;
           if (!cur && said2[0]) ruledLast = null;
@@ -1914,7 +2940,20 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
 
       // The APP refused this step (not the automation failing to perform it) and the case goes on
       // to assert a block: that refusal IS the block — judge it there rather than stopping here.
-      const later = /^the app refused/i.test(first) ? plan.steps.findIndex((st, k) => k > i && BLOCK_ASSERTIONS.includes(st.step)) : -1;
+      // So does a setup step that fails BECAUSE of a refusal the case already saw: A17 ("quantity
+      // \"ten\"… try to publish", 23 Oct) — the app refused the text, no line item was added, so no
+      // vendor could be invited, and the case stopped at invite_vendor instead of judging the block.
+      const refusedBefore = results.some((r) => r.status === "ok" && /^expect_(error|field_error|message)$/.test(r.step));
+      const setupAfterRefusal = refusedBefore && CREATE_SCREEN_STEP.test(step.step) && step.step !== "publish";
+      const later = /^the app refused/i.test(first) || setupAfterRefusal ? plan.steps.findIndex((st, k) => k > i && BLOCK_ASSERTIONS.includes(st.step)) : -1;
+      if (later > i && setupAfterRefusal && !/^the app refused/i.test(first)) {
+        // not the app refusing THIS step — it could not run after the refusal already seen
+        const seen = results.filter((r) => r.status === "ok" && /^expect_(error|field_error|message)$/.test(r.step)).pop()?.detail ?? "";
+        jumpTo = later;
+        results.push({ step: step.step, args: step.args, status: "skipped", detail: `could not run (${first}) — the app had already refused the case's input${seen ? ` (${seen})` : ""}; the block is judged at step ${later + 1}`, ms: Date.now() - started });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ could not run after the app's earlier refusal — judging the block at step ${later + 1}`);
+        continue;
+      }
       if (later > i) {
         s.earlyRefusal = first;
         jumpTo = later;
@@ -1926,7 +2965,12 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       const lastRule = lastRefusal ? ruledLast : ruled;
       const ruleNote = lastRule ? ` — the app's own rule (${lastRule.rule!.source})${recoveryFor(lastRule.t) ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
       const failedAt = results.length;
-      const failText = (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
+      // Procol's own crash page ("Oops! Something Broke Down…") is the app breaking, whatever the
+      // step was waiting for: on 21 Oct pressing the audience suggestion's Invite Vendor showed it,
+      // and the step reported "no participants", which the oracle then filed as a harness problem.
+      const crashed = await page.getByText(/something broke down/i).first().isVisible({ timeout: 1000 }).catch(() => false);
+      const crashNote = crashed ? `Procol crashed — it showed its error page “Oops! Something Broke Down…” during ${step.step}. ` : "";
+      const failText = crashNote + (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
       results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${failText}`);
       const before = observations.length;
@@ -1934,7 +2978,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       if (s.failObservation) {
         observations.push(s.failObservation);
         s.failObservation = undefined;
-      } else await look(i, step.step, true);
+      } else await look(i, step.step, true, true, failedAt);
       const shot = observations.slice(before).find((o) => o.screenshot)?.screenshot;
       results[failedAt].evidence = {
         ...(shot ? { screenshot: shot } : {}),
@@ -1943,12 +2987,189 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         ...(lastRule ? { rule: { message: lastRule.rule!.message, source: lastRule.rule!.source, ...(lastRule.rule!.condition ? { condition: lastRule.rule!.condition } : {}) } } : {}),
       };
       if (shot) console.log(`[plan] evidence: ${shot}`);
+      // The case ran on an event the RUN picked, and failed: say why, and let the tester choose —
+      // mark it failed, or run the case again on another suitable event (Aanya, 26 Oct: "if it
+      // fails on one event, tell the user the reason… give an option to mark it as failed or try
+      // it on a different event"). With nobody to ask, it is marked failed as before.
+      const openAt = plan.steps.findIndex((st) => st.step === "open_event");
+      let markedFailed = false;
+      if (s.picked && openAt >= 0 && i > openAt && (s.avoidEvents?.length ?? 0) < 3) {
+        const why = failText.replace(/\s+/g, " ").trim().slice(0, 300);
+        const answer = await askTester({
+          kind: "stuck",
+          question: `It failed on “${s.picked}” because ${why.charAt(0).toLowerCase()}${why.slice(1)}. Mark it failed, or try it on another event?`,
+          detail: `Step ${i + 1} of ${plan.steps.length} (${step.step}) failed on an event the run picked from the Live list${s.avoidEvents?.length ? `, after ${s.avoidEvents.length} other${s.avoidEvents.length === 1 ? "" : "s"}` : ""}. Another event is picked the same way, passing over the ones already tried.`,
+          ...(shot ? { shot: shot.split("/").pop() } : {}),
+          options: [
+            { id: "fail", label: "Mark it failed" },
+            { id: "retry", label: "Try it on another suitable event" },
+          ],
+        }).catch(() => null);
+        const retry = answer?.option === "retry" || (!answer?.option && /\b(another|other|different|retry|try)\b/i.test(answer?.text ?? ""));
+        if (retry) {
+          s.avoidEvents = [...(s.avoidEvents ?? []), s.picked];
+          s.attempts = [...(s.attempts ?? []), `“${s.picked}”: step ${i + 1} (${step.step}) failed — ${why}`];
+          console.log(`[plan] trying the case again on another event, as you chose — passing over ${s.avoidEvents.map((t) => `“${t}”`).join(", ")}`);
+          // what the failed attempt did to the run's own state; the events it acted on stay as they are
+          Object.assign(s, { bidSubmitted: false, surrogateBids: [], typedBids: [], unmatchedVendors: [], awarded: false, counterOfferSent: undefined, counterOfferAccepted: undefined, closed: undefined, orders: undefined, earlyRefusal: undefined, picked: undefined, memory: {} });
+          results.length = openAt;
+          jumpTo = -1;
+          i = openAt - 1;
+          continue;
+        }
+        if (answer) results[failedAt].detail = `${failText} — you marked it failed${answer.option ? "" : ` (“${answer.text.slice(0, 120)}”)`}`;
+        markedFailed = !!answer;
+      }
+      // CONTINUE FROM WHERE IT STOPPED (Aanya, 27 Oct: "when i said invite the vendors, then you must
+      // continue from where you left, not from the scratch"). The browser stays on the screen this step
+      // failed on; the tester says how to finish it — in the question card or by messaging the running
+      // test — the run does it there, and carries on with the steps after it.
+      // Only an action is finished as told: a failed check is the case's result — a bug, never a step to
+      // talk past — and so is a step a negative case expected to be refused.
+      const isCheck = STEP_CATALOG.find((d) => d.name === step.step)?.assertion || BLOCK_ASSERTION_STEPS.has(step.step);
+      const resumed = markedFailed || isCheck || s.noHold ? null : await continueAsTold(s, i, plan.steps.length, step.step, failText, shot);
+      s.noHold = false;
+      if (resumed && "tried" in resumed) results[failedAt].detail = `${results[failedAt].detail} — then, as you said, ${resumed.tried}`;
+      else if (resumed) {
+        // the step's own failure stays in its detail and evidence: the tester's way finished it, not the step
+        results[failedAt] = { ...results[failedAt], status: "ok", continuedAsTold: resumed.text, detail: `the step itself failed (${failText}) → finished on the same screen as you said: ${resumed.note}`, ...(resumed.byHand ? { byHand: true } : {}) };
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ finished as you said: ${resumed.note}`);
+        continue;
+      }
       failed = true;
     }
   }
 
   const byHand = results.filter((r) => r.byHand).length;
-  return { title: plan.title, steps: results, passed: !failed, ...(byHand ? { byHand } : {}), observations };
+  const untested = results.filter((r) => r.untested).length;
+  return { title: plan.title, steps: results, passed: !failed, ...(byHand ? { byHand } : {}), ...(untested ? { untested } : {}), observations };
+}
+
+/** More time for the running test, while it waits for the tester or does what they said. */
+function moreTime(ms: number): void {
+  try {
+    const t = test.info();
+    if (t.timeout > 0) t.setTimeout(t.timeout + ms);
+  } catch {
+    /* not inside a Playwright test (a script run): no limit to move */
+  }
+}
+
+/**
+ * A failed step, finished the way the tester says, on the same screen. Their instruction comes from the
+ * question card or a message sent to the running test; "stop" (or no answer within UI_FAIL_HOLD_MS,
+ * 10 minutes by default) ends the run as failed. Up to three tries, each told what the last one hit.
+ */
+async function continueAsTold(s: RunState, i: number, total: number, stepName: string, failText: string, shot?: string): Promise<{ text: string; note: string; byHand: boolean } | { tried: string } | null> {
+  const holdMs = Number(process.env.UI_FAIL_HOLD_MS ?? 10 * 60_000);
+  if (!holdMs || !process.env.UI_EXPLORE_DIR || !process.env.QA_RUN_ID) return null; // nobody can answer
+  const companyId = Number(process.env.COMPANY_ID) || null;
+  let lastTry = "";
+  // LEARN WHAT TO DO WHEN STUCK (Aanya, 28 Oct: "it should learn what to do when it is stuck"). The way
+  // the tester finished this step the last time it stopped here — by hand, or in words — is kept under
+  // the stuck point (the step, the screen, the kind of failure) and done first, before asking again.
+  const learnedGoal = stuckGoal(stepName, s.page.url(), failText);
+  if (hasRoute(companyId, learnedGoal)) {
+    console.log(`[plan] step ${i + 1} (${stepName}) stopped where it stopped before — doing what you showed then`);
+    moreTime(6 * 60_000);
+    const r = await explore(s.page, { goal: learnedGoal, runId: `${process.env.QA_RUN_ID}-learned`, companyId, askFirst: false });
+    if (r.byHand) s.didByHand = true;
+    if (r.passed) return { text: "as you showed the last time", note: `did what you showed the last time it stopped here${r.proof ? ` — the screen shows “${mask(r.proof)}”` : ""}`, byHand: !!r.byHand };
+    lastTry = `What you showed the last time did not finish it here (${mask(r.reason ?? "it stopped").slice(0, 160)}).`;
+  }
+  for (let round = 1; round <= 3; round++) {
+    // An instruction sent to the running test before this question showed is used as it is; once the
+    // question shows, the chat box answers it.
+    let text = round === 1 ? (takeTold((t) => !/^\s*skip\b/i.test(t))[0]?.trim() ?? "") : "";
+    const askedAt = Date.now();
+    if (!text) {
+      moreTime(holdMs); // the test's own time limit (12 min a plan) must not close the browser while it waits
+      const a = await askTester(
+        {
+          kind: "stuck",
+          question: `Step ${i + 1} of ${total} (${stepName}) stopped: ${failText.replace(/\s+/g, " ").slice(0, 240)}. How should I finish it? I'm keeping this browser on that screen.`,
+          detail: `${lastTry ? `${lastTry} ` : ""}Type what to do (for example “invite the vendors”), or do it yourself in the browser. I'll carry on with the steps after it — not start again — and remember how, for the next time it stops here.`,
+          ...(shot ? { shot: shot.split("/").pop() } : {}),
+          options: [
+            { id: "self", label: "I'll do it myself in the browser" },
+            { id: "stop", label: "Stop here — mark it failed" },
+          ],
+        },
+        holdMs,
+      );
+      if (!a || a.option === "stop") return lastTry ? { tried: lastTry } : null;
+      if (a.option === "self") {
+        // Their way, by hand, on this screen: kept under the stuck point, so the next run does it itself.
+        moreTime(holdMs);
+        const hand = await handPart(askedAt);
+        if (!hand.held) {
+          lastTry = "You chose to do it yourself, but the browser was never taken.";
+          continue;
+        }
+        // Handed back with nothing done (only looked or scrolled): the step is not finished — ask again.
+        if (!hand.steps.length && !hand.secret) {
+          // "surrogate bid step has been done" typed while holding (29 Oct, plan-mvt753ce): their word that it was
+          // done already — by hand, earlier — so carry on, marked as done by them, instead of asking again.
+          const said = takeTold((t) => /\b(done|already|completed|finished|placed|submitted)\b/i.test(t) && !SAYS_STOP.test(t))[0];
+          if (said) {
+            s.didByHand = true;
+            s.handDone = true;
+            console.log(`[plan] step ${i + 1} (${stepName}) — you said “${mask(said).slice(0, 120)}”: carrying on`);
+            return { text: mask(said).slice(0, 300), note: `you said “${mask(said).slice(0, 120)}” — done by you in the browser`, byHand: true };
+          }
+          lastTry = "You had the browser, but nothing was clicked or typed.";
+          continue;
+        }
+        s.didByHand = true;
+        s.handDone = true;
+        const kept = saveHandRoute(companyId, learnedGoal, hand, process.env.QA_RUN_ID || "plan");
+        const n = hand.steps.length;
+        const why = kept
+          ? ` — your ${n} step${n === 1 ? "" : "s"} are saved; the next time it stops here, I do them myself`
+          : hand.secret
+            ? " — not saved for next time: a code or password was typed"
+            : "";
+        console.log(`[plan] step ${i + 1} (${stepName}) finished by you in the browser${why}`);
+        return { text: "done by you in the browser", note: `you did it in the browser${why}`, byHand: true };
+      }
+      text = (a.text ?? "").trim();
+    }
+    if (!text || SAYS_STOP.test(text)) return lastTry ? { tried: lastTry } : null;
+    console.log(`[plan] continuing step ${i + 1} (${stepName}) as you said: “${mask(text).slice(0, 160)}”`);
+    moreTime(8 * 60_000);
+    const goal = `${text}. Do it on this screen (the run stopped at ${stepName}: ${failText.replace(/\s+/g, " ").slice(0, 160)}), then stop — the steps after it are run separately`;
+    const r = await explore(s.page, { goal, runId: `${process.env.QA_RUN_ID}-resume${round}`, companyId, askFirst: false });
+    if (r.byHand) s.didByHand = true;
+    // The way their words got there is kept under the stuck point too: the next run needs no words.
+    if (r.passed && r.route?.savedTo) keepRouteAs(companyId, goal, learnedGoal);
+    if (r.passed) return { text: mask(text).slice(0, 300), note: `“${mask(text).slice(0, 120)}”${r.proof ? ` — the screen shows “${mask(r.proof)}”` : ""}`, byHand: !!r.byHand };
+    lastTry = `Doing “${mask(text).slice(0, 80)}” did not get there (${mask(r.reason ?? "it stopped").slice(0, 160)}).`;
+  }
+  return lastTry ? { tried: lastTry } : null;
+}
+
+/**
+ * The stuck point a way to finish is kept under: the step, the screen (its path, with ids left out) and
+ * the kind of failure (its words, without numbers or quoted values), so the same stop on another event
+ * finds it and a different stop on the same screen does not.
+ */
+export function stuckGoal(stepName: string, url: string, failText: string): string {
+  let screen = "app";
+  try {
+    screen = new URL(url).pathname.split("/").filter(Boolean).map((seg) => (/\d/.test(seg) || seg.length > 24 ? "id" : seg)).join(" ") || "home";
+  } catch {
+    /* not a web address: "app" */
+  }
+  const kind = failText
+    .toLowerCase()
+    .replace(/[“"‘'][^”"’']*[”"’']/g, " ")
+    .replace(/\d+/g, " ")
+    .replace(/[^a-z ]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8)
+    .join(" ");
+  return `Finish ${stepName.replace(/_/g, " ")} on ${screen}, which stopped: ${kind}`;
 }
 
 /**

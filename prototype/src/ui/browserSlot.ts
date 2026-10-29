@@ -19,6 +19,12 @@ export interface SlotHolder {
    *  headless run is as visible on the dashboard as a headed one in a window. */
   progress?: string;
   headed?: boolean;
+  /**
+   * ANSWERABLE FROM ANY TAB: the question the run is waiting on. A run started in another tab (or a tab
+   * since reloaded) asked into a stream nobody was reading, and the sidebar said "waiting for your
+   * answer" with no way to see or answer it (Aanya, 27 Oct). Sessions shows it from here.
+   */
+  ask?: { runId: string; n: number; question: string; kind?: string; options?: Array<{ id: string; label: string }> };
 }
 
 /** Update what the current holder is doing right now. */
@@ -27,6 +33,14 @@ export function setSlotProgress(progress: string): void {
 }
 export function setSlotHeaded(headed: boolean): void {
   if (holder) holder.headed = headed;
+}
+/** The question the running run waits on (undefined once answered). */
+export function setSlotAsk(ask: SlotHolder["ask"]): void {
+  if (holder) holder.ask = ask;
+}
+/** An answer reached this run's question: it no longer waits. */
+export function clearSlotAsk(runId: string, n: number): void {
+  if (holder?.ask && holder.ask.runId === runId && holder.ask.n === n) holder.ask = undefined;
 }
 
 interface Waiter {

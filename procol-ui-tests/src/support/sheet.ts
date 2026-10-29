@@ -20,6 +20,10 @@ export async function fillSheetPrices(page: Page, scope: Locator, price: number,
     const cell = cells.nth(i);
     if ((await cell.getAttribute("aria-disabled")) === "true") continue;
     const type = await cell.getAttribute("data-celltype");
+    // Procol pre-fills the quantity offered with the quantity requested ("10 Unit"). Typing over it quoted 1 of 10
+    // on every surrogate bid, so amounts (rate × quantity) stopped comparing and Master QCS ranks looked wrong
+    // (27 Oct, VB08); on the vendor portal typing into it appended ("1,010"). A filled quantity is kept.
+    if (type !== "price" && /[1-9]/.test(((await cell.innerText().catch(() => "")) || "").replace(/\s+/g, " "))) continue;
     const value = type === "price" ? String(price) : quantity;
     await cell.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
     await cell.click({ timeout: 5_000 }).catch(() => {});

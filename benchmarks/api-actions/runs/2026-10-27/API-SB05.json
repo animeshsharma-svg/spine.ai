@@ -1,0 +1,169 @@
+{
+ "id": "API-SB05",
+ "text": "Create a technical-only event with 1 line item, invite 1 vendor, publish it and submit a surrogate technical response for that vendor.",
+ "expect": "accepted",
+ "startedAt": "2026-10-26T20:39:59.113Z",
+ "lines": [
+  "No ready-made case matches — writing an API test from your sentence…",
+  "Not covered by this API test: The available setup recipes cannot create a technical-only event; the selected recipe also creates a pricing round.; The available read-back fields do not verify that the technical response is attributed to the vendor or marked as surrogate..",
+  "Plan “Create and submit a surrogate technical response for an invited vendor” on PROCOL DEMO",
+  "Setup: A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+  "  setup · Chosen by the caller: vendor “QA vendor 1”.",
+  "  setup · Sign in as the buyer: worked — Using Procol Support's web-console session for PROCOL DEMO — the app accepted it (role: super_admin).",
+  "  setup · Create the draft event: worked — Draft UWRjY2RO was created with one line item (73 KG).",
+  "  setup · Add the technical round (RFP): worked — Round 1 (technical round, RFP) was attached as WFhra1Fn, with amit.ksharma@m3mindia.com as its evaluator; bidding open 02:10–02:30.",
+  "  setup · Add the pricing round: worked — Round 2 (pricing round, RFQ) was attached as WFhOa1Fn; bidding open 02:10–02:30.",
+  "  · act 1: The buyer publishes the event with 1 audience company uuids. — The app accepted it (HTTP 200).",
+  "  ✓ act 2: The buyer sends the technical response call, exactly as the matching library case writes it. — The app refused it: “Insufficient parameters” (HTTP 422, code 2).",
+  "  ✓ verify 1: As the invited QA vendor, read the technical round and check that the read succeeds. — the read succeeds: yes (HTTP 200)",
+  "Verdict: passed — The app answered without a server error. The read-back shows what the case expects."
+ ],
+ "checks": [
+  {
+   "id": "API-TYPED",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "Create and submit a surrogate technical response for an invited vendor",
+   "type": "functional",
+   "category": "API plan",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "no-5xx",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /template_responses/create_surrogate_response",
+   "request": {
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "body": {
+     "trade_request_uuid": "WFhOa1Fn",
+     "company_uuid": "cGNrY1pE",
+     "responses": []
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Insufficient parameters (code 2)",
+   "durationMs": 17184,
+   "pass": true,
+   "verdict": "api plan passed — The app answered without a server error. The read-back shows what the case expects.",
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event with 1 audience company uuids.",
+    "The buyer sends the technical response call, exactly as the matching library case writes it.",
+    "As the invited QA vendor, read the technical round and check that the read succeeds."
+   ],
+   "expectedResult": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: the read succeeds.",
+   "apiPlan": {
+    "recipe": "draft_rfp_rfq",
+    "setupOk": true,
+    "event": "spine-API-automation-41329742"
+   }
+  },
+  {
+   "id": "API-TYPED·act1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer publishes the event with 1 audience company uuids.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "PATCH /event_groups/UWRjY2RO",
+   "request": {
+    "method": "PATCH",
+    "path": "/event_groups/UWRjY2RO",
+    "body": {
+     "attachments": [],
+     "title": "spine-API-automation-60064538",
+     "status": "active",
+     "draft_trade_request_uuids": [
+      "WFhra1Fn",
+      "WFhOa1Fn"
+     ],
+     "audience_company_uuids": [
+      "cGNrY1pE"
+     ],
+     "line_items": [],
+     "terms_and_conditions": {
+      "clauses": [],
+      "attachments": []
+     },
+     "show_under_open_events": true,
+     "delete_draft_stage_uuids": [],
+     "amendment_remarks": {
+      "remarks": ""
+     }
+    }
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 883,
+   "pass": true,
+   "verdict": "The app accepted it (HTTP 200)."
+  },
+  {
+   "id": "API-TYPED·act2",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "The buyer sends the technical response call, exactly as the matching library case writes it.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "POST /template_responses/create_surrogate_response",
+   "request": {
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "body": {
+     "trade_request_uuid": "WFhOa1Fn",
+     "company_uuid": "cGNrY1pE",
+     "responses": []
+    }
+   },
+   "httpStatus": 422,
+   "accepted": false,
+   "message": "Insufficient parameters (code 2)",
+   "durationMs": 321,
+   "pass": true,
+   "verdict": "The app refused it: “Insufficient parameters” (HTTP 422, code 2)."
+  },
+  {
+   "id": "API-TYPED·verify1",
+   "flowId": "api-plan",
+   "module": "API plan",
+   "scenario": "As the invited QA vendor, read the technical round and check that the read succeeds.",
+   "type": "functional",
+   "category": "plan step",
+   "priority": "P2",
+   "severity": "Medium",
+   "expected": "accept",
+   "inconclusive": false,
+   "layer": "api",
+   "inputSummary": "GET /trade/WFhra1Fn?response_type=template&additional_fields=order_details",
+   "request": {
+    "method": "GET",
+    "path": "/trade/WFhra1Fn?response_type=template&additional_fields=order_details"
+   },
+   "httpStatus": 200,
+   "accepted": true,
+   "message": null,
+   "durationMs": 3210,
+   "pass": true,
+   "verdict": "the read succeeds: yes (HTTP 200)"
+  }
+ ],
+ "done": {
+  "ok": true,
+  "total": 1
+ },
+ "fatal": null,
+ "ms": 38299
+}

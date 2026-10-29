@@ -619,6 +619,9 @@
       return list.length > 1 ? `${shortLabel(list[0])} + ${list.length - 1} more` : shortLabel(list[0]);
     }
     const journey = q.match(/^browser journey:\s*(.+)$/i)?.[1];
+    // The run's own words for what it tested (decath: "RBV_016 · Verify …"), so a renumbered
+    // sheet never relabels an old run with a new case's title.
+    if (journey && r.title) return `${r.title} (browser)`;
     if (journey) return `${shortLabel(journey.trim())} (browser)`;
     return q.replace(/^(api plan|api|ui)\s*:\s*/i, "") || "Untitled run";
   }
@@ -635,12 +638,19 @@
     if (failed) return { word: `${num(failed)} broken`, cls: "bad" };
     // Steps the tester did in the browser (take control) were not tested by the run.
     const byHand = Number(r.byHand) || 0;
-    if (r.kind === "plan" && byHand) {
-      return { word: "Partly tested", cls: "grey", why: `${plural(byHand, "step was", "steps were")} done by you in the browser, so the run didn't test ${byHand === 1 ? "it" : "them"}.` };
+    // …or had no step and were skipped or left unanswered (ask_tester).
+    const untested = Number(r.untested) || 0;
+    if (r.kind === "plan" && (byHand || untested)) {
+      const why = [byHand ? `${plural(byHand, "step was", "steps were")} done by you in the browser` : "", untested ? `${plural(untested, "part had", "parts had")} no step and ${untested === 1 ? "was" : "were"} skipped` : ""].filter(Boolean).join("; ");
+      return { word: "Partly tested", cls: "grey", why: `${why}, so the run didn't test ${byHand + untested === 1 ? "it" : "them"}.` };
     }
     const fieldFailed = Number(r.journey?.fieldChecks?.failed) || 0;
     if (fieldFailed) return { word: `${num(fieldFailed)} broken`, cls: "bad", why: `${fieldFailed} field checks failed` };
     if (r.journey?.stoppedAt) return { word: "Stopped early", cls: "grey", why: r.journey.outcome };
+    // A suite case that could not run (no login for the user it names, writes not allowed…).
+    if (r.kind === "journey" && inc && /NOT TESTED/.test(String(r.headline ?? ""))) {
+      return { word: "Not tested", cls: "grey", why: String(r.headline).replace(/^.*NOT TESTED\s*—\s*/, "") };
+    }
     if ((r.kind === "journey" || r.kind === "po" || r.kind === "plan") && inc) {
       return { word: "Stopped early", cls: "grey", why: r.headline && r.headline !== "—" ? r.headline : "The run did not finish." };
     }
@@ -985,6 +995,18 @@
       // A journey keeps its key, so the Browser tab's "Run again" can run it again.
       const flowKey = r.kind === "journey" ? String(r.request ?? "").match(/browser journey:\s*(\S+)/i)?.[1] : null;
       ss.begin({ text: titleOf(r), mode: r.kind === "journey" ? "ui" : "api", kind: "features", replay: true, id, flowKeys: flowKey ? [flowKey] : null });
+      // A saved journey shows its steps and the pictures it took, not its closing box alone (21 Oct).
+      if (r.kind === "journey") {
+        try {
+          const t = await getJson(`/api/ui-trail?run=${encodeURIComponent(id)}`);
+          if (sessionInHash() !== id) return;
+          if (typeof resetUiSteps === "function") resetUiSteps();
+          for (const step of t.steps ?? []) if (typeof pushJourneyStep === "function") pushJourneyStep(step);
+          for (const pic of t.pictures ?? []) ss.spot?.(pic);
+        } catch {
+          /* an older server, or a run with no trail: the closing box alone, as before */
+        }
+      }
       ss.end({
         tone: { ok: "ok", bad: "bad", grey: "stop" }[st.cls] || "skip",
         title: st.why || (r.headline && r.headline !== "—" ? r.headline : st.word),
@@ -1037,7 +1059,7 @@
       );
     } else if (steps.length) {
       ss.plan({ title: rec.title, steps: steps.map((s) => ({ step: s.step, args: s.args })), coverage: "full", via: "browser" });
-      steps.forEach((s, i) => ss.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || ""));
+      steps.forEach((s, i) => ss.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || "", undefined, { screen: s.screen, actions: s.actions }));
     }
     if (!rec) {
       ss.end({ tone: "skip", key: "UI", title: "This run's steps could not be loaded.", lines: r.ts ? [`Ran ${fullTime(r.ts)}.`] : [] });
@@ -1055,6 +1077,22 @@
 
   // ── clicks inside Home: retry a failed load ──────────────────────────────
   function initClicks() {
+    // Another session, opened while a run streams into this tab: it opens in a NEW tab. Replaying
+    // it here would cut the live run off, so openSession() sent every click back to the live one
+    // instead (Aanya, 26 Oct: "when im opening any session, it opens the currently running session").
+    document.addEventListener(
+      "click",
+      (e) => {
+        const a = e.target.closest?.('a[href^="#/session/"]');
+        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        const ss = session();
+        const id = decodeURIComponent(a.getAttribute("href").slice("#/session/".length));
+        if (!ss?.open || !ss.id || ss.id === id) return;
+        e.preventDefault();
+        window.open(new URL(a.getAttribute("href"), location.href).href, "_blank", "noopener");
+      },
+      true,
+    );
     q$("#view-home")?.addEventListener("click", (e) => {
       const retry = e.target.closest("[data-retry]");
       if (!retry) return;

@@ -113,7 +113,9 @@
     if (stagesFor === gs) return stagesCache;
     stagesFor = gs;
     const placed = new Set();
-    stagesCache = STAGES.map((st) => {
+    // An account with modules of its own (Decathlon: Purchase Order, Invoice, …)
+    // sends them as its stages; the events journey's eight do not apply to it.
+    stagesCache = (read(() => featureSuite?.stages, null) || STAGES).map((st) => {
       const kids = [];
       const sections = [];
       for (const m of st.mods) {
@@ -422,6 +424,8 @@
       return `<span class="pl-tag warn" title="${h(why)}">Off for client</span>`;
     }
     if (!(f.cases > 0)) return `<span class="pl-tag" title="No test cases written for this yet">No tests yet</span>`;
+    // A feature can say something of its own (Decathlon: "Changes data", "Needs a login").
+    if (f.tag) return `<span class="pl-tag${f.tagWarn ? " warn" : ""}" title="${h(f.tagWhy || f.tag)}">${h(f.tag)}</span>`;
     // Two states the product's own rules set; without a word the checkbox would look broken.
     if (isPre(f)) return `<span class="pl-tag" title="Every event goes through this step; it runs with whatever you pick">Always runs</span>`;
     const holder = heldBy(f);
@@ -596,12 +600,17 @@
     // The big number is what runs: the journey counts as one, then each case.
     const shown = depth == null ? null : depth.run + (counts.journey ? 1 : 0);
 
+    // A suite whose cases run in the browser (Decathlon): one case per feature,
+    // and no event track, depth or event setup — they are about an event.
+    const browserOnly = !!read(() => featureSuite?.browserOnly, false);
+    for (const el of [q$("#pl-track"), q$("#pl-depth-title")?.closest("section"), q$(".pl-setup")]) if (el) el.hidden = browserOnly;
     const big = q$("#pl-big");
-    if (big) big.textContent = state() === "ready" && shown != null ? fmt(shown) : "—";
+    if (big) big.textContent = state() === "ready" ? (browserOnly ? fmt(N) : shown != null ? fmt(shown) : "—") : "—";
     const bigC = q$("#pl-big-c");
     // Said as it will run: a ticked event feature is walked as the journey, not
     // replayed case by case, and a case that cannot run here is not promised.
-    if (bigC) {
+    if (browserOnly && bigC) bigC.textContent = `${N === 1 ? "case" : "cases"}, run in the browser`;
+    else if (bigC) {
       const from = `from ${plural(N, "feature", "features")}`;
       bigC.textContent =
         depth == null ? `cases ${from}`
@@ -646,6 +655,7 @@
       run.setAttribute("aria-expanded", String(menuOpen));
       q$("#pl-run-text").textContent = menuOpen
         ? "Choose how to run"
+        : browserOnly ? `Run ${plural(N, "case", "cases")}`
         : depth != null && N ? `Run ${runWords(counts.journey, depth.run)}` : `Run ${plural(N, "feature", "features")}`;
       q$("#pl-run-ico")?.setAttribute("href", menuOpen ? "#i-chevron-down" : "#i-chevron-up");
     }
@@ -653,7 +663,7 @@
 
     const menu = q$("#pl-menu");
     if (menu && menuOpen) {
-      const apiOff = poMode() ? "This account runs PO automation instead" : "";
+      const apiOff = poMode() ? "This account runs PO automation instead" : browserOnly ? "These cases run in the browser" : "";
       const known = flowsKnown();
       const item = (mode, label, detail, why) =>
         `<button type="button" class="pl-mi" role="menuitem" data-mode="${mode}" tabindex="-1"${why ? ` disabled title="${h(why)}"` : ""}>` +

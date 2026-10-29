@@ -108,11 +108,11 @@
       q$("#ss-status-text").textContent = S.open ? "Running" : "Session closed";
     }
     const stop = q$("#ss-stop");
-    if (stop) stop.hidden = !(S.open && (read(() => uiRunning, null) || read(() => apiRunning, null)));
+    paintStop();
     const comp = q$("#ss-composer");
     if (comp) comp.classList.toggle("busy", S.open);
     const msg = q$("#ss-msg");
-    if (msg) msg.placeholder = S.asking ? "Answer the question above, or pick an option" : S.open ? "Running… you can type your next message" : "Send a message to continue";
+    if (msg) msg.placeholder = S.asking ? "Answer the question above, or pick an option" : S.open ? (S.turn?.runId ? "Running… tell the test something — “use the Open tab”, “skip”, “stop”" : "Running… you can type your next message") : "Send a message to continue";
     syncSend();
     paintLive();
   }
@@ -144,6 +144,8 @@
 
     // The live turn is reused: the last run's id must not carry over to this one.
     if (el.turn) delete el.turn.dataset.runId;
+    // …nor its look: a discarded run's fade greyed out the next one.
+    el.turn?.classList.remove("rk-gone");
     const turn = el.turn;
     if (turn) turn.dataset.kind = kind;
     el.narr.innerHTML = "";
@@ -153,7 +155,7 @@
     el.ask.innerHTML =
       `<div class="ss-user">${h(shown)}</div>` +
       (replay ? `<div class="ss-meta">Saved run</div>` : "") +
-      (ask?.compiled ? `<div class="ss-compiled"><span>Running as</span>${h(ask.compiled)}</div>` : "") +
+      (ask?.compiled ? `<div class="ss-compiled"><span>Running as</span><div class="ss-clamp" title="Click to read it all">${h(ask.compiled)}</div></div>` : "") +
       (ask?.note ? `<div class="ss-meta left">${h(ask.note)}</div>` : "");
     syncModeSeg();
     // The last turn's report links must not end up on this turn's DONE box.
@@ -181,6 +183,7 @@
     const fp = q$("#live-frame-panel");
     if (fp) fp.hidden = true;
     q$("#live-frame")?.removeAttribute("src");
+    sideReset();
     spotsReset();
 
     S.frames = 0;
@@ -190,6 +193,8 @@
     const list = q$("#ss-req-list");
     if (list) list.innerHTML = "";
     paintReqCount();
+    S.con = new Map();
+    paintConsole();
     // A saved browser journey opens as a "features" turn too, but in UI mode:
     // it keeps the Browser panel (its "Run again" lives there).
     const apiOnly = S.mode === "api" || (kind === "features" && S.mode !== "ui");
@@ -286,16 +291,31 @@
     const c = q$(".ss-working .ss-clock", el.narr);
     if (c && S.turn) c.textContent = since(Date.now() - S.turn.startedAt);
   }
+  /**
+   * Stop, whenever a run of this page is in flight — also while it only waits
+   * for the browser. The header repainted on steps alone, and a journey queued
+   * behind another run sends none, so there was no way to stop it (21 Oct).
+   */
+  function paintStop() {
+    const stop = q$("#ss-stop");
+    if (stop) stop.hidden = !(S.open && (read(() => uiRunning, null) || read(() => apiRunning, null) || read(() => catRunning, null)));
+  }
   function startClock() {
     clearInterval(S.clock);
     S.clock = setInterval(() => {
       if (!S.open) return;
       tick();
       paintCases();
+      paintStop();
     }, 1000);
   }
 
   // ── narration ────────────────────────────────────────────────────────────
+  // Long words are folded to two lines (session.css .ss-clamp and friends); a click opens or closes them.
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest?.(".ss-clamp, .ss-b.head > .ss-b-body > .ss-b-d:not(.ss-step-detail), .ss-b-a");
+    if (t && !e.target.closest("a, button, summary")) t.classList.toggle("ss-unclamp");
+  });
   function addNarr(n) {
     const w = q$(".ss-working", el.narr);
     if (w) el.narr.insertBefore(n, w);
@@ -345,7 +365,30 @@
       .map((v) => (Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)))
       .join(" · ");
   }
+  // Steps whose name does not read as a sentence on its own.
+  const STEP_LABELS = { do_on_screen: "Do on screen", ask_tester: "Ask you" };
+  const STAGE_WORDS = { rfp: "Technical", rfi: "Technical", technical: "Technical", rfq: "RFQ", auction: "Auction" };
+  /**
+   * A step as its row reads — the PR start's steps (session 6c, 27 Oct) carry their args in the words:
+   * "Open the Open tab", "Tick PR PR-1238", "Choose the event: Technical + RFQ".
+   */
+  function stepLabel(s) {
+    const a = s?.args || {};
+    switch (s?.step) {
+      case "open_purchase_requisitions": return { verb: "Open Purchase Requisitions", arg: "" };
+      case "pr_tab": return { verb: `Open the ${a.tab || "Open"} tab`, arg: "" };
+      case "select_pr": return { verb: a.pr ? `Tick PR ${a.pr}` : "Tick a PR", arg: "" };
+      case "purchase_items": return { verb: "Purchase Items → Start New Project (Purchase Cart)", arg: "" };
+      case "choose_stages": {
+        const st = Array.isArray(a.stages) ? a.stages : [];
+        return { verb: st.length ? `Tick ${st.map((x) => STAGE_WORDS[String(x).toLowerCase()] || x).join(" + ")} under Create Project → Create Project` : "Tick the stages under Create Project (I'll ask you which) → Create Project", arg: "" };
+      }
+      case "expect_pr_items": return { verb: "The create screen lists the PR's items", arg: "" };
+      default: return { verb: stepVerb(s?.step), arg: argWords(a) };
+    }
+  }
   function stepVerb(name) {
+    if (STEP_LABELS[name]) return STEP_LABELS[name];
     const w = String(name ?? "").replace(/_/g, " ").trim();
     return w.charAt(0).toUpperCase() + w.slice(1);
   }
@@ -353,16 +396,105 @@
   /** The compiler's gaps as one list, without the full stops each one ends in. */
   const gapWords = (gaps) => (gaps || []).map((g) => String(g).trim().replace(/[\s.;,]+$/, "")).filter(Boolean).join("; ");
 
+  // A step's name as a person says it, for the planner's notes.
+  const STEP_WORDS = {
+    place_surrogate_bid: "place a surrogate bid", place_bid: "place a bid", publish: "publish", expect_published: "check it published",
+    convert_to_auction: "convert it to an auction", close_event: "close the event", open_event: "open an event",
+    open_prepared: "open the event the API builds", open_create: "open the create screen", set_title: "set the title",
+    set_schedule: "set the schedule", invite_vendor: "invite a vendor", ask_tester: "ask you", do_on_screen: "work it out on screen", select_template: "choose a template",
+    add_line_items: "add line items", fill_sheet: "fill the price sheet", assign_evaluator: "assign an evaluator",
+    open_master_qcs: "open Master QCS", open_participants: "open Participants", award_event: "award the event",
+    place_counter_offer: "send a counter offer", open_events_list: "open the events list", filter_events: "switch the events list tab",
+    open_purchase_requisitions: "open Purchase Requisitions", pr_tab: "open the PR tab", select_pr: "tick a PR",
+    purchase_items: "use Purchase Items → Start New Project", choose_stages: "choose the event's stages", expect_pr_items: "check the create screen lists the PR's items",
+  };
+  const stepWords = (name) => STEP_WORDS[name] || String(name).replace(/_/g, " ");
+  /** Step ids inside a reason ("close_event's job") said as words. */
+  const plainIds = (t) => String(t).replace(/\b([a-z]+(?:_[a-z]+)+)('s)?\b/g, (_, id, poss) => `the “${stepWords(id)}” step${poss ? "'s" : ""}`);
+  /** One planner note in plain words; null for pure ordering notes, kept under "the planner's own notes". */
+  function planNoteWords(w) {
+    const t = String(w).trim();
+    let m;
+    if (/^moved \w+ to the front\b/i.test(t)) return null;
+    if ((m = t.match(/^added (\w+)(?:\{[^}]*\}|\([^)]*\))? — (.+)$/i))) return `I added a step to ${stepWords(m[1])}: ${plainIds(m[2])}.`;
+    if ((m = t.match(/^dropped (\w+) — (.+)$/i))) return `I left out “${stepWords(m[1])}”: ${plainIds(m[2])}.`;
+    if ((m = t.match(/^(\w+) → (\w+)(?:\{[^}]*\}|\([^)]*\))? — (.+)$/))) return `Instead of “${stepWords(m[1])}”, I'll ${stepWords(m[2])}: ${plainIds(m[3])}.`;
+    return plainIds(t.replace(/^note:\s*/i, "Note: "));
+  }
+
+  /**
+   * What the planner changed or could not cover, said ONCE and plainly before the run, in one
+   * card — not one INFO box per raw note (Aanya, 26 Oct: "why this abrupt warning", over three
+   * boxes reading "note: publish cannot run on a published event — left as written" and the like).
+   */
+  function beforeStart(p) {
+    if (!S.on) return;
+    const lines = [];
+    const asks = (p.steps || []).some((s) => s.step === "ask_tester");
+    if (p.coverage === "partial") {
+      lines.push(asks
+        ? `There is no step for part of this case, so I'll ask you to do it in the browser when we get there: ${gapWords(p.gaps)}.`
+        : `This part can't be tested yet — there is no step for it: ${gapWords(p.gaps)}.`);
+    }
+    const kept = [];
+    for (const w of p.warnings || []) {
+      if (/^cannot test|^can only test/i.test(w)) continue;
+      const plain = planNoteWords(w);
+      if (plain) lines.push(plain);
+      else kept.push(w);
+    }
+    if (!lines.length && !kept.length) return;
+    remember(`PLAN PREPARED: ${lines.join(" ")}`);
+    // The summary says what kind of notes they are, so nobody has to open it to know nothing went wrong.
+    const changed = lines.length - (p.coverage === "partial" ? 1 : 0);
+    const parts = [
+      changed ? `I adjusted ${changed === 1 ? "1 thing" : `${changed} things`}` : "",
+      p.coverage === "partial" ? (asks ? "1 part needs you — I'll ask when we get there" : "1 part has no step yet") : "",
+    ].filter(Boolean);
+    addNarr(node(
+      `<details class="ss-prep"><summary><span class="ss-prep-ico">${icon("list-checks")}</span><span>Plan prepared${parts.length ? ` — ${h(parts.join(" · "))}` : ""}</span></summary>` +
+      `<ul>${lines.map((l) => `<li>${h(l)}</li>`).join("")}</ul>` +
+      (kept.length ? `<details class="ss-before-more"><summary>The planner's own notes (${kept.length})</summary><ul>${kept.map((k) => `<li>${h(k)}</li>`).join("")}</ul></details>` : "") +
+      `</details>`,
+    ));
+  }
+
+  /**
+   * A DRAFT of the plan while the case compiles (planner.quickOutline: no model, under a second —
+   * Aanya, 27 Oct: "too slow", "boring for the user watching"). The steps it will most likely run,
+   * marked "Draft plan", replaced by the compiled plan the moment it arrives.
+   */
+  function outline(p) {
+    if (!S.on || !S.turn || S.turn.plan?.length) return;
+    draftGone();
+    const steps = p?.steps || [];
+    if (!steps.length) return;
+    S.turn.draft = addNarr(node(
+      `<div class="ss-draft"><div class="ss-draft-h"><span class="ss-draft-tag">Draft plan</span><span>${h(p.title || "")} — refining it into exact steps</span></div>` +
+      `<ol class="ss-draft-steps">${steps.map((s) => {
+        const { verb, arg } = stepLabel(s);
+        return `<li class="ss-b act wait"><span class="ss-dot"></span><div class="ss-b-body"><div class="ss-b-a"><b>${h(verb)}</b>${arg ? ` <span class="ss-arg">${h(arg)}</span>` : ""}</div></div></li>`;
+      }).join("")}</ol></div>`,
+    ));
+  }
+  /** The draft goes once the real plan (or the explorer, or a refusal) takes its place. */
+  function draftGone() {
+    S.turn?.draft?.remove();
+    if (S.turn) S.turn.draft = null;
+  }
+
   function plan(p) {
     if (!S.on) return;
+    draftGone();
     stopWorking();
     // A plan that cannot run is not a green line: its dot stays grey.
     const runnable = p.coverage !== "none" && (p.steps || []).length > 0;
     head(p.title || "The plan", p.reasoning || "", runnable ? "ok" : "skip");
+    // What the planner prepared goes with the plan, above its steps — not after them, where results appear.
+    beforeStart(p);
     const list = node(`<ol class="ss-steps"></ol>`);
     S.turn.plan = (p.steps || []).map((s, i) => {
-      const verb = stepVerb(s.step);
-      const arg = argWords(s.args);
+      const { verb, arg } = stepLabel(s);
       const assertion = ASSERTS.test(String(s.step ?? ""));
       const li = node(
         `<li class="ss-b ${assertion ? "head" : "act"} wait" data-i="${i}"><span class="ss-dot"></span><div class="ss-b-body">` +
@@ -372,30 +504,98 @@
         `<div class="ss-b-d ss-step-detail" hidden></div></div></li>`,
       );
       list.appendChild(li);
-      return { verb, arg, state: "wait", detail: "" };
+      return { verb, arg, name: s.step, state: "wait", detail: "" };
     });
     // planStep() ticks THIS list: a Both ask can show an API journey's list above it.
     S.turn.planList = list;
     if (S.turn.plan.length) addNarr(list);
-    // Nothing runs when coverage is "none": the Not tested box this turn ends
-    // on says which step is missing, so it is not said twice.
-    if (p.coverage === "partial") note(`Only part of this case can be tested — there is no step for: ${gapWords(p.gaps)}.`, "info");
-    for (const w of p.warnings || []) if (!/^cannot test|^can only test/i.test(w)) note(w, "info");
     // An API journey's steps come here too (via "api"), so the chat reads the same either way.
     S.turn.planVia = p.via === "api" ? "api" : "browser";
     if (S.turn.planVia === "browser") browserPart();
     if (runnable) working(`Running ${S.turn.plan.length} step${S.turn.plan.length === 1 ? "" : "s"} ${p.via === "api" ? "against the API" : "in the browser"}`);
   }
 
+  /** How many step rows the running plan has. */
+  const planLength = () => S.turn?.plan?.length ?? 0;
+  /**
+   * Steps added mid-run (choose_stages asks which event and then inserts that event's stage steps):
+   * rows for them at `at`, the later rows moved down. They start unnamed; planName names each as it runs.
+   */
+  function planGrow(at, count) {
+    const list = S.turn?.planList;
+    if (!S.on || !list || !(count > 0)) return;
+    const rows = Array.from(list.querySelectorAll(":scope > li[data-i]"));
+    const before = rows[at] ?? null;
+    for (let k = 0; k < count; k++) {
+      list.insertBefore(
+        node(`<li class="ss-b act wait" data-i=""><span class="ss-dot"></span><div class="ss-b-body"><div class="ss-b-a"><b>Next step</b></div><div class="ss-b-d ss-step-detail" hidden></div></div></li>`),
+        before,
+      );
+      S.turn.plan.splice(at + k, 0, { verb: "Next step", arg: "", name: "", state: "wait", detail: "" });
+    }
+    Array.from(list.querySelectorAll(":scope > li")).forEach((li, i) => (li.dataset.i = String(i)));
+  }
+  /** Name a row by the step the run says is there (a row added mid-run, or one whose step changed). */
+  function planName(i, name) {
+    const s = S.turn?.plan?.[i];
+    if (!S.on || !s || !name || s.name === name) return;
+    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`);
+    const { verb } = stepLabel({ step: name });
+    s.name = name;
+    s.verb = verb;
+    const b = li && (q$(".ss-b-a b", li) || q$(".ss-b-t", li));
+    if (b) b.textContent = verb;
+  }
+
   /** state: "run" | "ok" | "bad" | "skip" */
-  function planStep(i, state, detail, spotlights) {
+  /** A locator as Playwright describes it, as a person says it: getByRole('button', { name: 'Publish' }) → button “Publish”. */
+  function controlWords(t) {
+    const x = String(t || "");
+    // a regex name read as words: /^rfq\b/i → rfq
+    const plain = (lit, re) => (lit ?? String(re ?? "").replace(/\\[bBsSdDwW]|[\^$]|\(\?:|[()?+*]/g, "").replace(/\\(.)/g, "$1").replace(/\|/g, " or ")).trim();
+    let m;
+    if ((m = x.match(/getByRole\('([\w-]+)'(?:,\s*\{\s*name:\s*(?:'([^']*)'|\/([^/]*)\/\w*))?/))) return `${m[1]}${m[2] || m[3] ? ` “${plain(m[2], m[3])}”` : ""}`;
+    if ((m = x.match(/getBy(Text|Label|Placeholder|Title|TestId)\((?:'([^']*)'|\/([^/]*)\/\w*)/))) return `${{ Text: "", Label: "field ", Placeholder: "field ", Title: "", TestId: "" }[m[1]]}“${plain(m[2], m[3])}”`;
+    return x.length > 70 ? `${x.slice(0, 69)}…` : x;
+  }
+
+  /**
+   * What the step left on screen, in words — the record kept instead of a picture per step (Aanya,
+   * 26 Oct): what the step did, the page, its headings, tabs, buttons (and which were off), fields and
+   * their values, messages, dialogs, console errors and warnings, failed requests. Closed by default.
+   */
+  function screenRecordHtml(rec) {
+    const sc = rec?.screen;
+    const acts = Array.isArray(rec?.actions) ? rec.actions : [];
+    if (!sc && !acts.length) return "";
+    const row = (label, html) => (html ? `<div class="ss-scr-row"><span class="ss-scr-k">${h(label)}</span><span class="ss-scr-v">${html}</span></div>` : "");
+    const list = (xs) => xs.filter(Boolean).join(" · ");
+    const parts = [
+      row("Did", list(acts.map((a) => `${h(a.verb)} ${h(controlWords(a.target))}${a.value ? ` <i>${h(a.value)}</i>` : ""}`))),
+      sc ? row("Page", `${h(sc.title || "")}${sc.url ? ` <code>${h(sc.url)}</code>` : ""}`) : "",
+      sc?.headings?.length ? row("Headings", h(list(sc.headings))) : "",
+      sc?.tabs?.length ? row("Tabs", list(sc.tabs.map((t) => (t.selected ? `<b>${h(t.name)}</b>` : h(t.name))))) : "",
+      sc?.buttons?.length ? row("Buttons", list(sc.buttons.map((b) => (b.disabled ? `<span class="ss-scr-off">${h(b.name)} (off)</span>` : h(b.name))))) : "",
+      sc?.fields?.length ? row("Fields", list(sc.fields.map((f) => `${h(f.label)}${f.required ? "*" : ""}: ${f.value ? h(f.value) : "<i>empty</i>"}${f.error ? ` <span class="ss-scr-bad">${h(f.error)}</span>` : ""}`))) : "",
+      sc?.messages?.length ? row("Messages", h(list(sc.messages))) : "",
+      sc?.dialogs?.length ? row("Open", h(list(sc.dialogs))) : "",
+      sc?.console?.length ? row("Console", list(sc.console.map((c) => `<span class="${c.type === "error" ? "ss-scr-bad" : ""}">${h(c.type)}: ${h(c.text)}</span>`))) : "",
+      sc?.failedRequests?.length ? row("Failed calls", list(sc.failedRequests.map((r) => `<span class="ss-scr-bad">${h(r.method)} ${h(r.path)} → ${h(r.status)}</span>`))) : "",
+    ].join("");
+    const flags = [sc?.failedRequests?.length ? `${sc.failedRequests.length} failed call${sc.failedRequests.length === 1 ? "" : "s"}` : "", sc?.console?.some((c) => c.type === "error") ? "console errors" : ""].filter(Boolean);
+    return `<details class="ss-scr"><summary>What was on screen${flags.length ? ` <span class="ss-scr-bad">· ${h(flags.join(" · "))}</span>` : ""}</summary>${parts}</details>`;
+  }
+
+  function planStep(i, state, detail, spotlights, record) {
     if (!S.on || !S.turn?.plan?.[i]) return;
+    if (record?.screen) consoleLines({ step: i + 1, stepName: S.turn.plan[i].step || "", url: record.screen.url || "", console: record.screen.console || [], failedRequests: record.screen.failedRequests || [] });
     const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
     if (!li) return;
     li.classList.remove("wait", "run", "ok", "bad", "skip");
     li.classList.add(state);
     const s = S.turn.plan[i];
     s.state = state;
+    spotsOutcome(i + 1, state);
     if (detail !== undefined) {
       s.detail = String(detail || "");
       const d = q$(".ss-step-detail", li);
@@ -405,6 +605,12 @@
         d.textContent = s.notes?.length ? s.detail.replace(/\s*Passed over(?: first)? — [\s\S]*$/, "") : s.detail;
         d.hidden = !d.textContent;
       }
+    }
+    // The step's screen in words, under its detail.
+    if (record && (record.screen || record.actions?.length)) {
+      q$(".ss-scr", li)?.remove();
+      const html = screenRecordHtml(record);
+      if (html) (q$(".ss-step-detail", li)?.parentElement || li).insertAdjacentHTML("beforeend", html);
     }
     // The step's own pictures: each action framed, each assertion verified (spotlight.ts).
     if (Array.isArray(spotlights) && spotlights.length) {
@@ -419,6 +625,7 @@
         const t = document.createElement("img");
         t.className = "ss-step-spot";
         t.dataset.action = sp.action;
+        t.dataset.tone = state;
         t.loading = "lazy";
         t.src = spotUrl(sp);
         t.alt = spotCaption(sp);
@@ -488,6 +695,7 @@
       return;
     }
     const state = st.status === "run" ? "run" : st.status === "ok" ? "ok" : st.status === "failed" ? "bad" : "skip";
+    spotsOutcome(st.n, state);
     let li = x.rows.get(st.n);
     if (!li) {
       li = node(`<li class="ss-b act" data-n="${Number(st.n)}"></li>`);
@@ -512,8 +720,26 @@
    * offers, and a box for anything else. The composer answers it too while it
    * is open. The answer goes to the waiting run (POST /api/explore/answer).
    */
+  /**
+   * A question in a line or two (Aanya, 27 Oct: "why is it giving so many big paras, no one will read
+   * so"). A run that tried and stopped says why in its own words — "(I tried on screen and stopped: The
+   * RFQ shows no submitted response from AMD LTD, …)" — and that reason IS the question; otherwise the
+   * first sentence. The full text stays under "More".
+   */
+  function shortQuestion(text) {
+    const t = String(text ?? "").replace(/\s+/g, " ").trim();
+    const tried = t.match(/\(I tried on screen and stopped: ([^)]+)\)/i);
+    if (tried) return `${tried[1].trim().replace(/[.\s]+$/, "")}. How should I go on?`;
+    if (t.length <= 180) return t;
+    const first = t.match(/^(.{40,180}?[.?!])(\s|$)/);
+    return first ? first[1] : `${t.slice(0, 170).replace(/\s+\S*$/, "")}…`;
+  }
+
+  /** Questions already shown here, by run and number — the slot poll below never shows one twice. */
+  const shownAsks = new Set();
   function ask(q) {
     if (!S.on || !S.turn || !q) return;
+    shownAsks.add(`${q.runId || S.turn.explore?.runId || ""}#${q.n}`);
     closeAsk("");
     stopWorking();
     // "I'll do it myself" needs the live view's Take control (liveControl.js); without it the option is left out.
@@ -525,8 +751,10 @@
     const card = node(
       `<div class="ss-askcard" role="group" aria-label="A question from the run">` +
       `<div class="ss-askcard-h">${icon("bot")}<span>${q.kind === "confirm" ? "Before I go on" : q.kind === "stuck" ? "I'm stuck" : "Question"}</span></div>` +
-      `<div class="ss-askcard-q">${h(q.question)}</div>` +
-      (q.detail ? `<div class="ss-askcard-d">${h(q.detail)}</div>` : "") +
+      `<div class="ss-askcard-q">${h(shortQuestion(q.question))}</div>` +
+      (q.detail || shortQuestion(q.question) !== String(q.question ?? "").trim()
+        ? `<details class="ss-askcard-more"><summary>More</summary>${shortQuestion(q.question) !== String(q.question ?? "").trim() ? `<div class="ss-askcard-d">${h(q.question)}</div>` : ""}${q.detail ? `<div class="ss-askcard-d">${h(q.detail)}</div>` : ""}</details>`
+        : "") +
       shot +
       `<div class="ss-askcard-opts">${opts
         .map((o, i) => `<button type="button" class="ss-opt${o.id === "stop" ? " stop" : ""}" data-opt="${h(o.id)}"><span class="ss-opt-k">${i + 1}</span><span class="ss-opt-l">${h(o.label)}</span></button>`)
@@ -636,12 +864,24 @@
    * run is opened again. UI and Both runs keep both tabs.
    */
   const browserless = () => S.turn?.mode === "api";
+  /**
+   * The tabs a run has (Aanya, 28 Oct): a Browser run — Browser and Console, no Requests; an API run — Requests,
+   * no Browser or Console; Both — all of them. Test cases always. Before any run, Browser and Requests as before.
+   */
+  function tabsFor() {
+    const t = S.turn;
+    if (!t) return { browser: true, requests: true, console: false, cases: true };
+    const api = t.mode === "api" || (t.kind === "features" && t.mode !== "ui");
+    const ui = t.mode === "ui" || (t.kind === "features" && t.mode === "ui");
+    return { browser: !api, requests: !ui, console: !api, cases: true };
+  }
   function setTab(tab, picked = false) {
-    const off = browserless();
-    S.tab = tab === "requests" || off ? "requests" : "browser";
+    const has = tabsFor();
+    const want = ["cases", "requests", "console", "browser"].includes(tab) ? tab : "browser";
+    S.tab = has[want] ? want : has.browser ? "browser" : "requests";
     if (picked) S.tabPicked = true;
     for (const b of document.querySelectorAll(".ss-tab")) {
-      b.hidden = off && b.dataset.tab === "browser";
+      b.hidden = !has[b.dataset.tab];
       b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
       b.tabIndex = b.dataset.tab === S.tab ? 0 : -1;
     }
@@ -656,6 +896,36 @@
     if (!S.on || browserless()) return;
     if (!S.tabPicked) setTab("browser");
     setRight(true);
+  }
+  /**
+   * The vendor portal BESIDE the buyer's page (Aanya, 27 Oct: "buyer's tab stay open and in the side vendor's
+   * portal can be opened"): the run streams it as side frames with a caption ("Vendor portal · <email>").
+   * When the vendor is done its last frame stays, dimmed, while the buyer's page goes on to show the response.
+   */
+  function sideFrame(d) {
+    if (!S.on || browserless()) return;
+    const box = q$("#live-side");
+    const panel = q$("#live-frame-panel");
+    if (!box || !panel) return;
+    if (d.frame) q$("#live-frame-side").src = `data:image/jpeg;base64,${d.frame}`;
+    if (d.label) q$("#live-side-cap").textContent = d.state === "done" ? `${d.label} · done` : d.label;
+    if (d.state) box.dataset.state = d.state;
+    if (!d.frame && !q$("#live-frame-side").getAttribute("src")) return;
+    box.hidden = false;
+    panel.classList.add("split");
+    panel.hidden = false;
+    frame();
+  }
+  function sideReset() {
+    const box = q$("#live-side");
+    if (box) {
+      box.hidden = true;
+      delete box.dataset.state;
+    }
+    q$("#live-frame-side")?.removeAttribute("src");
+    const cap = q$("#live-side-cap");
+    if (cap) cap.textContent = "Vendor portal";
+    q$("#live-frame-panel")?.classList.remove("split");
   }
   function frame() {
     if (!S.on || browserless()) return;
@@ -672,7 +942,7 @@
     const btn = q$("#ss-show-right");
     if (!btn) return;
     btn.hidden = on;
-    const word = S.tab === "requests" ? "Requests" : "Browser";
+    const word = S.tab === "requests" ? "Requests" : S.tab === "cases" ? "Test cases" : S.tab === "console" ? "Console" : "Browser";
     if (btn.lastChild?.nodeType === Node.TEXT_NODE) btn.lastChild.textContent = word;
     btn.title = `Show the ${word.toLowerCase()} panel`;
   }
@@ -768,6 +1038,117 @@
     btn.hidden = !on;
     if (on) btn.title = S.turn.flowKeys?.length ? `Run ${S.turn.flowKeys.join(", ")} again in the browser` : "Run this again in the browser";
   }
+  // ── the Console tab: what the browser complained about, step by step ─────
+  /** The message with its numbers and ids blurred — the same as src/report/consoleBugs.ts consoleFingerprint. */
+  function conPrint(kind, text) {
+    const t = String(text || "")
+      .toLowerCase()
+      .replace(/https?:\/\/[^\s"')]+/g, (u) => u.replace(/\?.*$/, "").replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/:id"))
+      .replace(/\b\d+(\.\d+)?\b/g, "#")
+      .replace(/"[^"]{0,80}"|'[^']{0,80}'/g, '"…"')
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 240);
+    return `console:${kind}:${t}`;
+  }
+  /** What the bugs list already holds from the Console tab (read once, kept fresh by our own reports). */
+  let conReported = null;
+  function loadReported() {
+    if (conReported) return;
+    conReported = new Set();
+    fetch("/api/console-bugs", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        for (const x of d.reported || []) conReported.add(x.fingerprint);
+        paintConsole();
+      })
+      .catch(() => {});
+  }
+  /** One step's console lines and failed calls ("[console] {…}" while running; the step records at the end). */
+  function consoleLines(x) {
+    if (!S.on || !x) return;
+    if (!S.con) S.con = new Map();
+    loadReported();
+    const add = (kind, text) => {
+      if (!text) return;
+      const fp = conPrint(kind, text);
+      const e = S.con.get(fp) ?? { fp, kind, text: String(text), steps: new Map() };
+      e.steps.set(Number(x.step) || 0, { step: Number(x.step) || 0, stepName: String(x.stepName || ""), url: String(x.url || "") });
+      S.con.set(fp, e);
+    };
+    for (const c of x.console || []) add(c.type === "warning" ? "warning" : "error", c.text);
+    for (const r of x.failedRequests || []) add("network", `${String(r.method || "").toUpperCase()} ${r.path} → ${r.status}`);
+    paintConsole();
+  }
+  const CON_WORD = { error: "Error", network: "Failed call", warning: "Warning" };
+  const CON_ORDER = { error: 0, network: 1, warning: 2 };
+  function paintConsole() {
+    const list = q$("#ss-con-list");
+    if (!list) return;
+    const all = [...(S.con?.values() ?? [])].sort((a, b) => CON_ORDER[a.kind] - CON_ORDER[b.kind] || Math.min(...a.steps.keys()) - Math.min(...b.steps.keys()));
+    const n = (k) => all.filter((e) => e.kind === k).length;
+    // A possible bug: an error or a failed call. Warnings are listed and can be reported, not counted.
+    const bugs = all.filter((e) => e.kind !== "warning");
+    const open = bugs.filter((e) => !conReported?.has(e.fp));
+    const badge = q$("#ss-con-n");
+    if (badge) badge.textContent = bugs.length ? String(bugs.length) : "";
+    const empty = q$("#ss-con-empty");
+    if (empty) empty.hidden = all.length > 0;
+    const head = q$("#ss-con-head");
+    if (head) {
+      head.hidden = !all.length;
+      const parts = [n("error") && `${n("error")} error${n("error") === 1 ? "" : "s"}`, n("network") && `${n("network")} failed call${n("network") === 1 ? "" : "s"}`, n("warning") && `${n("warning")} warning${n("warning") === 1 ? "" : "s"}`].filter(Boolean);
+      head.innerHTML =
+        `<div class="ss-con-sum"><b>${bugs.length} possible bug${bugs.length === 1 ? "" : "s"}</b><span>${h(parts.join(" · "))}</span></div>` +
+        `<div class="ss-con-acts">${open.length ? `<button type="button" class="ss-con-all">Report all ${open.length}</button>` : ""}<a class="ss-con-open" href="#/bugs">Open Bugs</a></div>`;
+      q$(".ss-con-all", head)?.addEventListener("click", () => open.forEach((e) => reportConsole(e)));
+    }
+    list.innerHTML = all
+      .map((e) => {
+        const steps = [...e.steps.values()].sort((a, b) => a.step - b.step);
+        const where = steps.slice(0, 4).map((s) => `step ${s.step}${s.stepName ? ` ${h(s.stepName.replace(/_/g, " "))}` : ""}`).join(", ") + (steps.length > 4 ? ` +${steps.length - 4}` : "");
+        const done = conReported?.has(e.fp);
+        return (
+          `<li class="ss-con-row" data-kind="${e.kind}" data-fp="${h(e.fp)}">` +
+          `<div class="ss-con-top"><span class="ss-con-k">${CON_WORD[e.kind]}</span><span class="ss-con-w">${where}${steps[0]?.url ? ` · <code>${h(steps[0].url)}</code>` : ""}</span>` +
+          (done ? `<a class="ss-con-done" href="#/bugs">Reported ✓</a>` : `<button type="button" class="ss-con-rep">Report as bug</button>`) +
+          `</div><pre class="ss-con-t">${h(e.text)}</pre></li>`
+        );
+      })
+      .join("");
+    for (const b of list.querySelectorAll(".ss-con-rep")) {
+      b.addEventListener("click", () => {
+        const e = S.con?.get(b.closest(".ss-con-row").dataset.fp);
+        if (e) reportConsole(e, b);
+      });
+    }
+  }
+  /** Put one console line on the Bugs page (/api/console-bugs → src/report/consoleBugs.ts). */
+  function reportConsole(e, btn) {
+    const first = [...e.steps.values()].sort((a, b) => a.step - b.step)[0] ?? {};
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Reporting…";
+    }
+    fetch("/api/console-bugs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: e.kind, text: e.text, runId: S.turn?.runId || S.id || "", step: first.step, stepName: first.stepName, url: first.url, caseText: S.turn?.text || "" }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.fingerprint) conReported?.add(d.fingerprint);
+        conReported?.add(e.fp);
+        paintConsole();
+      })
+      .catch(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Report as bug — try again";
+        }
+      });
+  }
+
   function paintReqCount() {
     const n = q$("#ss-req-n");
     if (n) n.textContent = S.reqs ? String(S.reqs) : "";
@@ -881,6 +1262,7 @@
     closeAsk("No longer waiting — the run ended.");
     const told = S.open && S.onEnd;
     S.open = false;
+    spotsSettle();
     if (told) {
       const cb = S.onEnd;
       S.onEnd = null;
@@ -990,9 +1372,14 @@
   ];
 
   // ── a browser journey (/api/ui-run) ──────────────────────────────────────
-  function journeyEnd({ label, code, runId, error, took, byHand = 0 }) {
+  function journeyEnd({ label, code, runId, error, took, byHand = 0, notTested = "" }) {
     if (!S.on) return;
     const ok = code === 0 && !error;
+    // The suite ran but did not test its case (no login for the user it names, writes not allowed…).
+    if (ok && notTested) {
+      end({ tone: "skip", key: label || "Journey", title: `Not tested — ${notTested}`, lines: [took ? `Took ${took}.` : ""], links: runId ? [{ label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" }] : [] });
+      return;
+    }
     // Steps the tester did in the browser (take control): the run did not test them.
     if (ok && byHand > 0) {
       end({
@@ -1038,7 +1425,7 @@
     const failures = (read(() => checkRows, []) || [])
       .filter((c) => !c.pass && !c.inconclusive)
       .map((c) => ({ name: c.scenario || c.id, why: c.message || c.verdict || "" }));
-    end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links, failures }));
+    end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links, failures, rows: read(() => checkRows, []) || [] }));
   }
 
   /**
@@ -1046,7 +1433,9 @@
    * journey got, how the checks came out — and where the detail lives. The
    * counts are the run's own; nothing is recomputed.
    */
-  function summary({ total = 0, passed = 0, failed = 0, skipped = 0, error = null, journey = null, note = null, links = [], when = "", failures = [] }) {
+  function summary({ total = 0, passed = 0, failed = 0, skipped = 0, error = null, journey = null, note = null, links = [], when = "", failures = [], rows = [] }) {
+    const story = !error && planStory(rows, journey);
+    if (story) return { ...story, lines: [...story.lines, ...(when ? [when] : []), ...(links.length ? ["What was sent and what came back for each step is in the full report."] : [])], links };
     const stopped = !!journey?.stoppedAt;
     const unknown = Math.max(0, total - passed - failed);
     const ran = total || journey?.steps;
@@ -1106,6 +1495,51 @@
   }
 
   /**
+   * A typed API case (an "api plan": rows <case>, <case>·act1…, <case>·verify1…), told as what it is —
+   * one case, its steps in order — not as "the journey worked, but 3 of 4 checks around it failed"
+   * (Aanya, 28 Oct, "????" on "Withdrawing an RFQ with blank remarks is refused": the set-up was
+   * called the journey and the case's own steps "checks around it"). A read-back that fails only
+   * because an earlier step did what it should not is said to follow from that step.
+   */
+  function planStory(rows, journey) {
+    const main = (rows || []).find((r) => r && r.apiPlan && !String(r.id).includes("·"));
+    if (!main) return null;
+    const subs = rows.filter((r) => r && String(r.id).startsWith(`${main.id}·`));
+    if (!subs.length) return null;
+    const words = (t) => String(t || "").replace(/\s+/g, " ").trim().replace(/\.$/, "");
+    const lower = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+    const wantRefusal = main.expected === "reject";
+    const decisive = subs.find((r) => r.id.includes("·act") && wantRefusal && r.accepted && !r.pass) || null;
+    const firstBad = subs.find((r) => !r.pass && !r.inconclusive);
+    const came = (r) => {
+      const v = words(r.verdict).replace(/^api plan (failed|passed)\s*—\s*/i, "");
+      if (r.id.includes("·verify")) {
+        const m = v.match(/^(.+?) is “(.+?)”: NO \("?(.+?)"?\)$/);
+        return m ? `${m[1]} is “${m[3]}”, not “${m[2]}”` : v;
+      }
+      if (r.httpStatus >= 500) return `the server crashed (${r.httpStatus})`;
+      return r.accepted ? `accepted (HTTP ${r.httpStatus})` : `refused (HTTP ${r.httpStatus}${r.message ? `: ${words(r.message).slice(0, 100)}` : ""})`;
+    };
+    const lines = [];
+    if (journey?.steps) lines.push(journey.worked === journey.steps ? `Set-up: all ${journey.steps} steps worked.` : `Set-up: ${journey.worked} of ${journey.steps} steps worked.`);
+    lines.push("Then the case:");
+    subs.forEach((r, i) => {
+      const n = i + 1;
+      const knockOn = r.id.includes("·verify") && !r.pass && decisive && subs.indexOf(decisive) < i;
+      const mark = r.inconclusive ? "–" : r.pass ? "✓" : "✗";
+      lines.push(`${mark} ${n}. ${words(r.scenario)} — ${came(r)}${knockOn ? `; this follows from step ${subs.indexOf(decisive) + 1}` : ""}.`);
+    });
+    const title = main.pass
+      ? `Passed: ${lower(words(main.scenario))}.`
+      : decisive
+        ? `Failed: Procol accepted step ${subs.indexOf(decisive) + 1} (${lower(words(decisive.scenario))}). The case says it must be refused.`
+        : firstBad
+          ? `Failed at step ${subs.indexOf(firstBad) + 1}: ${lower(words(firstBad.scenario))} — ${came(firstBad)}.`
+          : `Failed: ${words(main.verdict).replace(/^api plan failed\s*—\s*/i, "")}.`;
+    return { tone: main.pass ? "ok" : "bad", tag: main.pass ? "" : "Case failed", title, lines };
+  }
+
+  /**
    * A saved run (Runs, or a recent run on Home), opened into the session: its
    * requests on the right and the box it ended on, from the record alone.
    */
@@ -1139,6 +1573,7 @@
       failed: rows.filter((c) => !c.pass && !c.inconclusive).length,
       failures: rows.filter((c) => !c.pass && !c.inconclusive).map((c) => ({ name: c.scenario || c.title || c.id, why: c.message || c.actual || "" })),
       journey,
+      rows,
       when: at && !Number.isNaN(at.getTime())
         ? `Ran on ${at.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} at ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.`
         : "",
@@ -1248,6 +1683,9 @@
   /** The run this turn is (its saved session's id), once the server has named it. */
   function setRunId(id) {
     if (S.turn && id) S.turn.runId = String(id);
+    // From now on a message typed here goes to this run: Send on, and the box says so.
+    syncSend();
+    paintTop();
     // On the turn itself too, so a turn kept above (a copy) still says which run it was (runCases.js).
     if (S.turn && id && el.turn) el.turn.dataset.runId = String(id);
   }
@@ -1275,7 +1713,8 @@
   function syncSend() {
     const msg = q$("#ss-msg");
     const send = q$("#ss-send");
-    if (send) send.disabled = (S.open && !S.asking) || !msg?.value.trim();
+    // While a browser run goes, a message is for that run (POST /api/live/say), so Send stays on.
+    if (send) send.disabled = (S.open && !S.asking && !S.turn?.runId) || !msg?.value.trim();
   }
   function syncModeSeg() {
     const r = document.querySelector(`input[name="ss-mode"][value="${S.mode}"]`);
@@ -1296,6 +1735,37 @@
       const box = q$("#ss-msg");
       if (box) { box.value = ""; autosize(box); }
       return answerAsk({ option: null, text });
+    }
+    // A message while a browser run goes is for that run (Aanya, 26 Oct: "when the browser keeps
+    // running, the user cannot send any command in between"): the on-screen steps follow it at their
+    // next move; "stop" ends the run after the step it is on, "skip" skips the next step.
+    if (text && S.open && S.turn?.runId) {
+      const box0 = q$("#ss-msg");
+      if (box0) { box0.value = ""; autosize(box0); }
+      syncSend();
+      const mine = bubble(text);
+      mine.classList.add("ss-ask-live");
+      let ok = false;
+      try {
+        const r = await fetch("/api/live/say", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: S.turn.runId, text }) });
+        ok = r.ok && (await r.json().catch(() => ({}))).ok === true;
+      } catch {
+        ok = false;
+      }
+      S.chat.push({ role: "user", text });
+      remember(`TO THE RUN: ${text}`);
+      note(
+        ok
+          ? /^\s*(stop|abort|cancel|end it)/i.test(text)
+            ? "Sent — the run stops after the step it is on; the steps after it are marked not run."
+            : /^\s*skip/i.test(text)
+              ? "Sent — the run skips its next step."
+              : "Sent to the running test — an on-screen step follows it at its next move; otherwise it is kept for the next one."
+          : "The running test could not take your message — it may have just finished.",
+        ok ? "info" : "warn",
+      );
+      pin(true);
+      return;
     }
     if (!text || S.open || !S.turn) return;
     const box = q$("#ss-msg");
@@ -1575,16 +2045,68 @@
   document.addEventListener("visibilitychange", seen);
 
   // ── the spotlight strip: thumbnails of every framed action, newest last ──
+  // Each picture takes its step's outcome: purple while the step runs, green once it passed,
+  // red when it failed (grey when skipped). Once the run is over only the red ones stay in the
+  // strip — the screens where something went wrong — with "Show all" for the rest.
   const spots = [];
+  /** step number, 1-based as the pictures carry it → "ok" | "bad" | "skip" */
+  const stepOutcome = new Map();
+  const spotTone = (stepNo) => stepOutcome.get(Number(stepNo)) || "run";
+  function spotsOutcome(stepNo, state) {
+    if (!Number(stepNo) || !["ok", "bad", "skip"].includes(state)) return;
+    stepOutcome.set(Number(stepNo), state);
+    q$("#ss-spots-strip")?.querySelectorAll(`.ss-spot[data-step="${Number(stepNo)}"]`).forEach((x) => (x.dataset.tone = state));
+  }
+  /** The run is over: show only the failed steps' pictures, and say how many are hidden. */
+  function spotsSettle() {
+    const box = q$("#ss-spots");
+    const strip = q$("#ss-spots-strip");
+    if (!box || !strip || !spots.length) return;
+    const total = strip.querySelectorAll(".ss-spot").length;
+    const bad = strip.querySelectorAll('.ss-spot[data-tone="bad"]').length;
+    box.classList.add("settled");
+    box.classList.remove("all");
+    const say = q$("#ss-spots-say");
+    if (say) say.textContent = bad
+      ? `Showing the ${bad === 1 ? "screenshot" : `${bad} screenshots`} of the failed step — the other ${total - bad} ${total - bad === 1 ? "is" : "are"} hidden.`
+      : `No step failed, so the ${total === 1 ? "screenshot is" : `${total} screenshots are`} hidden.`;
+    const all = q$("#ss-spots-all");
+    if (all) all.textContent = `Show all ${total}`;
+    const note = q$("#ss-spots-note");
+    if (note) note.hidden = false;
+    const n = q$("#ss-spots-n");
+    if (n) n.textContent = String(bad);
+    const open = q$("#ss-spots-open");
+    if (open) open.hidden = !bad;
+  }
   function spotsReset() {
     spots.length = 0;
+    stepOutcome.clear();
     const box = q$("#ss-spots");
-    if (box) box.hidden = true;
+    if (box) {
+      box.hidden = true;
+      box.classList.remove("settled", "all");
+    }
     const strip = q$("#ss-spots-strip");
     if (strip) strip.innerHTML = "";
     const n = q$("#ss-spots-n");
     if (n) n.textContent = "0";
+    const note = q$("#ss-spots-note");
+    if (note) note.hidden = true;
+    const open = q$("#ss-spots-open");
+    if (open) open.hidden = false;
   }
+  q$("#ss-spots-all")?.addEventListener("click", () => {
+    const box = q$("#ss-spots");
+    if (!box) return;
+    const showing = box.classList.toggle("all");
+    const total = spots.length;
+    q$("#ss-spots-all").textContent = showing ? "Only the failed step" : `Show all ${total}`;
+    const say = q$("#ss-spots-say");
+    if (say) say.hidden = showing;
+    const n = q$("#ss-spots-n");
+    if (n) n.textContent = String(showing ? total : q$("#ss-spots-strip").querySelectorAll('.ss-spot[data-tone="bad"]').length);
+  });
   function spotUrl(sp) {
     return `/api/ui-evidence?path=${encodeURIComponent(sp.file)}`;
   }
@@ -1614,6 +2136,8 @@
     const el = document.createElement("div");
     el.className = "ss-spot";
     el.dataset.action = sp.action;
+    el.dataset.step = String(Number(sp.step) || 0);
+    el.dataset.tone = spotTone(sp.step);
     el.title = spotCaption(sp);
     const img = document.createElement("img");
     img.loading = "lazy";
@@ -1636,17 +2160,52 @@
       frame();
     }
   }
-  q$("#ss-spots-open")?.addEventListener("click", () => spots.length && spotOpen(spots[spots.length - 1]));
+  // Once the run is over and only failed steps show, "Open" opens the last of those.
+  q$("#ss-spots-open")?.addEventListener("click", () => {
+    if (!spots.length) return;
+    const settled = q$("#ss-spots")?.classList.contains("settled") && !q$("#ss-spots")?.classList.contains("all");
+    const pick = settled ? [...spots].reverse().find((sp) => spotTone(sp.step) === "bad") : spots[spots.length - 1];
+    if (pick) spotOpen(pick);
+  });
+
+  // A QUESTION THE LIVE STREAM DID NOT BRING (29 Oct, plan-mvt753ce): after a hand-back the run asked about step 23
+  // twice and neither question reached this screen — it kept "Your turn in the browser" and the run waited ten
+  // minutes for an answer nobody could give. The server keeps a run's open question on its browser slot
+  // (/api/run-state → running.ask, what Sessions' "Waiting for you" card reads); show it here when none is open.
+  setInterval(async () => {
+    if (!S.on || !S.turn || S.turn.replay || S.asking || document.hidden) return;
+    let st = null;
+    try {
+      st = await (await fetch("/api/run-state")).json();
+    } catch {
+      return;
+    }
+    const q = st?.running?.ask;
+    const mine = S.turn?.runId || S.turn?.explore?.runId || "";
+    if (!q || !q.runId || (mine && q.runId !== mine) || shownAsks.has(`${q.runId}#${q.n}`) || S.asking) return;
+    ask(q);
+  }, 4000);
 
   window.spineSession = {
     begin, ensure, idle, stopped, showing,
     spot,
     working, head, act, note, browserPart,
-    plan, planStep, planNote,
+    plan, outline, draftGone, planStep, planNote, planGrow, planName, planLength,
     explore, exploreStep, ask,
     runCase, setRunId, answerQuestion,
-    frame, request,
+    frame, sideFrame, request, consoleLines,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
+    /**
+     * They handed the browser back (liveControl.js). A question that offered "I'll do it myself" and is
+     * still open is answered by that: what they did is the answer (Aanya, 28 Oct: "my platform doesnt
+     * ignore it").
+     */
+    handedBack() {
+      const open = S.asking;
+      if (!open || open.sending || !open.options?.some((o) => o.id === "self")) return;
+      const b = open.card.querySelector('.ss-opt[data-opt="self"]');
+      answerAsk({ option: "self", text: "I did it myself in the browser" }, b);
+    },
     get on() { return S.on; },
     get open() { return S.open; },
     /** The run is waiting on the tester's answer to a question. */

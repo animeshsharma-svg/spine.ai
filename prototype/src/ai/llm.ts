@@ -180,8 +180,14 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
       }
       const content = String(j.choices?.[0]?.message?.content ?? "").trim();
       const finish = j.choices?.[0]?.finish_reason;
-      // Empty content is a failure to be handed down the chain, not an answer.
-      if (!content) throw new Error(`${served} returned no content (finish_reason: ${finish})`);
+      // The gateway sometimes returns an EMPTY answer (while billing it) and caches it, so the same request
+      // gets the same blank. Asked streamed, the answer arrives whole (docs/LESSONS.md 9; benchmarks/real).
+      // Only then is it a failure handed down the chain — which used to cost a 30 s wait and a fallback.
+      if (!content) {
+        const again = await slingringStreamed(key, body, deadline).catch(() => "");
+        if (again) return again;
+        throw new Error(`${served} returned no content (finish_reason: ${finish})`);
+      }
       return content;
     }
     if ((res.status === 429 || res.status === 503) && attempt === 0) {
@@ -192,6 +198,39 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     throw new Error(`Slingring ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
   return "";
+}
+
+/** The same request, streamed: the gateway's empty-answer cache does not catch it. */
+async function slingringStreamed(key: string, body: string, deadline: number): Promise<string> {
+  const req = { ...JSON.parse(body), stream: true, stream_options: { include_usage: true } };
+  const res = await fetch(`${AI.slingring.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+    body: JSON.stringify(req),
+    signal: AbortSignal.timeout(deadline),
+  });
+  if (!res.ok || !res.body) throw new Error(`Slingring ${res.status} (streamed)`);
+  const dec = new TextDecoder();
+  let buf = "";
+  let text = "";
+  for await (const chunk of res.body as any) {
+    buf += dec.decode(chunk, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      const data = line.replace(/^data:\s*/, "").trim();
+      if (!line.startsWith("data:") || !data || data === "[DONE]") continue;
+      try {
+        const j = JSON.parse(data);
+        text += j.choices?.[0]?.delta?.content ?? "";
+        if (j.usage) tally(String(j.model ?? req.model), j.usage);
+      } catch {
+        /* a keep-alive or a partial line */
+      }
+    }
+  }
+  if (text.trim()) console.log("[llm] slingring answered empty — asked again streamed, and it answered");
+  return text.trim();
 }
 
 async function groqChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {

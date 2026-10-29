@@ -80,7 +80,7 @@ export async function eventsFor(need: EventNeed, companyId = Number(process.env.
  * lagged behind fresh events). Undefined when it cannot be read; the caller
  * then searches by title. Careful: stages[].company_uuid is the company.
  */
-export async function eventRoute(page: Page, title: string): Promise<string | undefined> {
+export async function eventRoute(page: Page, title: string, opts: { byRef?: boolean } = {}): Promise<string | undefined> {
   const api = await buyerApi(page);
   if (!api) return undefined;
   try {
@@ -93,7 +93,10 @@ export async function eventRoute(page: Page, title: string): Promise<string | un
     if (!res.ok()) return undefined;
     const body: any = await res.json().catch(() => null);
     const list: any[] = Array.isArray(body) ? body : body?.event_groups ?? body?.data ?? body?.records ?? [];
-    const hit = list.find((e) => String(e?.title ?? "").trim() === title.trim());
+    // By reference (RFX-…) for an event with no title: the list's search matches references too.
+    const hit = opts.byRef
+      ? list.find((e) => String(e?.ref_uuid ?? "").trim() === title.trim())
+      : list.find((e) => String(e?.title ?? "").trim() === title.trim());
     return hit?.uuid ? String(hit.uuid) : undefined;
   } catch {
     return undefined;
@@ -167,11 +170,134 @@ export function takesBid(r: RoundNow): string {
   return `its RFQ round is open until ${r.endsAt}, and ${left} of its ${r.invited} invited vendor${r.invited === 1 ? " has" : "s have"} not bid yet`;
 }
 
+/**
+ * EVENTS READY FOR A TECHNICAL EVALUATION (Aanya, 26 Oct 2026: "if i mention evaluation then u
+ * must know that it will include technical stage then find suitable event for that").
+ * A live event whose technical stage (trade_requests.rfx_mode 4 or 5) has closed for answers,
+ * with at least one vendor's submitted technical answer (template_responses on the stage,
+ * status 1) and no submitted evaluation on it yet (evaluations.status 2). Technical answers are
+ * not bids: bid_trades has none for these stages. Untitled events (the API journey's) are
+ * offered too; they open by their RFX reference. This platform's own events come first, then
+ * untitled ones, then other teams' (an evaluation changes the event it scores).
+ */
+export interface EvalEvent {
+  ref: string;
+  title: string | null;
+  answers: number;
+  /** when the technical stage closed for answers */
+  at: Date;
+}
+
+export async function evaluationEvents(companyId = Number(process.env.COMPANY_ID), n = 6): Promise<EvalEvent[] | null> {
+  const pg = db();
+  if (!pg || !companyId) return null;
+  const sql = `select e.ref_id as ref, nullif(trim(e.title), '') as title, max(t.bid_end_time) as at, count(distinct r.id)::int as answers
+                 from event_groups e
+                 join trade_requests t on t.event_group_id = e.id and t.rfx_mode in (4, 5)
+                 join template_responses r on r.item_type = 'TradeRequest' and r.item_id = t.id and r.status = 1
+                where e.company_id = $1 and e.status = 1 and e.ref_id is not null and t.bid_end_time < now()
+                  and not exists (select 1 from evaluations v where v.trade_request_id = t.id and v.status = 2)
+                group by e.id, e.ref_id, e.title
+                order by (coalesce(e.title, '') ~* '^(spine-|ui_auto|api_journey|qa_platform)') desc,
+                         (nullif(trim(e.title), '') is null) desc, max(t.bid_end_time) desc
+                limit $2`;
+  try {
+    const { rows } = await pg.query(sql, [companyId, n]);
+    return rows.map((r: any) => ({ ref: String(r.ref), title: r.title ? String(r.title) : null, answers: Number(r.answers) || 0, at: new Date(r.at) }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * An event's stages from its trade requests: "technical" (rfx_mode 4 or 5), "auction" (0) or "rfq".
+ * Null when the database cannot say. Used to answer an evaluation of an event with no technical
+ * stage in one line (Aanya, 27 Oct: she asked to evaluate ZE5wY2RO, an RFQ-only event).
+ */
+export async function stagesOfEvent(eventGroupId: number): Promise<string[] | null> {
+  const pg = db();
+  if (!pg || !eventGroupId) return null;
+  try {
+    const { rows } = await pg.query(`select distinct rfx_mode from trade_requests where event_group_id = $1`, [eventGroupId]);
+    return rows.map((r: any) => (Number(r.rfx_mode) === 4 || Number(r.rfx_mode) === 5 ? "technical" : Number(r.rfx_mode) === 0 ? "auction" : "rfq"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is the event withdrawn, by Procol's own rows (UAT, 27 Oct): a withdrawn PROJECT is event_groups.status 3
+ * (its stages go to 0); a withdrawn STAGE is trade_requests.status 0 while the event stays 1. Null when the
+ * database cannot say.
+ */
+export async function withdrawalOf(eventGroupId: number): Promise<{ eventStatus: number; title: string; stages: Array<{ mode: number; status: number }> } | null> {
+  const pg = db();
+  if (!pg || !eventGroupId) return null;
+  try {
+    const { rows } = await pg.query(
+      `select e.status as eg, e.title, t.rfx_mode, t.status from event_groups e left join trade_requests t on t.event_group_id = e.id and t.parent_id is null where e.id = $1`,
+      [eventGroupId],
+    );
+    if (!rows.length) return null;
+    return { eventStatus: Number(rows[0].eg), title: String(rows[0].title ?? ""), stages: rows.filter((r: any) => r.rfx_mode !== null).map((r: any) => ({ mode: Number(r.rfx_mode), status: Number(r.status) })) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Who responded on an event's stages, and how: a bid (bid_trades → bids) or a technical answer (template_responses),
+ * placed by the event's own creator — a SURROGATE response, the buyer the run signs in as — or by the vendor's user
+ * (the vendor portal). Procol keeps no surrogate flag; on a live event its Responses tab shows no "Surrogate Bid" tag
+ * either (27 Oct, RFX-19361), so this is how the buyer-side check tells the two apart.
+ */
+export async function responsesOf(eventGroupId: number): Promise<Array<{ vendor: string; mode: number; kind: "bid" | "technical"; surrogate: boolean }> | null> {
+  const pg = db();
+  if (!pg || !eventGroupId) return null;
+  try {
+    const { rows } = await pg.query(
+      `select c.name as vendor, t.rfx_mode, x.kind, (x.user_id = e.user_id) as surrogate
+         from event_groups e
+         join trade_requests t on t.event_group_id = e.id
+         join (select bt.trade_request_id as tr, b.company_id, b.user_id, 'bid' as kind from bid_trades bt join bids b on b.id = bt.bid_id
+               union all
+               select r.item_id, r.company_id, r.user_id, 'technical' from template_responses r where r.item_type = 'TradeRequest') x on x.tr = t.id
+         join companies c on c.id = x.company_id
+        where e.id = $1`,
+      [eventGroupId],
+    );
+    return rows.map((r: any) => ({ vendor: String(r.vendor ?? ""), mode: Number(r.rfx_mode), kind: r.kind === "technical" ? "technical" : "bid", surrogate: r.surrogate === true }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The users a stage's evaluator name could be ("Satish Kumar Kaushik"), newest first — a person can have
+ * several (a login per company). The run signs in as the first with a live console session.
+ */
+export async function usersNamed(fullName: string): Promise<number[]> {
+  const pg = db();
+  if (!pg || !fullName.trim()) return [];
+  try {
+    const { rows } = await pg.query(
+      `select id from users where status = 1 and trim(concat_ws(' ', first_name, last_name)) ilike $1 order by id desc limit 5`,
+      [fullName.trim().replace(/\s+/g, " ")],
+    );
+    return rows.map((r: any) => Number(r.id));
+  } catch {
+    return [];
+  }
+}
+
 /** What the later steps of a plan need the event to be. */
 export function needOf(laterSteps: string[]): EventNeed {
-  return laterSteps.some((s) => /^(open_master_qcs|start_awarding|allocate_award|award_event|expect_award|place_counter_offer|expect_counter_offer|accept_counter_offer)/.test(s))
-    ? "bids"
-    : "live";
+  // A counter offer exists only while the bid is live and active (CounterOfferPage), so a case
+  // that sends one needs an event still taking quotes; runPlan's fitsCase then insists its Master
+  // QCS has a bid. "bids" (bidding over, waiting to be evaluated) gave B11 on 21-22 Oct an event
+  // with three bids and no Counter Offer control on any of them.
+  if (laterSteps.some((s) => /^(place_counter_offer|expect_counter_offer|accept_counter_offer)/.test(s))) return "live";
+  return laterSteps.some((s) => /^(open_master_qcs|start_awarding|allocate_award|award_event|expect_award)/.test(s)) ? "bids" : "live";
 }
 
 export async function closePickEventDb(): Promise<void> {

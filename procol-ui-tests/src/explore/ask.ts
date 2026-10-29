@@ -41,6 +41,30 @@ export interface Answer {
 
 let asked = 0;
 
+/**
+ * LOGIN DETAILS A TESTER TYPES ARE USED, NEVER SHOWN.
+ *
+ * Aanya, 21 Oct: when a run has no step for something it asks the tester for
+ * the steps or a login. The run needs the real values to type them; every log
+ * line, screenshot name, result and saved route gets them masked: a phone
+ * keeps its last four digits ("…2199"), a code, password or email is "•••".
+ */
+const secrets = new Map<string, string>();
+export function noteSecrets(text: string): void {
+  const t = String(text ?? "");
+  for (const m of t.matchAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g)) secrets.set(m[0], "•••");
+  for (const m of t.matchAll(/(?<![\d])\+?\d[\d -]{8,}\d(?![\d])/g)) {
+    const digits = m[0].replace(/\D/g, "");
+    if (digits.length >= 10) secrets.set(m[0], `…${digits.slice(-4)}`);
+  }
+  for (const m of t.matchAll(/\b(?:otp|code|password|passcode|pin|pwd)\b\s*(?:is|:|=|-)?\s*([^\s,;]{4,})/gi)) secrets.set(m[1], "•••");
+}
+export function mask(text: string): string {
+  let out = String(text ?? "");
+  for (const [secret, shown] of [...secrets].sort((x, y) => y[0].length - x[0].length)) out = out.split(secret).join(shown);
+  return out;
+}
+
 /** Ask and wait. Null when there is nobody to ask (not started from the dashboard) or no answer came in time. */
 export async function askTester(q: Question, timeoutMs = Number(process.env.UI_EXPLORE_ASK_MS) || 15 * 60_000): Promise<Answer | null> {
   const dir = process.env.UI_EXPLORE_DIR;
@@ -58,7 +82,8 @@ export async function askTester(q: Question, timeoutMs = Number(process.env.UI_E
         const text = String(a?.text ?? "").trim();
         const option = a?.option ? String(a.option) : null;
         if (text || option) {
-          console.log(`[ask-answered] ${JSON.stringify({ n, option, text: text.slice(0, 300) })}`);
+          noteSecrets(text);
+          console.log(`[ask-answered] ${JSON.stringify({ n, option, text: mask(text).slice(0, 300) })}`);
           return { option, text: text || q.options.find((o) => o.id === option)?.label || "" };
         }
       } catch {

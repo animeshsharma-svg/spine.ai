@@ -97,9 +97,16 @@ function carryOver(fresh: RunCase[], old: KeptCase[]): KeptCase[] {
     Object.assign(c, { scenario: o.scenario, expected: o.expected, status: o.status, why: o.why, runId: o.runId, testedAt: o.testedAt, automated: o.automated, review: o.review });
   }
   old.forEach((o, i) => {
-    if (o.testedAt && !used.has(i)) out.push({ ...o });
+    // A case run from the earlier set that the fresh one no longer has: kept, under a scenario of its own.
+    if (o.testedAt && !used.has(i)) out.push({ ...o, scenarioId: "TS-00", scenarioTitle: "Cases you ran from the earlier set", scenarioCovers: "", scenarioCategory: "" });
   });
-  return out.map((c, i) => ({ ...c, id: `TC-${String(i + 1).padStart(3, "0")}` }));
+  const per = new Map<string, number>();
+  return out.map((c, i) => {
+    if (!c.scenarioId) return { ...c, id: `TC-${String(i + 1).padStart(3, "0")}` };
+    const n = (per.get(c.scenarioId) ?? 0) + 1;
+    per.set(c.scenarioId, n);
+    return { ...c, id: `TC-${c.scenarioId.replace(/^TS-/, "")}.${String(n).padStart(2, "0")}` };
+  });
 }
 
 /** One case from the page, back to the kept shape — only known fields, bounded. */
@@ -116,6 +123,7 @@ function fromPage(c: any, i: number): KeptCase | null {
     expected: str(c.expected),
     priority: PRIORITIES.has(c.priority) ? c.priority : "P1",
     type: TYPES.has(c.type) ? c.type : "Positive",
+    ...(str(c.scenarioId) ? { scenarioId: str(c.scenarioId, 8), scenarioTitle: str(c.scenarioTitle, 240), scenarioCovers: str(c.scenarioCovers, 300), scenarioCategory: str(c.scenarioCategory, 40) } : {}),
     layer: c.layer === "API" ? "API" : "UI",
     sourceStep: str(c.sourceStep, 120),
     status: str(c.status, 60) || "Suggested",
@@ -140,8 +148,14 @@ export interface RunCase {
   testData: string;
   expected: string;
   priority: "P0" | "P1" | "P2";
-  type: "Positive" | "Negative" | "Edge" | "Regression";
+  type: "Positive" | "Negative" | "Edge" | "Boundary" | "Regression";
   layer: "UI" | "API";
+  /** the test scenario this case belongs to: TS-01 … (a case written before scenarios has none) */
+  scenarioId?: string;
+  scenarioTitle?: string;
+  /** the risk the scenario guards against */
+  scenarioCovers?: string;
+  scenarioCategory?: string;
   sourceStep: string;
   status: string;
   libraryId?: string;
@@ -263,8 +277,51 @@ const SYSTEM = [
   'Return JSON only: {"cases":[{"module":"","feature":"","scenario":"","preconditions":"","steps":["..."],"testData":"","expected":"","priority":"P0","type":"Positive|Negative|Edge|Regression","layer":"UI|API","sourceStep":"","status":"","libraryId":""}]}',
 ].join("\n");
 
+/**
+ * SCENARIOS, THEN CASES (Aanya, 26 Oct: "you're giving test scenarios in the name of testcase, i want
+ * both test scenario and testcase and more testcases to be covered, it feels like ur only covering the
+ * basics"). A scenario is one thing to prove about the feature; its cases are the positive, negative,
+ * edge and boundary checks that prove it. The scenarios are planned in one call, then each one's cases
+ * are written in its own call, side by side.
+ */
+const CATEGORIES = ["Main flow", "Input validation", "Boundaries & limits", "State & lifecycle", "Roles & permissions", "Timing & schedule", "Vendor side", "Notifications", "Amounts & calculations", "Error handling & recovery", "Regression"];
+
+const SCENARIO_SYSTEM = [
+  "You plan TEST SCENARIOS for a QA team from ONE finished automation run on Procol, a procure-to-pay platform (buyers run sourcing events; vendors bid).",
+  'A test scenario is ONE thing to prove about the feature this run exercised ("Publishing an RFQ is refused while a required field is empty"). Its test cases are written later, separately.',
+  "Cover the feature properly, not only what ran: the main flow, input validation, boundaries and limits, state and lifecycle (draft, published, closed, awarded), roles and permissions, timing and schedule, the vendor's side, notifications, amounts and calculations, error handling. Choose the ones that matter for THIS feature.",
+  'Rules: 6-10 scenarios. The first is the main flow the run walked. One scenario per failure or bug the run hit (category "Regression"). Never invent a feature, screen or field that is not in the run or the library; a scenario about a rule the run did not show is still worth listing, with "(to confirm)" at the end of covers.',
+  'covers: one sentence on the risk the scenario guards against. sourceStep: the run step it grows from, as "step N: <title>", or "".',
+  `category: one of ${CATEGORIES.map((c) => `"${c}"`).join(", ")}.`,
+  'Return JSON only: {"scenarios":[{"title":"","category":"","covers":"","module":"","feature":"","sourceStep":""}]}',
+].join("\n");
+
+const CASES_SYSTEM = [
+  "You write the TEST CASES for ONE test scenario, for a QA team, from ONE finished automation run on Procol (buyers run sourcing events; vendors bid). The run is your evidence.",
+  "Write 3-6 test cases that together prove the scenario: its positive case and the negative, edge and boundary cases around it (empty, minimum, maximum, just over a limit, wrong format, duplicate, at the deadline, the wrong user). Each case checks ONE thing.",
+  "Each case: title (what it checks, one line); preconditions (sign-in, company, data that must already exist, never steps); steps (at most 10 actions a tester does, screens and buttons named as the run names them); testData (the concrete values to use); expected (what the screen or the record must show).",
+  'Expected results: prefer a LIBRARY CASE\'s when one fits, and put its id in libraryId. Otherwise state one only when the run shows the rule; else end it with "(to confirm)".',
+  'status: for a case this run itself walked, what the run showed: "Pass", "Fail at step N" or "Not reached". Every other case: "Suggested".',
+  'type: Positive | Negative | Edge | Boundary | Regression. priority: P0 = the main flow and anything that blocks it; P1 = important variations; P2 = the rest. layer: "UI" for screen steps, "API" for request steps.',
+  "Never invent a field, value, vendor, template or endpoint that is not in the run or the library. Plain English, for a tester who has never seen the automation.",
+  'Return JSON only: {"cases":[{"title":"","preconditions":"","steps":["..."],"testData":"","expected":"","priority":"P1","type":"Negative","layer":"UI","sourceStep":"","status":"Suggested","libraryId":""}]}',
+].join("\n");
+
+/** Each scenario's cases, numbered within it: TS-02 holds TC-02.01, TC-02.02 … */
+function tidyScenarios(written: Array<{ sc: any; cases: any[] }>): RunCase[] {
+  const out: RunCase[] = [];
+  written.forEach(({ sc, cases }, k) => {
+    const sid = `TS-${String(k + 1).padStart(2, "0")}`;
+    const group = { scenarioId: sid, scenarioTitle: str(sc.title, 240), scenarioCovers: str(sc.covers, 300), scenarioCategory: str(sc.category, 40) };
+    // Never "Pass" by default: only a case the model says this run walked carries the run's result.
+    const mapped = tidy(cases.map((c: any) => ({ ...c, scenario: c.title ?? c.scenario, module: c.module || sc.module, feature: c.feature || sc.feature, sourceStep: c.sourceStep || sc.sourceStep })), false).slice(0, 6);
+    mapped.forEach((c, j) => out.push({ ...c, ...group, id: `TC-${String(k + 1).padStart(2, "0")}.${String(j + 1).padStart(2, "0")}` }));
+  });
+  return out.slice(0, 60);
+}
+
 const PRIORITIES = new Set(["P0", "P1", "P2"]);
-const TYPES = new Set(["Positive", "Negative", "Edge", "Regression"]);
+const TYPES = new Set(["Positive", "Negative", "Edge", "Boundary", "Regression"]);
 const str = (v: unknown, max = 600) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
 function tidy(raw: any[], fromRun: boolean): RunCase[] {
@@ -335,7 +392,7 @@ export const handle: RouteHandler = async (ctx) => {
       ctx.json({ error: "send the set's key and its cases" }, 400);
       return true;
     }
-    const cases = (b.cases as unknown[]).slice(0, 40).map(fromPage).filter((c): c is KeptCase => !!c);
+    const cases = (b.cases as unknown[]).slice(0, 80).map(fromPage).filter((c): c is KeptCase => !!c);
     const was = loadSet(key);
     const now = new Date().toISOString();
     saveSet({ key, runIds: was?.runIds ?? [key], ask: was?.ask ?? "", source: was?.source ?? "page", note: was?.note, createdAt: was?.createdAt ?? now, updatedAt: now, cases });
@@ -391,7 +448,48 @@ export const handle: RouteHandler = async (ctx) => {
 
   let cases: RunCase[] = [];
   let note: string | undefined;
+  const parse = (raw: string) => {
+    const j = raw.match(/\{[\s\S]*\}/)?.[0];
+    return j ? JSON.parse(j) : null;
+  };
   try {
+    const planned = parse(
+      await chat(
+        [
+          { role: "system", content: SCENARIO_SYSTEM },
+          { role: "user", content: user },
+        ],
+        { tier: "reason", temperature: 0.2, maxTokens: 2500, deadlineMs: 45_000 },
+      ),
+    );
+    const scenarios = (Array.isArray(planned?.scenarios) ? planned.scenarios : []).filter((x: any) => str(x?.title)).slice(0, 10);
+    if (scenarios.length) {
+      const ask1 = (sc: any, k: number, tier: "fast" | "reason") =>
+        chat(
+          [
+            { role: "system", content: CASES_SYSTEM },
+            { role: "user", content: `${user}\n\nTHE SCENARIO (${k + 1} of ${scenarios.length}): ${str(sc.title, 240)}\nCategory: ${str(sc.category, 40)}\nIt guards against: ${str(sc.covers, 300)}${sc.sourceStep ? `\nIt grows from ${str(sc.sourceStep, 120)}` : ""}` },
+          ],
+          { tier, temperature: 0.2, maxTokens: 2500, deadlineMs: 60_000 },
+        ).then((raw) => (Array.isArray(parse(raw)?.cases) ? parse(raw).cases : []));
+      const written = await Promise.all(
+        scenarios.map(async (sc: any, k: number) => {
+          // The fast model first; once more on the reasoning one when it brings nothing back.
+          let got: any[] = await ask1(sc, k, "fast").catch(() => []);
+          if (!got.length) got = await ask1(sc, k, "reason").catch(() => []);
+          return { sc, cases: got };
+        }),
+      );
+      cases = tidyScenarios(written);
+      const empty = written.filter((w) => !w.cases.length).length;
+      if (empty) note = `${empty} of ${scenarios.length} scenarios came back without test cases — “Write again” tries them again.`;
+      console.log(`[run-cases] ${scenarios.length} scenario(s), ${cases.length} test case(s)${empty ? `, ${empty} scenario(s) empty` : ""}`);
+    }
+  } catch (e) {
+    note = `the scenarios could not be planned (${str((e as Error).message, 120)})`;
+  }
+  // The one-call way, as before, when the scenarios could not be planned.
+  if (!cases.length) try {
     const raw = await chat(
       [
         { role: "system", content: SYSTEM },
@@ -405,6 +503,7 @@ export const handle: RouteHandler = async (ctx) => {
     const json = raw.match(/\{[\s\S]*\}/)?.[0];
     const parsed = json ? JSON.parse(json) : null;
     cases = tidy(Array.isArray(parsed?.cases) ? parsed.cases : [], true);
+    if (cases.length) note = undefined;
   } catch (e) {
     note = `the AI did not answer (${str((e as Error).message, 120)})`;
   }

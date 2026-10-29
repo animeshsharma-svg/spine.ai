@@ -56,6 +56,8 @@ export type RecipeId =
   | "draft_event"
   | "draft_rfq"
   | "draft_rfp_rfq"
+  | "draft_auction"
+  | "draft_rfp_auction"
   | "published_rfq"
   | "published_rfq_short"
   | "published_rfp_rfq"
@@ -89,6 +91,8 @@ export type OpId =
   | "add_vendor"
   | "remove_vendor"
   | "surrogate_bid"
+  | "surrogate_tech_response"
+  | "price_cap"
   | "open_proposal"
   | "award_vendor"
   | "new_version"
@@ -140,7 +144,8 @@ export interface ActStep {
   /** edits to the working body */
   change?: Change[];
   /** op parameters: price (bids), vendor (whose bid/award: vendor|vendor2), until (wait: bid_end|close) */
-  params?: { price?: number; vendor?: "vendor" | "vendor2"; until?: "bid_end" | "close"; round?: "pricing" | "technical" };
+  /** price null: a surrogate bid sent with no price (the case "a surrogate bid with no price") */
+  params?: { price?: number | null; vendor?: "vendor" | "vendor2"; until?: "bid_end" | "close"; round?: "pricing" | "technical" };
   /** this step's expected outcome; default accept, except the decisive step which takes the plan's */
   expect?: Outcome;
   /** the step the case is about (default: the last non-wait act) */
@@ -172,8 +177,11 @@ export interface ApiPlan {
   caseId?: string;
   /** plain English */
   title: string;
-  /** lineItems: how many line items the setup's draft carries (default 1) */
-  setup: { recipe: RecipeId; lineItems?: number };
+  /**
+   * lineItems: how many line items the setup's draft carries (default 1).
+   * fromPr: the draft is made from an open purchase request's lines (items of them), linked to the PR.
+   */
+  setup: { recipe: RecipeId; lineItems?: number; fromPr?: { items?: number } };
   act: ActStep[];
   verify: VerifyStep[];
   /** codeInferred: the code was the compiler's inference, not stated by the case or a library case */
@@ -252,6 +260,8 @@ export const RECIPES: Record<RecipeId, Recipe> = {
   draft_event: { id: "draft_event", title: "A fresh draft event with one line item and no rounds.", eventType: "rfq_only", steps: BUILD, clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT], minutes: 1 },
   draft_rfq: { id: "draft_rfq", title: "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.", eventType: "rfq_only", steps: [...BUILD, "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   draft_rfp_rfq: { id: "draft_rfp_rfq", title: "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.", eventType: "rfp_rfq", steps: [...BUILD, "add_stage_rfp", "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
+  draft_auction: { id: "draft_auction", title: "A fresh draft event with one line item and an auction round attached, not published.", eventType: "auction_only", steps: [...BUILD, "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
+  draft_rfp_auction: { id: "draft_rfp_auction", title: "A fresh draft event with a technical (RFP) round and an auction round attached, not published.", eventType: "rfp_auction", steps: [...BUILD, "add_stage_rfp", "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
   published_rfq: { id: "published_rfq", title: "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.", eventType: "rfq_only", steps: PUB_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   published_rfq_short: { id: "published_rfq_short", title: "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.", eventType: "rfq_only", steps: PUB_RFQ, clock: "short", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   published_rfp_rfq: { id: "published_rfp_rfq", title: "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.", eventType: "rfp_rfq", steps: PUB_RFP_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
@@ -307,6 +317,13 @@ export const OPS: Record<OpId, OpDef> = {
   extend_round: { id: "extend_round", kind: "write", method: "PATCH", path: "/trade/{{tradeId}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-058 / bidding matrix M15 (extend the bid end)", needs: ["tradeId"], produces: [], does: "moves the round's bid end time" },
   add_vendor: { id: "add_vendor", kind: "write", method: "PATCH", path: "/v1/trade/add_audience?id={{tradeId}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-037 (invite a vendor to a live round)", needs: ["tradeId", "vendor2Uuid"], produces: [], does: "invites QA vendor 2 to the live round" },
   remove_vendor: { id: "remove_vendor", kind: "write", method: "PATCH", path: "/v1/trade/remove_audience?id={{tradeId}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-045 (remove a vendor from a live round)", needs: ["tradeId", "vendorUuid"], produces: [], does: "removes the invited vendor from the live round" },
+  // Recorded from the console's Participants → Add Price Cap (peer 6c, 27 Oct: recordings/price-cap-27oct.flow.json).
+  // The template's price widget then requires a bid strictly below the cap ("Price should be less than the Cap price").
+  price_cap: { id: "price_cap", kind: "write", method: "PATCH", path: "/trade/{{tradeId}}/update_vendor_validations", actor: "buyer", actors: ["buyer", "vendor"], template: "Participants → Add Price Cap (recorded 27 Oct)", needs: ["tradeId", "vendorUuid"], produces: [], does: "sets the invited vendor's price cap on the round (a bid must be strictly below it)" },
+  // Recorded from the console's Technical Stage → Participants → Add Bid → Submit (28 Oct: recordings/surrogate-technical-28oct.flow.json).
+  // The body names every questionnaire page of the round and its vendor questions; the runner reads them from the
+  // round's schema first (techPages). A required question is answered, the rest are sent blank, as the screen does.
+  surrogate_tech_response: { id: "surrogate_tech_response", kind: "write", method: "POST", path: "/template_responses/create_surrogate_response", actor: "buyer", actors: ["buyer"], template: "Technical Stage → Add Bid → Submit (recorded 28 Oct)", needs: ["rfpTradeId", "vendorUuid"], produces: [], does: "submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response)" },
   surrogate_bid: { id: "surrogate_bid", kind: "write", method: "POST", path: "/bids/template_input", actor: "buyer", actors: ["buyer"], template: "bodies.buildSurrogateRfqBody (journey step: surrogate RFQ bid)", needs: ["tradeId", "lineItemUuid"], produces: [], does: "enters a bid on a vendor's behalf (surrogate bid)" },
   open_proposal: { id: "open_proposal", kind: "write", method: "POST", path: "/proposal", actor: "buyer", actors: ["buyer", "vendor"], template: "bodies.buildProposalBody (journey step: open the award proposal)", needs: ["eventGroupUuid"], produces: ["proposalUuid"], does: "opens an award proposal" },
   award_vendor: { id: "award_vendor", kind: "write", method: "POST", path: "/proposal/{{proposalUuid}}/add_response?lot_no=", actor: "buyer", actors: ["buyer"], template: "bodies.buildAwardResponseBody (journey step: award the line)", needs: ["proposalUuid", "lineItemUuid"], produces: [], does: "awards the line to a vendor on the proposal" },
@@ -441,6 +458,8 @@ export function loadBodies(): Promise<any> {
 }
 
 export interface BodyArgs {
+  /** the technical round's questionnaire: each page and its vendor questions (surrogate_tech_response) */
+  techPages?: Array<{ page: string; questions: Array<{ key: string; required: boolean }> }>;
   eventGroupUuid: string;
   lineItemUuid: string;
   pricingTradeUuid: string;
@@ -455,7 +474,7 @@ export interface BodyArgs {
   evaluatorUuid: string;
   unit: string;
   qty: number;
-  price: number;
+  price: number | null;
   stamp: string;
   proposalUuid?: string;
   /** the trade product the bidding vendor reads (bid pricing, surrogate) */
@@ -502,11 +521,36 @@ export function templateBody(B: any, op: OpId, a: BodyArgs): unknown {
       return { audience_to_add_uuids: [a.vendor2CompanyUuid ?? ""], update_remarks: `QA_Platform_add_${a.stamp}` };
     case "remove_vendor":
       return { audience_to_remove_uuids: [a.vendorCompanyUuid], update_remarks: `QA_Platform_remove_${a.stamp}` };
-    case "surrogate_bid":
-      return B.buildSurrogateRfqBody({
+    case "price_cap":
+      // { trade product: { vendor company: cap per unit } }
+      return { productwise_vendor_validations: { [a.tradeProduct?.trade_product_uuid ?? "{{tradeProductUuid}}"]: { [a.vendorCompanyUuid]: a.price } } };
+    case "surrogate_bid": {
+      const body: any = B.buildSurrogateRfqBody({
         pricingTradeUuid: a.pricingTradeUuid, vendorCompanyUuid: a.vendorCompanyUuid, productUuid: a.productUuid, productQualityUuid: a.productQualityUuid,
-        locationUuid: a.locationUuid, lineItemUuid: a.lineItemUuid, quantityValue: a.qty, quantityUnit: a.unit, price: a.price, tradeProduct: a.tradeProduct ?? DUMMY_TP,
+        locationUuid: a.locationUuid, lineItemUuid: a.lineItemUuid, quantityValue: a.qty, quantityUnit: a.unit, price: a.price ?? 0, tradeProduct: a.tradeProduct ?? DUMMY_TP,
       });
+      // "a surrogate bid with no price": the price, and the total it makes, left out of the row
+      if (a.price === null)
+        for (const rows of Object.values(body?.sheets?.inline_components?.data ?? {}) as any[][])
+          for (const r of rows ?? []) {
+            if (r?.price) delete r.price.value;
+            if (r?.total_amount) delete r.total_amount.value;
+          }
+      return body;
+    }
+    case "surrogate_tech_response": {
+      const pages = a.techPages ?? [];
+      return {
+        item_type: "TradeRequest",
+        item_uuid: a.technicalTradeUuid ?? "{{rfpTradeId}}",
+        company_uuid: a.vendorCompanyUuid,
+        page_responses: Object.fromEntries(
+          pages.map((p) => [p.page, p.questions.map((q) => (q.required ? { key_attribute: q.key, value: "As per company" } : { key_attribute: q.key }))]),
+        ),
+        page_uuids: pages.map((p) => p.page),
+        surrogate_remarks: { remarks: "", attachments: [] },
+      };
+    }
     case "open_proposal":
       return B.buildProposalBody({ eventGroupUuid: a.eventGroupUuid });
     case "award_vendor": {
@@ -527,7 +571,7 @@ export function templateBody(B: any, op: OpId, a: BodyArgs): unknown {
         locationUuid: a.locationUuid, lineItemUuid: a.lineItemUuid, quantityValue: a.qty, quantityUnit: a.unit, price: a.price, tradeProduct: a.tradeProduct ?? DUMMY_TP,
       }).body;
     case "submit_bid":
-      return B.buildSubmitBidBody({ pricingTradeUuid: a.pricingTradeUuid, vendorCompanyUuid: a.vendorCompanyUuid, total: a.total ?? a.price * a.qty });
+      return B.buildSubmitBidBody({ pricingTradeUuid: a.pricingTradeUuid, vendorCompanyUuid: a.vendorCompanyUuid, total: a.total ?? (a.price ?? 0) * a.qty });
     case "start_tech_response":
       return B.buildStartTechnicalResponse({ technicalTradeUuid: a.technicalTradeUuid ?? "", vendorCompanyUuid: a.vendorCompanyUuid });
     default:
@@ -703,10 +747,11 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
       else if (!op.path.includes("{{tradeId}}") && a.op !== "wait") errors.push(`act ${n}: ${a.op} does not act on a round, so params.round does not apply`);
       else if (a.params.round === "technical" && !have.has("rfpTradeId")) errors.push(`act ${n}: there is no technical round in setup "${recipe?.id}"`);
     }
-    if (a.params?.price !== undefined && !(typeof a.params.price === "number" && Number.isFinite(a.params.price))) errors.push(`act ${n}: params.price must be a number`);
+    if (a.params?.price === null && a.op !== "surrogate_bid") errors.push(`act ${n}: only a surrogate_bid can be sent with no price (params.price null)`);
+    else if (a.params?.price !== undefined && a.params.price !== null && !(typeof a.params.price === "number" && Number.isFinite(a.params.price))) errors.push(`act ${n}: params.price must be a number`);
     // A price is a parameter of the bid builders, not a body field: a change
     // that sets "price" on a bid step is read as params.price.
-    if (["price_bid", "place_bid", "surrogate_bid"].includes(a.op) && Array.isArray(a.change)) {
+    if (["price_bid", "place_bid", "surrogate_bid", "price_cap"].includes(a.op) && Array.isArray(a.change)) {
       const pc = a.change.find((c) => /(^|\.)price(\.value)?$/.test(String(c?.path)) && typeof c?.set === "number");
       if (pc) {
         a.params = { ...(a.params ?? {}), price: pc.set as number };
@@ -821,7 +866,11 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
     version: PLAN_VERSION,
     ...(p.caseId ? { caseId: String(p.caseId) } : {}),
     title: typeof p.title === "string" && p.title.trim() ? p.title.trim().slice(0, 200) : "API plan",
-    setup: { recipe: recipeId },
+    setup: {
+      recipe: recipeId,
+      ...(Number((p.setup as any)?.lineItems) > 1 ? { lineItems: Math.min(500, Math.floor(Number((p.setup as any).lineItems))) } : {}),
+      ...((p.setup as any)?.fromPr ? { fromPr: { items: Math.max(1, Math.min(10, Math.floor(Number((p.setup as any).fromPr.items) || 1))) } } : {}),
+    },
     act: normActs,
     verify: normVerify,
     expected: {
@@ -870,6 +919,8 @@ function changeWords(ch: Change[] | undefined): string {
     if (c.remove) return `without the ${field}`;
     const v = c.set;
     if (v === null) return `with the ${field} empty (null)`;
+    // The invited vendors read as vendors: "publishes the event to 1 vendor", not "with 1 audience company uuids".
+    if (Array.isArray(v) && field === "audience company uuids") return v.length ? `to ${v.length} vendor${v.length === 1 ? "" : "s"}` : "with no vendor invited";
     if (Array.isArray(v)) return v.length ? `with ${v.length} ${field}` : `with no ${field}`;
     if (typeof v === "string") {
       if (/\{\{now-/.test(v) || /\{\{roundEnd-/.test(v)) return `with the ${field} in the past`;
@@ -884,6 +935,29 @@ function changeWords(ch: Change[] | undefined): string {
   return ` ${ch.map(one).join(", ")}`;
 }
 
+/**
+ * A step with a price says the price (Aanya, 28 Oct: "why can't the buyer place surrogate bid??" — the
+ * step read "enters a bid on a vendor's behalf", Failed, when the bid of 100 had gone in at a cap of 100
+ * and the case wanted it refused).
+ */
+function pricedWords(a: ActStep): string | undefined {
+  const p = a.params?.price;
+  if (p === undefined) return undefined;
+  const at = p === null ? "with no price" : `of ${p}`;
+  switch (a.op) {
+    case "price_cap":
+      return p === null ? undefined : `sets the invited vendor's price cap on the round to ${p} (a bid must be strictly below it)`;
+    case "surrogate_bid":
+      return `enters a surrogate bid ${at} on the vendor's behalf`;
+    case "price_bid":
+      return p === null ? "prices the line on the bid with no price" : `prices the line on the bid at ${p}`;
+    case "place_bid":
+      return `places a complete bid ${at} (open, price, submit)`;
+    default:
+      return undefined;
+  }
+}
+
 export function actInWords(a: ActStep): string {
   if (a.say) return a.say;
   const who = ACTOR_WORD[a.as ?? OPS[a.op]?.actor ?? "buyer"];
@@ -893,7 +967,7 @@ export function actInWords(a: ActStep): string {
     const what = c ? endpointInWords(c.method, c.path) : "the request";
     return `${who.charAt(0).toUpperCase()}${who.slice(1)} sends ${what}, exactly as the matching library case writes it${changeWords(a.change)}.`;
   }
-  let verb = OPS[a.op]?.does ?? a.op;
+  let verb = pricedWords(a) ?? OPS[a.op]?.does ?? a.op;
   if (a.params?.round) verb = verb.replace(/\bthe (live )?round\b|the round's|the pricing round/, (m) => (a.params!.round === "technical" ? m.replace(/round|pricing round/, "technical round") : m.replace(/\bround\b/, "pricing round").replace("pricing pricing", "pricing")));
   const forWho = a.params?.vendor ? ` for ${ACTOR_WORD[a.params.vendor]}` : "";
   return `As ${who}, ${verb.replace(/^(\w)/, (m) => m)}${forWho}${changeWords(a.change)}.`.replace(/^As the buyer, /, "The buyer ").replace(/^As (the invited QA vendor|a second QA vendor), /, (_m, w) => `${w.charAt(0).toUpperCase()}${w.slice(1)} `);
@@ -1179,7 +1253,8 @@ ${ops}
   update_event: title (default "QA_Platform_Renamed_{{stamp}}"); other keys need add:true
   withdraw_event: withdraw_remark.remarks, status
   extend_round: increase_auction_time (epoch seconds; default now+600), remarks
-  price_bid: (use params.price instead)  open_bid: trade_request_uuid, company_uuid
+  price_bid / surrogate_bid: the price is params.price (a number) — a bid is never a library case. A surrogate bid with NO price: params.price null
+  price_cap: the cap per unit is params.price, for the invited vendor (params.vendor "vendor2" for the second); a bid must be strictly BELOW it (equal is refused)  open_bid: trade_request_uuid, company_uuid
   library: the named case's own body keys
   params: price (bid price per unit), vendor ("vendor"|"vendor2": whose bid/award/surrogate), until (wait: "bid_end"|"close"),
           round ("pricing" default | "technical": which round extend_round / add_vendor / remove_vendor / wait act on)
@@ -1523,6 +1598,174 @@ export function vocabulary() {
  * it as a gap and planned a one-item event instead. Read the count from the
  * text here and put it on the setup; the gap it caused goes with it.
  */
+/**
+ * AN EVENT FROM A PURCHASE REQUEST, as an API test (Aanya, 27 Oct: "now for these cases, run the
+ * api automation test" — RFQ / RFP + RFQ / auction / technical + auction from an existing PR, and a
+ * PR with 2 line items). The vocabulary had no word for it, so the model built a blank event and named
+ * the PR as a gap — a run that published an ordinary event and tested nothing about the PR. A
+ * create-and-publish case from a PR is planned here instead, in code: the setup makes the draft from
+ * an open PR's lines (linked by pr_line_item_uuid / pr_id, the PR's own product, unit and open
+ * quantity — apiPlanRunner pickPrLines) with the stages the case names, and the step under test is
+ * the publish; the read-back checks the event is live. Anything else about a PR keeps its gap.
+ */
+export async function applyFromPr(c: CompiledApiPlan | null, text: string): Promise<CompiledApiPlan | null> {
+  const fromPr =
+    /\b(from|using|out of|convert(ing)?)\b[^.]{0,40}\b(an? |the )?(existing |open )?(pr|purchase requests?|purchase requisitions?|requisitions?)\b/i.test(text) ||
+    /\b(select|pick|choose|tick|take|use)\s+(a|an|the|one)?\s*(pr|purchase request)\b/i.test(text);
+  if (!fromPr || !/\b(create|make|build|convert|publish)\b/i.test(text) || !/\bpublish/i.test(text)) return c;
+  // A case about what happens after the publish (bids, award, evaluation …) is not this plan.
+  if (/\b(bid|award|counter|surrogate|evaluat|score|close|extend|withdraw|negotiat|refus|reject|block|without|empty)/i.test(text)) return c;
+  const tech = /\b(rfp|technical|tech)\b/i.test(text);
+  const auction = /\bauction\b/i.test(text);
+  const rfq = /\brfq\b/i.test(text);
+  if (tech && !auction && !rfq) return c; // a technical-only event has no recipe yet
+  const recipe: RecipeId = auction ? (tech ? "draft_rfp_auction" : "draft_auction") : tech ? "draft_rfp_rfq" : "draft_rfq";
+  const words = { draft_rfq: "RFQ", draft_rfp_rfq: "RFP + RFQ", draft_auction: "Auction", draft_rfp_auction: "Technical + Auction" }[recipe as "draft_rfq"];
+  const n = Number(text.match(/\b(\d{1,2})\s*line[\s_-]?items?\b/i)?.[1] ?? 0) || Number(c?.plan?.setup.lineItems ?? 0) || 1;
+  const raw = {
+    version: PLAN_VERSION,
+    caseId: c?.plan?.caseId ?? "API-TYPED",
+    title: `${words} event from an open purchase request${n > 1 ? ` (${n} of its line items)` : ""}, published`,
+    setup: { recipe, fromPr: { items: n } },
+    act: [{ op: "publish_event", decisive: true }],
+    verify: [
+      { op: "read_event", assert: [{ path: "status", op: "equals", value: "active", say: "the event is live" }] },
+      // …and made FROM the PR: every line item carries its PR number and PR line (an event from a PR
+      // whose link was dropped passed on "live" alone, 27 Oct).
+      { op: "read_line_items", assert: [{ path: "data[*].pr_no", op: "exists", say: "every line item names its purchase request" }, { path: "data[*].pr_line_item_uuid", op: "exists", say: "every line item is linked to its PR line" }] },
+    ],
+    expected: { outcome: "accept" },
+  };
+  const v = await validatePlan(raw);
+  if (!v.ok) return c;
+  return {
+    ...(c ?? { llm: { calls: 0, promptTokens: 0, completionTokens: 0, reasonTierUsed: false, usd: 0 }, candidates: [], ms: 0, warnings: [] }),
+    plan: v.plan,
+    coverage: "full",
+    gaps: (c?.gaps ?? []).filter((g) => !/purchase request|\bpr\b|product request|requisition/i.test(g)),
+    errors: [],
+    warnings: [...(c?.warnings ?? []), ...v.warnings],
+    source: "rules",
+    endpoints: ["POST /purchase_requests (read)", "POST /event_groups", "POST /trade/template_input", "PATCH /event_groups/:id", "GET /event_groups/:id"],
+    decisiveEndpoint: "PATCH /event_groups/:id",
+    text,
+  } as CompiledApiPlan;
+}
+
+/**
+ * A SURROGATE BID IS SENT BY ITS BUILDER (peer 6c's API-actions run, 27 Oct). The model planned
+ * "place a surrogate bid of 100" as a library case's bid body (op library, POST /bids/template_input):
+ * product, price and quantity only — no trade product, variant, hub, serial or status — and Procol
+ * answered 500 (API-SB01) for the test's own malformed request. And "a surrogate bid with no price"
+ * kept the builder's price of 100, because the vocabulary did not say a surrogate bid's price could be
+ * set or left out (API-SB04): Procol accepted a priced bid and the refusal case "failed" for our reason.
+ * Here, in code, for a case that says surrogate: a library bid body becomes surrogate_bid; the price the
+ * case names becomes params.price; "no price" is params.price null (the builder leaves it out).
+ */
+export async function repairBidActs(c: CompiledApiPlan | null, text: string): Promise<CompiledApiPlan | null> {
+  if (!c?.plan || !/\bsurrogate\b/i.test(text)) return c;
+  const plan = JSON.parse(JSON.stringify(c.plan)) as ApiPlan;
+  const named = text.match(/\b(?:bid|price|quote|amount)\s*(?:of|at|=|:)?\s*(?:exactly|just|only|precisely)?\s*(?:₹|rs\.?|inr)?\s*(-?\d+(?:\.\d+)?)\b/i)?.[1];
+  const price = named !== undefined ? Number(named) : NaN;
+  const noPrice = /\b(no|without|empty|blank|missing)\s+(a\s+|any\s+)?price\b|\bprice\s+(left\s+)?(empty|blank|missing|out)\b/i.test(text);
+  const notes: string[] = [];
+  for (const a of plan.act) {
+    if (a.op === "library" && a.caseId) {
+      const lc = library().byId.get(a.caseId);
+      if (lc && String(lc.method).toUpperCase() === "POST" && /\/bids\/template_input\b/.test(String(lc.path))) {
+        a.op = "surrogate_bid";
+        delete a.caseId;
+        delete a.change; // keyed to the library case's body, not the builder's
+        notes.push("the library bid body was replaced by the surrogate-bid builder (a library body lacks the trade product, variant and hub)");
+      }
+    }
+    if (a.op !== "surrogate_bid") continue;
+    if (noPrice) {
+      if (a.params?.price !== null) {
+        a.params = { ...(a.params ?? {}), price: null };
+        notes.push("the bid is sent with no price, as the case says");
+      }
+      if (a.change) a.change = a.change.filter((ch) => !/price/.test(ch.path));
+      if (a.change && !a.change.length) delete a.change;
+    } else if (Number.isFinite(price) && a.params?.price === undefined) {
+      a.params = { ...(a.params ?? {}), price };
+      notes.push(`the bid price is ${price}, as the case says`);
+    }
+  }
+  if (!notes.length) return c;
+  const v = await validatePlan(plan);
+  if (!v.ok) return c;
+  const gaps = c.gaps.filter((g) => !(/surrogate/i.test(g) && /price/i.test(g)));
+  return { ...c, plan: v.plan, gaps, warnings: [...c.warnings, ...notes.map((n) => `repaired: ${n}`)], ...(c.coverage === "partial" && !gaps.length ? { coverage: "full" as const } : {}) };
+}
+
+/**
+ * A TYPED CASE IS NOT PASSED BY "NO SERVER ERROR" (peer 6c's API-actions run, 27 Oct). The model may
+ * plan "the app answers without a server error" for an action the case simply asks to happen — "place a
+ * surrogate bid of 100", "submit the technical response" — and then a 4xx refusal passes: API-SB05 got
+ * 422 "Insufficient parameters" and was marked passed. A typed case not about crashing (500, server
+ * error) expects its action to go through, or to be refused when it says so.
+ */
+export function strictOutcome(c: CompiledApiPlan | null, text: string): CompiledApiPlan | null {
+  if (!c?.plan || c.plan.expected.outcome !== "no-5xx") return c;
+  const pol = polarityOf(text);
+  if (pol === "no-5xx") return c;
+  const to: Outcome = pol === "reject" ? "reject" : "accept";
+  c.plan.expected = { ...c.plan.expected, outcome: to };
+  for (const a of c.plan.act) if (a.decisive && a.expect === "no-5xx") a.expect = to;
+  c.warnings = [...c.warnings, `the plan checked only “no server error”; this case expects ${to === "accept" ? "its action to go through" : "a refusal"}, so that is what is checked`];
+  c.gaps = c.gaps.filter((g) => !/the plan checks “the app answers without a server error”/.test(g));
+  return c;
+}
+
+/**
+ * A PRICE CAP CASE IS PLANNED IN CODE (27 Oct). The model left the cap out, failed to answer, or capped
+ * QA vendor 1 and had vendor 2 bid. "…add a price cap of X for the vendor[, then the vendor bids Y; …]"
+ * is one shape: a published RFQ with one QA vendor; price_cap X for that vendor; then that vendor's bid
+ * of Y (a surrogate bid when the case says surrogate). The outcome is the case's own words, else the
+ * template's rule: a bid strictly below the cap is accepted, at or above it is refused.
+ */
+export async function applyPriceCap(c: CompiledApiPlan | null, text: string): Promise<CompiledApiPlan | null> {
+  const capM = text.match(/\bprice[\s-]*cap\w*\b[^.\d-]{0,25}(-?\d+(?:\.\d+)?)/i) ?? text.match(/\bcap(?:ped)?\s*(?:of|at|=)\s*(?:₹|rs\.?)?\s*(-?\d+(?:\.\d+)?)/i);
+  if (!capM || capM.index === undefined) return c;
+  const cap = Number(capM[1]);
+  const after = text.slice(capM.index + capM[0].length);
+  // BID_WORDS: "a bid of exactly 100", "bids just 90" (peer 6c, 27 Oct: "exactly" left the bid out), "a bid equal to the cap"
+  const bidM = after.match(/\b(?:bids?|quotes?|offers?)\s*(?:of|at|=)?\s*(?:exactly|just|only|precisely)?\s*(?:₹|rs\.?|inr)?\s*(-?\d+(?:\.\d+)?)/i);
+  const atCap = !bidM && /\b(?:bids?|quotes?|offers?)\b[^.;]{0,40}\b(?:equal to|the same as|exactly|at)\s+(?:the\s+)?cap\b/i.exec(after);
+  const bid = bidM ? Number(bidM[1]) : atCap ? cap : undefined;
+  const surrogate = /\bsurrogate\b/i.test(text);
+  const bidAt = bidM ?? atCap;
+  const pol = bidAt ? polarityOf(after.slice((bidAt.index ?? 0) + bidAt[0].length) || after) : polarityOf(text);
+  const outcome: Outcome = bid === undefined ? (pol === "reject" ? "reject" : "accept") : pol === "reject" || pol === "accept" ? pol : bid < cap ? "accept" : "reject";
+  const raw = {
+    version: PLAN_VERSION,
+    caseId: c?.plan?.caseId ?? "API-TYPED",
+    title: bid === undefined ? `Price cap of ${cap} for the invited vendor` : `Price cap of ${cap}, then ${surrogate ? "a surrogate bid" : "the vendor's bid"} of ${bid} (${outcome === "accept" ? "accepted" : "refused"})`,
+    setup: { recipe: "published_rfq" },
+    act:
+      bid === undefined
+        ? [{ op: "price_cap", params: { price: cap }, decisive: true }]
+        : [{ op: "price_cap", params: { price: cap } }, { op: surrogate ? "surrogate_bid" : "place_bid", params: { price: bid }, decisive: true }],
+    verify: [],
+    expected: { outcome },
+  };
+  const v = await validatePlan(raw);
+  if (!v.ok) return c;
+  return {
+    ...(c ?? { llm: { calls: 0, promptTokens: 0, completionTokens: 0, reasonTierUsed: false, usd: 0 }, candidates: [], ms: 0, warnings: [], gaps: [] }),
+    plan: v.plan,
+    coverage: "full",
+    gaps: [],
+    errors: [],
+    warnings: [...(c?.warnings ?? []), ...v.warnings, "planned in code: a price cap case (the cap, then the same vendor's bid)"],
+    source: "rules",
+    endpoints: ["PATCH /trade/:id/update_vendor_validations", ...(bid === undefined ? [] : [surrogate ? "POST /bids/template_input" : "POST /bids …"])],
+    decisiveEndpoint: bid === undefined ? "PATCH /trade/:id/update_vendor_validations" : surrogate ? "POST /bids/template_input" : "POST /bids",
+    text,
+  } as CompiledApiPlan;
+}
+
 export function applyLineItemCount(c: CompiledApiPlan): CompiledApiPlan {
   const m = c.text.match(/\b(\d{1,4})\s*line[\s_-]?items?\b/i);
   const n = m ? Number(m[1]) : 0;

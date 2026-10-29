@@ -23,6 +23,7 @@ import { DEFAULT_CLIENT } from "../../config/settings.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const DIR = join(here, "..", "..", "data", "plan-runs");
 const PLANS = join(here, "..", "..", "..", "procol-ui-tests", ".plans");
+const EVIDENCE = join(here, "..", "..", "..", "procol-ui-tests", "evidence");
 const SAFE_ID = /^plan-[a-z0-9]+$/i;
 
 export interface PlanRunStep {
@@ -34,6 +35,8 @@ export interface PlanRunStep {
   replayed?: boolean;
   /** done by the tester in the browser (take control), not tested by the run */
   byHand?: boolean;
+  /** no step for it and not done (ask_tester skipped or unanswered): not tested */
+  untested?: boolean;
   ms?: number;
 }
 
@@ -63,6 +66,8 @@ export interface PlanRunRecord {
    * it is opened again from Sessions (15 Oct).
    */
   byHand?: number;
+  /** Parts with no step that were skipped or left unanswered (ask_tester, 21 Oct): also "Partly tested". */
+  untested?: number;
   /** rebuilt from the result file of a run from before runs were kept */
   recovered?: boolean;
 }
@@ -103,8 +108,13 @@ export function buildPlanRun(o: {
     proof: r.proof ? String(r.proof) : undefined,
     routeSaved: !!r.route?.savedTo,
     byHand: byHandOf(r),
+    untested: untestedOf(r),
   };
 }
+
+/** How many parts had no step and were not done (runPlan ask_tester): the result's count, else its marked steps. */
+const untestedOf = (r: any): number =>
+  Math.max((Array.isArray(r?.steps) ? r.steps : []).filter((s: any) => s?.untested).length, typeof r?.untested === "number" ? r.untested : 0);
 
 /** How many steps the tester did by hand: the result's count, else its marked steps (the explorer says only true). */
 const byHandOf = (r: any): number => {
@@ -121,6 +131,7 @@ const stepsOf = (r: any): PlanRunStep[] =>
     ...(s.shot ? { shot: String(s.shot) } : {}),
     ...(s.replayed ? { replayed: true } : {}),
     ...(s.byHand ? { byHand: true } : {}),
+    ...(s.untested ? { untested: true } : {}),
     ...(Number.isFinite(s.ms) ? { ms: s.ms } : {}),
   }));
 
@@ -163,6 +174,7 @@ function recover(runId: string): PlanRunRecord | null {
     proof: result.proof ? String(result.proof) : undefined,
     routeSaved: !!result.route?.savedTo,
     byHand: byHandOf(result),
+    untested: untestedOf(result),
     recovered: true,
   };
 }
@@ -203,6 +215,13 @@ export function deletePlanRun(runId: string): boolean {
         rmSync(join(PLANS, f), { force: true });
         removed = true;
       }
+    }
+  }
+  // Its step records, pictures and trace too (evidence/<run> and evidence/<run>-gapN) — they
+  // outlived the run before (27 Oct: 21 folders of deleted runs were still on disk).
+  if (removed && existsSync(EVIDENCE)) {
+    for (const f of readdirSync(EVIDENCE)) {
+      if (f === runId || new RegExp(`^${runId}-gap\\d+$`).test(f)) rmSync(join(EVIDENCE, f), { recursive: true, force: true });
     }
   }
   return removed;

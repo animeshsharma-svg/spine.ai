@@ -1,10 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════
    SESSIONS (#/sessions) — public/sessions.js.
 
-   Header (title, + New session, the client bar), a toolbar (search, status
-   filters with counts), then the sessions grouped by day: one card per day,
-   one row per session. Loaded after home.css: every colour, font and
-   shadow is a token from the paper theme, so light and dark both follow.
+   Header (title, the client bar, Screens, + New session), a toolbar (status
+   filters as one segmented bar, then search), then the sessions grouped by
+   day: one card per day, one row per session. Loaded after home.css: every
+   colour, font and shadow is a token from the paper theme, so light and dark
+   both follow.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* The shell's content column already has 24px side padding; the page adds
@@ -32,16 +33,34 @@
   transition: background-color .2s ease;
 }
 .sn-new:hover { background: var(--primary-hover); }
+/* Screens opens from here (it left the sidebar, 27 Oct): a quiet button beside New session */
+.sn-screens {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  font: 500 13px/1 var(--font-sans); text-decoration: none; white-space: nowrap;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.sn-screens:hover { border-color: var(--border-strong); background: var(--tint-bg); }
+.sn-screens .ico { width: 14px; height: 14px; }
 .sn-new .ico { width: 14px; height: 14px; }
 .sn-ctx:empty { display: none; }
-.sn-ctx .ctx-bar { justify-content: flex-end; }
+.sn-ctx .ctx-bar { justify-content: flex-end; gap: 2px; }
+/* Client and environment are where you are, not things to do: they sit
+   quiet (no box until hover) and a thin rule parts them from the buttons. */
+.sn-ctx .ctx-picker { background: transparent; border-color: transparent; }
+.sn-ctx .ctx-picker:hover, .sn-ctx .ctx-picker[aria-expanded="true"] { background: var(--tint-bg); border-color: var(--border-subtle); }
+.sn-sep { width: 1px; height: 20px; background: var(--border-subtle); }
+.sn-ctx:empty + .sn-sep { display: none; }
 
 /* ── toolbar ──────────────────────────────────────────────────────────── */
-.sn-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sn-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; container-type: inline-size; }
+/* too narrow for the filter bar and the search side by side: the search takes its own full row */
+@container (max-width: 819px) { .sn-tools .sn-search { flex-basis: 100%; margin-left: 0; } }
 .sn-search {
-  flex: 1 1 260px; min-width: 0;
+  flex: 0 1 300px; min-width: 200px; margin-left: auto;
   display: flex; align-items: center; gap: 8px;
-  height: 40px; padding: 0 12px;
+  height: 38px; padding: 0 12px;
   border: 1px solid var(--border-subtle); border-radius: 10px;
   background: var(--card);
 }
@@ -56,17 +75,25 @@
 .sn-search input:focus-visible { outline: none; }
 .sn-search input::-webkit-search-cancel-button { cursor: pointer; }
 
-.sn-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.sn-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 34px; padding: 0 12px; border-radius: 999px;
-  border: 1px solid var(--border-subtle); background: var(--card); color: var(--text);
-  font: 400 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
-  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+/* The filters are one segmented bar: a single card, the chosen one filled. */
+.sn-filters {
+  display: flex; gap: 2px; padding: 3px; max-width: 100%;
+  border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--card);
 }
-.sn-pill:hover { border-color: var(--border-strong); }
-.sn-pill[aria-pressed="true"] { background: var(--text-strong); color: var(--card); border-color: var(--text-strong); }
-.sn-n { font: 400 11px/1 var(--font-mono); opacity: .7; }
+.sn-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 11px; border-radius: 7px;
+  border: 0; background: transparent; color: var(--text-2);
+  font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+.sn-pill:hover { color: var(--text-strong); background: var(--row-hover); }
+.sn-pill[aria-pressed="true"] { background: var(--chip-bg); color: var(--text-strong); }
+.sn-n { font: 500 11px/1 var(--font-mono); color: var(--text-2); }
+.sn-n.is-zero { color: var(--text-muted); font-weight: 400; }
+/* Only the counts that ask for you are coloured. */
+.sn-pill[data-status="broken"] .sn-n:not(.is-zero) { color: var(--bad-text); }
+.sn-pill[data-status="turn"] .sn-n:not(.is-zero) { color: var(--primary-text); }
 
 /* ── day groups ───────────────────────────────────────────────────────── */
 .sn-body { display: flex; flex-direction: column; gap: 20px; }
@@ -229,4 +256,41 @@
   .sn-new, .sn-pill, .sn-more { min-height: 44px; }
   .sn-search { height: 44px; }
   .sn-head h1 { font-size: 24px; }
+  /* title and the two buttons on one line, client + environment under it */
+  .sn-ctx { order: 1; flex-basis: 100%; }
+  .sn-ctx .ctx-bar { justify-content: flex-start; }
+  .sn-ctx .ctx-picker { padding-left: 0; }
+  .sn-sep { display: none; }
+  /* search on top at full width; the filter bar scrolls sideways */
+  .sn-search { order: -1; flex-basis: 100%; margin-left: 0; }
+  .sn-filters { overflow-x: auto; scrollbar-width: none; }
+  .sn-filters::-webkit-scrollbar { display: none; }
+  .sn-pill { flex: none; }
 }
+/* a phone: Screens keeps its icon only, so the title row stays one line */
+@media (max-width: 479px) {
+  .sn-btn-t { display: none; }
+  .sn-screens { width: 44px; padding: 0; justify-content: center; }
+}
+/* a run kept on purpose (Save at the end of the run) */
+.sn-star { color: var(--warn-text, #b45309); }
+
+/* A run waiting for an answer, whichever tab started it (27 Oct) */
+.sn-wait { margin: 4px 0 16px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 10px; background: var(--card); display: grid; gap: 10px; }
+.sn-wait[hidden] { display: none; }
+.sn-wait-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 600 13px/1.3 var(--font-sans); color: var(--text-strong, var(--text)); }
+.sn-wait-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: sn-wait-pulse 1.4s ease-in-out infinite; }
+@keyframes sn-wait-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .sn-wait-dot { animation: none; } }
+.sn-wait-run { font: 500 11px/1 var(--font-mono); color: var(--text-2); }
+.sn-wait-open { margin-left: auto; font-size: 13px; }
+.sn-wait-q { font-size: 14px; line-height: 1.45; color: var(--text); }
+.sn-wait-more { font-size: 13px; color: var(--text-2); }
+.sn-wait-more summary { cursor: pointer; width: fit-content; }
+.sn-wait-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.sn-wait-opt, .sn-wait-other button { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: 500 13px/1 var(--font-sans); cursor: pointer; }
+.sn-wait-opt:hover, .sn-wait-other button:hover { border-color: var(--text-2); }
+.sn-wait-opt.stop { color: var(--danger, #b42318); }
+.sn-wait-other { display: flex; gap: 8px; }
+.sn-wait-other input { flex: 1 1 auto; min-width: 0; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: 400 13px/1 var(--font-sans); }
+.sn-wait-said { font-size: 13px; color: var(--text-2); }

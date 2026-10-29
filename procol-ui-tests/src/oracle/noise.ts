@@ -26,6 +26,10 @@ export const NOISE_TEXT: RegExp[] = [
   /we use (essential |some )?cookies|accept (all )?cookies|cookie policy/i,
   /new version (is )?available|refresh to update/i,
   /verification for your (e-?)?mail|verify your (e-?)?mail/i,
+  // 29 Oct: the "Hello Procol, Help us make Procol better! … Give Feedback" card sat over the Participants rows'
+  // Add Bid (EVAL0 timed out on it), and the "New! Keyboard Navigation" tip beside it.
+  /help us make procol better/i,
+  /keyboard navigation/i,
 ];
 
 export function isNoiseMessage(text: string | null | undefined): boolean {

@@ -200,6 +200,24 @@ export function judge(evidence: Evidence, failure?: Error | null, opts: { expect
     };
   }
 
+  // 4c. Procol's own crash page, named by runPlan when the step failed under it: the app broke.
+  //     Before this, "Oops! Something Broke Down…" after Invite Vendor (21 Oct) fell through to
+  //     "failed without evidence from the app" and was filed as a harness problem.
+  if (/Procol crashed — it showed its error page/i.test(message)) {
+    return {
+      kind: "product_defect",
+      severity: "high",
+      title: `${evidence.flowKey}: Procol crashed — “Oops! Something Broke Down…”`,
+      rationale:
+        `The app replaced the screen with its own error page during the step this message names ` +
+        `(${message.split("\n")[0].slice(0, 200)}). A crash page is the product failing, not the harness losing the UI; ` +
+        `a fresh-state re-run confirms whether it repeats.`,
+      smokingGun: { toast: "Oops! Something Broke Down…" },
+      reproduction: steps,
+      actionable: true,
+    };
+  }
+
   // 5. Nothing came from the app at all — the harness could not drive it.
   if (AUTOMATION_SIGNATURE.test(message)) {
     return {
