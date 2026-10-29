@@ -30,7 +30,8 @@ if (!args.includes("--sheet-only"))
     });
     if (r) console.log(`[${flow.key}] done in ${Math.round((Date.now() - t0) / 60000)} min — ${r.baseline.reduce((n, b) => n + b.records.length, 0)} controls, ${r.variants.length} settings switched${r.why ? ` — ${r.why}` : ""}`);
   }
-const out = writeExploredSheet();
-console.log(`\nsheet: ${out.file} — ${out.cases} cases, ${out.questions.length} questions`);
+const out = await writeExploredSheet(undefined, { deep: !args.includes("--no-deep") });
+console.log(`\nsheet: ${out.file} — ${out.cases} cases, ${out.questions.length} questions, ${out.bugs.length} bugs`);
+for (const b of out.bugs) console.log(`  ✗ ${b}`);
 for (const q of out.questions) console.log(`  ? ${q}`);
 process.exit(0);

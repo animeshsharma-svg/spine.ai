@@ -158,7 +158,9 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
             line(`This case needs ${setting} — that is the company setting ${needed.map((n) => `${n.key} = ${JSON.stringify(n.value)}`).join(", ")}.`);
             const out = await withSettings(opts.companyId, needed, c.id, line, runOne);
             if ("refused" in out) {
-              r = base(c, "Not run", `It needs ${setting} (${needed.map((n) => n.key).join(", ")}), but the setting could not be switched: ${out.refused}.`, 0);
+              r = /^BLOCKED/.test(out.refused)
+                ? base(c, "Not run", `Blocked: it needs ${needed.map((n) => `${n.key} = ${JSON.stringify(n.value)}`).join(", ")}, and that setting cannot be switched on the test company (${out.refused.replace(/^BLOCKED — /, "")}). Run it on a company already set up that way.`, 0)
+                : base(c, "Not run", `It needs ${setting} (${needed.map((n) => n.key).join(", ")}), but the setting could not be switched: ${out.refused}.`, 0);
             } else {
               r = out.result;
               r.settings = out.changed;

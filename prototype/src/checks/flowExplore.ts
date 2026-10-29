@@ -22,7 +22,9 @@ import { BUYER_LOGIN, SHEET_COLUMNS, formatConfigs, type ConfigNeed, type SheetR
 import { contextForPlan } from "../ui/prepareForPlan.js";
 import { readPlanResult, runUiPlan } from "../ui/uiFlowRunner.js";
 import type { UiState } from "../ui/uiSetup.js";
-import { currentValue, settingsCatalog, withSettings } from "./companySettings.js";
+import { chat } from "../ai/llm.js";
+import { STYLE_GUIDE } from "../agents/caseStyle.js";
+import { currentValue, settingBlockers, settingsCatalog, withSettings } from "./companySettings.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROTO = join(here, "..", "..");
@@ -122,13 +124,15 @@ interface ProbeRecord {
   n: number; role: string; name: string; disabled: boolean; tooltip?: string; outcome: string;
   dialog?: { title: string; buttons: string[]; fields: string[]; text: string }; menu?: string[]; url?: string;
   messages?: Array<{ kind: string; text: string }>; requests?: Array<{ method: string; path: string; status: number }>; newText?: string[]; changedEvent?: boolean; screenshot?: string; note?: string;
+  emptySubmit?: { button: string; stayedOpen: boolean; fieldErrors: string[]; messages: Array<{ kind: string; text: string }>; requests: Array<{ method: string; path: string; status: number }> };
+  fieldDetails?: Array<{ label: string; kind: string; required: boolean; value: string; placeholder: string }>;
 }
-interface ProbeRun { probe: Probe; records: ProbeRecord[]; listed?: string[] }
+interface ProbeRun { probe: Probe; records: ProbeRecord[]; listed?: string[]; odd?: string[]; shot?: string }
 interface Variant { key: string; from: unknown; to: unknown; listed: ProbeRun[]; clicked: ProbeRun[]; diff: string[]; why?: string }
 export interface FlowResult { flow: string; at: string; baseline: ProbeRun[]; baselineSettings: ConfigNeed[]; variants: Variant[]; why?: string }
 
 /** Build the flow's starting event (if any), open its screen and run the probes in ONE browser run. */
-async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, companyId: number, line: (l: string) => void): Promise<{ runs: ProbeRecord[][]; listed: string[][]; why?: string }> {
+async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, companyId: number, line: (l: string) => void): Promise<{ runs: ProbeRecord[][]; listed: string[][]; meta?: Array<{ odd?: string[]; shot?: string }>; why?: string }> {
   const plan: { title: string; steps: Step[]; context?: Record<string, unknown> } = { title: `explore ${flow.key}`, steps: [...flow.start, ...probes.map((args) => ({ step: "probe_controls", args }))] };
   if (flow.state === "none") plan.context = { state: "none" };
   else {
@@ -149,9 +153,9 @@ async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, 
   const dir = join(UI, "evidence", runId);
   const files = probes.map((_, i) => {
     const f = join(dir, `probe-${flow.start.length + i + 1}.json`);
-    return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as { records?: ProbeRecord[]; listed?: string[] }) : {};
+    return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as { records?: ProbeRecord[]; listed?: string[]; oddOnScreen?: string[]; screenShot?: string }) : {};
   });
-  return { runs: files.map((x) => x.records ?? []), listed: files.map((x) => x.listed ?? (x.records ?? []).map((r) => r.name)) };
+  return { runs: files.map((x) => x.records ?? []), listed: files.map((x) => x.listed ?? (x.records ?? []).map((r) => r.name)), meta: files.map((x) => ({ odd: x.oddOnScreen, shot: x.screenShot })) };
 }
 
 /** What a screen offered: every control it listed (whether or not its click worked), greyed out or not. */
@@ -161,7 +165,7 @@ export async function exploreFlow(flow: FlowDef, opts: { companyId: number; vari
   const { companyId, line } = opts;
   line(`── ${flow.name}: clicking everything on the screen as the company is set up now`);
   const base = await probeOnce(flow, flow.probes as Array<Record<string, unknown>>, companyId, line);
-  const result: FlowResult = { flow: flow.key, at: new Date().toISOString(), baseline: flow.probes.map((p, i) => ({ probe: p, records: base.runs[i] ?? [], listed: base.listed[i] })), baselineSettings: [], variants: [], why: base.why };
+  const result: FlowResult = { flow: flow.key, at: new Date().toISOString(), baseline: flow.probes.map((p, i) => ({ probe: p, records: base.runs[i] ?? [], listed: base.listed[i], odd: base.meta?.[i]?.odd, shot: base.meta?.[i]?.shot })), baselineSettings: [], variants: [], why: base.why };
   const known = new Map((await settingsCatalog()).map((s) => [s.key, s]));
   for (const key of flow.settings.filter((k) => known.has(k))) {
     const cur = await currentValue(companyId, key);
@@ -170,6 +174,10 @@ export async function exploreFlow(flow: FlowDef, opts: { companyId: number; vari
   if (base.why || opts.variants === false) return save(result);
   for (const b of result.baselineSettings) {
     if (typeof b.value !== "boolean") continue;
+    if (settingBlockers()[b.key]) {
+      result.variants.push({ key: b.key, from: b.value, to: !b.value, listed: [], clicked: [], diff: [], why: `BLOCKED — ${settingBlockers()[b.key]}` });
+      continue;
+    }
     const to = !b.value;
     line(`── ${flow.name}: switching ${b.key} to ${to ? "On" : "Off"} and looking again`);
     const v: Variant = { key: b.key, from: b.value, to, listed: [], clicked: [], diff: [] };
@@ -220,7 +228,19 @@ const SCREEN = (path: string) =>
   /master_qcs/.test(path) ? "Master QCS" : /proposal/.test(path) ? "award proposal page" : /\/details/.test(path) ? "Project Details page" : /quick-create/.test(path) ? "create screen" : /\/orders/.test(path) ? "events list" : /\/project\//.test(path) ? "stage page" : path;
 const ODD_NUMBER = /₹\s*-\s*\d|-\d[\d,.]*\s*%|NaN|undefined|Invalid date|null\b/;
 
-export interface ExploredCase { row: SheetRow; question?: string; screenshot?: string }
+export interface ExploredCase { row: SheetRow; question?: string; screenshot?: string; bug?: { id: string; title: string; seen: string; flow: string; screenshot?: string } }
+
+/** Wrong values the tester has confirmed as bugs: the case expects the right value and is marked failed with the bug. */
+const CONFIRMED_BUGS: Array<{ id: string; match: RegExp; title: string; expected: string; look: string; confirmed: string }> = [
+  {
+    id: "BUG-LPP-NEGATIVE", match: /last purchase price.*₹\s*-\s*\d|₹\s*-\s*\d[\d,]*.*-\d[\d.]*\s*%/i,
+    title: "Last Purchase Price is never shown as a negative amount",
+    expected: 'The "Last Purchase Price" at the bottom of the Responses tab is a positive amount (or "-" when there is none), and the % beside it is worked out from it. A negative last purchase price (e.g. "₹-12,740 (-240.74%)") is wrong.',
+    look: 'Look at "Last Purchase Price" at the bottom left of the Responses tab',
+    confirmed: "confirmed as a bug by the tester, 29 Oct",
+  },
+];
+
 
 function observed(r: ProbeRecord): { title: string; expected: string; question?: string; type: string } {
   const label = r.name.replace(/^(.*?) → /, "");
@@ -267,8 +287,45 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
       const question = o.question ?? (odd ? `After clicking "${rec.name}" the screen shows ${q(odd)} — is that value right?` : undefined);
       out.push({ row: row(o.title, run.probe, rec, o.expected, o.type, asIs, run.probe.within ? `${run.probe.within} menu` : "What each control does"), question, screenshot: rec.screenshot });
     }
+  // one level deeper into every window: what the app asks for when its main button is pressed as it opened, and Cancel
+  const seenDialogs = new Set<string>();
+  for (const run of r.baseline)
+    for (const rec of run.records) {
+      if (rec.outcome !== "dialog" || !rec.dialog || seenDialogs.has(rec.dialog.title)) continue;
+      seenDialogs.add(rec.dialog.title);
+      const win = q(rec.dialog.title || rec.name);
+      const cancel = rec.dialog.buttons.find((b) => /^(cancel|close|no)$/i.test(b));
+      if (cancel) out.push({ row: row(`${win}: "${cancel}" closes it and changes nothing`, run.probe, rec, `The ${win} window closes. Nothing on the event changes (status, times, vendors and bids are as before).`, "Positive", asIs, `${rec.dialog.title} window`), screenshot: rec.screenshot });
+      const es = rec.emptySubmit;
+      if (!es) continue;
+      const req = (rec.fieldDetails ?? []).filter((f) => f.required).map((f) => f.label || f.placeholder).filter(Boolean);
+      if (es.stayedOpen && (es.fieldErrors.length || es.messages.length))
+        out.push({ row: row(`${win}: "${es.button}" with the fields as they open is refused`, run.probe, rec, `The window stays open and the app asks for what is missing: ${list([...es.fieldErrors, ...es.messages.map((m) => m.text)], 6)}. Nothing is saved.`, "Negative", asIs, `${rec.dialog.title} window`), screenshot: rec.screenshot });
+      else if (!es.stayedOpen && es.requests.some((x) => x.status < 400))
+        out.push({
+          row: row(`${win}: "${es.button}" with the fields as they open goes through`, run.probe, rec, `Record what happens. During exploration the window closed and the app saved it${es.messages[0] ? `, saying ${q(es.messages[0].text)}` : ""} without anything being filled in${req.length ? ` (fields marked required: ${list(req)})` : ""}.`, "Edge", asIs, `${rec.dialog.title} window`),
+          question: `In ${win}, pressing "${es.button}" without filling anything went through${es.messages[0] ? ` ("${es.messages[0].text.slice(0, 80)}")` : ""}. Is that right, or should it ask for ${req.length ? req.join(", ") : "something first (e.g. a reason)"}?`,
+          screenshot: rec.screenshot,
+        });
+      else if (es.stayedOpen && !es.fieldErrors.length && !es.messages.length)
+        out.push({ row: row(`${win}: "${es.button}" with the fields as they open — record what happens`, run.probe, rec, "Record what happens (during exploration the window stayed open and nothing said what was missing).", "Edge", asIs, `${rec.dialog.title} window`), question: `In ${win}, pressing "${es.button}" with the fields as they open did nothing and showed no message. What should it say?`, screenshot: rec.screenshot });
+    }
+  // values on the screen that are never right: a confirmed bug fails its case; anything else is asked
+  for (const run of r.baseline)
+    for (const odd of run.odd ?? []) {
+      const bug = CONFIRMED_BUGS.find((b) => b.match.test(odd));
+      const rec: ProbeRecord = { n: 0, role: "text", name: "the screen", disabled: false, outcome: "skipped" };
+      if (bug) {
+        const rw = row(bug.title, run.probe, rec, bug.expected, "Negative", asIs, "Values on the screen");
+        rw["Test Steps"] = [BUYER_LOGIN, ...flow.reach, bug.look].map((x, i) => `${i + 1}. ${x}`).join("\n");
+        rw.Priority = "High";
+        rw.Status = `Fail — ${bug.id}: seen ${q(odd)} (${bug.confirmed})`;
+        out.push({ row: rw, screenshot: run.shot, bug: { id: bug.id, title: bug.title, seen: odd, flow: flow.name, screenshot: run.shot } });
+      } else out.push({ row: row(`the value ${q(odd.slice(0, 40))} on the screen — record what happens`, run.probe, rec, `Record what happens. During exploration the screen showed ${q(odd)}.`, "Edge", asIs, "Values on the screen"), question: `"${flow.name}" shows ${q(odd)} — is that value right?`, screenshot: run.shot });
+    }
   for (const v of r.variants) {
     if (v.why || !v.diff.length) continue;
+
     const configs = asIs.map((c) => (c.key === v.key ? { ...c, value: v.to } : c));
     const setting = `${v.key} = ${v.to ? "On" : "Off"}`;
     for (const d of v.diff) {
@@ -288,7 +345,14 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
   }
   // a setting the catalogue says changes this screen, but switching it changed nothing visible
   for (const v of r.variants)
+    if (v.why?.startsWith("BLOCKED")) {
+      const rw = row(`with ${v.key} ${v.to ? "On" : "Off"} — blocked`, flow.probes[0], { n: 0, role: "button", name: v.key, disabled: false, outcome: "skipped" }, `Record what happens on this screen with the company setting ${v.key} = ${v.to ? "On" : "Off"}.`, "Edge", asIs.map((c) => (c.key === v.key ? { ...c, value: v.to } : c)), `Setting ${v.key}`);
+      rw.Status = `Blocked — ${v.why.replace(/^BLOCKED — /, "")}`;
+      out.push({ row: rw });
+    }
+  for (const v of r.variants)
     if (!v.why && !v.diff.length)
+
       out.push({
         row: row(`switching ${v.key} changes nothing visible here`, flow.probes[0], { n: 0, role: "button", name: v.key, disabled: false, outcome: "skipped" }, `Record what happens. During exploration, switching ${v.key} from ${v.from ? "On" : "Off"} to ${v.to ? "On" : "Off"} changed nothing on this screen's controls or menus.`, "Edge", asIs.map((c) => (c.key === v.key ? { ...c, value: v.to } : c)), `Setting ${v.key}`),
         question: `Switching the company setting ${v.key} (${v.from ? "On" : "Off"} → ${v.to ? "On" : "Off"}) changed nothing on "${flow.name}". Should it — and if so, what should change on this screen?`,
@@ -296,13 +360,90 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
   return out;
 }
 
-/** All explored flows → the xlsx sheet (house columns) and the questions file. */
-export function writeExploredSheet(keys = FLOWS.map((f) => f.key)): { file: string; cases: number; questions: string[] } {
+/**
+ * In-depth cases for one window the probe found (its fields, buttons and what an as-opened submit did): valid input,
+ * each required field left empty, limits and wrong types, Cancel, and the window's own rules — written by the model
+ * in the house style from what was SEEN, with "Record what happens" + a question wherever the expected result is
+ * not known. Cached per flow + window title (data/flow-explore/deep-cache.json), so it is written once.
+ */
+const DEEP_CACHE = join(RAW, "deep-cache.json");
+async function deepCasesForWindow(flow: FlowDef, rec: ProbeRecord, configs: ConfigNeed[]): Promise<Array<{ title: string; steps: string[]; expected: string; testType: string; priority: string; testData: string; question?: string }>> {
+  const key = `${flow.key}|${rec.dialog?.title}`;
+  const cache: Record<string, any[]> = existsSync(DEEP_CACHE) ? JSON.parse(readFileSync(DEEP_CACHE, "utf8")) : {};
+  if (cache[key]) return cache[key];
+  const seen = {
+    window: rec.dialog?.title, openedBy: rec.name, buttons: rec.dialog?.buttons, fields: rec.fieldDetails ?? rec.dialog?.fields, text: rec.dialog?.text?.slice(0, 500),
+    pressedAsOpened: rec.emptySubmit ?? "not tried",
+  };
+  const raw = await chat(
+    [
+      {
+        role: "system",
+        content:
+          "You write IN-DEPTH manual test cases for ONE window of Procol (a procurement app), from what an exploration SAW in it. " +
+          "Cover: the normal use with valid values; each required field left empty; each field's limits and wrong input (past dates, zero, negative, very large, letters in numbers, very long text, special characters); Cancel / close; and anything the window's text implies. " +
+          "Expected results come ONLY from what was seen (the app's own messages in quotes) or from plain sense a tester would not dispute; when the right result is not known, write \"Record what happens\" and put a short question for the product owner in \"question\". Never invent message texts. " +
+          "Steps start AFTER the window is open (the runner prepends how to get there). 6 to 10 cases.\n" + STYLE_GUIDE +
+          '\nReply with JSON only: [{"title","steps":["…"],"expected","testData","testType":"Positive|Negative|Edge","priority":"Critical|High|Medium|Low","question":"… or omit"}]',
+      },
+      { role: "user", content: `SCREEN: ${flow.name}\nSTARTING STATE: ${flow.pre}\nCOMPANY SETTINGS: ${configs.map((c) => `${c.key}=${JSON.stringify(c.value)}`).join(", ") || "none"}\nWHAT WAS SEEN:\n${JSON.stringify(seen, null, 1)}` },
+    ],
+    { temperature: 0.2, maxTokens: 3000 },
+  ).catch(() => "");
+  let cases: any[] = [];
+  try {
+    const i = raw.indexOf("["), j = raw.lastIndexOf("]");
+    cases = i >= 0 && j > i ? JSON.parse(raw.slice(i, j + 1)) : [];
+  } catch {
+    cases = [];
+  }
+  cases = cases.filter((c) => c && c.title && Array.isArray(c.steps) && c.expected).slice(0, 10);
+  if (cases.length) {
+    cache[key] = cases;
+    mkdirSync(RAW, { recursive: true });
+    writeFileSync(DEEP_CACHE, JSON.stringify(cache, null, 1));
+  }
+  return cases;
+}
+
+async function deepCasesForFlow(flow: FlowDef, r: FlowResult, startNo: number): Promise<ExploredCase[]> {
+  const out: ExploredCase[] = [];
+  let n = startNo;
+  const asIs: ConfigNeed[] = [...(flow.needs ?? []), ...r.baselineSettings.filter((b) => typeof b.value === "boolean")];
+  const seen = new Set<string>();
+  for (const run of r.baseline)
+    for (const rec of run.records) {
+      if (rec.outcome !== "dialog" || !rec.dialog?.title || seen.has(rec.dialog.title)) continue;
+      seen.add(rec.dialog.title);
+      if (!(rec.fieldDetails?.length || rec.dialog.fields.length)) continue; // a window with nothing to type has no depth
+      const label = rec.name.replace(/^(.*?) → /, "");
+      const reach = [BUYER_LOGIN, ...flow.reach, ...(run.probe.within ? [`Click ${q(run.probe.within.replace(/ \(more\)$/, ""))} to open its menu`] : []), `Click ${q(label)} — the ${q(rec.dialog.title)} window opens`];
+      for (const c of await deepCasesForWindow(flow, rec, asIs)) {
+        out.push({
+          row: {
+            "Test Case ID": `EXP-${flow.key.toUpperCase().replace(/[^A-Z0-9]+/g, "")}-${String(n++).padStart(3, "0")}`, Module: `Explored — ${flow.name}`, Scenario: `${rec.dialog.title} window (in depth)`,
+            "Test Case Title": `${rec.dialog.title}: ${String(c.title).replace(/\.$/, "")}`, "User Role": "Buyer", Portal: "Buyer portal", "Pre-conditions": flow.pre, "Configs Needed": formatConfigs(asIs),
+            "Test Data": String(c.testData ?? "-") || "-", "Test Steps": [...reach, ...c.steps.map((x: unknown) => String(x).replace(/^\s*\d+[.)]\s*/, ""))].map((x, i) => `${i + 1}. ${x}`).join("\n"),
+            "Expected Result": String(c.expected), Priority: /^(Critical|High|Medium|Low)$/.test(c.priority) ? c.priority : "Medium", "Test Type": /^(Positive|Negative|Edge)$/.test(c.testType) ? c.testType : "Negative", Status: "Not Run",
+          },
+          question: c.question ? `${rec.dialog.title}: ${c.question}` : undefined,
+          screenshot: rec.screenshot,
+        });
+      }
+    }
+  return out;
+}
+
+/** All explored flows → the xlsx sheet (house columns), the questions and the bugs. */
+export async function writeExploredSheet(keys = FLOWS.map((f) => f.key), opts: { deep?: boolean } = {}): Promise<{ file: string; cases: number; questions: string[]; bugs: string[] }> {
   const all: ExploredCase[] = [];
   for (const k of keys) {
     const flow = FLOWS.find((f) => f.key === k);
     const r = loadFlowResult(k);
-    if (flow && r) all.push(...casesForFlow(flow, r));
+    if (!flow || !r) continue;
+    const mine = casesForFlow(flow, r);
+    all.push(...mine);
+    if (opts.deep !== false) all.push(...(await deepCasesForFlow(flow, r, mine.length + 1)));
   }
   mkdirSync(OUT, { recursive: true });
   const wb = XLSX.utils.book_new();
@@ -311,8 +452,11 @@ export function writeExploredSheet(keys = FLOWS.map((f) => f.key)): { file: stri
   XLSX.utils.book_append_sheet(wb, ws, "Explored Flows");
   const qs = all.filter((c) => c.question).map((c) => ({ id: c.row["Test Case ID"], q: c.question!, shot: c.screenshot }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qs.map((x) => ({ "Test Case ID": x.id, Question: x.q, Screenshot: x.shot ?? "" }))), "Questions");
+  const bugs = all.filter((c) => c.bug).map((c) => ({ "Bug ID": c.bug!.id, Title: c.bug!.title, Where: c.bug!.flow, Seen: c.bug!.seen, "Test Case ID": c.row["Test Case ID"], Screenshot: c.bug!.screenshot ?? "" }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bugs.length ? bugs : [{ "Bug ID": "-", Title: "none", Where: "", Seen: "", "Test Case ID": "", Screenshot: "" }]), "Bugs");
   const file = join(OUT, "Procol-Explored-Flows.xlsx");
   XLSX.writeFile(wb, file);
   writeFileSync(join(OUT, "questions.md"), `# Questions from exploring the flows\n\nAnswer each one; the answer becomes the case's expected result.\n\n${qs.map((x) => `- **${x.id}** — ${x.q}`).join("\n")}\n`);
-  return { file, cases: all.length, questions: qs.map((x) => `${x.id}: ${x.q}`) };
+  writeFileSync(join(OUT, "bugs.md"), `# Bugs found while exploring\n\n${bugs.map((b) => `- **${b["Bug ID"]}** — ${b.Title}. Seen on ${b.Where}: ${b.Seen} (case ${b["Test Case ID"]}; screenshot ${String(b.Screenshot).replace(/^.*\/procol-ui-tests\//, "procol-ui-tests/")})`).join("\n") || "None yet."}\n`);
+  return { file, cases: all.length, questions: qs.map((x) => `${x.id}: ${x.q}`), bugs: bugs.map((b) => `${b["Bug ID"]}: ${b.Title} — ${b.Seen}`) };
 }

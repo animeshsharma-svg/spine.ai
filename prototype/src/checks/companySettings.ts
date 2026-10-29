@@ -29,6 +29,21 @@ const DATA = join(here, "..", "..", "data");
 const MAP = join(DATA, "setting-map.json");
 const LOG = join(DATA, "setting-changes.jsonl");
 const PENDING = join(DATA, "setting-pending.json");
+/** Settings the app will not change per company (or the tester said to leave alone): a case that needs one is BLOCKED. */
+const BLOCKERS = join(here, "..", "..", "config", "setting-blockers.json");
+export function settingBlockers(): Record<string, string> {
+  try {
+    return existsSync(BLOCKERS) ? JSON.parse(readFileSync(BLOCKERS, "utf8")) : {};
+  } catch {
+    return {};
+  }
+}
+function addBlocker(key: string, why: string): void {
+  const all = settingBlockers();
+  if (all[key]) return;
+  all[key] = why;
+  writeFileSync(BLOCKERS, JSON.stringify(all, null, 1));
+}
 
 export const ALLOWED = (process.env.SETTINGS_ALLOWED_COMPANIES ?? "198678").split(",").map((s) => Number(s.trim())).filter(Boolean);
 
@@ -202,6 +217,9 @@ export async function withSettings<T>(companyId: number, needed: NeededSetting[]
   const known = new Set((await settingsCatalog()).map((x) => x.key));
   const unknown = needed.filter((n) => !known.has(n.key)).map((n) => n.key);
   if (unknown.length) return { refused: `${unknown.join(", ")} is not a company setting in Procol's settings catalogue` };
+  const blocked = settingBlockers();
+  const stuck = needed.filter((n) => blocked[n.key]);
+  if (stuck.length) return { refused: `BLOCKED — ${stuck.map((n) => `${n.key}: ${blocked[n.key]}`).join("; ")}` };
   const changed: Array<{ key: string; from: unknown; to: unknown }> = [];
   try {
     for (const n of needed) {
@@ -219,7 +237,9 @@ export async function withSettings<T>(companyId: number, needed: NeededSetting[]
         // e.g. "The Config type is not supported": the app does not take this setting per company
         writePending(readPending().filter((p) => !(p.companyId === companyId && p.key === n.key)));
         log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: false, error: (e as Error).message.slice(0, 200) });
-        return { refused: `the app would not change ${n.key} for the company (it answered: ${(e as Error).message.split("\n")[0].slice(0, 120)})` };
+        const said = (e as Error).message.split("\n")[0].slice(0, 120);
+        addBlocker(n.key, `the app will not change it per company ("${said}")`);
+        return { refused: `BLOCKED — the app would not change ${n.key} for the company (it answered: ${said})` };
       }
       changed.push({ key: n.key, from: cur.value, to: n.value });
       const inDb = saved ? await settled(companyId, n.key, n.value) : false;

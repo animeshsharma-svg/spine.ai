@@ -32,6 +32,10 @@ export interface ProbeRecord {
   changedEvent?: boolean;
   screenshot?: string;
   note?: string;
+  /** In a dialog with fields: what pressing its main button with the fields as they opened did. */
+  emptySubmit?: { button: string; stayedOpen: boolean; fieldErrors: string[]; messages: Array<{ kind: string; text: string }>; requests: Array<{ method: string; path: string; status: number }> };
+  /** The dialog's fields with what they held when it opened (type, required mark, placeholder, value). */
+  fieldDetails?: Array<{ label: string; kind: string; required: boolean; value: string; placeholder: string }>;
 }
 
 // never clicked: leaves the app, signs out, or reaches outside the event under test
@@ -180,6 +184,51 @@ async function openParent(page: Page, within: string): Promise<{ menu: Locator; 
   return null;
 }
 
+
+const PRIMARY = /^(ok|yes|submit|save|send|create( order| a new version)?|update|confirm|apply|proceed|continue|extend|done)$/i;
+/**
+ * Inside a dialog that has fields: note each field (label, kind, required, what it holds), then press the main
+ * button with the fields as they opened and record the app's answer — the validation it shows, or what it sent.
+ */
+async function deepDialog(page: Page, rec: ProbeRecord): Promise<boolean> {
+  const modal = page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-modal-content:not([data-qa-before]), .ant-drawer-open .ant-drawer-content:not([data-qa-before]), [role='dialog']:not([data-qa-before])").filter({ visible: true }).last();
+  if (!(await modal.count().catch(() => 0))) return false;
+  rec.fieldDetails = (await modal
+    .locator("input:not([type='hidden']), textarea, .ant-select, .ant-picker, .ant-calendar-picker, .ant-time-picker, .ant-input-number")
+    .evaluateAll((els) =>
+      els
+        .filter((e) => (e as HTMLElement).offsetParent !== null && !e.closest(".ant-select-selection-search, .ant-input-number-input-wrap ~ *"))
+        .map((e) => {
+          const item = e.closest(".ant-form-item, .ant-row, .ant-col, div");
+          const label = (item?.querySelector("label, .ant-form-item-label")?.textContent ?? "").replace(/\s+/g, " ").trim();
+          const kind = e.matches(".ant-select") ? "dropdown" : e.matches(".ant-picker, .ant-calendar-picker") ? "date" : e.matches(".ant-time-picker") ? "time" : e.matches(".ant-input-number") ? "number" : e.tagName === "TEXTAREA" ? "text area" : (e as HTMLInputElement).type || "text";
+          const value = e.matches("input, textarea") ? (e as HTMLInputElement).value : (e.textContent ?? "").replace(/\s+/g, " ").trim();
+          const required = !!item?.querySelector(".ant-form-item-required, .required, [class*='required']") || /\*/.test(label);
+          return { label: label.replace(/\*/g, "").trim(), kind, required, value: value.slice(0, 60), placeholder: (e.getAttribute("placeholder") ?? "").slice(0, 60) };
+        })
+        .filter((f, i, all) => all.findIndex((g) => g.label === f.label && g.kind === f.kind && g.placeholder === f.placeholder) === i),
+    )
+    .catch(() => [])) as NonNullable<ProbeRecord["fieldDetails"]>;
+  if (!rec.fieldDetails.length) return false;
+  const btn = modal.locator("button").filter({ visible: true }).filter({ hasText: PRIMARY }).last();
+  const name = clean((await btn.innerText().catch(() => "")) || "");
+  if (!name) return false;
+  const mark = await toastMark(page);
+  const reqs: Array<{ method: string; path: string; status: number }> = [];
+  const onResp = (r: import("@playwright/test").Response) => {
+    const m = r.request().method();
+    if (m === "GET") return;
+    reqs.push({ method: m, path: new URL(r.url()).pathname.replace(/\/[0-9a-f-]{20,}|\/\d{3,}/gi, "/:id"), status: r.status() });
+  };
+  page.on("response", onResp);
+  await btn.click({ timeout: 5_000 }).catch(() => {});
+  await page.waitForTimeout(2_000);
+  page.off("response", onResp);
+  const fieldErrors = (await page.locator(".ant-form-item-explain, .ant-form-explain, .ant-form-item-explain-error, .has-error .ant-form-explain").allInnerTexts().catch(() => [] as string[])).map(clean).filter(Boolean);
+  rec.emptySubmit = { button: name, stayedOpen: (await modal.isVisible().catch(() => false)), fieldErrors: [...new Set(fieldErrors)].slice(0, 8), messages: (await appMessagesSince(page, mark).catch(() => [])).slice(0, 5), requests: reqs.slice(0, 6) };
+  return reqs.some((r) => r.status < 400);
+}
+
 export async function probeControls(page: Page, a: Record<string, unknown>, outDir: string, stepNo: number): Promise<{ records: ProbeRecord[]; file: string }> {
   const max = Math.max(1, Math.min(80, Number(a.max) || 40));
   const include = Array.isArray(a.include) ? (a.include as string[]) : undefined;
@@ -206,6 +255,13 @@ export async function probeControls(page: Page, a: Record<string, unknown>, outD
   mkdirSync(outDir, { recursive: true });
   const records: ProbeRecord[] = [];
   let changed = false;
+  // values on the screen as it opened that are never right (a negative price, NaN, "Invalid date") — with a picture
+  const ODD = /₹\s*-\s*\d|-\d[\d,.]*\s*%|\bNaN\b|\bundefined\b|Invalid date|\bnull\b/;
+  const lines = ((await page.locator("body").innerText().catch(() => "")) || "").split("\n").map(clean).filter(Boolean);
+  // with the line before it, which usually names the value ("Last Purchase Price:" / "₹-12,740")
+  const oddOnScreen = [...new Set(lines.flatMap((l, i) => (l.length < 200 && ODD.test(l) ? [`${i > 0 && lines[i - 1].length < 60 ? `${lines[i - 1]} ` : ""}${l}`] : [])))].slice(0, 10);
+  const screenShot = join(outDir, `probe-${stepNo}-screen.png`);
+  await page.screenshot({ path: screenShot }).catch(() => {});
   if (a.listOnly) {
     // what the screen OFFERS, without clicking anything but the menu: each control and whether it is greyed out
     if (within) {
@@ -306,17 +362,19 @@ export async function probeControls(page: Page, a: Record<string, unknown>, outD
           ? "error"
           : over.dialog ? "dialog" : over.menu ? "menu" : rec.url && new URL(rec.url).pathname !== new URL(url0).pathname ? "navigated" : msgs.length ? "message" : reqs.length ? "request" : fresh.length ? "message" : "nothing";
         if (reqs.some((r) => r.method !== "GET" && r.status < 400)) changed = true;
+        // one level deeper: a dialog with fields is submitted as it opened, to see what the app requires
+        if (rec.outcome === "dialog" && a.deep !== false && (await deepDialog(page, rec).catch(() => false))) changed = true;
         await closeOverlays(page);
       }
     } catch (e) {
       rec.outcome = "probe failed";
       rec.note = `the probe itself failed: ${(e as Error).message.split("\n")[0].slice(0, 160)}`;
     }
-    console.log(`[probe] ${rec.n}. ${rec.role} "${rec.name}" → ${rec.outcome}${rec.dialog ? ` "${rec.dialog.title}" [${rec.dialog.buttons.join(", ")}]` : ""}${rec.menu ? ` [${rec.menu.slice(0, 8).join(", ")}]` : ""}${rec.tooltip ? ` tooltip "${rec.tooltip}"` : ""}${rec.url ? ` → ${new URL(rec.url).pathname}` : ""}${rec.messages ? ` msg "${rec.messages[0].text.slice(0, 80)}"` : ""}`);
+    console.log(`[probe] ${rec.n}. ${rec.role} "${rec.name}" → ${rec.outcome}${rec.dialog ? ` "${rec.dialog.title}" [${rec.dialog.buttons.join(", ")}]` : ""}${rec.menu ? ` [${rec.menu.slice(0, 8).join(", ")}]` : ""}${rec.tooltip ? ` tooltip "${rec.tooltip}"` : ""}${rec.url ? ` → ${new URL(rec.url).pathname}` : ""}${rec.messages ? ` msg "${rec.messages[0].text.slice(0, 80)}"` : ""}${rec.emptySubmit ? ` · empty "${rec.emptySubmit.button}": ${rec.emptySubmit.stayedOpen ? "stayed open" : "closed"}${rec.emptySubmit.fieldErrors.length ? ` [${rec.emptySubmit.fieldErrors.join("; ").slice(0, 120)}]` : ""}${rec.emptySubmit.messages[0] ? ` "${rec.emptySubmit.messages[0].text.slice(0, 80)}"` : ""}` : ""}`);
     records.push(rec);
   }
   if (reload && page.url() !== home) await page.goto(home, { waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => {});
   const file = join(outDir, `probe-${stepNo}.json`);
-  writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), within: within || undefined, listed: list.map((c) => (within ? `${within} → ${c.name}` : c.name)), records }, null, 1));
+  writeFileSync(file, JSON.stringify({ url: home, at: new Date().toISOString(), within: within || undefined, oddOnScreen, screenShot, listed: list.map((c) => (within ? `${within} → ${c.name}` : c.name)), records }, null, 1));
   return { records, file };
 }
