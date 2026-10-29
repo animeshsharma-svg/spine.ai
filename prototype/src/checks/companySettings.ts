@@ -55,15 +55,16 @@ async function read<T = any>(sql: string, params: unknown[] = []): Promise<T[]> 
   return (await pool.query(sql, params)).rows as T[];
 }
 
-export interface SettingDef { key: string; def: unknown; description: string; name: string }
+export interface SettingDef { key: string; def: unknown; description: string; name: string; hidden: boolean }
 let catalog: { at: number; rows: SettingDef[] } | null = null;
 export async function settingsCatalog(): Promise<SettingDef[]> {
   if (catalog && Date.now() - catalog.at < 3600_000) return catalog.rows;
-  const rows = await read<{ config_key: string; v: unknown; d: string; n: string }>(
-    `SELECT DISTINCT ON (config_key) config_key, defaults->'value' AS v, COALESCE(description::text, '') AS d, COALESCE(name::text, '') AS n
+  const rows = await read<{ config_key: string; v: unknown; d: string; n: string; vis: number }>(
+    `SELECT DISTINCT ON (config_key) config_key, defaults->'value' AS v, COALESCE(description::text, '') AS d, COALESCE(name::text, '') AS n, visibility AS vis
        FROM master_configurations WHERE item_type = 1 AND status = 1 AND company_id IS NULL ORDER BY config_key, id DESC`,
   );
-  catalog = { at: Date.now(), rows: rows.map((r) => ({ key: r.config_key, def: r.v, description: r.d, name: r.n })) };
+  // visibility 0 = hidden: only a Procol employee may change it (MasterConfiguration.config_key_exists, master_configuration.rb:71)
+  catalog = { at: Date.now(), rows: rows.map((r) => ({ key: r.config_key, def: r.v, description: r.d, name: r.n, hidden: Number(r.vis) === 0 })) };
   return catalog.rows;
 }
 
@@ -214,9 +215,17 @@ async function settled(companyId: number, key: string, value: unknown): Promise<
  */
 export async function withSettings<T>(companyId: number, needed: NeededSetting[], caseId: string, onLine: (l: string) => void, work: () => Promise<T>): Promise<{ result: T; changed: Array<{ key: string; from: unknown; to: unknown }> } | { refused: string }> {
   if (!ALLOWED.includes(companyId)) return { refused: `company ${companyId} is not one the agent may reconfigure (allowed: ${ALLOWED.join(", ")})` };
-  const known = new Set((await settingsCatalog()).map((x) => x.key));
+  const cat = await settingsCatalog();
+  const known = new Set(cat.map((x) => x.key));
   const unknown = needed.filter((n) => !known.has(n.key)).map((n) => n.key);
   if (unknown.length) return { refused: `${unknown.join(", ")} is not a company setting in Procol's settings catalogue` };
+  // a hidden setting is refused to anyone but a Procol employee ("The Config type is not supported", error 1103)
+  const hidden = needed.filter((n) => cat.find((x) => x.key === n.key)?.hidden);
+  if (hidden.length) {
+    const asIs = await Promise.all(hidden.map(async (n) => ({ n, cur: (await currentValue(companyId, n.key)).value })));
+    const differ = asIs.filter(({ n, cur }) => !same(cur, n.value));
+    if (differ.length) return { refused: `BLOCKED — ${differ.map(({ n }) => n.key).join(", ")} is a hidden setting: only a Procol-employee account may change it (backend error 1103 "The Config type is not supported")` };
+  }
   const blocked = settingBlockers();
   const stuck = needed.filter((n) => blocked[n.key]);
   if (stuck.length) return { refused: `BLOCKED — ${stuck.map((n) => `${n.key}: ${blocked[n.key]}`).join("; ")}` };

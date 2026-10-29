@@ -158,8 +158,11 @@ async function probeOnce(flow: FlowDef, probes: Array<Record<string, unknown>>, 
   return { runs: files.map((x) => x.records ?? []), listed: files.map((x) => x.listed ?? (x.records ?? []).map((r) => r.name)), meta: files.map((x) => ({ odd: x.oddOnScreen, shot: x.screenShot })) };
 }
 
+/** Names that change from run to run (event cards with ids and countdowns, "Now - 05:52 pm" chips) are not controls to compare. */
+const DYNAMIC = /\b(RFQ|RFP|RFX|AUC)-\d+|ends in|\d+m : \d+s|\d{1,2}:\d{2}\s*(am|pm)|in progress|\bQA_Platform|spine-(ui|api)-automation/i;
 /** What a screen offered: every control it listed (whether or not its click worked), greyed out or not. */
-const offered = (run: ProbeRun) => new Map((run.listed ?? run.records.filter((r) => r.outcome !== "not found").map((r) => r.name)).map((n) => [n, run.records.find((r) => r.name === n)?.disabled ?? false]));
+const offered = (run: ProbeRun) =>
+  new Map((run.listed ?? run.records.filter((r) => r.outcome !== "not found").map((r) => r.name)).filter((n) => !DYNAMIC.test(n)).map((n) => [n, run.records.find((r) => r.name === n)?.disabled ?? false]));
 
 export async function exploreFlow(flow: FlowDef, opts: { companyId: number; variants?: boolean; line: (l: string) => void }): Promise<FlowResult> {
   const { companyId, line } = opts;
@@ -187,6 +190,12 @@ export async function exploreFlow(flow: FlowDef, opts: { companyId: number; vari
       v.listed = flow.probes.map((p, i) => ({ probe: p, records: listed.runs[i] ?? [], listed: listed.listed[i] }));
       // what changed against the screen as it was: appeared, disappeared, greyed out or no longer greyed out
       const changedNames: string[][] = flow.probes.map(() => []);
+      // a screen that lost most of what it showed did not load the same way: no comparison, not a finding
+      const lost = flow.probes.map((_, i) => {
+        const was = offered(result.baseline[i]), now = offered(v.listed[i]);
+        return was.size >= 6 && [...was.keys()].filter((n) => !now.has(n)).length > was.size / 2;
+      });
+      if (lost.some(Boolean)) return { why: "the screen did not load the same way with the setting switched (most of its controls were missing) — run it again to compare" };
       flow.probes.forEach((p, i) => {
         const was = offered(result.baseline[i]), now = offered(v.listed[i]);
         for (const [n, dis] of now) {
