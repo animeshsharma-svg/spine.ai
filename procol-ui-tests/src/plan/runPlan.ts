@@ -181,12 +181,18 @@ async function sheetGrid(s: RunState) {
 const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
 const sameCellValue = (a: string, b: string) => {
   const num = (x: string) => {
-    const c = x.replace(/[₹$€£,\s]/g, "");
+    // "9,99,99,999 KG" (Indian grouping + unit) is 99999999
+    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z()]+$/, "");
     return /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : null;
   };
   const na = num(a), nb = num(b);
   if (na !== null && nb !== null) return na === nb;
-  return cellText(a).toLowerCase() === cellText(b).toLowerCase();
+  // a product cell reads "NAME (code)Details", and a long name is cut "70MM CYLINDER WITH KEY & ...(code)"
+  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\(\d+\)\s*$/, "").trim().toLowerCase();
+  const sa = name(a), sb = name(b);
+  if (sa === sb) return true;
+  const cut = (x: string, y: string) => /\.\.\.$|…$/.test(x) && y.startsWith(x.replace(/(\.\.\.|…)$/, "").trim());
+  return cut(sa, sb) || cut(sb, sa);
 };
 
 /**
@@ -671,7 +677,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "set_sheet_cell": {
       const value = String(a.value ?? "");
-      if (!value) throw new Error('set_sheet_cell needs a "value"');
+      const clearing = value === "" || /^\(?(empty|clear|blank)\)?$/i.test(value);
       const g = await sheetGrid(s);
       const { td, rowNo, key } = await g.cell(a.row, a.column);
       const locked = /read-?only/i.test((await td.getAttribute("class").catch(() => "")) ?? "");
@@ -681,10 +687,29 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await td.click({ timeout: 5_000 }).catch(() => {});
       if (!(await editor().count().catch(() => 0))) await td.dblclick({ timeout: 5_000 }).catch(() => {});
       let typed = false;
-      if (await editor().count().catch(() => 0)) {
-        await editor().fill(value, { timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
+      // a dropdown cell (Delivery location, Product Variant): its search box opens — type and pick the option
+      const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+      if (!clearing && (await select.count().catch(() => 0))) {
+        const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
+        await search.fill(value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
+        await s.page.waitForTimeout(1200);
+        const esc = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc.replace(/\\\(.*$/, ""), "i") }).first();
+        if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
+        else {
+          await s.page.keyboard.press("Escape").catch(() => {});
+          const shown = cellText((await td.innerText().catch(() => "")) || "");
+          s.typedCells ??= {};
+          s.typedCells[key] = { typed: value, shown, locked: false };
+          return `row ${rowNo} "${a.column}": the list offers nothing matching "${value}" — the cell shows "${shown}"`;
+        }
+      } else if (await editor().count().catch(() => 0)) {
+        await (clearing ? editor().fill("", { timeout: 5_000 }) : editor().fill(value, { timeout: 5_000 })).then(() => (typed = true)).catch(() => {});
       }
-      if (!typed && !locked) {
+      if (!typed && !locked && clearing) {
+        await td.click({ timeout: 5_000 }).catch(() => {});
+        await s.page.keyboard.press("Backspace").then(() => (typed = true)).catch(() => {});
+      } else if (!typed && !locked) {
         // Some cells take keystrokes straight away (the grid opens its editor on the first key).
         await td.click({ timeout: 5_000 }).catch(() => {});
         await s.page.keyboard.type(value, { delay: 30 }).then(() => (typed = true)).catch(() => {});
@@ -819,7 +844,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const absent = Array.isArray(a.absent) ? a.absent.map(String) : [];
       // The menu lives on the list; go there if the plan has not already.
       if (!/\/orders\/?(\?|$)/.test(new URL(s.page.url()).pathname + new URL(s.page.url()).search)) await s.events.goto();
-      const offered = await s.events.readCreateMenu();
+      let offered = await s.events.readCreateMenu();
+      // No menu at all: with eRFX switched off, "Create Event" has no choices and opens the single stage screen
+      // straight away (seen 30 Oct). Click it and see where it lands — that is the one option it offers.
+      if (!offered.length) {
+        await s.page.getByRole("button", { name: /create event/i }).first().click({ timeout: 8_000 }).catch(() => {});
+        await s.page.waitForTimeout(2_500);
+        const pop = s.page.locator(".ant-modal-wrap:not([style*='display: none']), .ant-dropdown:not(.ant-dropdown-hidden)").filter({ visible: true });
+        if (await pop.count().catch(() => 0)) offered = (await pop.last().innerText().catch(() => "")).split("\n").map((t) => t.trim()).filter((t) => t.length > 2 && t.length < 40);
+        else if (/quick-create/.test(s.page.url()) && (await isSingleStageScreen(s))) offered = ["Single Stage (Create Event opens it directly — no menu)"];
+        else if (/quick-create/.test(s.page.url())) offered = ["eRFX Project (Create Event opens it directly — no menu)"];
+      }
       // "single-stage", "Single Stage" and "singlestage" are the same option
       // to a person; punctuation and spacing must not decide a verdict.
       const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");

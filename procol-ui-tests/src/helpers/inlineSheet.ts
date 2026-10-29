@@ -308,7 +308,11 @@ export class InlineSheet {
         .catch(() => false);
       if (!listed) continue;
 
-      const option = options.filter({ hasText: matchText }).first();
+      // The option whose name IS the value comes first: a search for "CYLINDER WITH KEY & KNOB" also lists
+      // "70MM CYLINDER WITH KEY & …", and "contains" took that one (30 Oct).
+      const esc = matchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const exact = options.filter({ hasText: new RegExp(`^\\s*${esc}\\s*(\\(|$|\\n)`, "i") }).first();
+      const option = (await exact.waitFor({ state: "visible", timeout: 3_000 }).then(() => true).catch(() => false)) ? exact : options.filter({ hasText: matchText }).first();
       const found = await option
         .waitFor({ state: "visible", timeout: TIMEOUTS.SHORT })
         .then(() => true)
