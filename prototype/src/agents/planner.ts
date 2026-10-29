@@ -103,6 +103,21 @@ function catalogForPrompt(steps: StepSpec[]): string {
     : renderSteps(domain);
 }
 
+/** Generic steps that only make sense on Procol: tenant switching, skipping a domain step. */
+const PROCOL_ONLY_GENERIC = new Set(["switch_company", "skip"]);
+
+/** The vocabulary for a site that is not Procol: the generic steps, with go_to reduced to paths. */
+function siteCatalog(full: Catalog): Catalog {
+  const steps = full.steps
+    .filter((s) => s.generic && !PROCOL_ONLY_GENERIC.has(s.name))
+    .map((s) =>
+      s.name === "go_to"
+        ? { ...s, purpose: "Open a page of the site by its path and wait for it to be ready; or go back in the browser; or continue in the tab that just opened; or open a URL that is only written as text on the screen (a mail preview's confirmation link).", args: { screen: '"path" | "back" | "new_tab" | "url_on_screen"', path: 'for "path": the page\'s path, starting with /', within: 'for "url_on_screen": text near the URL, e.g. "mail body" (optional)' } }
+        : s,
+    );
+  return { steps, names: steps.map((s) => s.name) };
+}
+
 /** The known labels, compact, for the prompt. */
 function labelsForPrompt(labels: Record<string, string[]> | undefined): string {
   if (!labels || !Object.keys(labels).length) return "";
@@ -210,6 +225,42 @@ Rules:
 - BE HONEST ABOUT COVERAGE. First name the SUBJECT of the case: the specific behaviour whose outcome it checks (a menu's options, a validation message, a column's default, a vendor's view). If no step can observe that subject, coverage is "none" — list what is missing in cannotExpress and still return the closest steps, but do NOT pretend a nearby step tests it. If the subject is covered but some detail is not, coverage is "partial". A plan that runs and passes without observing the subject is the worst possible output; a plain "none" is a good one.
 - Include the assertions the test case implies. A test that acts but never checks proves nothing.
 - Omit args you have no value for rather than inventing one; the executor has sensible defaults.
+- Prefer the shortest plan that genuinely tests what was asked.`;
+
+/**
+ * How to plan for a site that is not Procol. The generic steps carry over;
+ * everything that knows the product does not.
+ */
+const SITE_RULES = `
+THE SITE UNDER TEST — not Procol. Only the steps above exist; none knows this site's flows.
+- Open a page with go_to{screen:"path", path:"<the path after the host, e.g. /sandbox/r-01/ or /gopro/index.html#s1>"}. Never put a host in the path. "Navigate back" is go_to{screen:"back"}; "in the new tab" is switch_tab first.
+- Controls: role + name (button / link / tab / menuitem / checkbox / radio / combobox). Fields: label or placeholder. Plain words: text. Use "within" whenever the case says where: "in the row X" / "in its row" → within:"X"; "under / in the section / group X" → within:"X"; "in the top menu / navigation" → within:"menu"; "in the frame" → within:"frame"; "in the main area" → within:"main".
+- A case step that names a control is one plan step: Click → click, Hover → hover, Fill/Enter/Type → fill, Choose/Select → select, Check/Tick → toggle{on:true}, Upload → upload, Set the slider → fill, Drag → drag, Scroll until → scroll_to, Accept/Dismiss the next confirmation → dialog, "Verify … is visible" → expect_text with that exact text, "Verify the downloaded file …" → expect_download. Keep the case's order. Do not add checks the case does not ask for (a hover is just a hover).
+- "Choose X (with Y selected)" means select Y first, then X. "Click X on / in / of Y" means click X within Y.
+- Dates: a field that opens a calendar (check-in, departure, date of birth) is pick_date{label, date:"12 December 2026"} — one step per date; it opens the field, turns the months and presses the day. A plain date/time input is fill with YYYY-MM-DD / HH:MM. Hour/minute spinners are fill{label:"hour", value:"2"}; AM/PM are buttons (click).
+- Something in a long list, a table that loads as you scroll, or a paged table ("find INV-2037 in the table", "scroll until Order 1587 is visible"): scroll_to{text:"INV-2037"} first (it scrolls and turns pages), then act within it.
+- "Expand the row X" / "open the details of X" is click{role:"button", name:"Show details", within:"X"} (or the row's Expand / chevron button); what the row reveals is then read within:"X". "Read its Y and fill Answer with it": remember{key, text:"Y", within:"X"} is only for comparing later — when the answer must be typed, coverage is "partial" unless the value is given.
+- "Click / add / open the cheapest (most expensive, longest-lasting, highest-rated) one", "compare the packs' unit prices and add the cheapest": choose_by_number{by, measure, exclude, role, name} — one step that reads the numbers and presses the control (name the control: role:"button", name:"Add to cart", or role:"link"). For a unit price or hours give measure as a regex with one capture group. When the case limits the comparison to some items ("among the Voltpine AA packs"), pass only:"Voltpine Alkaline AA" so near-namesakes (AAA) stay out. This is how a value read off the screen decides the next action; a plan never guesses which block wins.
+- "the review with the most people found this helpful", "the flight with the fewest stops", "the highest-rated": also choose_by_number{by:"highest"|"lowest", measure:"(\\d+) people found this helpful", role:"button", name:"Helpful"}. Never guess which item it is from the Verify text — the step reads the numbers.
+- "Open the confirmation link in the mail body" (a URL shown as text): go_to{screen:"url_on_screen", within:"<text near it>"}.
+- "Set passengers / guests / travellers to 2 adults, 1 child": first click the control that shows the current count (click{role:"button", name:"Passengers"} / "Guests"), then one fill per count (fill{label:"Adults", value:"2"}, fill{label:"Children", value:"1"}) — a stepper with − / + buttons is filled like a field — then close it if the case says so.
+- "Keep only X" / "show only X" among filter checkboxes is toggle{label:"X", on:true, only:true} (the others in its group go off).
+- "Check X" / "Tick X" in a filter list is toggle{label:"X", on:true}; "Click X" where X is a radio or filter chip is click{text:"X"}. A pop-up the case says to close "if it appears" needs no step: a covered control is uncovered by the executor.
+- A multi-step case sentence ("Fill A with 1, choose B in C and fill D with 2") is several plan steps.
+- "Find the row X and read its Y, then fill Answer with it": use remember{key, within:"X", text:<column text>} only if the value is on screen; otherwise coverage "none".
+- The LAST step must be an assertion (expect_text, expect_download, expect_dialog, expect_value, expect_visible, expect_count). If the case's final check cannot be expressed, coverage is "none" — never hand back a plan that only acts. A case step that comes AFTER the final Verify and cannot be expressed or is ambiguous is left out with coverage "partial" (named in cannotExpress): the Verify is still the test.
+- REFUSE rather than invent. If finishing the goal needs data the case does not give (a name, an email, a password, a card number, a code), a date or option the page does not offer, or the target is ambiguous or a bot wall, set coverage "none", list why in cannotExpress, and return no steps. A plan that reports success it did not reach is the worst possible output.
+`.trim();
+
+const SITE_SYSTEM = `You compile QA test cases into runnable plans for a web site.
+
+Reply with ONLY a JSON object, no prose and no code fence:
+{"title":"<short name for this test>","reasoning":"<2 sentences: what you are testing and why the plan is shaped this way>","coverage":"full|partial|none","cannotExpress":["<each thing the case asks for that no catalog step can do — empty when coverage is full>"],"steps":[{"step":"<name from the catalog>","args":{...},"note":"<why this step>"}]}
+
+Rules:
+- Use ONLY step names from the catalog. Never invent one.
+- BE HONEST ABOUT COVERAGE. If no step can observe what the case checks (a downloaded file's contents, a new tab, a drag), coverage is "none" or "partial" and cannotExpress says what is missing. Do not pretend a nearby step tests it.
+- Include the assertions the test case implies. A test that acts but never checks proves nothing.
 - Prefer the shortest plan that genuinely tests what was asked.`;
 
 /** No LLM key: a sane default plan for the commonest case. */
@@ -920,6 +971,13 @@ export interface CompileOptions {
    * case is about. `valueKeys` are the API values expect_api_value can compare.
    */
   prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string };
+  /**
+   * Compile for a site that is NOT Procol (the public QA agent bench): only
+   * the generic steps, no Procol rules, memory, labels or lint repairs. The
+   * executor is pointed at the site with APP_URL, so go_to{screen:"path"}
+   * opens its pages.
+   */
+  site?: { name: string };
 }
 
 /**
@@ -1009,15 +1067,19 @@ function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
 
 export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
   const full = loadCatalog();
-  const catalog: Catalog = opts.withholdGeneric
-    ? { steps: full.steps.filter((s) => !s.generic), names: full.steps.filter((s) => !s.generic).map((s) => s.name) }
-    : full;
+  const catalog: Catalog = opts.site
+    ? siteCatalog(full)
+    : opts.withholdGeneric
+      ? { steps: full.steps.filter((s) => !s.generic), names: full.steps.filter((s) => !s.generic).map((s) => s.name) }
+      : full;
+  // Off Procol nothing below may be recorded against the product.
+  if (opts.site) opts = { ...opts, dryRun: true };
   const warnings: string[] = [];
   /** The catalog id this came from, when it did — the gap ledger keys on it. */
   let resolvedId: string | null = null;
 
   // "FE-9.7" is a reference, not a test case. Resolve it before planning.
-  const resolved = resolveCaseId(testCase);
+  const resolved = opts.site ? null : resolveCaseId(testCase);
   if (resolved) {
     resolvedId = resolved.id;
     warnings.push(`resolved ${resolved.id} from the test-case catalog`);
@@ -1029,7 +1091,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   // Ground the plan in what the platform knows about this area.
   let expectations: string[] = [];
   let experience: string[] = [];
-  try {
+  if (!opts.site) try {
     const memory = await recall(testCase, moduleHint, 5);
     expectations = memory.expectations.map((r) => r.text.slice(0, 300));
     experience = memory.experience.map((r) => r.text.slice(0, 300));
@@ -1053,7 +1115,9 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   }
 
   const knownLabels = labelsForPrompt(catalog.labels);
-  const prompt = [
+  const prompt = opts.site
+    ? [`STEP CATALOG:\n${renderSteps(catalog.steps)}`, SITE_RULES, `SITE: ${opts.site.name}`, `TEST CASE:\n${testCase}`].join("\n\n")
+    : [
     `STEP CATALOG:\n${catalogForPrompt(catalog.steps)}`,
     DOMAIN_RULES,
     opts.withholdGeneric ? "" : GENERIC_RULES,
@@ -1074,7 +1138,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
+      raw = await chat([{ role: "system", content: opts.site ? SITE_SYSTEM : SYSTEM }, { role: "user", content: prompt }], {
         // The compiler is where a wrong answer becomes a wrong run — it gets the
         // strongest model the gateway has, at that model's price.
         tier: opts.tier ?? "reason",
@@ -1092,6 +1156,9 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
       lastErr = e;
     }
     if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2_000));
+  }
+  if ((lastErr || !raw.trim()) && opts.site) {
+    throw new Error(`the model could not be reached after 3 attempts (${lastErr instanceof Error ? lastErr.message.slice(0, 200) : "empty response"})`);
   }
   if (lastErr || !raw.trim()) {
     warnings.push(
@@ -1158,7 +1225,26 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     steps.unshift({ step: "open_prepared", args: { screen: opts.prepared.screen }, note: "the API built this case's state" });
     warnings.push(`added open_prepared(${opts.prepared.screen}) — the API built this case's state`);
   }
-  const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
+  // lintPlan repairs Procol's flows; on another site it would insert them.
+  const linted = opts.site
+    ? { plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps }, repairs: [] }
+    : lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
+  // A plan that acts but never checks proves nothing: the executor refuses to
+  // pass it, so say so here, where the case can still be marked untestable.
+  const assertionNames = new Set(catalog.steps.filter((st) => st.assertion).map((st) => st.name));
+  if (!linted.plan.steps.some((st) => assertionNames.has(st.step))) {
+    const gap = "the plan has no assertion step — nothing the case checks can be observed";
+    warnings.push(`cannot test this case yet — ${gap}`);
+    return {
+      plan: linted.plan,
+      reasoning: String(parsed.reasoning ?? ""),
+      context: { expectations, experience },
+      source: "llm",
+      warnings,
+      coverage: "none",
+      gaps: [...(Array.isArray(parsed.cannotExpress) ? (parsed.cannotExpress as unknown[]).map(String) : []), gap],
+    };
+  }
   warnings.push(...linted.repairs);
 
   // The model's own "unconfirmed label" notes are label guesses, not missing
@@ -1172,7 +1258,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   if (coverage === "full" && gaps.length) coverage = "partial";
   // A generic step built on a guessed label is not full coverage, whatever
   // the model says — checked against the labels known from the app.
-  const guesses = opts.withholdGeneric ? [] : labelGuesses(linted.plan.steps, testCase, catalog.labels);
+  const guesses = opts.withholdGeneric || opts.site ? [] : labelGuesses(linted.plan.steps, testCase, catalog.labels);
   if (guesses.length) {
     if (coverage === "full") coverage = "partial";
     warnings.push(...guesses.map((g) => `coverage partial: ${g}`));

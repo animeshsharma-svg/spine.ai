@@ -17,6 +17,8 @@ export interface PlanContext {
   vendorEmail?: string;
   /** values the API sent, by key — for expect_api_value */
   values?: Record<string, string>;
+  /** The plan runs against a site that is not Procol (no Procol pop-ups, routes or labels). */
+  site?: boolean;
 }
 
 export interface ScreenSpec {

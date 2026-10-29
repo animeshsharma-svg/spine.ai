@@ -1,4 +1,7 @@
-import { Page, expect } from "@playwright/test";
+import { Download, Page, expect } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
 import { VendorPortalPage } from "../pages/VendorPortalPage.js";
@@ -13,7 +16,7 @@ import { SingleStagePage } from "../pages/SingleStagePage.js";
 import { generateEventTitle } from "../helpers/data.js";
 import { buildProducts } from "../master/params.js";
 import { WidgetConfig } from "../helpers/inlineSheet.js";
-import { PlanStep, TestPlan } from "./steps.js";
+import { PlanStep, TestPlan, STEP_CATALOG } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark } from "./generic/messages.js";
 import type { Target } from "./generic/find.js";
@@ -50,6 +53,12 @@ export interface PlanResult {
   title: string;
   steps: StepResult[];
   passed: boolean;
+  /**
+   * True when the plan had no assertion step at all: it acted but checked
+   * nothing, so it cannot have passed — "a test that acts but never checks
+   * proves nothing" is enforced here, not only asked of the compiler.
+   */
+  unverified?: boolean;
   /** The observation pass: what the runner saw on each screen it visited (observe.ts). */
   observations?: Observation[];
 }
@@ -92,6 +101,13 @@ interface RunState {
   context: PlanContext;
   /** 1-based number of the step running now (evidence file names). */
   stepNo: number;
+  /** Not Procol: generic steps only, no Procol pop-up handling (plan.context.site). */
+  site?: boolean;
+  /** Files the browser saved during this plan (expect_download). */
+  downloads: Array<{ name: string; path: string; download: Download }>;
+  /** The answer armed for the next browser dialog, and the last one seen. */
+  armedDialog?: { action: "accept" | "dismiss"; text?: string };
+  lastDialog?: { type: string; message: string; action: string };
   /** The project id this plan published, so returning to it is a route, not a search. */
   projectId?: string;
 }
@@ -762,7 +778,31 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     curMark: 0,
     context: plan.context ?? {},
     stepNo: 0,
+    site: !!plan.context?.site,
+    downloads: [],
   };
+  // Downloads and browser dialogs on every tab of this run, so a step can
+  // assert a saved file or answer a confirm; an unarmed dialog is dismissed.
+  const dlDir = mkdtempSync(join(tmpdir(), "spine-downloads-"));
+  const onDownload = (d: Download) => {
+    const name = d.suggestedFilename();
+    const path = join(dlDir, `${s.downloads.length + 1}-${name}`);
+    d.saveAs(path)
+      .then(() => s.downloads.push({ name, path, download: d }))
+      .catch(() => {});
+  };
+  const onDialog = (d: import("@playwright/test").Dialog) => {
+    const armed = s.armedDialog;
+    s.armedDialog = undefined;
+    s.lastDialog = { type: d.type(), message: d.message(), action: armed?.action ?? "dismiss" };
+    (armed?.action === "accept" ? d.accept(armed.text) : d.dismiss()).catch(() => {});
+  };
+  const watchTab = (p: Page) => {
+    p.on("download", onDownload);
+    p.on("dialog", onDialog);
+  };
+  watchTab(page);
+  page.context().on("page", watchTab);
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)${plan.context?.state ? ` on a ${plan.context.state} event built by API` : ""}`);
   const results: StepResult[] = [];
@@ -771,7 +811,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   /** The observation pass after a step — bounded, and never the reason a step fails. */
   const look = async (i: number, name: string, force: boolean) => {
     const o = await Promise.race([
-      observe(page, i + 1, name, { force }).catch(() => null),
+      observe(s.page, i + 1, name, { force }).catch(() => null),
       new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
     ]);
     if (o && (o.findings.length || o.screenshot)) observations.push(o);
@@ -815,5 +855,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
   }
 
-  return { title: plan.title, steps: results, passed: !failed, observations };
+  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion);
+  if (!failed && !asserts) console.log(`[plan] ${plan.title}: every step ran, but the plan has no assertion step — it checked nothing, so it is NOT a pass`);
+  return { title: plan.title, steps: results, passed: !failed && asserts, ...(asserts ? {} : { unverified: true }), observations };
 }
