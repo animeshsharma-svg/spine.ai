@@ -18,6 +18,7 @@ import { WidgetConfig } from "../helpers/inlineSheet.js";
 import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
+import { probeControls } from "./probe.js";
 import { appRuleFor, recoveryFor } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
@@ -120,6 +121,10 @@ interface RunState {
   /** The app refused an EARLIER step (e.g. the configuration drawer would not save) — a later
    *  block assertion judges this refusal instead of a publish that can no longer be reached. */
   earlyRefusal?: string;
+  /** Template names read from the single stage menu, per event type (expect_template_menu). */
+  templateMenus?: Record<string, string[]>;
+  /** What set_sheet_cell typed and what the cell showed afterwards, by "row:column". */
+  typedCells?: Record<string, { typed: string; shown: string; locked: boolean }>;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -148,6 +153,40 @@ function onSingleStage(s: RunState): boolean {
   const url = s.page.url();
   return /singleStage=true/i.test(url) && !/\/project\//.test(url);
 }
+
+/** The price / BOQ sheet on screen: its rows, lower-cased header texts and a header → column lookup. */
+async function sheetGrid(s: RunState) {
+  const grid = s.page.locator(".data-grid-container table").filter({ visible: true }).first();
+  if (!(await grid.count().catch(() => 0))) throw new Error("no sheet (data grid) on this screen (not evidence about the product)");
+  const rows = grid.locator("tr");
+  const heads = (await rows.nth(0).locator("td, th").allInnerTexts().catch(() => [] as string[])).map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase());
+  const colOf = (name: string) => {
+    const n = name.replace(/\*/g, "").replace(/_/g, " ").trim().toLowerCase();
+    let i = heads.findIndex((h) => h === n);
+    if (i < 0) i = heads.findIndex((h) => h.startsWith(n) || h.includes(n));
+    return i;
+  };
+  const cell = async (row: unknown, column: unknown) => {
+    const rowNo = Math.max(1, Number(row) || 1);
+    if ((await rows.count()) <= rowNo) throw new Error(`the sheet has no data row ${rowNo} (not evidence about the product)`);
+    const i = colOf(String(column ?? ""));
+    if (i < 0) throw new Error(`not checked: no "${column}" column in the sheet (columns: ${heads.filter(Boolean).join(", ")})`);
+    return { td: rows.nth(rowNo).locator("td").nth(i), rowNo, key: `${rowNo}:${String(column).toLowerCase()}` };
+  };
+  return { rows, heads, colOf, cell };
+}
+
+/** A cell's text as a person reads it; numbers compared without separators or currency. */
+const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
+const sameCellValue = (a: string, b: string) => {
+  const num = (x: string) => {
+    const c = x.replace(/[₹$€£,\s]/g, "");
+    return /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : null;
+  };
+  const na = num(a), nb = num(b);
+  if (na !== null && nb !== null) return na === nb;
+  return cellText(a).toLowerCase() === cellText(b).toLowerCase();
+};
 
 /**
  * The single-stage create screen, recognised by what it shows ("Event Type" + the
@@ -474,11 +513,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "expect_sheet_columns": {
       const keys = await s.create.sheetHeaderKeys();
       if (!keys.length) throw new Error("no pricing-sheet header has rendered — the template's schema is not on screen");
+      // a case names columns as the tester reads them ("Quantity Requested"), the grid keys them by widget
+      // ("creator_quantity"): either counts
+      const heads = await s.page.locator(".data-grid-container table").filter({ visible: true }).first().locator("tr").first().locator("td, th").allInnerTexts().catch(() => [] as string[]);
+      const shown = heads.map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim()).filter(Boolean);
       const want = Array.isArray(a.columns) ? a.columns.map(String) : [];
       const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
-      const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))));
-      if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
-      return `sheet columns: ${keys.join(", ")}`;
+      const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))) && !shown.some((h) => norm(h) === norm(w) || norm(h).startsWith(norm(w))));
+      if (missing.length) throw new Error(`sheet columns are [${shown.join(", ") || keys.join(", ")}] — missing: ${missing.join(", ")}`);
+      return `sheet columns: ${shown.join(", ") || keys.join(", ")}`;
     }
     case "open_add_stage_menu": {
       const m = await s.create.openAddStageMenu();
@@ -526,6 +569,121 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       console.log(`[sheet] row ${rowNo}: ${seenDetail.join(" | ")}`);
       if (problems.length) throw new Error(`sheet row ${rowNo}: ${problems.join("; ")} — seen: ${seenDetail.join(" | ").slice(0, 700)}`);
       return `sheet row ${rowNo}: ${seen.join(", ")}`;
+    }
+    case "probe_controls": {
+      const runDir = joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_"));
+      const { records, file } = await probeControls(s.page, a, runDir, s.stepNo);
+      const by = (o: string) => records.filter((r) => r.outcome === o).length;
+      return `probed ${records.length} control(s): ${by("dialog")} dialog, ${by("menu")} menu, ${by("navigated")} new page, ${by("message")} message, ${by("disabled")} disabled, ${by("error")} error, ${by("nothing")} nothing visible — ${file}`;
+    }
+    case "expect_template_menu": {
+      if (!(await isSingleStageScreen(s))) {
+        throw new Error("not checked: the template menu is read on the single stage create screen — this is a different screen");
+      }
+      const types = ["rfq", "rfp", "auction"];
+      const want = a.eventType ? String(a.eventType).toLowerCase() : "";
+      if (want && !types.includes(want)) throw new Error(`expect_template_menu: eventType must be rfq, rfp or auction (got "${want}")`);
+      s.templateMenus ??= {};
+      // RFP reads questionnaire (rfi) templates; RFQ and auction read the same trade templates
+      const ident = (t: string) => (t === "rfp" ? "rfi" : "trade");
+      let current = (await s.page.getByRole("button", { name: /^(rfp|rfi)\b/i }).first().isVisible().catch(() => false)) ? "rfp" : "rfq";
+      const showing = async (t: string) => s.page.getByRole("button", { name: t === "auction" ? /^(auction|rank|price|traffic)/i : new RegExp(`^${t}\\b`, "i") }).first().isVisible().catch(() => false);
+      const readAs = async (t: string) => {
+        if (t && !(await showing(t))) {
+          // The template list is loaded by its own request (templateSelection.jsx fetchAllTemplatesByType:
+          // ?type_identifier=rfi for RFP, trade for RFQ / auction). The menu shows the previous type's list
+          // until that request answers, so wait for it before reading.
+          const want = ident(t);
+          const reload = ident(current) !== want;
+          const fresh = reload ? s.page.waitForResponse((r) => r.url().includes(`type_identifier=${want}`), { timeout: 20_000 }).then(() => true).catch(() => false) : Promise.resolve(true);
+          await s.single.configure({ eventType: t as any }).catch((e: Error) => {
+            throw new Error(`not checked: could not switch the event type to ${t.toUpperCase()} to read its templates (${e.message.split("\n")[0].slice(0, 120)})`);
+          });
+          current = t;
+          if (!(await fresh)) throw new Error(`not checked: after switching to ${t.toUpperCase()} the app did not load its template list again within 20 s, so the menu would still be the previous type's`);
+          await s.page.waitForTimeout(800);
+        }
+        const r = await s.single.readTemplateMenu();
+        const key = t || (types.find((x) => new RegExp(`^${x}`, "i").test(r.eventType)) ?? (/rank|price|traffic/i.test(r.eventType) ? "auction" : r.eventType.toLowerCase() || "current"));
+        s.templateMenus![key] = r.names;
+        return { key, names: r.names };
+      };
+      const mine = await readAs(want);
+      const problems: string[] = [];
+      const min = Math.max(1, Number(a.min) || 1);
+      if (mine.names.length < min) problems.push(`the menu offered ${mine.names.length} template(s) for ${mine.key.toUpperCase()}, expected at least ${min}`);
+      const has = (w: string) => mine.names.some((n) => n.toLowerCase().includes(w.toLowerCase()));
+      for (const w of (Array.isArray(a.contains) ? a.contains : a.contains ? [a.contains] : []) as string[]) if (!has(String(w))) problems.push(`no template named like "${w}"`);
+      for (const w of (Array.isArray(a.absent) ? a.absent : a.absent ? [a.absent] : []) as string[]) if (has(String(w))) problems.push(`a template named like "${w}" is offered but should not be`);
+      const others = (Array.isArray(a.distinctFrom) ? a.distinctFrom : a.distinctFrom ? [a.distinctFrom] : []).map((x: unknown) => String(x).toLowerCase()).filter((x: string) => types.includes(x) && x !== mine.key);
+      if (others.length) {
+        for (const t of others) if (!s.templateMenus[t]) await readAs(t);
+        // put the screen back on the type this case is about
+        if (types.includes(mine.key) && !(await showing(mine.key))) await s.single.configure({ eventType: mine.key as any }).catch(() => {});
+        for (const t of others) {
+          if (ident(t) === ident(mine.key)) {
+            console.log(`[single-stage] ${mine.key.toUpperCase()} and ${t.toUpperCase()} read the same trade template list by design (templateSelection.jsx) — not compared`);
+            continue;
+          }
+          const shared = mine.names.filter((n) => s.templateMenus![t].includes(n));
+          if (shared.length) problems.push(`${shared.length} template(s) appear for both ${mine.key.toUpperCase()} and ${t.toUpperCase()}: ${shared.slice(0, 6).join(", ")}`);
+        }
+      }
+      const listed = `${mine.key.toUpperCase()} templates (${mine.names.length}): ${mine.names.slice(0, 12).join(", ")}${mine.names.length > 12 ? " …" : ""}`;
+      if (problems.length) throw new Error(`template menu: ${problems.join("; ")} — ${listed}`);
+      return listed;
+    }
+    case "set_sheet_cell": {
+      const value = String(a.value ?? "");
+      if (!value) throw new Error('set_sheet_cell needs a "value"');
+      const g = await sheetGrid(s);
+      const { td, rowNo, key } = await g.cell(a.row, a.column);
+      const locked = /read-?only/i.test((await td.getAttribute("class").catch(() => "")) ?? "");
+      await td.scrollIntoViewIfNeeded().catch(() => {});
+      // Click, then double-click if no editor opened — like a person getting into a cell.
+      const editor = () => s.page.locator(".data-grid-container input:visible, .data-grid-container textarea:visible, td input:focus, td textarea:focus").first();
+      await td.click({ timeout: 5_000 }).catch(() => {});
+      if (!(await editor().count().catch(() => 0))) await td.dblclick({ timeout: 5_000 }).catch(() => {});
+      let typed = false;
+      if (await editor().count().catch(() => 0)) {
+        await editor().fill(value, { timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
+      }
+      if (!typed && !locked) {
+        // Some cells take keystrokes straight away (the grid opens its editor on the first key).
+        await td.click({ timeout: 5_000 }).catch(() => {});
+        await s.page.keyboard.type(value, { delay: 30 }).then(() => (typed = true)).catch(() => {});
+      }
+      await s.page.keyboard.press("Tab").catch(() => {});
+      await s.page.waitForTimeout(800);
+      const shown = cellText((await td.innerText().catch(() => "")) || "");
+      s.typedCells ??= {};
+      s.typedCells[key] = { typed: value, shown, locked: locked || !typed };
+      return locked || !typed
+        ? `row ${rowNo} "${a.column}": the cell would not take typing (locked) — it shows "${shown}"`
+        : `typed "${value}" into row ${rowNo} "${a.column}" — the cell now shows "${shown}"`;
+    }
+    case "expect_sheet_cell": {
+      const g = await sheetGrid(s);
+      const { td, rowNo, key } = await g.cell(a.row, a.column);
+      const shown = cellText((await td.innerText().catch(() => "")) || "");
+      const cls = (await td.getAttribute("class").catch(() => "")) ?? "";
+      const typed = s.typedCells?.[key];
+      const flagged = /error|invalid|danger/i.test(cls) || (await td.locator("[class*='error'], [class*='invalid'], .anticon-exclamation-circle, .anticon-warning").count().catch(() => 0)) > 0;
+      const where = `row ${rowNo} "${a.column}"`;
+      const problems: string[] = [];
+      if (a.equals !== undefined && !sameCellValue(shown, String(a.equals))) problems.push(`shows "${shown}", expected "${a.equals}"`);
+      if (a.contains !== undefined && !shown.toLowerCase().includes(String(a.contains).toLowerCase())) problems.push(`shows "${shown}", expected it to contain "${a.contains}"`);
+      if (a.empty === true && shown) problems.push(`shows "${shown}", expected it empty`);
+      if (a.empty === false && !shown) problems.push("is empty, expected a value");
+      if (a.refused !== undefined || a.kept !== undefined) {
+        if (!typed) throw new Error(`not checked: nothing was typed into ${where} in this case (set_sheet_cell first)`);
+        const kept = !typed.locked && sameCellValue(shown, typed.typed) && !flagged;
+        const wantRefused = a.refused === true || a.kept === false;
+        if (wantRefused && kept) problems.push(`KEPT "${typed.typed}" — expected the sheet to refuse it`);
+        if (!wantRefused && !kept) problems.push(`did not keep "${typed.typed}" — it shows "${shown}"${flagged ? " and is marked as an error" : ""}${typed.locked ? " (the cell is locked)" : ""}`);
+      }
+      if (problems.length) throw new Error(`sheet ${where} ${problems.join("; ")}`);
+      return `sheet ${where} shows "${shown}"${typed ? ` after typing "${typed.typed}"` : ""}${flagged ? " (marked as an error)" : ""}`;
     }
     case "open_event_settings": {
       // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
@@ -945,14 +1103,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (await isSingleStageScreen(s)) {
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
-        await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
+        await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"), a.quantity !== undefined ? String(a.quantity) : undefined);
         s.lineItemsAdded = 1;
         const ranges = await s.single.fillRangeCells();
         if (ranges) console.log(`[single-stage] filled ${ranges} traffic-light range cell(s) on the line item`);
         const wanted = asInt(a.count, 1);
         return wanted > 1
           ? `1 line item filled in the single-stage sheet (the case asked for ${wanted}; this screen's sheet takes one product row per flow here)`
-          : "1 line item filled in the single-stage sheet";
+          : `1 line item filled in the single-stage sheet${a.quantity !== undefined ? ` (quantity typed: ${a.quantity})` : ""}`;
       }
       const count = asInt(a.count, 1);
       s.products = a.search

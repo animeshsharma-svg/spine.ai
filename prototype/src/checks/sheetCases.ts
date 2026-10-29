@@ -33,6 +33,8 @@ export interface SheetCase {
   role: string;
   portal: string;
   preconditions: string;
+  /** "Configs Needed": company settings this case needs, `key = On|Off|value — why` per line, or "None". */
+  configs?: string;
   testData: string;
   steps: string[];
   expected: string;
@@ -53,6 +55,7 @@ const HEAD: Array<[RegExp, keyof SheetCase]> = [
   [/^(user ?role|role|actor)$/i, "role"],
   [/^(portal|platform|app|application|layer)$/i, "portal"],
   [/^(pre-?conditions?|preconditions?|setup|pre ?requisites?)$/i, "preconditions"],
+  [/^(configs?( ?needed)?|settings?( ?needed)?|company settings?|configurations?( ?needed)?)$/i, "configs"],
   [/^(test ?data|data|input|inputs)$/i, "testData"],
   [/^(test ?steps|steps|steps to reproduce|procedure)$/i, "steps"],
   [/^(expected ?results?|expected|expected ?outcome)$/i, "expected"],
@@ -129,7 +132,7 @@ export function parseSheet(name: string, buf: Buffer): { cases: Omit<SheetCase, 
       const base = {
         id: v.id || `${slug(name).toUpperCase()}-${String(i + 1).padStart(3, "0")}`,
         module: v.module || "-", scenario: v.scenario || "-", title: v.title, role: v.role || "Buyer", portal: v.portal || "Buyer portal",
-        preconditions: v.preconditions || "-", testData: v.testData || "-", steps, expected: v.expected || "-",
+        preconditions: v.preconditions || "-", configs: v.configs || "None", testData: v.testData || "-", steps, expected: v.expected || "-",
         priority: v.priority || "Medium", testType: v.testType || "Positive", status: v.status || "Not Run",
       };
       cases.push({ ...base, layer: layerOf(base) });

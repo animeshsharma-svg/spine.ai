@@ -53,6 +53,8 @@ export interface DraftRecord {
   portal?: string;
   testData?: string;
   testType?: string;
+  /** "Configs Needed": company settings the case needs (`key = On|Off — why` per line), or "None". */
+  configs?: string;
 }
 
 /** Which area code a draft is filed under, from what the typed case is about. */
@@ -136,6 +138,7 @@ export function draftMarkdown(d: DraftRecord): string {
     ...(d.module || d.scenario ? [`- **Module / scenario.** ${[d.module, d.scenario].filter(Boolean).join(" — ")}`] : []),
     ...(d.role || d.portal ? [`- **Who.** ${d.role ?? "Buyer"} · ${d.portal ?? "Buyer portal"}`] : []),
     `- **Setup.** ${d.setup || "A buyer signed in to the client under test."}`,
+    ...(d.configs && d.configs !== "None" ? [`- **Configs needed.** ${d.configs.replace(/\n/g, "; ")}`] : []),
     ...(d.testData && d.testData !== "-" ? [`- **Test data.** ${d.testData}`] : []),
     `- **Steps.** ${steps}`,
     `- **Expected.** ${d.expected}`,

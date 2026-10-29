@@ -199,6 +199,9 @@ async function settled(companyId: number, key: string, value: unknown): Promise<
  */
 export async function withSettings<T>(companyId: number, needed: NeededSetting[], caseId: string, onLine: (l: string) => void, work: () => Promise<T>): Promise<{ result: T; changed: Array<{ key: string; from: unknown; to: unknown }> } | { refused: string }> {
   if (!ALLOWED.includes(companyId)) return { refused: `company ${companyId} is not one the agent may reconfigure (allowed: ${ALLOWED.join(", ")})` };
+  const known = new Set((await settingsCatalog()).map((x) => x.key));
+  const unknown = needed.filter((n) => !known.has(n.key)).map((n) => n.key);
+  if (unknown.length) return { refused: `${unknown.join(", ")} is not a company setting in Procol's settings catalogue` };
   const changed: Array<{ key: string; from: unknown; to: unknown }> = [];
   try {
     for (const n of needed) {

@@ -12,8 +12,14 @@ case("SRC-CRE", M3, "Create Event pop-up", "A company without eRFX sees only Sin
 case("SRC-CRE", M3, "Single Stage screen", "The single stage screen opens on RFP with everything locked until a template is chosen",
      ss("Look at the Event Type buttons, the title box, the participants box and the footer buttons"),
      "Event Type shows RFP selected. \"Terms & Conditions\", the schedule chip and \"Publish Event\" are greyed out, and \"Search vendors you want to add\" is disabled, until a template is chosen. There is no \"Save as draft\" button on the single stage screen (drafts are an eRFX project feature).", priority="Critical")
-for et, lists in [("RFP", "questionnaire templates (no price sheet)"), ("RFQ", "RFQ price-sheet templates"), ("Auction", "auction templates (reverse and forward)")]:
-    case("SRC-CRE", M3, "Event type and template", f"Event Type {et} lists only {lists}",
+# Read live on PROCOL DEMO (29 Oct): RFP lists the questionnaire (rfi) templates; RFQ and Auction list the SAME
+# price-sheet (trade) templates, each named "Buy …" (buying = reverse) or "Sell …" (selling = forward).
+for et, title, lists in [
+    ("RFP", "questionnaire templates (no price sheet)", "only questionnaire templates (e.g. \"Vendor PQ Template\", \"TNC Template\") — none of the \"Buy …\" / \"Sell …\" price-sheet templates"),
+    ("RFQ", "price-sheet templates", "the price-sheet templates, each named \"Buy …\" or \"Sell …\" (e.g. \"Buy Template\", \"Sell Template\") — none of the RFP questionnaire templates"),
+    ("Auction", "price-sheet templates (Buy and Sell)", "the same \"Buy …\" / \"Sell …\" price-sheet templates as RFQ (\"Buy\" for a reverse auction, \"Sell\" for a forward auction) — none of the RFP questionnaire templates"),
+]:
+    case("SRC-CRE", M3, "Event type and template", f"Event Type {et} lists only {title}",
          ss(f"Under Event Type click \"{et}\"", "Move the mouse over \"Select Templates\" and read the template names"),
          f"The menu lists {lists}. The menu of the previous event type is not shown any more.", priority="High")
 case("SRC-CRE", M3, "Event type and template", "Switching from RFQ to Auction after choosing a template",

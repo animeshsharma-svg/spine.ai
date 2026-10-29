@@ -121,6 +121,32 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "probe_controls",
+    purpose:
+      'EXPLORATION, not a check: click every control the current screen offers (buttons, tabs, menu items, links, switches), one at a time on the screen reloaded each time, and record what the app did — the dialog it opened (title, fields, buttons), the menu, the new page, the message, the request it sent, an error, or nothing; a greyed-out control is hovered for its tooltip. Never presses the confirm inside a dialog. Controls that usually change the event (Publish, Submit, Save …) go last. Use only when the case asks to find out what each control does ("what happens if I click …", "explore this screen").',
+    args: { within: '"Settings" | "Actions" | "⋮ (more)" — probe the ITEMS of the menu this control opens, opening it again before each item (optional)', include: '["Settings", …] only controls whose name contains one of these (optional)', skip: '["Publish", …] controls to leave alone (optional)', max: "most controls to click (default 30)", reload: "false = do not reload between clicks (default reloads)" },
+  },
+  {
+    name: "expect_template_menu",
+    purpose:
+      'On the SINGLE STAGE create screen, open "Select Templates", read the name of every template the menu offers and close it without choosing. eventType (rfq | rfp | auction) switches the event type first; without it the type on screen is read. Checks the menu is not empty (min), names that must / must not be offered (contains / absent, matched as part of the name), and with distinctFrom that none of these templates is also offered for the other event type(s) — e.g. "RFP shows questionnaire templates, not the RFQ price templates" → {eventType:"rfp", distinctFrom:["rfq"]}. Use for "the template list matches the event type", "only RFQ templates are offered", "auction shows its own templates".',
+    args: { eventType: '"rfq" | "rfp" | "auction" (optional — switch to it first)', min: "least number of templates (default 1)", contains: '["Buy", …] parts of names that must be offered (optional)', absent: '["Questionnaire", …] parts of names that must NOT be offered (optional)', distinctFrom: '["rfq", …] event types whose templates must not appear here (optional)' },
+    assertion: true,
+  },
+  {
+    name: "set_sheet_cell",
+    purpose:
+      'Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text ("Quantity Requested", "Price", "GST" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for "enter a negative quantity", "type letters into the price", "enter 0", "enter 1,00,000.555". For choosing a product use the product steps, not this.',
+    args: { row: "data row number (default 1)", column: "header text of the column", value: "what to type" },
+  },
+  {
+    name: "expect_sheet_cell",
+    purpose:
+      'Read one cell of the price / BOQ sheet and check it. kept:true = the value typed by set_sheet_cell stayed (numbers compared without separators, so "1,000" = "1000") and the cell is not marked as an error; refused:true = the sheet did NOT keep it (cleared, changed, locked, or marked as an error). equals / contains / empty check the text the cell shows. Use after set_sheet_cell for "the sheet does not accept negative quantity", "letters are not allowed in price", "the value is saved as typed".',
+    args: { row: "data row number (default 1)", column: "header text of the column", kept: "true = the typed value must stay (optional)", refused: "true = the typed value must be refused (optional)", equals: "exact text expected (optional)", contains: "part of the text expected (optional)", empty: "true / false (optional)" },
+    assertion: true,
+  },
+  {
     name: "open_event_settings",
     purpose:
       'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. "Send Bulk Counter Offer" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden. A DRAFT reopens on its create screen, which has NO Settings menu at all: to prove an action is not offered on a draft, use expect_hidden{name} for that action on the draft screen — never click a "Settings" button there.',
@@ -259,7 +285,7 @@ export const STEP_CATALOG: StepSpec[] = [
       "Set the stages exactly. RFQ and Auction cannot coexist; at most two stages. Auction is the default stage, so asking for anything else is a real change.",
     args: { stages: 'array of "rfp" | "rfq" | "auction", e.g. ["rfp","rfq"]' },
   },
-  { name: "set_title", purpose: "Give the event a title.", args: { title: "string; omit to auto-generate a unique one" } },
+  { name: "set_title", purpose: 'Type a title into the event\'s title box. LEAVE IT OUT when the case is about the AUTOMATIC title (auto title, "[RFQ] …", the title the app fills from the products / event type, "the title box stays empty"): typing one would replace what the case checks. When the case says to clear or edit the auto title, use the generic fill on "Enter the title of this event" instead.', args: { title: "string; omit to auto-generate a unique one" } },
   {
     name: "switch_stage",
     purpose:

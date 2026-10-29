@@ -63,7 +63,7 @@ ${bugs.length ? `<section><h2>Bugs found</h2><div style="display:grid;gap:10px">
 </main></body></html>`;
 }
 
-const COLS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"];
+const COLS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Configs Needed", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"];
 function statusCell(c: SheetRunCase): string {
   return c.status === "Pass" ? "Pass" : `${c.status} — ${c.why}`;
 }
@@ -72,7 +72,7 @@ function statusCell(c: SheetRunCase): string {
 export function exportSheetRun(run: SheetRun, format: "xlsx" | "csv"): { body: Buffer | string; mime: string; name: string } {
   const rows = run.cases.map((c) => ({
     "Test Case ID": c.id, Module: c.case.module, Scenario: c.case.scenario, "Test Case Title": c.case.title, "User Role": c.case.role, Portal: c.case.portal,
-    "Pre-conditions": c.case.preconditions, "Test Data": c.case.testData, "Test Steps": c.case.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+    "Pre-conditions": c.case.preconditions, "Configs Needed": c.case.configs ?? "None", "Test Data": c.case.testData, "Test Steps": c.case.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
     "Expected Result": c.case.expected, Priority: c.case.priority, "Test Type": c.case.testType, Status: statusCell(c),
   }));
   const name = `${run.sheet}-results-${run.id}`;
@@ -82,7 +82,7 @@ export function exportSheetRun(run: SheetRun, format: "xlsx" | "csv"): { body: B
   }
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows, { header: COLS });
-  (ws as any)["!cols"] = [14, 30, 26, 46, 18, 18, 36, 24, 80, 70, 10, 11, 60].map((wch) => ({ wch }));
+  (ws as any)["!cols"] = [14, 30, 26, 46, 18, 18, 36, 40, 24, 80, 70, 10, 11, 60].map((wch) => ({ wch }));
   XLSX.utils.book_append_sheet(wb, ws, "Test Cases");
   const det = XLSX.utils.json_to_sheet(run.cases.map((c) => ({
     "Test Case ID": c.id, Status: c.status, "Why": c.why, "Started from": c.startedFrom ?? "", "What the run did": c.steps.map((s) => `${s.n}. ${s.words} — ${s.outcome}${s.outcome === "failed" && s.detail ? `: ${s.detail}` : ""}`).join("\n"),

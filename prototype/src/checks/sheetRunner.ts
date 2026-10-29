@@ -24,6 +24,7 @@ import { VALUE_KEYS } from "../agents/screenModel.js";
 import { stepWords, expectedWords } from "../agents/journeyCases.js";
 import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
 import { settingsFor, withSettings } from "./companySettings.js";
+import { parseConfigs } from "../agents/caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -144,10 +145,12 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       let r: SheetRunCase;
       try {
         const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
-        // A case that needs a company set up a certain way: find the setting, switch it for this case, switch it back.
-        const setting = companySetting(c.preconditions);
+        // A case that needs a company set up a certain way: its "Configs Needed" names the settings (else they are
+        // looked up from the pre-condition's words); switch them for this case, switch them back.
+        const listed = parseConfigs(c.configs);
+        const setting = listed.length ? `the settings in its "Configs Needed"` : companySetting(c.preconditions);
         if (setting) {
-          const needed = await settingsFor(setting).catch(() => null);
+          const needed = listed.length ? listed.map((n) => ({ key: n.key, value: n.value, why: n.why ?? "named in the case" })) : await settingsFor(setting).catch(() => null);
           if (!needed) {
             r = base(c, "Not run", `It needs ${setting}, and no company setting in Procol's settings catalogue clearly means that, so the company could not be set up for it. Run it on a company set up as it says.`, 0);
             addToBacklog(c, "starting event not built", r.why, ["looked for a matching company setting"]);

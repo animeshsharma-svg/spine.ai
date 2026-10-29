@@ -270,7 +270,7 @@ export async function casesForJourney(text: string, plan: { title?: string; step
       "Ground each case in one RULE below when one applies (its number), else 'journey'; name real controls (Publish, Save as draft, Items, Participants, Master QCS, Start Awarding, Counter Offer…); never invent a vendor name.",
       STYLE_GUIDE,
       `How the voice looks:\n${styleExamplesText()}`,
-      `Return ONLY a JSON array of at most ${opts.max ?? 8} objects: {"title","setup":"the pre-conditions in words","testData":"values to type, or -","steps":[…],"expected","grounded":"R-… or journey","kind":"positive|negative|boundary|state|calculation","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
+      `Return ONLY a JSON array of at most ${opts.max ?? 8} objects: {"title","setup":"the pre-conditions in words","configs":"company settings the case needs, one per line as setting_key = On|Off — what it does, or None","testData":"values to type, or -","steps":[…],"expected","grounded":"R-… or journey","kind":"positive|negative|boundary|state|calculation","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
     ].join("\n");
     const user = `JOURNEY: ${text}\n\nTHE PLAN THAT WILL RUN:\n${steps.map((s, i) => `${i + 1}. ${stepWords(s)}`).join("\n")}\n\nRULES FROM PROCOL'S CODE AND PRODUCT FACTS:\n${rules.map((r, i) => `[${i + 1}] ${clean(r.text).slice(0, 240)}`).join("\n")}`;
     const raw = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tier: "fast", temperature: 0.2, maxTokens: 3000 }).catch(() => "");
@@ -336,6 +336,7 @@ export async function casesForJourney(text: string, plan: { title?: string; step
         portal: house.portal,
         testData: house.testData,
         testType: house.testType,
+        configs: String((d as any)?.configs ?? "").trim() || "None",
         layer: "ui",
         coverage: idx.length ? "partial" : "none",
         gaps: idx.length ? [] : ["no step of this journey's plan checks it yet"],

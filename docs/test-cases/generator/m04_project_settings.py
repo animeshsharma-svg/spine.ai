@@ -115,7 +115,7 @@ M12 = "12. Recreate Order"
 rc = lambda *s: [BUYER_LOGIN, open_event("the closed RFQ (A 100, B 90)"), OPEN_SETTINGS, "Click \"Recreate Order\". The \"Recreate Order\" pop-up opens with Product Sheet, Auction Configurations, Delivery Date and \"Schedule this event?\"", *s]
 case("SRC-RCO", M12, "Recreate pop-up", "What the Recreate Order pop-up shows",
      rc("Read every section"),
-     f"Product Sheet: one row per line of the old event (e.g. 1, {P1} (2810038395), Default Variant, 10 ST, Plant Name (LOC-0001), Price) with Details links. Auction Configurations: \"Event End Time Duration\" (15 Mins, 30 Mins selected, 60 Mins, 4 Hrs, 24 Hrs, Custom) and \"Evaluation Duration\" (15 Mins, 30 Mins selected, 45 Mins, 60 Mins, Custom, Clear). Delivery Date (Select date). \"Schedule this event?\" checkbox with date and time (greyed until ticked). Buttons: Edit More Details, Cancel, Create Order.",
+     f"Product Sheet: one row per line of the old event (e.g. 1, {P1} (1100001325), Default Variant, 10 ST, Plant Name (LOC-0001), Price) with Details links. Auction Configurations: \"Event End Time Duration\" (15 Mins, 30 Mins selected, 60 Mins, 4 Hrs, 24 Hrs, Custom) and \"Evaluation Duration\" (15 Mins, 30 Mins selected, 45 Mins, 60 Mins, Custom, Clear). Delivery Date (Select date). \"Schedule this event?\" checkbox with date and time (greyed until ticked). Buttons: Edit More Details, Cancel, Create Order.",
      pre="Set-up case SRC-SET-004 done.", priority="Critical")
 for end, mins in [("15 Mins", 15), ("30 Mins", 30), ("60 Mins", 60), ("4 Hrs", 240), ("24 Hrs", 1440)]:
     case("SRC-RCO", M12, "End time", f"Recreate with Event End Time Duration {end}",

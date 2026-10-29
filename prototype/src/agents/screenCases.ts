@@ -197,7 +197,7 @@ export async function draftCasesFromScreen(
     "- Do not repeat a case from EXISTING CASES.",
     STYLE_GUIDE,
     `How the voice looks:\n${styleExamplesText()}`,
-    `Return ONLY a JSON array of at most ${max} objects: {"title","kind":"positive|negative|boundary|state|button","controls":[exact names],"grounded":"R-… or screen","why","setup":"the pre-conditions in words","testData":"values to type, or -","steps":[…],"expected","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
+    `Return ONLY a JSON array of at most ${max} objects: {"title","kind":"positive|negative|boundary|state|button","controls":[exact names],"grounded":"R-… or screen","why","setup":"the pre-conditions in words","configs":"company settings the case needs, one per line as setting_key = On|Off — what it does, or None","testData":"values to type, or -","steps":[…],"expected","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
   ].join("\n");
   const user = [
     `SCREEN: ${inv.label} — ${inv.path}${inv.context && inv.context !== "none" ? ` (event state: ${inv.context})` : ""}`,
@@ -294,6 +294,7 @@ export async function draftCasesFromScreen(
       portal: house.portal,
       testData: house.testData,
       testType: house.testType,
+      configs: String((d as any).configs ?? "").trim() || "None",
       oracle: rule ? `The screen behaves as ${rule.id} says: ${rule.statement.replace(/\s+/g, " ").slice(0, 200)}` : `What the tester sees on the ${inv.label} screen.`,
       priority: house.priority,
       layer: "ui",

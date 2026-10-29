@@ -8,7 +8,7 @@
  * same sheet and be run by the same sheet runner.
  */
 
-export const SHEET_COLUMNS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"] as const;
+export const SHEET_COLUMNS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Configs Needed", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"] as const;
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
 export type SheetRow = Record<SheetColumn, string>;
 
@@ -23,6 +23,7 @@ export const STYLE_GUIDE = [
   "- Steps: numbered actions a person does, one action per step, naming each button, tab, field and menu exactly as it reads on screen, in quotes (click \"Master QCS\", then \"Start Awarding\"). Start with the login: \"" + BUYER_LOGIN + "\" (or the vendor login for vendor steps). Say where to click when it is not obvious (\"the three dots (⋮) at the top right of the project page\").",
   "- Expected result: what the person sees on screen, specific enough to mark pass or fail at a glance — the status badge, the counts, the totals worked out (6 × 90 = 540), and the app's own message in quotes when the app refuses. Never \"works correctly\" or \"as expected\".",
   "- Pre-conditions: the state the case starts from in words (\"a closed RFQ where Vendor A quoted 100 and Vendor B quoted 90\"), and any company setting it needs.",
+  "- Configs needed: every company setting the case depends on, one per line as `setting_key = On|Off|value — what it does` (e.g. `rfx_project_enabled = Off — eRFX projects`), taken from Procol's company settings; \"None\" when the case works on any setup. The runner switches exactly these before the case and back after it, so name a setting even when the test company already has it that way. A feature worth testing both ways gets two cases: one with the setting On, one with it Off.",
   "- Test data: the exact values to type (product, quantity, price, dates).",
   "- Vendors: only the QA test vendors (Vendor A, B, C — names start with QA_Platform). A case that names a vendor adds it by search; a case that names none uses \"Invite Vendor\" (everyone mapped to the product).",
   "- Where the product has not settled a rule, write \"Record what happens\" instead of guessing the result.",
@@ -36,6 +37,7 @@ export const STYLE_EXAMPLES = [
     role: "Buyer",
     portal: "Buyer portal",
     preconditions: "A live RFQ where Vendor A quoted 100 and Vendor B quoted 90.",
+    configs: "None",
     testData: "-",
     steps: [BUYER_LOGIN, "From the left menu click \"Events\" and open the live RFQ", "Open the RFQ stage's \"Responses\" tab", "Move the mouse over \"Reject Bid\" on Vendor A's bid"],
     expected: "\"Reject Bid\" is greyed out with the tooltip \"Disabled during Bidding time.\"",
@@ -47,6 +49,7 @@ export const STYLE_EXAMPLES = [
     role: "Buyer",
     portal: "Buyer portal",
     preconditions: "A closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90.",
+    configs: "is_partial_awarding_enabled = On — splitting a line's quantity across vendors",
     testData: "Split 6 + 4",
     steps: [BUYER_LOGIN, "Open the closed RFQ", "Click \"Master QCS\" and then \"Start Awarding\"", "Type 6 against Vendor B and 4 against Vendor A", "Click \"Create Proposal\", fill the required fields and click \"Submit Proposal\""],
     expected: "The proposal shows Vendor B 6 × 90 = 540 and Vendor A 4 × 100 = 400, total 940. The award is final at once: one PO per vendor is created and the event moves to History.",
@@ -56,7 +59,7 @@ export const STYLE_EXAMPLES = [
 ];
 
 export function styleExamplesText(): string {
-  return STYLE_EXAMPLES.map((e, i) => `EXAMPLE ${i + 1}\nTitle: ${e.title}\nUser role: ${e.role} · Portal: ${e.portal}\nPre-conditions: ${e.preconditions}\nTest data: ${e.testData}\nSteps:\n${e.steps.map((s, k) => `${k + 1}. ${s}`).join("\n")}\nExpected result: ${e.expected}\nPriority: ${e.priority} · Test type: ${e.testType}`).join("\n\n");
+  return STYLE_EXAMPLES.map((e, i) => `EXAMPLE ${i + 1}\nTitle: ${e.title}\nUser role: ${e.role} · Portal: ${e.portal}\nPre-conditions: ${e.preconditions}\nConfigs needed: ${e.configs}\nTest data: ${e.testData}\nSteps:\n${e.steps.map((s, k) => `${k + 1}. ${s}`).join("\n")}\nExpected result: ${e.expected}\nPriority: ${e.priority} · Test type: ${e.testType}`).join("\n\n");
 }
 
 const REFUSAL = /\b(refus|reject|cannot|can't|not allowed|blocked|disabled|greyed|invalid|not offered|error message|is required)/i;
@@ -84,12 +87,41 @@ export function toHouseStyle(c: { title: string; steps: string[]; expected: stri
   };
 }
 
-/** One case as a sheet row in the 13 columns. */
-export function toSheetRow(id: string, module: string, scenario: string, c: Parameters<typeof toHouseStyle>[0], status = "Not Run"): SheetRow {
+export interface ConfigNeed { key: string; value: unknown; why?: string }
+const shownValue = (v: unknown) => (v === true ? "On" : v === false ? "Off" : typeof v === "string" ? v : JSON.stringify(v));
+/** The "Configs Needed" cell: one `key = On|Off|value — what it does` per line, or "None". */
+export function formatConfigs(list: ConfigNeed[] | null | undefined): string {
+  return list?.length ? list.map((c) => `${c.key} = ${shownValue(c.value)}${c.why ? ` — ${c.why}` : ""}`).join("\n") : "None";
+}
+/** Read a "Configs Needed" cell back into settings. "None", "-" or empty → []. */
+export function parseConfigs(cell: string | null | undefined): ConfigNeed[] {
+  const out: ConfigNeed[] = [];
+  for (const part of String(cell ?? "").split(/\n|;/)) {
+    const m = part.trim().match(/^([a-z][a-z0-9_]*)\s*[=:]\s*(.+?)\s*(?:[—–]\s*(.*))?$/);
+    if (!m) continue;
+    const raw = m[2].trim();
+    let value: unknown = raw;
+    if (/^(on|yes|true|enabled?)$/i.test(raw)) value = true;
+    else if (/^(off|no|false|disabled?)$/i.test(raw)) value = false;
+    else if (/^-?\d+(\.\d+)?$/.test(raw)) value = Number(raw);
+    else if (/^[[{"]|^null$/.test(raw)) {
+      try {
+        value = JSON.parse(raw);
+      } catch {
+        /* keep the text */
+      }
+    }
+    out.push({ key: m[1], value, why: m[3]?.trim() || undefined });
+  }
+  return out;
+}
+
+/** One case as a sheet row (the house columns). */
+export function toSheetRow(id: string, module: string, scenario: string, c: Parameters<typeof toHouseStyle>[0] & { configs?: ConfigNeed[] }, status = "Not Run"): SheetRow {
   const h = toHouseStyle(c);
   return {
     "Test Case ID": id, Module: module, Scenario: scenario, "Test Case Title": h.title, "User Role": h.role, Portal: h.portal,
-    "Pre-conditions": h.preconditions, "Test Data": h.testData, "Test Steps": h.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+    "Pre-conditions": h.preconditions, "Configs Needed": formatConfigs(c.configs), "Test Data": h.testData, "Test Steps": h.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
     "Expected Result": h.expected, Priority: h.priority, "Test Type": h.testType, Status: status,
   };
 }

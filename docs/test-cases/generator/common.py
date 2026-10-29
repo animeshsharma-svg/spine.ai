@@ -7,7 +7,7 @@ _counters = {}
 
 # ── people and data ────────────────────────────────────────────────────────────────────────
 VA, VB, VC = "Vendor A", "Vendor B", "Vendor C"
-P1 = "KNOB FX151-2925"          # catalogue product (code 2810038395), unit ST
+P1 = "CYLINDER WITH KEY & KNOB"  # PROCOL DEMO catalogue product (code 1100001325); the old "KNOB FX151-2925" is not in its catalogue
 P2 = "AAC BLOCKS"               # second catalogue product, unit KG
 P3 = "BACK FILLING"             # product of a different family
 LOC1, LOC2 = "Plant Name (LOC-0001)", "Gurgaon"
@@ -102,7 +102,7 @@ def vendor_bid(price=100, v=VA):
 
 # ── the builder ───────────────────────────────────────────────────────────────────────────
 def case(prefix, module, scenario, title, steps, expected, *, role="Buyer", portal="Buyer portal", pre="-",
-         data="-", priority="High", ttype="Positive", rule=""):
+         data="-", priority="High", ttype="Positive", rule="", configs=None):
     _counters[prefix] = _counters.get(prefix, 0) + 1
     cid = f"{prefix}-{_counters[prefix]:03d}"
     import re as _re0
@@ -135,7 +135,7 @@ def case(prefix, module, scenario, title, steps, expected, *, role="Buyer", port
         "User Role": role, "Portal": portal, "Pre-conditions": pre, "Test Data": data,
         "Test Steps": "\n".join(f"{i + 1}. {s}" for i, s in enumerate(flat)),
         "Expected Result": expected, "Priority": priority, "Test Type": ttype, "Status": "Not Run",
-        "_rule": rule,
+        "_rule": rule, **({"_configs": configs} if configs else {}),
     })
     return cid
 

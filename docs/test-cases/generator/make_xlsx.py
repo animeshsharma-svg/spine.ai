@@ -5,8 +5,8 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 C = json.load(open("cases.json"))
-COLS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"]
-WID = [14, 30, 28, 46, 20, 18, 40, 30, 80, 70, 10, 11, 10]
+COLS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "Portal", "Pre-conditions", "Configs Needed", "Test Data", "Test Steps", "Expected Result", "Priority", "Test Type", "Status"]
+WID = [14, 30, 28, 46, 20, 18, 40, 40, 30, 80, 70, 10, 11, 10]
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True, color="FFFFFF")
 HEAD = PatternFill("solid", fgColor="1F3A5F"); thin = Side(style="thin", color="D0D5DD")
 BRD = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -21,8 +21,8 @@ for i, w in enumerate(WID, 1):
 for r, case in enumerate(C, 2):
     for i, k in enumerate(COLS, 1):
         cell = ws.cell(row=r, column=i, value=case[k]); cell.font = F; cell.alignment = WRAP; cell.border = BRD
-    ws.cell(row=r, column=11).fill = PatternFill("solid", fgColor=PRI.get(case["Priority"], "FFFFFF"))
-ws.freeze_panes = "B2"; ws.auto_filter.ref = f"A1:M{len(C) + 1}"; ws.row_dimensions[1].height = 30
+    ws.cell(row=r, column=COLS.index("Priority") + 1).fill = PatternFill("solid", fgColor=PRI.get(case["Priority"], "FFFFFF"))
+ws.freeze_panes = "B2"; ws.auto_filter.ref = f"A1:{get_column_letter(len(COLS))}{len(C) + 1}"; ws.row_dimensions[1].height = 30
 
 # summary
 s2 = wb.create_sheet("Summary")
