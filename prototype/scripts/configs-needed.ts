@@ -65,6 +65,8 @@ const RULES: Array<[RegExp, string, unknown, string, RegExp?]> = [
   [/scheduled event|recurring event|publish(ed)? automatically on a schedule/i, "scheduled_events_enabled", true, "events published on a schedule"],
   [/\blots?\b.{0,60}(schedul|split|sequence).{0,60}auction|auction.{0,60}\blots?\b.{0,40}(schedul|split|sequence)/i, "is_lot_scheduling_and_split_on_auction_enabled", true, "lots on auctions opening in sequence"],
   [/note to director|\bNTD\b/, "ntd_required_on_proposal", true, "asks for a Note to Director"],
+  // seen live 30 Oct: with the lock On, the create screen greys out Terms & Conditions and Publish Event
+  [/Publish Event|Invite Vendor|Search vendors you want to add|"Publish"|Participants/i, "lock_vendors_addition_in_event_creation", false, "vendors can be added while creating (with it On, Publish is greyed out)"],
 ];
 const ruleNeeds = (c: Record<string, string>): Need[] => {
   const t = `${c["Test Case Title"]} ${c["Pre-conditions"]} ${c["Test Steps"]} ${c["Expected Result"]}`;

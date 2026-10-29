@@ -242,6 +242,13 @@ export interface ExploredCase { row: SheetRow; question?: string; screenshot?: s
 /** Wrong values the tester has confirmed as bugs: the case expects the right value and is marked failed with the bug. */
 const CONFIRMED_BUGS: Array<{ id: string; match: RegExp; title: string; expected: string; look: string; confirmed: string }> = [
   {
+    id: "BUG-BROKEN-VALUE", match: /\bNaN\b|\bundefined\b|Invalid date|\bnull\b/,
+    title: "A value on the screen reads NaN / undefined / Invalid date",
+    expected: "Every label and number on the screen shows a real value (or \"-\" when there is none) — never \"NaN\", \"undefined\", \"null\" or \"Invalid date\".",
+    look: "Look over the page for a value that reads NaN, undefined, null or Invalid date",
+    confirmed: "a broken value is always a bug",
+  },
+  {
     id: "BUG-LPP-NEGATIVE", match: /last purchase price.*₹\s*-\s*\d|₹\s*-\s*\d[\d,]*.*-\d[\d.]*\s*%/i,
     title: "Last Purchase Price is never shown as a negative amount",
     expected: 'The "Last Purchase Price" at the bottom of the Responses tab is a positive amount (or "-" when there is none), and the % beside it is worked out from it. A negative last purchase price (e.g. "₹-12,740 (-240.74%)") is wrong.',
@@ -271,6 +278,7 @@ function observed(r: ProbeRecord): { title: string; expected: string; question?:
     const fresh = (r.newText ?? []).filter((t) => !/^\d+m : \d+s$/.test(t));
     if (fresh.length) return { title: `"${label}" shows ${q(fresh[0].slice(0, 40))}`, expected: `The screen now shows ${list(fresh, 4)}.`, type: "Positive" };
   }
+  if (r.role === "tab") return { title: `the "${label}" tab can be opened`, expected: `The "${label}" tab opens (or stays open) with no error.`, type: "Positive" };
   return { title: `"${label}" — record what happens`, expected: "Record what happens (during exploration nothing visible changed after the click).", type: "Edge", question: `Clicking "${r.name}" did nothing visible on the screen. What should it do?` };
 }
 
@@ -319,6 +327,8 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
       const req = (rec.fieldDetails ?? []).filter((f) => f.required).map((f) => f.label || f.placeholder).filter(Boolean);
       if (es.stayedOpen && (es.fieldErrors.length || es.messages.length))
         out.push({ row: row(`${win}: "${es.button}" with the fields as they open is refused`, run.probe, rec, `The window stays open and the app asks for what is missing: ${list([...es.fieldErrors, ...es.messages.map((m) => m.text)], 6)}. Nothing is saved.`, "Negative", asIs, `${rec.dialog.title} window`), screenshot: rec.screenshot });
+      else if (!es.stayedOpen && es.requests.some((x) => x.status < 400) && !(rec.fieldDetails ?? []).some((f) => f.required && !f.value))
+        out.push({ row: row(`${win}: "${es.button}" with the values it opens with goes through`, run.probe, rec, `The window closes and the app saves it with the values the window opened with${es.messages[0] ? `, saying ${q(es.messages[0].text)}` : ""}.`, "Positive", asIs, `${rec.dialog.title} window`), screenshot: rec.screenshot });
       else if (!es.stayedOpen && es.requests.some((x) => x.status < 400))
         out.push({
           row: row(`${win}: "${es.button}" with the fields as they open goes through`, run.probe, rec, `Record what happens. During exploration the window closed and the app saved it${es.messages[0] ? `, saying ${q(es.messages[0].text)}` : ""} without anything being filled in${req.length ? ` (fields marked required: ${list(req)})` : ""}.`, "Edge", asIs, `${rec.dialog.title} window`),
@@ -373,7 +383,6 @@ export function casesForFlow(flow: FlowDef, r: FlowResult, startNo = 1): Explore
 
       out.push({
         row: row(`switching ${v.key} changes nothing visible here`, flow.probes[0], { n: 0, role: "button", name: v.key, disabled: false, outcome: "skipped" }, `Record what happens. During exploration, switching ${v.key} from ${v.from ? "On" : "Off"} to ${v.to ? "On" : "Off"} changed nothing on this screen's controls or menus.`, "Edge", asIs.map((c) => (c.key === v.key ? { ...c, value: v.to } : c)), `Setting ${v.key}`),
-        question: `Switching the company setting ${v.key} (${v.from ? "On" : "Off"} → ${v.to ? "On" : "Off"}) changed nothing on "${flow.name}". Should it — and if so, what should change on this screen?`,
       });
   return out;
 }
@@ -444,7 +453,6 @@ async function deepCasesForFlow(flow: FlowDef, r: FlowResult, startNo: number): 
             "Test Data": String(c.testData ?? "-") || "-", "Test Steps": [...reach, ...c.steps.map((x: unknown) => String(x).replace(/^\s*\d+[.)]\s*/, ""))].map((x, i) => `${i + 1}. ${x}`).join("\n"),
             "Expected Result": String(c.expected), Priority: /^(Critical|High|Medium|Low)$/.test(c.priority) ? c.priority : "Medium", "Test Type": /^(Positive|Negative|Edge)$/.test(c.testType) ? c.testType : "Negative", Status: "Not Run",
           },
-          question: c.question ? `${rec.dialog.title}: ${c.question}` : undefined,
           screenshot: rec.screenshot,
         });
       }
