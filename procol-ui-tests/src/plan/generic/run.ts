@@ -1420,7 +1420,9 @@ async function execute(
       // "Search Title" held the text, the list still showed live events, and "No Results found"
       // never came). Submit it unless the plan says not to.
       const searchy = /search/i.test(`${describe(t)} ${await field.getAttribute("placeholder").catch(() => "") ?? ""} ${type}`);
-      if (value && searchy && a.submit !== false) {
+      // Procol only: on another site the plan presses its own Search button, and an Enter here runs
+      // the search early and takes that button off the screen (bench R-04 / R-13, 30 Oct).
+      if (value && searchy && a.submit !== false && !ctx.site) {
         await field.press("Enter", { timeout: 5_000 }).catch(() => page.keyboard.press("Enter").catch(() => {}));
         await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
         return { detail: `${describe(t)} now holds "${now}"${reformatted} — submitted with Enter`, strategy };
