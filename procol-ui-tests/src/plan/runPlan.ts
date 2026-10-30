@@ -3024,7 +3024,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   const observations: Observation[] = [];
   const runId = process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`;
   installObserver(page, runId);
-  installSpotlight(page, joinInv(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
+  // The framed photo per action is for Procol runs: on another site its overlay and photo close the page's own
+  // autocomplete and date pop-ups between a fill and the next step (bench D-14, 30 Oct).
+  if (!plan.context?.site) installSpotlight(page, joinInv(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
   /** The observation pass after a step — bounded, and never the reason a step fails. */
   // `picture`: a screenshot too — only where a step failed (Aanya, 26 Oct: no picture per step).
   // `at`: the step's result, which gets the screen in words and what the step did.
