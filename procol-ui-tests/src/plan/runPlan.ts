@@ -3131,7 +3131,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     // after the watchdog's 60s stuck timer), sitting on screen the whole
     // time. Clearing it before every step is a ~400ms-debounced no-op when
     // nothing is showing, so it costs nothing on the steps that don't need it.
-    await s.create.dismissDistractions().catch(() => false);
+    // Procol's pop-ups only: on another site (the bench) this closed the panel a click had just opened.
+    if (!s.site) await s.create.dismissDistractions().catch(() => false);
     try {
       s.prevMark = s.curMark;
       s.curMark = await toastMark(s.page);
