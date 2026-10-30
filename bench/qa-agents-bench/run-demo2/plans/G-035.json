@@ -1,0 +1,69 @@
+{
+  "id": "G-035",
+  "testCase": "G-035: Download a statement, check it, upload proof of address\nGoal: Download the Kestrelmoor March statement, check that it lists Fernhollow Grocers, and upload a bill as proof of address.\nSTEP 1: Navigate to /gopro/patterns/p35.html\nSTEP 2: Click the \"Statement as CSV\" link\nSTEP 3: Verify that \"kestrelmoor-march.csv\" was downloaded\nSTEP 4: Verify that row 2 of the downloaded file \"kestrelmoor-march.csv\" contains \"Fernhollow Grocers\"\nSTEP 5: Upload \"patterns/p35-bill.txt\" to the \"Proof of address\" field\nSTEP 6: Verify \"Received: p35-bill.txt\" is visible\nSTEP 7: Verify that 'Document under review' is visible",
+  "ms": 16382,
+  "plan": {
+    "title": "March statement and address proof",
+    "steps": [
+      {
+        "step": "go_to",
+        "args": {
+          "screen": "path",
+          "path": "/gopro/patterns/p35.html"
+        },
+        "note": "Open the statement and proof-of-address page."
+      },
+      {
+        "step": "click",
+        "args": {
+          "role": "link",
+          "name": "Statement as CSV"
+        },
+        "note": "Download the statement."
+      },
+      {
+        "step": "expect_download",
+        "args": {
+          "name": "kestrelmoor-march.csv",
+          "contains": "Fernhollow Grocers"
+        },
+        "note": "Verify the downloaded filename and merchant text, but not its row position."
+      },
+      {
+        "step": "upload",
+        "args": {
+          "label": "Proof of address",
+          "file": "patterns/p35-bill.txt"
+        },
+        "note": "Upload the specified bill from the site."
+      },
+      {
+        "step": "expect_text",
+        "args": {
+          "text": "Received: p35-bill.txt"
+        },
+        "note": "Verify receipt of the uploaded bill."
+      },
+      {
+        "step": "expect_text",
+        "args": {
+          "text": "Document under review"
+        },
+        "note": "Verify the document review status."
+      }
+    ]
+  },
+  "reasoning": "This plan checks the statement download, its merchant text, and the proof-of-address upload confirmation. The catalog can inspect CSV contents but cannot verify text specifically in row 2, so that requirement is only partially covered.",
+  "context": {
+    "expectations": [],
+    "experience": []
+  },
+  "source": "llm",
+  "warnings": [
+    "can only test part of this — no step for: Verify that Fernhollow Grocers occurs specifically in row 2 of kestrelmoor-march.csv; the catalog has no row-specific CSV content assertion."
+  ],
+  "coverage": "partial",
+  "gaps": [
+    "Verify that Fernhollow Grocers occurs specifically in row 2 of kestrelmoor-march.csv; the catalog has no row-specific CSV content assertion."
+  ]
+}
