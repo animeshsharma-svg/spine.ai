@@ -9,7 +9,8 @@ import { exportJourney, listJourneys, loadJourney } from "../agents/journeyCases
 import type { RouteHandler } from "./index.js";
 
 export const handle: RouteHandler = async (ctx) => {
-  if (ctx.path === "/api/journeys") {
+  // The typed journeys (runs with their test cases): /api/journeys itself is the catalog's journey list (server.ts).
+  if (ctx.path === "/api/journeys/typed") {
     ctx.json({ journeys: listJourneys(Number(ctx.url.searchParams.get("limit") ?? 30) || 30) });
     return true;
   }
