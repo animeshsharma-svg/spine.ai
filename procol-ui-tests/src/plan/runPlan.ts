@@ -1,4 +1,7 @@
-import { Page, expect, test, type Locator } from "@playwright/test";
+import { Download, Page, expect, test, type Locator } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
@@ -304,6 +307,12 @@ export interface PlanResult {
   byHand?: number;
   /** how many parts had no step and were not done (ask_tester skipped or unanswered) — partly tested */
   untested?: number;
+  /**
+   * True when the plan had no assertion step at all: it acted but checked
+   * nothing, so it cannot have passed — "a test that acts but never checks
+   * proves nothing" is enforced here, not only asked of the compiler.
+   */
+  unverified?: boolean;
   /** The observation pass: what the runner saw on each screen it visited (observe.ts). */
   observations?: Observation[];
 }
@@ -397,6 +406,13 @@ interface RunState {
   context: PlanContext;
   /** 1-based number of the step running now (evidence file names). */
   stepNo: number;
+  /** Not Procol: generic steps only, no Procol pop-up handling (plan.context.site). */
+  site?: boolean;
+  /** Files the browser saved during this plan (expect_download). */
+  downloads: Array<{ name: string; path: string; download: Download }>;
+  /** The answer armed for the next browser dialog, and the last one seen. */
+  armedDialog?: { action: "accept" | "dismiss"; text?: string };
+  lastDialog?: { type: string; message: string; action: string };
   /** The project id this plan published, so returning to it is a route, not a search. */
   projectId?: string;
   /** The app refused an EARLIER step (e.g. the configuration drawer would not save) — a later
@@ -2977,7 +2993,31 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     context: plan.context ?? {},
     planSteps: plan.steps,
     stepNo: 0,
+    site: !!plan.context?.site,
+    downloads: [],
   };
+  // Downloads and browser dialogs on every tab of this run, so a step can
+  // assert a saved file or answer a confirm; an unarmed dialog is dismissed.
+  const dlDir = mkdtempSync(join(tmpdir(), "spine-downloads-"));
+  const onDownload = (d: Download) => {
+    const name = d.suggestedFilename();
+    const path = join(dlDir, `${s.downloads.length + 1}-${name}`);
+    d.saveAs(path)
+      .then(() => s.downloads.push({ name, path, download: d }))
+      .catch(() => {});
+  };
+  const onDialog = (d: import("@playwright/test").Dialog) => {
+    const armed = s.armedDialog;
+    s.armedDialog = undefined;
+    s.lastDialog = { type: d.type(), message: d.message(), action: armed?.action ?? "dismiss" };
+    (armed?.action === "accept" ? d.accept(armed.text) : d.dismiss()).catch(() => {});
+  };
+  const watchTab = (p: Page) => {
+    p.on("download", onDownload);
+    p.on("dialog", onDialog);
+  };
+  watchTab(page);
+  page.context().on("page", watchTab);
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)${plan.context?.state ? ` on a ${plan.context.state} event built by API` : ""}`);
   const results: StepResult[] = [];
@@ -3314,7 +3354,11 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
 
   const byHand = results.filter((r) => r.byHand).length;
   const untested = results.filter((r) => r.untested).length;
-  return { title: plan.title, steps: results, passed: !failed, ...(byHand ? { byHand } : {}), ...(untested ? { untested } : {}), observations };
+  // A plan with no assertion step acted but checked nothing: "a test that acts but never checks proves
+  // nothing" is enforced here, not only asked of the compiler (the bench, 29 Oct).
+  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion);
+  if (!failed && !asserts) console.log(`[plan] ${plan.title}: every step ran, but the plan has no assertion step — it checked nothing, so it is NOT a pass`);
+  return { title: plan.title, steps: results, passed: !failed && asserts, ...(asserts ? {} : { unverified: true }), ...(byHand ? { byHand } : {}), ...(untested ? { untested } : {}), observations };
 }
 
 /** More time for the running test, while it waits for the tester or does what they said. */

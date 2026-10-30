@@ -21,6 +21,8 @@ export interface PlanContext {
   values?: Record<string, string>;
   /** the buyer user the API setup signed in as — the browser must be the same user, or the event is not theirs to open */
   buyerUserId?: number;
+  /** The plan runs against a site that is not Procol (no Procol pop-ups, routes or labels). */
+  site?: boolean;
 }
 
 export interface ScreenSpec {

@@ -1,0 +1,176 @@
+{
+  "id": "D-13",
+  "testCase": "D-13: Flight search: calendar with prices, passengers, results\nGoal: Book the cheapest nonstop round trip from Boston (BOS) to Portland, Maine (PWM), leaving 8 January 2027 and returning 15 January 2027, for 2 adults, 1 child and 1 infant in Premium economy.\nSTEP 1: Navigate to /sandbox/d-13/\nSTEP 2: Make sure \"Round trip\" is selected\nSTEP 3: Fill \"From\" with \"Boston\" and choose \"Boston, Massachusetts (BOS)\"\nSTEP 4: Fill \"To\" with \"Portland\" and choose \"Portland, Maine (PWM)\"\nSTEP 5: Choose departure \"8 January 2027\" and return \"15 January 2027\"\nSTEP 6: Set passengers to 2 adults, 1 child and 1 infant\nSTEP 7: Select \"Premium economy\" in \"Cabin class\"\nSTEP 8: Click \"Search\"\nSTEP 9: Keep only nonstop flights, sort by \"Cheapest\" and click \"Select\" on the first flight\nSTEP 10: Verify \"Booked NB 3318 BOS to PWM, 8 January 2027 – 15 January 2027, 2 adults, 1 child, 1 infant, Premium economy, total $1,254\" is visible",
+  "ms": 48172,
+  "plan": {
+    "title": "D-13: BOS–PWM round-trip booking",
+    "steps": [
+      {
+        "step": "go_to",
+        "args": {
+          "screen": "path",
+          "path": "/sandbox/d-13/"
+        },
+        "note": "Open the flight search."
+      },
+      {
+        "step": "click",
+        "args": {
+          "role": "radio",
+          "name": "Round trip"
+        },
+        "note": "Choose a round-trip itinerary."
+      },
+      {
+        "step": "fill",
+        "args": {
+          "label": "From",
+          "value": "Boston"
+        },
+        "note": "Find the departure airport."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "Boston, Massachusetts (BOS)"
+        },
+        "note": "Choose the exact Boston airport suggestion."
+      },
+      {
+        "step": "fill",
+        "args": {
+          "label": "To",
+          "value": "Portland"
+        },
+        "note": "Find the destination airport."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "Portland, Maine (PWM)"
+        },
+        "note": "Choose Portland, Maine rather than another Portland."
+      },
+      {
+        "step": "click",
+        "args": {
+          "label": "Departure"
+        },
+        "note": "Open the departure calendar."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "8 January 2027"
+        },
+        "note": "Choose the requested departure date."
+      },
+      {
+        "step": "click",
+        "args": {
+          "label": "Return"
+        },
+        "note": "Open the return calendar."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "15 January 2027"
+        },
+        "note": "Choose the requested return date."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "Passengers"
+        },
+        "note": "Open the passenger controls."
+      },
+      {
+        "step": "fill",
+        "args": {
+          "label": "Adults",
+          "value": "2"
+        },
+        "note": "Set and confirm two adults."
+      },
+      {
+        "step": "fill",
+        "args": {
+          "label": "Children",
+          "value": "1"
+        },
+        "note": "Set and confirm one child."
+      },
+      {
+        "step": "fill",
+        "args": {
+          "label": "Infants",
+          "value": "1"
+        },
+        "note": "Set and confirm one infant."
+      },
+      {
+        "step": "select",
+        "args": {
+          "label": "Cabin class",
+          "option": "Premium economy"
+        },
+        "note": "Set and confirm the requested cabin."
+      },
+      {
+        "step": "click",
+        "args": {
+          "role": "button",
+          "name": "Search"
+        },
+        "note": "Search for the configured itinerary."
+      },
+      {
+        "step": "toggle",
+        "args": {
+          "label": "Nonstop",
+          "on": true
+        },
+        "note": "Enable and confirm the nonstop filter."
+      },
+      {
+        "step": "click",
+        "args": {
+          "text": "Cheapest"
+        },
+        "note": "Request cheapest-first sorting; this action does not assert the resulting order."
+      },
+      {
+        "step": "click",
+        "args": {
+          "role": "button",
+          "name": "Select",
+          "within": "NB 3318"
+        },
+        "note": "Select the flight identified by the expected confirmation, without claiming it is the first result."
+      },
+      {
+        "step": "expect_text",
+        "args": {
+          "text": "Booked NB 3318 BOS to PWM, 8 January 2027 – 15 January 2027, 2 adults, 1 child, 1 infant, Premium economy, total $1,254",
+          "present": true
+        },
+        "note": "Verify the exact flight, itinerary, passenger mix, cabin, and total in the booking confirmation."
+      }
+    ]
+  },
+  "reasoning": "This plan checks the requested itinerary, passenger mix, cabin, and exact booking confirmation. It targets NB 3318 using the flight identifier supplied in the expected confirmation, but the catalog cannot establish that this flight is the first result after sorting by cheapest.",
+  "context": {
+    "expectations": [],
+    "experience": []
+  },
+  "source": "llm",
+  "warnings": [
+    "can only test part of this — no step for: Select and verify the first flight in the cheapest-sorted nonstop results: the catalog has no positional targeting or result-order assertion, so targeting NB 3318 does not prove it is the cheapest qualifying flight."
+  ],
+  "coverage": "partial",
+  "gaps": [
+    "Select and verify the first flight in the cheapest-sorted nonstop results: the catalog has no positional targeting or result-order assertion, so targeting NB 3318 does not prove it is the cheapest qualifying flight."
+  ]
+}
