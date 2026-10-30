@@ -544,6 +544,15 @@ async function execute(
       }
       const found = await findVisible(page, t, timeoutMs);
       if (!found) {
+        // A tester reading the screen also reads the hint inside an empty box ("Starting from",
+        // "Search Title") and a control's own label — text the page shows that is not page text.
+        const q = text.replace(/"/g, '\\"');
+        const hint = page.locator(`[placeholder*="${q}" i]:visible, [aria-label*="${q}" i]:visible, [title*="${q}" i]:visible`).first();
+        if (await hint.count().catch(() => 0)) {
+          noteSeen(text, page.url(), "placeholder/label");
+          await spotlightMark(hint, `"${text}" is on screen (as a field hint or label)`).catch(() => {});
+          return { detail: `"${text}" is on screen as a field hint or label`, strategy: "placeholder/label" };
+        }
         const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
         throw new Error(`the text "${text}" is not on screen within ${Math.round(timeoutMs / 1000)}s${t.within ? ` inside ${t.within}` : ""} — the screen reads: ${body.slice(0, 220)}…`);
       }
@@ -561,7 +570,17 @@ async function execute(
         return { detail: r.detail, strategy: "absence (page-ready + double check)" };
       }
       const found = await findVisible(page, t, timeoutMs);
-      if (!found) throw new Error(`${describe(t)} is not visible within ${Math.round(timeoutMs / 1000)}s`);
+      if (!found) {
+        // the words may be a field's hint or label ("Starting from" in an empty date box)
+        const word = String(targetWords(t)[0] ?? "").replace(/"/g, '\\"');
+        const hint = word ? page.locator(`[placeholder*="${word}" i]:visible, [aria-label*="${word}" i]:visible, [title*="${word}" i]:visible`).first() : null;
+        if (hint && (await hint.count().catch(() => 0))) {
+          noteSeen(word, page.url(), "placeholder/label");
+          await spotlightMark(hint, `${describe(t)} is visible (as a field hint or label)`).catch(() => {});
+          return { detail: `${describe(t)} is visible as a field hint or label`, strategy: "placeholder/label" };
+        }
+        throw new Error(`${describe(t)} is not visible within ${Math.round(timeoutMs / 1000)}s`);
+      }
       noteSeen(targetWords(t)[0], page.url(), found.strategy);
       await spotlightMark(found.locator, `${describe(t)} is visible`).catch(() => {});
       return { detail: `${describe(t)} is visible${found.visible > 1 ? ` (${found.visible} matches)` : ""}`, strategy: found.strategy };

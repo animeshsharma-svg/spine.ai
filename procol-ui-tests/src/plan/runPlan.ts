@@ -18,6 +18,8 @@ import { WidgetConfig } from "../helpers/inlineSheet.js";
 import { PlanStep, STEP_CATALOG, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
+import { probeControls } from "./probe.js";
+import { extendTime } from "./eventTime.js";
 import { appRuleFor, recoveryFor, recoveryWith, type AppRule } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
@@ -400,6 +402,10 @@ interface RunState {
   /** The app refused an EARLIER step (e.g. the configuration drawer would not save) — a later
    *  block assertion judges this refusal instead of a publish that can no longer be reached. */
   earlyRefusal?: string;
+  /** Template names read from the single stage menu, per event type (expect_template_menu). */
+  templateMenus?: Record<string, string[]>;
+  /** What set_sheet_cell typed and what the cell showed afterwards, by "row:column". */
+  typedCells?: Record<string, { typed: string; shown: string; locked: boolean }>;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -451,6 +457,46 @@ function onSingleStage(s: RunState): boolean {
   const url = s.page.url();
   return /singleStage=true/i.test(url) && !/\/project\//.test(url);
 }
+
+/** The price / BOQ sheet on screen: its rows, lower-cased header texts and a header → column lookup. */
+async function sheetGrid(s: RunState) {
+  const grid = s.page.locator(".data-grid-container table").filter({ visible: true }).first();
+  if (!(await grid.count().catch(() => 0))) throw new Error("no sheet (data grid) on this screen (not evidence about the product)");
+  const rows = grid.locator("tr");
+  const heads = (await rows.nth(0).locator("td, th").allInnerTexts().catch(() => [] as string[])).map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase());
+  const colOf = (name: string) => {
+    const n = name.replace(/\*/g, "").replace(/_/g, " ").trim().toLowerCase();
+    let i = heads.findIndex((h) => h === n);
+    if (i < 0) i = heads.findIndex((h) => h.startsWith(n) || h.includes(n));
+    return i;
+  };
+  const cell = async (row: unknown, column: unknown) => {
+    const rowNo = Math.max(1, Number(row) || 1);
+    if ((await rows.count()) <= rowNo) throw new Error(`the sheet has no data row ${rowNo} (not evidence about the product)`);
+    const i = colOf(String(column ?? ""));
+    if (i < 0) throw new Error(`not checked: no "${column}" column in the sheet (columns: ${heads.filter(Boolean).join(", ")})`);
+    return { td: rows.nth(rowNo).locator("td").nth(i), rowNo, key: `${rowNo}:${String(column).toLowerCase()}` };
+  };
+  return { rows, heads, colOf, cell };
+}
+
+/** A cell's text as a person reads it; numbers compared without separators or currency. */
+const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
+const sameCellValue = (a: string, b: string) => {
+  const num = (x: string) => {
+    // "9,99,99,999 KG" (Indian grouping + unit) is 99999999
+    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z()]+$/, "");
+    return /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : null;
+  };
+  const na = num(a), nb = num(b);
+  if (na !== null && nb !== null) return na === nb;
+  // a product cell reads "NAME (code)Details", and a long name is cut "70MM CYLINDER WITH KEY & ...(code)"
+  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\(\d+\)\s*$/, "").trim().toLowerCase();
+  const sa = name(a), sb = name(b);
+  if (sa === sb) return true;
+  const cut = (x: string, y: string) => /\.\.\.$|…$/.test(x) && y.startsWith(x.replace(/(\.\.\.|…)$/, "").trim());
+  return cut(sa, sb) || cut(sb, sa);
+};
 
 /**
  * The single-stage create screen, recognised by what it shows ("Event Type" + the
@@ -960,6 +1006,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   const generic = await runGenericStep(s, step, (inner) => runStep(s, inner));
   if (generic) {
     s.lastStrategy = generic.strategy;
+    // A plain click on "Submit Proposal" on the awarding/proposal screen IS the award submission —
+    // the confirmation below must count it, not only the award_event step.
+    const named = `${a.name ?? ""} ${a.text ?? ""} ${a.label ?? ""}`;
+    if (step.step === "click" && /submit proposal/i.test(named)) s.awarded = true;
     return generic.detail;
   }
   switch (step.step) {
@@ -1060,11 +1110,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "expect_sheet_columns": {
       const keys = await s.create.sheetHeaderKeys();
       if (!keys.length) throw new Error("no pricing-sheet header has rendered — the template's schema is not on screen");
+      // a case names columns as the tester reads them ("Quantity Requested"), the grid keys them by widget
+      // ("creator_quantity"): either counts
+      const heads = await s.page.locator(".data-grid-container table").filter({ visible: true }).first().locator("tr").first().locator("td, th").allInnerTexts().catch(() => [] as string[]);
+      const shown = heads.map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim()).filter(Boolean);
       const want = Array.isArray(a.columns) ? a.columns.map(String) : [];
       const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
-      const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))));
-      if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
-      return `sheet columns: ${keys.join(", ")}`;
+      const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))) && !shown.some((h) => norm(h) === norm(w) || norm(h).startsWith(norm(w))));
+      if (missing.length) throw new Error(`sheet columns are [${shown.join(", ") || keys.join(", ")}] — missing: ${missing.join(", ")}`);
+      return `sheet columns: ${shown.join(", ") || keys.join(", ")}`;
     }
     case "open_add_stage_menu": {
       const m = await s.create.openAddStageMenu();
@@ -1112,6 +1166,175 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       console.log(`[sheet] row ${rowNo}: ${seenDetail.join(" | ")}`);
       if (problems.length) throw new Error(`sheet row ${rowNo}: ${problems.join("; ")} — seen: ${seenDetail.join(" | ").slice(0, 700)}`);
       return `sheet row ${rowNo}: ${seen.join(", ")}`;
+    }
+    case "extend_time": {
+      return extendTime(s.page, a, async () => (await runStep(s, { step: "open_event_settings" })) ?? "");
+    }
+    case "expect_settings_menu": {
+      // what the Settings menu offers in this event's state: present / absent / greyed out / clickable,
+      // and every greyed-out item must say why in a tooltip
+      const offered = (await runStep(s, { step: "open_event_settings" })) ?? "";
+      const items = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem'], .ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item").filter({ visible: true });
+      const rows: Array<{ name: string; greyed: boolean; tip: string }> = [];
+      for (let i = 0; i < (await items.count()); i++) {
+        const it = items.nth(i);
+        const name = ((await it.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        if (!name) continue;
+        rows.push({ name, greyed: /disabled/.test((await it.getAttribute("class").catch(() => "")) ?? ""), tip: "" });
+      }
+      for (const r of rows.filter((x) => x.greyed)) {
+        await runStep(s, { step: "open_event_settings" }).catch(() => "");
+        const it = items.filter({ hasText: r.name }).first();
+        await it.hover({ force: true }).catch(() => {});
+        await s.page.waitForTimeout(700);
+        r.tip = ((await s.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").filter({ visible: true }).last().innerText().catch(() => "")) || "").trim();
+      }
+      await s.page.keyboard.press("Escape").catch(() => {});
+      const has = (n: string) => rows.find((r) => r.name.toLowerCase() === n.toLowerCase() || r.name.toLowerCase().startsWith(n.toLowerCase()));
+      const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
+      const problems: string[] = [];
+      for (const n of list(a.offered)) if (!has(n)) problems.push(`"${n}" is not offered`);
+      for (const n of list(a.absent)) if (has(n)) problems.push(`"${n}" is offered${has(n)!.greyed ? " (greyed out)" : ""} but should not be`);
+      for (const n of list(a.greyed)) if (has(n) && !has(n)!.greyed) problems.push(`"${n}" can be clicked but should be greyed out`);
+      for (const n of list(a.enabled)) if (has(n)?.greyed) problems.push(`"${n}" is greyed out${has(n)!.tip ? ` ("${has(n)!.tip}")` : ""} but should be clickable`);
+      if (a.tooltips !== false) for (const r of rows.filter((x) => x.greyed && !x.tip)) problems.push(`"${r.name}" is greyed out with NO tooltip saying why`);
+      const seen = rows.map((r) => `${r.name}${r.greyed ? ` (greyed${r.tip ? `: "${r.tip}"` : ", no tooltip"})` : ""}`).join(", ");
+      if (problems.length) throw new Error(`[product] Settings menu: ${problems.join("; ")} — offered: ${seen || offered}`);
+      return `Settings menu offers: ${seen}`;
+    }
+    case "probe_controls": {
+      const runDir = joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_"));
+      const { records, file } = await probeControls(s.page, a, runDir, s.stepNo);
+      const by = (o: string) => records.filter((r) => r.outcome === o).length;
+      return `probed ${records.length} control(s): ${by("dialog")} dialog, ${by("menu")} menu, ${by("navigated")} new page, ${by("message")} message, ${by("disabled")} disabled, ${by("error")} error, ${by("nothing")} nothing visible — ${file}`;
+    }
+    case "expect_template_menu": {
+      if (!(await isSingleStageScreen(s))) {
+        throw new Error("not checked: the template menu is read on the single stage create screen — this is a different screen");
+      }
+      const types = ["rfq", "rfp", "auction"];
+      const want = a.eventType ? String(a.eventType).toLowerCase() : "";
+      if (want && !types.includes(want)) throw new Error(`expect_template_menu: eventType must be rfq, rfp or auction (got "${want}")`);
+      s.templateMenus ??= {};
+      // RFP reads questionnaire (rfi) templates; RFQ and auction read the same trade templates
+      const ident = (t: string) => (t === "rfp" ? "rfi" : "trade");
+      let current = (await s.page.getByRole("button", { name: /^(rfp|rfi)\b/i }).first().isVisible().catch(() => false)) ? "rfp" : "rfq";
+      const showing = async (t: string) => s.page.getByRole("button", { name: t === "auction" ? /^(auction|rank|price|traffic)/i : new RegExp(`^${t}\\b`, "i") }).first().isVisible().catch(() => false);
+      const readAs = async (t: string) => {
+        if (t && !(await showing(t))) {
+          // The template list is loaded by its own request (templateSelection.jsx fetchAllTemplatesByType:
+          // ?type_identifier=rfi for RFP, trade for RFQ / auction). The menu shows the previous type's list
+          // until that request answers, so wait for it before reading.
+          const want = ident(t);
+          const reload = ident(current) !== want;
+          const fresh = reload ? s.page.waitForResponse((r) => r.url().includes(`type_identifier=${want}`), { timeout: 20_000 }).then(() => true).catch(() => false) : Promise.resolve(true);
+          await s.single.configure({ eventType: t as any }).catch((e: Error) => {
+            throw new Error(`not checked: could not switch the event type to ${t.toUpperCase()} to read its templates (${e.message.split("\n")[0].slice(0, 120)})`);
+          });
+          current = t;
+          if (!(await fresh)) throw new Error(`not checked: after switching to ${t.toUpperCase()} the app did not load its template list again within 20 s, so the menu would still be the previous type's`);
+          await s.page.waitForTimeout(800);
+        }
+        const r = await s.single.readTemplateMenu();
+        const key = t || (types.find((x) => new RegExp(`^${x}`, "i").test(r.eventType)) ?? (/rank|price|traffic/i.test(r.eventType) ? "auction" : r.eventType.toLowerCase() || "current"));
+        s.templateMenus![key] = r.names;
+        return { key, names: r.names };
+      };
+      const mine = await readAs(want);
+      const problems: string[] = [];
+      const min = Math.max(1, Number(a.min) || 1);
+      if (mine.names.length < min) problems.push(`the menu offered ${mine.names.length} template(s) for ${mine.key.toUpperCase()}, expected at least ${min}`);
+      const has = (w: string) => mine.names.some((n) => n.toLowerCase().includes(w.toLowerCase()));
+      for (const w of (Array.isArray(a.contains) ? a.contains : a.contains ? [a.contains] : []) as string[]) if (!has(String(w))) problems.push(`no template named like "${w}"`);
+      for (const w of (Array.isArray(a.absent) ? a.absent : a.absent ? [a.absent] : []) as string[]) if (has(String(w))) problems.push(`a template named like "${w}" is offered but should not be`);
+      const others = (Array.isArray(a.distinctFrom) ? a.distinctFrom : a.distinctFrom ? [a.distinctFrom] : []).map((x: unknown) => String(x).toLowerCase()).filter((x: string) => types.includes(x) && x !== mine.key);
+      if (others.length) {
+        for (const t of others) if (!s.templateMenus[t]) await readAs(t);
+        // put the screen back on the type this case is about
+        if (types.includes(mine.key) && !(await showing(mine.key))) await s.single.configure({ eventType: mine.key as any }).catch(() => {});
+        for (const t of others) {
+          if (ident(t) === ident(mine.key)) {
+            console.log(`[single-stage] ${mine.key.toUpperCase()} and ${t.toUpperCase()} read the same trade template list by design (templateSelection.jsx) — not compared`);
+            continue;
+          }
+          const shared = mine.names.filter((n) => s.templateMenus![t].includes(n));
+          if (shared.length) problems.push(`${shared.length} template(s) appear for both ${mine.key.toUpperCase()} and ${t.toUpperCase()}: ${shared.slice(0, 6).join(", ")}`);
+        }
+      }
+      const listed = `${mine.key.toUpperCase()} templates (${mine.names.length}): ${mine.names.slice(0, 12).join(", ")}${mine.names.length > 12 ? " …" : ""}`;
+      if (problems.length) throw new Error(`template menu: ${problems.join("; ")} — ${listed}`);
+      return listed;
+    }
+    case "set_sheet_cell": {
+      const value = String(a.value ?? "");
+      const clearing = value === "" || /^\(?(empty|clear|blank)\)?$/i.test(value);
+      const g = await sheetGrid(s);
+      const { td, rowNo, key } = await g.cell(a.row, a.column);
+      const locked = /read-?only/i.test((await td.getAttribute("class").catch(() => "")) ?? "");
+      await td.scrollIntoViewIfNeeded().catch(() => {});
+      // Click, then double-click if no editor opened — like a person getting into a cell.
+      const editor = () => s.page.locator(".data-grid-container input:visible, .data-grid-container textarea:visible, td input:focus, td textarea:focus").first();
+      await td.click({ timeout: 5_000 }).catch(() => {});
+      if (!(await editor().count().catch(() => 0))) await td.dblclick({ timeout: 5_000 }).catch(() => {});
+      let typed = false;
+      // a dropdown cell (Delivery location, Product Variant): its search box opens — type and pick the option
+      const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+      if (!clearing && (await select.count().catch(() => 0))) {
+        const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
+        await search.fill(value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
+        await s.page.waitForTimeout(1200);
+        const esc = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc.replace(/\\\(.*$/, ""), "i") }).first();
+        if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
+        else {
+          await s.page.keyboard.press("Escape").catch(() => {});
+          const shown = cellText((await td.innerText().catch(() => "")) || "");
+          s.typedCells ??= {};
+          s.typedCells[key] = { typed: value, shown, locked: false };
+          return `row ${rowNo} "${a.column}": the list offers nothing matching "${value}" — the cell shows "${shown}"`;
+        }
+      } else if (await editor().count().catch(() => 0)) {
+        await (clearing ? editor().fill("", { timeout: 5_000 }) : editor().fill(value, { timeout: 5_000 })).then(() => (typed = true)).catch(() => {});
+      }
+      if (!typed && !locked && clearing) {
+        await td.click({ timeout: 5_000 }).catch(() => {});
+        await s.page.keyboard.press("Backspace").then(() => (typed = true)).catch(() => {});
+      } else if (!typed && !locked) {
+        // Some cells take keystrokes straight away (the grid opens its editor on the first key).
+        await td.click({ timeout: 5_000 }).catch(() => {});
+        await s.page.keyboard.type(value, { delay: 30 }).then(() => (typed = true)).catch(() => {});
+      }
+      await s.page.keyboard.press("Tab").catch(() => {});
+      await s.page.waitForTimeout(800);
+      const shown = cellText((await td.innerText().catch(() => "")) || "");
+      s.typedCells ??= {};
+      s.typedCells[key] = { typed: value, shown, locked: locked || !typed };
+      return locked || !typed
+        ? `row ${rowNo} "${a.column}": the cell would not take typing (locked) — it shows "${shown}"`
+        : `typed "${value}" into row ${rowNo} "${a.column}" — the cell now shows "${shown}"`;
+    }
+    case "expect_sheet_cell": {
+      const g = await sheetGrid(s);
+      const { td, rowNo, key } = await g.cell(a.row, a.column);
+      const shown = cellText((await td.innerText().catch(() => "")) || "");
+      const cls = (await td.getAttribute("class").catch(() => "")) ?? "";
+      const typed = s.typedCells?.[key];
+      const flagged = /error|invalid|danger/i.test(cls) || (await td.locator("[class*='error'], [class*='invalid'], .anticon-exclamation-circle, .anticon-warning").count().catch(() => 0)) > 0;
+      const where = `row ${rowNo} "${a.column}"`;
+      const problems: string[] = [];
+      if (a.equals !== undefined && !sameCellValue(shown, String(a.equals))) problems.push(`shows "${shown}", expected "${a.equals}"`);
+      if (a.contains !== undefined && !shown.toLowerCase().includes(String(a.contains).toLowerCase())) problems.push(`shows "${shown}", expected it to contain "${a.contains}"`);
+      if (a.empty === true && shown) problems.push(`shows "${shown}", expected it empty`);
+      if (a.empty === false && !shown) problems.push("is empty, expected a value");
+      if (a.refused !== undefined || a.kept !== undefined) {
+        if (!typed) throw new Error(`not checked: nothing was typed into ${where} in this case (set_sheet_cell first)`);
+        const kept = !typed.locked && sameCellValue(shown, typed.typed) && !flagged;
+        const wantRefused = a.refused === true || a.kept === false;
+        if (wantRefused && kept) problems.push(`KEPT "${typed.typed}" — expected the sheet to refuse it`);
+        if (!wantRefused && !kept) problems.push(`did not keep "${typed.typed}" — it shows "${shown}"${flagged ? " and is marked as an error" : ""}${typed.locked ? " (the cell is locked)" : ""}`);
+      }
+      if (problems.length) throw new Error(`sheet ${where} ${problems.join("; ")}`);
+      return `sheet ${where} shows "${shown}"${typed ? ` after typing "${typed.typed}"` : ""}${flagged ? " (marked as an error)" : ""}`;
     }
     case "open_event_settings": {
       // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
@@ -1222,7 +1445,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const absent = Array.isArray(a.absent) ? a.absent.map(String) : [];
       // The menu lives on the list; go there if the plan has not already.
       if (!/\/orders\/?(\?|$)/.test(new URL(s.page.url()).pathname + new URL(s.page.url()).search)) await s.events.goto();
-      const offered = await s.events.readCreateMenu();
+      let offered = await s.events.readCreateMenu();
+      // No menu at all: with eRFX switched off, "Create Event" has no choices and opens the single stage screen
+      // straight away (seen 30 Oct). Click it and see where it lands — that is the one option it offers.
+      if (!offered.length) {
+        await s.page.getByRole("button", { name: /create event/i }).first().click({ timeout: 8_000 }).catch(() => {});
+        await s.page.waitForTimeout(2_500);
+        const pop = s.page.locator(".ant-modal-wrap:not([style*='display: none']), .ant-dropdown:not(.ant-dropdown-hidden)").filter({ visible: true });
+        if (await pop.count().catch(() => 0)) offered = (await pop.last().innerText().catch(() => "")).split("\n").map((t) => t.trim()).filter((t) => t.length > 2 && t.length < 40);
+        else if (/quick-create/.test(s.page.url()) && (await isSingleStageScreen(s))) offered = ["Single Stage (Create Event opens it directly — no menu)"];
+        else if (/quick-create/.test(s.page.url())) offered = ["eRFX Project (Create Event opens it directly — no menu)"];
+      }
       // "single-stage", "Single Stage" and "singlestage" are the same option
       // to a person; punctuation and spacing must not decide a verdict.
       const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -1273,7 +1506,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return a.price === undefined ? `${detail} (counter at 95% of ${from}: ${price})` : detail;
     }
     case "expect_counter_offer_sent": {
-      if (!s.counterOfferSent) throw new Error("no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
+      if (!s.counterOfferSent) throw new Error("not checked: no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
       const co = new CounterOfferPage(s.page);
       const marked = await co.counterOfferVisibleFor(a.vendor ? String(a.vendor) : undefined);
       if (!marked) throw new Error("the counter offer was sent, but the grid shows no counter-offer mark on the bid yet");
@@ -1451,7 +1684,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
     }
     case "expect_counter_offer_accepted": {
-      if (!s.counterOfferAccepted) throw new Error("no counter offer was accepted in this plan — expect_counter_offer_accepted needs accept_counter_offer before it");
+      if (!s.counterOfferAccepted) throw new Error("not checked: no counter offer was accepted in this plan — expect_counter_offer_accepted needs accept_counter_offer before it");
       // Back on the buyer's page, the Responses grid should now carry the mark.
       const co = new CounterOfferPage(s.page);
       await s.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
@@ -1687,14 +1920,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (questionnaire && !sheet) return "no line items entered: this single-stage RFP's template is a questionnaire, with no price sheet to add products to";
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
-        await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
+        await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"), a.quantity !== undefined ? String(a.quantity) : undefined);
         s.lineItemsAdded = 1;
         const ranges = await s.single.fillRangeCells();
         if (ranges) console.log(`[single-stage] filled ${ranges} traffic-light range cell(s) on the line item`);
         const wanted = asInt(a.count, 1);
         return wanted > 1
           ? `1 line item filled in the single-stage sheet (the case asked for ${wanted}; this screen's sheet takes one product row per flow here)`
-          : "1 line item filled in the single-stage sheet";
+          : `1 line item filled in the single-stage sheet${a.quantity !== undefined ? ` (quantity typed: ${a.quantity})` : ""}`;
       }
       const count = asInt(a.count, 1);
       s.products = a.search
@@ -2104,23 +2337,27 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `awarded ${allocated.items} line item(s) to ${allocated.vendors} vendor(s) — ${outcome}`;
     }
     case "expect_awarded":
-      expect(s.awarded, "nothing was awarded in this plan, so there is no award to confirm").toBe(true);
+      // Not a screen check: without an award made in this plan there is nothing to confirm — that is
+      // the plan's gap, never the product's failure.
+      if (!s.awarded) throw new Error("not checked: no award was submitted in this plan, so there is no award to confirm");
       return "the event is awarded";
     case "expect_bid_submitted": {
-      expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
+      // An event BUILT with a vendor's bid (the API set-up) has one to confirm too; a plan that neither bid nor
+      // started from a bid has nothing to confirm — "not checked", never a failure about the product.
+      if (!s.bidSubmitted && !s.context?.vendorName) throw new Error("not checked: no bid has been placed in this plan, so there is nothing to confirm");
       // Procol's own record, not only the run's word for it (Aanya, 29 Oct: "how did the vendor bid without
       // filling price, or did it fill but it doesn't show here??" — the portal's last picture, taken while
       // the sheet reloaded, showed empty prices; the bid held 95 on all 3 lines, ₹33,535).
       const title = s.title ?? "";
       const eg = decodeProcolId(s.page.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? (title ? (await eventGroupByTitle(title).catch(() => undefined))?.id : undefined);
       const bids = eg ? await bidsOfEventGroup(eg).catch(() => null) : null;
-      if (!bids) return "the bid is submitted (the portal said so; Procol's database could not be read to confirm it)";
+      if (!bids) return s.bidSubmitted ? "the bid is submitted (the portal said so; Procol's database could not be read to confirm it)" : `the event was built with ${s.context?.vendorName}'s bid`;
       const mine = bids.filter((b) => !b.by_buyer);
       const want = s.portalBids?.[s.portalBids.length - 1];
       if (want && !mine.length) throw new Error("the portal said the bid was submitted, but Procol has no bid from a vendor on this event");
       const last = mine[mine.length - 1] ?? bids[bids.length - 1];
       if (!last) throw new Error("Procol has no bid on this event");
-      if (want && last.price != null && Math.abs(last.price - want.price) > 0.001) throw new Error(`Procol holds ${last.vendor}'s bid at ${last.price}, not the ${want.price} typed`);
+      if (want && last.price != null && Math.abs(last.price - want.price) > 0.001) throw new Error(`Procol holds ${last.vendor}'s bid at ${last.price}, not the ${want.price} the portal submitted`);
       const money = last.amount != null ? `, total ₹${last.amount.toLocaleString("en-IN")}` : "";
       return `Procol holds ${last.vendor}'s bid: ${last.price ?? "no price"}${last.lines > 1 ? ` on each of ${last.lines} lines` : ""}${money}`;
     }
@@ -2763,7 +3000,42 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
     if (o && (o.findings.length || o.screenshot)) observations.push(o);
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
+    // Discovery (UI_DISCOVER=1): every screen the run reaches for the first time is inventoried —
+    // its controls, boxes and numbered map — so the screen-cases agent can write the cases that
+    // screen deserves after the run ("new test cases found on this run"). Bounded, never fatal.
+    if (process.env.UI_DISCOVER === "1" && o?.screenshot && !discovered.has(screenKey(page.url()))) {
+      discovered.add(screenKey(page.url()));
+      await Promise.race([
+        (async () => {
+          const label = screenKey(page.url()).replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screen";
+          const inv = await screenInventory(page);
+          const map = await spotlightMap(page, label, inv.controls).catch(() => null);
+          const file = o.screenshot!.replace(/\.png$/, ".inventory.json");
+          writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o.screenshot, map, aria: o.snapshot ?? null, runId, stepNo: i + 1, ...inv }, null, 2));
+          console.log(`[inventory] ${file}`);
+        })().catch(() => {}),
+        new Promise<void>((r) => setTimeout(r, 20_000)),
+      ]);
+    }
   };
+  /**
+   * A screen's identity for discovery: its path with ids replaced, e.g. /project/:id/details —
+   * UUIDs, numbers, and short mixed letter-digit slugs like the project code "TlpnY2RO".
+   */
+  const screenKey = (u: string) => {
+    try {
+      return (
+        new URL(u).pathname
+          .split("/")
+          .map((seg) => (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(seg) || /^\d{3,}$/.test(seg) || (/\d/.test(seg) && /[a-z]/i.test(seg) && seg.length >= 6 && !/-/.test(seg)) ? ":id" : seg))
+          .join("/")
+          .replace(/\/+$/, "") || "/"
+      );
+    } catch {
+      return u;
+    }
+  };
+  const discovered = new Set<string>();
   let failed = false;
   let recoveries = 0;
   const recoveredRules = new Set<string>();

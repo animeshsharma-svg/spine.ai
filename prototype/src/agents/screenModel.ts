@@ -25,6 +25,7 @@ import { retrieve, FACT_KINDS } from "../rag/knowledgeBase.js";
 import { draftCasesFromScreen, rulesForScreen, type ScreenInventory, type InventoryControl } from "./screenCases.js";
 import { compileTestCase } from "./planner.js";
 import { nextDraftId, saveDraft, type DraftRecord } from "./drafts.js";
+import { toHouseStyle } from "./caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -547,7 +548,7 @@ export async function caseFromEffect(id: string, n: number, opts: { companyId?: 
   if (!e || !c) return { why: "no such control" };
   const verb = c.kind === "field" ? "Fill" : c.kind === "select" ? "Choose a value in" : c.kind === "switch" || c.kind === "checkbox" ? "Toggle" : "Click";
   const reach = r.reachedBy.length ? r.reachedBy.map((s) => s.step.replace(/_/g, " ")).join(", then ") : `open the ${r.label} screen (${r.path})`;
-  const steps = [`Reach the ${r.label} screen: ${reach}.`, `${verb} "${c.name}".`];
+  const steps = toHouseStyle({ title: "", steps: [r.reachedBy.length ? `Open the ${r.label} screen (${r.path})` : `Open the ${r.label} screen (${r.path})`, `${verb} "${c.name}"`], expected: "" }).steps;
   const expected = `${e.does}${e.leadsTo && !/stays here|unknown/i.test(e.leadsTo) ? ` The screen moves to ${e.leadsTo}.` : ""}${e.affects && !/^(nothing|unknown)$/i.test(e.affects) ? ` ${e.affects}` : ""}`;
   const title = `${verb} "${c.name}" on ${r.label}: ${e.does.replace(/\.$/, "").slice(0, 80)}`;
   const caseText = `${title}. ${steps.join(" ")} Expected: ${expected}`;
@@ -602,7 +603,11 @@ export async function newCaseOnScreen(id: string, text: string, opts: { companyI
     title,
     why: `Typed on the ${r.label} screen's page of the screen library.`,
     setup: reach,
-    steps: compiled.plan.steps.map((st) => `${st.step.replace(/_/g, " ")}${st.args && Object.keys(st.args).length ? ` (${Object.entries(st.args).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(", ")})` : ""}`),
+    steps: await (async () => {
+      const { stepWords, expectedWords } = await import("./journeyCases.js");
+      const words = compiled.plan.steps.map((st) => (/^expect_|^attempt$/.test(st.step) ? `Check: ${expectedWords(st)}` : stepWords(st)));
+      return toHouseStyle({ title, steps: words, expected: typed }).steps;
+    })(),
     expected: typed,
     oracle: compiled.reasoning?.slice(0, 300) || `What the ${r.label} screen shows.`,
     priority: "P1",

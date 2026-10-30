@@ -72,6 +72,8 @@ export class SingleStagePage extends BasePage {
         [
           this.page.getByRole("button", { name: /^(RFP|RFQ|Auction)\b/ }),
           this.page.getByText(/^(RFP|RFQ|Auction)\s*>/),
+          // once an auction is chosen the chip reads its kind ("Rank on lot", "Price on item", "Traffic light …")
+          this.page.getByRole("button", { name: /^(rank|price|traffic)\b.*\b(lot|item|light)\b/i }),
         ],
         { label: "event-type-chip", timeout: TIMEOUTS.MEDIUM, force: true },
       );
@@ -335,11 +337,51 @@ export class SingleStagePage extends BasePage {
   }
 
   /**
+   * Open "Select Templates", read the name of every template the menu offers (all of them — the
+   * menu scrolls, so the list is read from the DOM, not the viewport), and close it again without
+   * choosing. Returns the event type the screen shows (RFQ / RFP / Auction …) and the names.
+   */
+  async readTemplateMenu(): Promise<{ eventType: string; names: string[] }> {
+    await this.dismissDistractions();
+    const picker = this.page.getByRole("button", { name: /select templates/i }).first();
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && (await picker.isDisabled().catch(() => true))) await this.pause(500);
+    if (await picker.isDisabled().catch(() => true)) {
+      throw new Error('"Select Templates" stayed disabled for 30s — the template list never finished loading (not evidence about the product)');
+    }
+    await this.page.locator(".ant-drawer-open .ant-drawer-mask, .ant-drawer-open").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    const typeBtn = this.page.getByRole("button", { name: /^(rfq|rfp|rfi|auction|rank|price|traffic)\b/i }).first();
+    const eventType = ((await typeBtn.innerText().catch(() => "")) || "").trim();
+    await this.click([picker, this.page.getByText(/select templates/i)], { label: "open-templates", timeout: TIMEOUTS.MEDIUM });
+    await picker.hover({ timeout: 5_000 }).catch(() => {});
+    const menu = this.page.locator(".ant-dropdown").filter({ has: this.page.getByPlaceholder(/search template/i) }).filter({ visible: true }).last();
+    await menu.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    // The list can still be the previous event type's for a moment after a type change: read
+    // twice a second apart and keep the second reading once it has settled.
+    const read = async () =>
+      (await menu.locator("[role='menuitem']").filter({ hasNot: this.page.getByPlaceholder(/search template/i) }).allInnerTexts().catch(() => [] as string[]))
+        .map((t) => t.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+    let names = await read();
+    for (let i = 0; i < 4; i++) {
+      await this.pause(1000);
+      const again = await read();
+      if (again.join("|") === names.join("|")) break;
+      names = again;
+    }
+    await this.page.keyboard.press("Escape").catch(() => {});
+    await this.page.mouse.move(0, 0).catch(() => {});
+    await this.pause(500);
+    console.log(`[single-stage] template menu (${eventType || "?"}): ${names.length} — ${names.slice(0, 15).join(" | ")}`);
+    return { eventType, names: [...new Set(names)] };
+  }
+
+  /**
    * Fill the first line-item row in the pricing sheet. Cells (verified):
    * product, variant, creator_quantity, buyer_hub (delivery), price,
    * participant_quantity. Order matters — product first (variant depends on it).
    */
-  async fillFirstLineItem(searchText = "a"): Promise<void> {
+  async fillFirstLineItem(searchText = "a", quantity?: string): Promise<void> {
     // No price sheet on screen (e.g. the default Event Type is RFP and the template is a
     // questionnaire): say so at once instead of waiting ~30 s on each of six cells that
     // do not exist and then reporting the row as filled.
@@ -352,7 +394,8 @@ export class SingleStagePage extends BasePage {
     await this.pause(500);
     // variant often auto-fills from the product; try dropdown, ignore if absent.
     await sheet.fillCell(0, "variant", { key: "variant", type: "dropdown" }, "").catch(() => {});
-    await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, randomNumber());
+    // A case's own quantity is typed exactly as given — 0, -5, letters — so the app's validation is what is tested.
+    await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, quantity ?? randomNumber());
     await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, searchText).catch(() => {});
     await sheet.fillCell(0, "price", { key: "price", type: "price" }, randomNumber());
     await sheet.fillCell(0, "participant_quantity", { key: "participant_quantity", type: "number" }, randomNumber()).catch(() => {});

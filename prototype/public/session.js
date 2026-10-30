@@ -194,6 +194,7 @@
     if (list) list.innerHTML = "";
     paintReqCount();
     S.con = new Map();
+    casesReset();
     paintConsole();
     // A saved browser journey opens as a "features" turn too, but in UI mode:
     // it keeps the Browser panel (its "Run again" lives there).
@@ -2107,6 +2108,230 @@
     const n = q$("#ss-spots-n");
     if (n) n.textContent = String(showing ? total : q$("#ss-spots-strip").querySelectorAll('.ss-spot[data-tone="bad"]').length);
   });
+  // ── the test cases a typed journey carries (journeyCases.ts) ─────────────
+  // One entry per case the plan's assertions make, plus what a senior tester would add (matched
+  // to the catalog or saved as new); each marked from the run's result; the cases written from
+  // the screens the run reached listed under them; the lot exported as Excel/CSV/Markdown.
+  const C = { cases: [], newCases: [], runId: null, status: "" };
+  const STATUS_WORD = { passed: "Passed", failed: "Failed", "not reached": "Not reached", "not run": "Not run" };
+  function casesReset() {
+    C.cases = [];
+    C.newCases = [];
+    C.runId = null;
+    C.status = "";
+    for (const id of ["#ss-case-list", "#ss-newcase-list"]) {
+      const l = q$(id);
+      if (l) l.innerHTML = "";
+    }
+    for (const id of ["#ss-cases-head", "#ss-cases-journey", "#ss-cases-new", "#ss-cases-export"]) {
+      const n = q$(id);
+      if (n) n.hidden = true;
+    }
+    const empty = q$("#ss-cases-empty");
+    if (empty) empty.hidden = false;
+    const n = q$("#ss-cases-n");
+    if (n) n.textContent = "";
+  }
+  function caseNode(c, i) {
+    const src = c.source === "catalog" ? `in the catalog · ${(c.catalogIds || [c.id]).join(", ")}` : c.source === "new" ? `new · ${c.id}${c.screen ? ` · from the ${c.screen} screen` : ""}` : c.id === "J-0" ? "the journey" : `from the plan · ${c.id}`;
+    // While the run is on: a case with steps is being tested; one with none has no step yet.
+    const st = c.status || (C.status === "running" ? (c.stepIndexes?.length ? "testing" : "not run") : "");
+    const li = node(
+      `<li class="ss-case ${h(c.source)} ${h((c.status || st || "").replace(/\s+/g, "-"))}" data-id="${h(c.id)}">` +
+      `<button type="button" class="ss-case-row" aria-expanded="false">` +
+      `<span class="ss-case-n">${i}</span>` +
+      `<span class="ss-case-t">${h(c.title)}</span>` +
+      `<span class="ss-case-st" data-st="${h(st)}">${h(STATUS_WORD[st] || (st === "testing" ? "Testing…" : st))}</span>` +
+      `</button>` +
+      `<div class="ss-case-body" hidden>` +
+      `<div class="ss-case-src">${h(src)}${c.grounded && c.grounded !== "journey" && c.grounded !== "screen" ? ` · rule ${h(c.grounded)}` : ""}${c.stepIndexes?.length ? ` · steps ${c.stepIndexes.map((x) => x + 1).join(", ")}` : " · no step of this run checks it"}</div>` +
+      `<ol class="ss-case-steps">${(c.steps || []).map((s) => `<li>${h(s)}</li>`).join("")}</ol>` +
+      `<div class="ss-case-exp"><b>Expected</b> ${h(c.expected)}</div>` +
+      (c.detail ? `<div class="ss-case-detail ${c.status === "failed" ? "bad" : ""}">${h(c.detail)}</div>` : "") +
+      `</div></li>`,
+    );
+    const btn = q$(".ss-case-row", li);
+    btn.addEventListener("click", () => {
+      const body = q$(".ss-case-body", li);
+      body.hidden = !body.hidden;
+      btn.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    return li;
+  }
+  function paintCaseLists() {
+    const head = q$("#ss-cases-head");
+    const empty = q$("#ss-cases-empty");
+    const all = C.cases.length + C.newCases.length;
+    if (head) head.hidden = !all;
+    if (empty) empty.hidden = !!all;
+    const n = q$("#ss-cases-n");
+    if (n) n.textContent = all ? String(all) : "";
+    const jl = q$("#ss-case-list");
+    const js = q$("#ss-cases-journey");
+    if (jl && js) {
+      jl.innerHTML = "";
+      C.cases.forEach((c, i) => jl.appendChild(caseNode(c, i + 1)));
+      js.hidden = !C.cases.length;
+      const jn = q$("#ss-cases-journey-n");
+      if (jn) jn.textContent = String(C.cases.length);
+    }
+    const nl = q$("#ss-newcase-list");
+    const ns = q$("#ss-cases-new");
+    if (nl && ns) {
+      nl.innerHTML = "";
+      C.newCases.forEach((c, i) => nl.appendChild(caseNode(c, C.cases.length + i + 1)));
+      ns.hidden = !C.newCases.length;
+      const nn = q$("#ss-cases-new-n");
+      if (nn) nn.textContent = String(C.newCases.length);
+    }
+    const sum = q$("#ss-cases-sum");
+    if (sum) {
+      const passed = C.cases.filter((c) => c.status === "passed").length;
+      const failed = C.cases.filter((c) => c.status === "failed").length;
+      const notRun = C.cases.filter((c) => c.status === "not run" || c.status === "not reached").length;
+      const fromCatalog = C.cases.filter((c) => c.source === "catalog").length;
+      const fresh = C.cases.filter((c) => c.source === "new").length + C.newCases.length;
+      sum.innerHTML =
+        `<b>${C.cases.length}</b> test case${C.cases.length === 1 ? "" : "s"} on this journey` +
+        (C.status === "tested" ? ` · <span class="ok">${passed} passed</span>${failed ? ` · <span class="bad">${failed} failed</span>` : ""}${notRun ? ` · <span class="dim">${notRun} not run</span>` : ""}` : C.status === "running" ? " · testing in the browser…" : "") +
+        (fromCatalog ? ` · ${fromCatalog} already in the catalog` : "") +
+        (fresh ? ` · <span class="new">${fresh} new</span>` : "");
+    }
+  }
+  /** The cases the journey carries, as soon as the plan has been read (or a screen was read). */
+  function cases(p) {
+    if (!S.on) return;
+    C.runId = p.runId || C.runId;
+    const before = C.cases.length;
+    C.cases = p.cases || [];
+    C.status = "running";
+    paintCaseLists();
+    const n = C.cases.length - before;
+    if (n > 0) note(`${n} test case${n === 1 ? "" : "s"} written${before ? " more" : " for this journey"}${C.cases.some((c) => c.source === "new") ? ` (${C.cases.filter((c) => c.source === "new").length} new, saved to the catalog)` : ""} — open the Test cases tab to read them.`, "info", "Test cases");
+  }
+  /** One case's result, as the explorer runs it. */
+  function caseVerdict(p) {
+    if (!S.on) return;
+    const c = C.cases.find((x) => x.id === p.id);
+    if (!c) return;
+    c.status = p.status;
+    if (p.detail) c.detail = p.detail;
+    paintCaseLists();
+  }
+
+  // ── exploring a screen no step covers (journeyExplore.ts) ────────────────
+  function journeyExplore(p) {
+    if (!S.on) return;
+    const text = String(p.text ?? "");
+    if (p.kind === "head") {
+      // The closest plan's steps never ran: say so on each, then the exploration takes over.
+      (S.turn?.plan ?? []).forEach((st, i) => { if (st.state === "wait") planStep(i, "skip", "not run — the plan did not cover what the journey is about"); });
+      head(text, "", p.state || "run");
+      working("Opening the screen in the browser");
+      return;
+    }
+    if (p.kind === "note") return note(text, p.tone || "info");
+    const i = text.indexOf(": ");
+    const verb = i > 0 && i < 24 ? text.slice(0, i) : text;
+    const rest = i > 0 && i < 24 ? text.slice(i + 2) : "";
+    const n = act(verb, rest, p.state || "");
+    if (n && p.screenshot) {
+      const img = document.createElement("img");
+      img.className = "ss-b-shot";
+      img.loading = "lazy";
+      img.src = `/api/ui-evidence?path=${encodeURIComponent(p.screenshot)}`;
+      img.alt = text;
+      img.addEventListener("click", () => spotOpen({ file: p.screenshot, action: "screen", target: text }));
+      q$(".ss-b-body", n)?.appendChild(img);
+    }
+    if (p.working) working(text);
+    remember(text);
+  }
+
+  /** A question the run asks: options to click, or words to type; the run waits (with a deadline). */
+  function journeyAsk(q) {
+    if (!S.on) return;
+    stopWorking();
+    const mins = q.timeoutMs ? Math.round(q.timeoutMs / 60_000) : 0;
+    const box = node(
+      `<div class="ss-ask-q" data-qid="${h(q.qid)}"><div class="ss-ask-h">${icon("info")}<span class="ss-badge">Question</span>${mins ? `<span class="ss-ask-deadline">answer within ${mins} min or the run goes on without it</span>` : ""}</div>` +
+      `<div class="ss-ask-t">${h(q.text)}</div>` +
+      (q.screenshot ? `<img class="ss-b-shot" loading="lazy" src="/api/ui-evidence?path=${encodeURIComponent(q.screenshot)}" alt="the screen">` : "") +
+      `<div class="ss-ask-opts">${(q.options || []).map((o) => `<button type="button" class="ss-ask-opt">${h(o)}</button>`).join("")}</div>` +
+      `<form class="ss-ask-form"><input type="text" class="ss-ask-in" placeholder="${h(q.kind === "choose" ? "or type the numbers, e.g. 1, 3 — or all" : "or type your answer")}" autocomplete="off"><button type="submit" class="ss-ask-send">Answer</button></form>` +
+      `<div class="ss-ask-done" hidden></div></div>`,
+    );
+    addNarr(box);
+    remember(`QUESTION: ${q.text}`);
+    const answerWith = async (text) => {
+      text = String(text ?? "").trim();
+      if (!text) return;
+      for (const b of box.querySelectorAll("button, input")) b.disabled = true;
+      let ok = false;
+      try {
+        const r = await fetch(q.answerUrl || "/api/ask/answer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: q.id, qid: q.qid, answer: text }) });
+        ok = r.ok;
+      } catch {
+        ok = false;
+      }
+      if (!ok) {
+        for (const b of box.querySelectorAll("button, input")) b.disabled = false;
+        note("That answer did not reach the run — it may have moved on. Try again or type it in the composer.", "warn");
+        return;
+      }
+      markAnswered(box, text);
+      working("Going on with your answer");
+    };
+    for (const b of box.querySelectorAll(".ss-ask-opt")) b.addEventListener("click", () => answerWith(b.textContent));
+    q$(".ss-ask-form", box)?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      answerWith(q$(".ss-ask-in", box)?.value);
+    });
+    q$(".ss-ask-in", box)?.focus();
+    S.chat.push({ role: "assistant", text: `Question: ${q.text}` });
+  }
+  function markAnswered(box, text, timedOut = false) {
+    for (const b of box.querySelectorAll("button, input")) b.disabled = true;
+    q$(".ss-ask-opts", box)?.setAttribute("hidden", "");
+    q$(".ss-ask-form", box)?.setAttribute("hidden", "");
+    const d = q$(".ss-ask-done", box);
+    if (d) {
+      d.hidden = false;
+      d.textContent = timedOut ? "No answer in time — the run went on without it." : `You answered: ${text}`;
+    }
+    remember(timedOut ? "no answer in time" : `ANSWER: ${text}`);
+  }
+  function journeyAnswered(p) {
+    const box = q$(`.ss-ask-q[data-qid="${CSS.escape(String(p.qid))}"]`, el.narr);
+    if (box && !q$(".ss-ask-done", box)?.textContent) markAnswered(box, p.answer, !!p.timedOut);
+  }
+  /** What the run proved for each case. */
+  function casesTested(p) {
+    if (!S.on) return;
+    C.cases = p.cases || C.cases;
+    C.status = "tested";
+    paintCaseLists();
+  }
+  /** The cases written from the screens the run reached. */
+  function newCases(p) {
+    if (!S.on) return;
+    C.newCases = p.cases || [];
+    paintCaseLists();
+    if (C.newCases.length) note(`${C.newCases.length} new test case${C.newCases.length === 1 ? "" : "s"} found on the screens this run passed through — in the Test cases tab, saved to the catalog.`, "ok", "Found");
+  }
+  /** The export links, once the journey is on disk. */
+  function journeyLinks(p) {
+    if (!S.on || !p?.export) return;
+    C.runId = p.runId || C.runId;
+    const box = q$("#ss-cases-export");
+    if (!box) return;
+    for (const [k, href] of Object.entries(p.export)) {
+      const a = q$(`#ss-export-${k}`);
+      if (a) a.href = href;
+    }
+    box.hidden = !(C.cases.length + C.newCases.length);
+  }
+
   function spotUrl(sp) {
     return `/api/ui-evidence?path=${encodeURIComponent(sp.file)}`;
   }
@@ -2193,6 +2418,8 @@
     plan, outline, draftGone, planStep, planNote, planGrow, planName, planLength,
     explore, exploreStep, ask,
     runCase, setRunId, answerQuestion,
+    cases, casesTested, newCases, journeyLinks, caseVerdict,
+    journeyExplore, journeyAsk, journeyAnswered,
     frame, sideFrame, request, consoleLines,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
     /**

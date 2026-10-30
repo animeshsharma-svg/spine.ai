@@ -1,0 +1,9 @@
+# Bugs found while exploring
+
+- **BUG-NO-TOOLTIP** — A live RFQ: "Send Bulk Counter Offer" is greyed out with no tooltip saying why. Seen on A live RFQ — Responses tab and Settings menu: "Settings → Send Bulk Counter Offer" greyed out, no tooltip (case EXP-LIVERFQ-022; screenshot )
+- **BUG-NO-TOOLTIP** — A live RFQ with a vendor's bid: "Send Bulk Counter Offer" is greyed out with no tooltip saying why. Seen on A live RFQ with a vendor's bid — Responses, Settings and the bid's ⋮ menu: "Settings → Send Bulk Counter Offer" greyed out, no tooltip (case EXP-BIDRFQ-026; screenshot )
+- **BUG-BROKEN-VALUE** — A value on the screen reads NaN / undefined / Invalid date. Seen on The award proposal page: RFQ NaN (case EXP-PROPOSAL-011; screenshot procol-ui-tests/evidence/explore-proposal-mvu28ze1/probe-2-screen.png)
+- **BUG-NO-TOOLTIP** — An awarded event: "Extend Submission Time" is greyed out with no tooltip saying why. Seen on An awarded event — Project details and Settings: "Settings → Extend Submission Time" greyed out, no tooltip (case EXP-AWARDED-017; screenshot )
+- **BUG-NO-TOOLTIP** — An awarded event: "Withdraw" is greyed out with no tooltip saying why. Seen on An awarded event — Project details and Settings: "Settings → Withdraw" greyed out, no tooltip (case EXP-AWARDED-018; screenshot )
+- **BUG-NO-TOOLTIP** — An awarded event: "Convert to Auction" is greyed out with no tooltip saying why. Seen on An awarded event — Project details and Settings: "Settings → Convert to Auction" greyed out, no tooltip (case EXP-AWARDED-019; screenshot )
+- **BUG-NO-TOOLTIP** — An awarded event: "Edit Evaluation Time" is greyed out with no tooltip saying why. Seen on An awarded event — Project details and Settings: "Settings → Edit Evaluation Time" greyed out, no tooltip (case EXP-AWARDED-022; screenshot )

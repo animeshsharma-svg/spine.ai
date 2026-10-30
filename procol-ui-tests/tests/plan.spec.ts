@@ -58,7 +58,9 @@ function readPlan() {
 // the time the product demands, and only such plans.
 // 12 minutes for the rest, not 6: on a slow UAT day (23 Oct) a single invite took minutes and
 // the 6-minute budget closed the browser mid-step (A16 rerun), after the case's real check had passed.
-const budgetFor = (plan: { steps: Array<{ step: string }> }) => (plan.steps.some((st) => st.step === "close_event") ? 48 * 60_000 : 12 * 60_000);
+// An exploration (probe_controls) clicks each control on a reloaded screen, ~15 s a click: give it that time.
+const budgetFor = (plan: { steps: Array<{ step: string; args?: Record<string, unknown> }> }) =>
+  plan.steps.some((st) => st.step === "close_event") ? 48 * 60_000 : 12 * 60_000 + plan.steps.filter((st) => st.step === "probe_controls" && !st.args?.listOnly).length * 15 * 60_000;
 
 /** Sign in as the company the dashboard picked (see the comment where the plan signs in below). */
 async function signIn(page: import("@playwright/test").Page, buyerUserId?: number) {

@@ -1,0 +1,663 @@
+{
+  "id": "orders-quick-create",
+  "label": "orders-quick-create",
+  "path": "/orders/quick-create",
+  "url": "https://cpanel.ag-ri.in/orders/quick-create?projectCreation=true",
+  "state": "none",
+  "title": "Procol Console",
+  "headings": [],
+  "messages": [],
+  "viewport": {
+    "w": 1366,
+    "h": 900
+  },
+  "controls": [
+    {
+      "kind": "button",
+      "name": "Ask Clara",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 983,
+        "y": 20,
+        "w": 107,
+        "h": 34
+      },
+      "n": 1
+    },
+    {
+      "kind": "button",
+      "name": "Add Attachments",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 709,
+        "y": 80,
+        "w": 171,
+        "h": 32
+      },
+      "n": 2
+    },
+    {
+      "kind": "button",
+      "name": "Add T&Cs",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 896,
+        "y": 80,
+        "w": 125,
+        "h": 32
+      },
+      "n": 3
+    },
+    {
+      "kind": "button",
+      "name": "Items 0",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 1021,
+        "y": 80,
+        "w": 105,
+        "h": 32
+      },
+      "n": 4
+    },
+    {
+      "kind": "button",
+      "name": "Save as draft",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 1138,
+        "y": 80,
+        "w": 122,
+        "h": 32
+      },
+      "n": 5
+    },
+    {
+      "kind": "button",
+      "name": "Publish",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 1272,
+        "y": 80,
+        "w": 82,
+        "h": 32
+      },
+      "n": 6
+    },
+    {
+      "kind": "link",
+      "name": "Events",
+      "box": {
+        "x": 153,
+        "y": 27,
+        "w": 49,
+        "h": 18
+      },
+      "n": 7
+    },
+    {
+      "kind": "field",
+      "name": "Enter the title of the project",
+      "required": false,
+      "placeholder": "Enter the title of the project",
+      "inputType": "text",
+      "disabled": false,
+      "box": {
+        "x": 120,
+        "y": 80,
+        "w": 573,
+        "h": 32
+      },
+      "n": 8
+    }
+  ],
+  "effects": [],
+  "rules": [
+    {
+      "id": "R-FCR-008-1",
+      "statement": "Body: `title`, `description`, `status`, `draft_trade_request_uuids`, `audience_company_uuids`, `line_items` (kept + deleted, each `{status, uuid, quantity, product_uuid, product_quality_uuid}`), `terms_and_conditions:{clauses, attachments:[{type:\"t_and_c\", value:[{name, private_url}]}]}`, `show_unde",
+      "cite": "src/redux/project/actions.js:52-88",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-019-4",
+      "statement": "Publish never stores the returned stage uuids (only Save as draft does), so a retry after a failed project PATCH (e.g. 712) POSTs every stage again — src/views/projectCreation/projectCreation.jsx:1826-1839 vs 1516-1536",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1826-1839",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-001-5",
+      "statement": "`draftStageIds` without `projectId` → single draft stage is loaded and its title becomes the project title; with `projectId` → every listed stage is loaded and the last one is selected — src/views/projectCreation/projectCreation.jsx:2244-2257, 1157-1161, 1437-1445",
+      "cite": "src/views/projectCreation/projectCreation.jsx:2244-2257",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-020-2",
+      "statement": "Title: \"Send to Auction Team\" / project title truncated to 45 / \"Publish Event\"; OK text \"Send to Auction Team\" or \"Publish\"; Cancel is \"Edit Schedule\" and opens the schedule drawer — src/views/eventCreation/components/footer/confirmModal.jsx:52-60, 91-103",
+      "cite": "src/views/eventCreation/components/footer/confirmModal.jsx:52-60",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-022-7",
+      "statement": "choosing \"Custom duration\" first sets end to undefined; closing the popover then Save passes (NaN comparisons) and publish fails \"Please add end time for the event\" — stageSchedulerCard.jsx:302-314. Backend has no end>start / end>now check (trade-stages.md part 8): candidate API test with past `bid_",
+      "cite": "src/views/projectCreation/components/projectScheduler/stageSchedulerCard/stageSchedulerCard.jsx:302-314",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-042-4",
+      "statement": "AI RFP → `POST /ask_ai_chats/rfp_questions`, then `GET /external_requests/:uuid`; the AI button needs project line items — src/views/eventCreation/components/aiRfpGenerator/api.js:3-11, src/views/eventCreation/eventCreation.jsx:1854-1876",
+      "cite": "src/views/eventCreation/components/aiRfpGenerator/api.js:3-11",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-002-3",
+      "statement": "Draft project reopen → `GET /event_groups/:id/get_line_items?filters={}&prevent_pagination=true`; a response without a `data` array navigates back with toast \"Error while loading draft project\" — src/views/projectCreation/projectCreation.jsx:1413-1423, src/redux/project/actions.js:291-306",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1413-1423",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-003-5",
+      "statement": "Stage `status` in the payload = `\"draft\"` whenever a project id is attached or publishToDraft is true, else `\"active\"`; so eRFX stages are always created as drafts and go live only through the project PATCH — src/views/projectCreation/helpers.js:999-1000",
+      "cite": "src/views/projectCreation/helpers.js:999-1000",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-011-5",
+      "statement": "Clara summary panel renders when `isClaraEnabled` is FALSE and the project has a claraSummary (FE-15.2 states the inverse) — src/views/projectCreation/projectCreation.jsx:3405-3409",
+      "cite": "src/views/projectCreation/projectCreation.jsx:3405-3409",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-012-2",
+      "statement": "Saving the strategy drawer in project creation resets the stage title to the auto title computed with no other stages (`allModes: []`), overwriting a renamed title and its number — src/views/eventCreation/components/auctionConfiguration/auctionConfiguration.jsx:497-506",
+      "cite": "src/views/eventCreation/components/auctionConfiguration/auctionConfiguration.jsx:497-506",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-013-1",
+      "statement": "Publish with empty project title → \"Please fill project title!\" before any other check; a whitespace-only title passes (truthiness check) — src/views/projectCreation/projectCreation.jsx:1599-1602",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1599-1602",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-013-6",
+      "statement": "Publish label: \"Send to Auction team\" when publishToDraft, \"Save Recurring Event\" when the CURRENT stage is recurring, else \"Publish\" — src/views/projectCreation/projectCreation.jsx:3390-3400",
+      "cite": "src/views/projectCreation/projectCreation.jsx:3390-3400",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-014-4",
+      "statement": "First save → `POST /event_groups` `{status:\"draft\", title, line_items:[{product_uuid, quantity:{unitSymbol,value}, product_quality_uuid, serial_number, pr_line_item_uuid, pr_id}]}`; later saves → `PATCH /event_groups/:id` — src/views/projectCreation/projectCreation.jsx:2259-2269, src/redux/project/a",
+      "cite": "src/views/projectCreation/projectCreation.jsx:2259-2269",
+      "verdict": "partly"
+    },
+    {
+      "id": "R-FCR-014-5",
+      "statement": "After save, an untouched empty project title is auto-generated (`use_pr_number_in_title`) — src/views/projectCreation/projectCreation.jsx:2289-2301",
+      "cite": "src/views/projectCreation/projectCreation.jsx:2289-2301",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-016-1",
+      "statement": "Shown only when not RFQ→Auction, `allow_draft_project_creation` on, not (service-RFP grouping AND `groupServiceActivitiesInRfp`), auctions not routed to the auction team, and the current stage is not recurring — src/views/projectCreation/projectCreation.jsx:292-296, 3343-3345",
+      "cite": "src/views/projectCreation/projectCreation.jsx:292-296",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-016-2",
+      "statement": "Disabled with tooltip \"Please select template for <stage title>\" for any non-RFP stage without a template, or \"Please add line items\" — src/views/projectCreation/projectCreation.jsx:1457-1481",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1457-1481",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-017-1",
+      "statement": "No participant in the project → \"Please add participants to proceed!\" (stops) — src/views/projectCreation/projectCreation.jsx:1604-1609",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1604-1609",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-019-2",
+      "statement": "Non-project publish → \"Event sent to Auction Team successfully\" when publishToDraft else \"Event created successfully\"; eRFX redirects to the project of the first stage, classic to `/orders/:id?tab=<eventDetails>` — src/views/projectCreation/projectCreation.jsx:1891-1914",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1891-1914",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-019-5",
+      "statement": "duplicate draft stages on retry rely on backend silently voiding the earlier same-mode draft (part 6) or 854 when two exist — trade-stages.md part 6; candidate test: publish → 712 → fix → publish, then count stages.",
+      "cite": "src/views/projectCreation/projectCreation.jsx",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-021-6",
+      "statement": "\"After\" with no count or \"On Date\" with no date is not validated and silently sends `max_occurrences:null`/`ends_at:null` (= never ends) — src/views/projectCreation/helpers.js:703-710. Amendment draft of a recurring project publishes with empty remarks; backend amendment publish needs remarks (event",
+      "cite": "src/views/projectCreation/helpers.js:703-710",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-025-1",
+      "statement": "Event title input (placeholder \"Enter the title of this event\") only when not projectCreation; red outline on `errors.title` — src/views/eventCreation/eventCreation.jsx:1741-1761, src/translations/en.json eventCreation.eventTitleInput",
+      "cite": "src/views/eventCreation/eventCreation.jsx:1741-1761",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-016-2",
+      "statement": "Tabs: \"Project Details\", one per stage (lot stages grouped under the lot title with \"N item(s)\"), then \"Master QCS\" — src/redux/project/selectors.js:1374-1406",
+      "cite": "src/redux/project/selectors.js:1374-1406",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-016-3",
+      "statement": "Master QCS tab hidden for users whose team types include planner, and until at least one stage is non-draft; lot events get one Master QCS child per lot (`master_qcs?lotNo=`), plus a top-level one when `all_lots_withdrawn` — src/redux/project/selectors.js:39-40, 1408-1445",
+      "cite": "src/redux/project/selectors.js:39-40",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-008-2",
+      "statement": "`show_under_open_events` defaults to `true` and is sent on every publish/save even when the \"Publish as open tender\" checkbox is hidden (template config `openTenderEnabled` off) — src/views/projectCreation/projectCreation.jsx:218, 1565, 1867, src/views/eventCreation/components/footer/confirmModal.js",
+      "cite": "src/views/projectCreation/projectCreation.jsx:218-218",
+      "verdict": "partly"
+    },
+    {
+      "id": "R-FCR-012-5",
+      "statement": "RFQ→Auction stage title = source title with the first \"rfq\" (case-insensitive) replaced by \"Auction\", fallback \"Stage 1\" — src/views/projectCreation/helpers.js:1120-1126",
+      "cite": "src/views/projectCreation/helpers.js:1120-1126",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-013-2",
+      "statement": "Project title input is disabled when adding a new stage to an existing project — src/views/projectCreation/projectCreation.jsx:1433-1435, 3283-3292",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1433-1435",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-013-4",
+      "statement": "\"Add T&Cs\" shows a green \"Added\" tag when clauses or attachments exist — src/views/projectCreation/projectCreation.jsx:3301-3314",
+      "cite": "src/views/projectCreation/projectCreation.jsx:3301-3314",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-013-7",
+      "statement": "whitespace-only project title is accepted client-side; backend event_groups update has no title check (event-groups.md) — candidate API test with `title:\" \"`.",
+      "cite": "src/views/projectCreation/projectCreation.jsx",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-014-3",
+      "statement": "No items left → \"Please add atleast one item to proceed!\" — src/views/projectCreation/components/manageLineItemsModal.jsx:86-88, 127-130",
+      "cite": "src/views/projectCreation/components/manageLineItemsModal.jsx:86-88",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-015-2",
+      "statement": "PR-created events: quantity `max` = the PR item's `quantity_open` (no tolerance) — src/views/projectCreation/components/projectLineItem.jsx:184, src/views/projectCreation/projectCreation.jsx:320-330",
+      "cite": "src/views/projectCreation/components/projectLineItem.jsx:184-184",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-015-4",
+      "statement": "Delete (Popconfirm \"Are you sure to delete this line item?\") is NOT disabled in a disabled drawer, and Save stays enabled for fromPR, so PR-created projects can delete items — src/views/projectCreation/components/projectLineItem.jsx:206-213, src/views/projectCreation/components/manageLineItemsModal.",
+      "cite": "src/views/projectCreation/components/projectLineItem.jsx:206-213",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-016-4",
+      "statement": "Success → \"Draft Project updated successfully\" (project already draft) or \"Draft Project created successfully\", redirect `/orders?tab=draft`, local quick-flow draft cleared — src/views/projectCreation/projectCreation.jsx:1571-1584",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1571-1584",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-016-5",
+      "statement": "No stage validation, title check or participant check runs before saving a draft — src/views/projectCreation/projectCreation.jsx:1493-1537",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1493-1537",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-018-1",
+      "statement": "Stage title \"\" (auto titles are never empty; reachable in single-stage quick-create) → `errors.title`, no specific toast, only the rollup \"<title> - There are some errors in Title, please check and try again\" when no other toast fired; not raised for basket + multi-product — src/views/projectCreatio",
+      "cite": "src/views/projectCreation/helpers.js:297-299",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-019-1",
+      "statement": "eRFX project publish OK → \"Project created successfully\", redirect to project details (details tab) — src/views/projectCreation/projectCreation.jsx:1873-1888",
+      "cite": "src/views/projectCreation/projectCreation.jsx:1873-1888",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-021-3",
+      "statement": "Save Schedule copies the same recurring config onto every stage — src/views/projectCreation/components/projectScheduler/projectScheduler.jsx:92-106",
+      "cite": "src/views/projectCreation/components/projectScheduler/projectScheduler.jsx:92-106",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-022-6",
+      "statement": "Nothing is stored on the stage until Save Schedule passes; Back discards — projectScheduler.jsx:83-111, 37-39",
+      "cite": "src/views/projectCreation/components/projectScheduler/projectScheduler.jsx:83-111",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-026-4",
+      "statement": "Changing an existing template asks \"Do you really want to change the template?\" (project) / \"Changing template will reset data. Are you sure?\" (quick-create), OK \"Yes\" — templateSelection.jsx:349-360, src/translations/en.json eventCreation.handleTemplateDataReset",
+      "cite": "src/views/eventCreation/templateSelection.jsx:349-360",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-026-6",
+      "statement": "In project creation `product`, `creator_quantity`, `variant` are locked; PR events also lock READ_ONLY_WIDGETS_IN_PR_TO_AUCTION and `blockEditFromPr` widgets — templateSelection.jsx:248-272",
+      "cite": "src/views/eventCreation/templateSelection.jsx:248-272",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-029-6",
+      "statement": "Switching between RFI and RFQ/Auction warns \"Switching event mode will reset existing data.\" and on save clears template, sheet, savings, currencies and ALL project participants — auctionConfiguration.jsx:390-407, 898-903, src/views/eventCreation/eventCreation.jsx:505-536",
+      "cite": "src/views/eventCreation/eventCreation.jsx:505-536",
+      "verdict": "not covered"
+    }
+  ],
+  "cases": [
+    {
+      "id": "GEN-SCR-384",
+      "title": "Ask Clara starts the AI RFP flow when line items exist",
+      "kind": "button",
+      "grounded": "R-FCR-042-4",
+      "steps": [
+        "Click \"Ask Clara\".",
+        "Inspect the network requests.",
+        "Wait for the request to finish."
+      ],
+      "expected": "The app sends POST /ask_ai_chats/rfp_questions and then GET /external_requests/:uuid. The AI RFP result or status is shown after the request completes.",
+      "setup": "Open a project with at least one saved line item.",
+      "coverage": "partial",
+      "gaps": [
+        "The specific AI RFP result or status content shown after completion is not identified by the case and cannot be asserted with a known catalog value."
+      ],
+      "plan": {
+        "title": "Ask Clara AI RFP request flow",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the project creation screen where Ask Clara is available."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp"
+              ]
+            }
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "Ask Clara AI RFP flow"
+            },
+            "note": "Provide the required project title for a valid create flow."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template before adding line items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure line items exist, which is the precondition for the AI RFP flow."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Start the AI RFP flow."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/ask_ai_chats/rfp_questions",
+              "method": "POST"
+            },
+            "note": "Verify Ask Clara sent the AI RFP questions request."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/external_requests/",
+              "method": "GET"
+            },
+            "note": "Verify the app polled or fetched the external request status using the returned request identifier."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Confirm the completed flow did not leave an application error visible."
+          }
+        ]
+      },
+      "controls": [
+        1
+      ]
+    },
+    {
+      "id": "GEN-SCR-385",
+      "title": "Save as draft auto-generates an untouched project title",
+      "kind": "state",
+      "grounded": "R-FCR-014-5",
+      "steps": [
+        "Click \"Save as draft\".",
+        "Wait for the save to complete."
+      ],
+      "expected": "The draft saves successfully. \"Enter the title of the project\" shows an auto-generated project title instead of remaining empty.",
+      "setup": "Open a new project with valid line items and leave \"Enter the title of the project\" empty.",
+      "coverage": "partial",
+      "gaps": [
+        "Saving the draft from a completely untouched create screen before selecting a template and adding a line item."
+      ],
+      "plan": {
+        "title": "Auto-generate title when saving draft",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage create screen while leaving the title empty."
+          },
+          {
+            "step": "set_title"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Provide the minimum required configuration needed to enable draft saving without entering a title."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the minimum line item required for Save as draft to become available."
+          },
+          {
+            "step": "fill_sheet"
+          },
+          {
+            "step": "save_draft",
+            "args": {},
+            "note": "Save the draft and wait for the save operation to complete."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Confirm the draft save completed without an application error."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": " "
+            },
+            "note": "Check that the title field no longer remains empty; the catalog can observe the field but cannot assert the exact generated title format."
+          }
+        ]
+      },
+      "controls": [
+        5
+      ]
+    },
+    {
+      "id": "GEN-SCR-386",
+      "title": "Whitespace-only project title is accepted past client validation",
+      "kind": "boundary",
+      "grounded": "R-FCR-013-7",
+      "steps": [
+        "Click \"Enter the title of the project\".",
+        "Enter one or more spaces.",
+        "Click \"Publish\".",
+        "Inspect the publish request."
+      ],
+      "expected": "The app does not show \"Please fill project title!\". The publish flow proceeds to its next validation or request, and the request contains the whitespace title.",
+      "setup": "Open a project with valid line items and participants.",
+      "coverage": "partial",
+      "gaps": [
+        "Inspecting the publish request itself and asserting that its body contains the whitespace title because the catalog requires a request path, and no publish endpoint path is provided."
+      ],
+      "plan": {
+        "title": "Whitespace-only title publish validation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage create screen for a valid publish setup."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": " "
+            },
+            "note": "Enter a whitespace-only project title, the value under test."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Configure the default auction stage with a pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the required line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the pricing sheet so publish is not blocked by incomplete data."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit a valid event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the required participant."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Attempt publication and allow the product to proceed to its next validation or request."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Please fill project title!",
+              "present": false
+            },
+            "note": "Verify the whitespace-only title does not trigger the specific missing-title client validation message."
+          }
+        ]
+      },
+      "controls": [
+        6,
+        8
+      ]
+    },
+    {
+      "id": "GEN-SCR-387",
+      "title": "Events opens the events list",
+      "kind": "button",
+      "grounded": "screen",
+      "steps": [
+        "Click \"Events\"."
+      ],
+      "expected": "The app navigates away from orders-quick-create to the events list.",
+      "setup": "Open the orders quick-create screen.",
+      "coverage": "full",
+      "gaps": [],
+      "plan": {
+        "title": "Events link opens events list",
+        "steps": [
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "path",
+              "path": "/orders/quick-create"
+            },
+            "note": "Open the orders quick-create screen where the Events control is available."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Events"
+            },
+            "note": "Activate the Events navigation control."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Verify navigation reached the rendered events list."
+          }
+        ]
+      },
+      "controls": [
+        7
+      ]
+    }
+  ],
+  "reachedBy": [],
+  "companyId": 198678,
+  "runId": "plan-mvpcobpp",
+  "evidence": {
+    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvpcobpp/01-open_create.png",
+    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvpcobpp/map-01-orders-quick-create.png",
+    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvpcobpp/01-open_create.inventory.json"
+  },
+  "images": {
+    "plain": "/Users/animesh/Desktop/procol/prototype/data/screens/img/orders-quick-create.png",
+    "map": "/Users/animesh/Desktop/procol/prototype/data/screens/img/orders-quick-create-map.png"
+  },
+  "takenAt": "2026-10-26T14:27:08.190Z",
+  "updatedAt": "2026-10-26T14:28:11.716Z",
+  "captures": 2
+}

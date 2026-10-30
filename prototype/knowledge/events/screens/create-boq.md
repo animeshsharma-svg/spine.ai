@@ -1,6 +1,6 @@
 # Screen: create-boq (/orders/quick-create)
 
-Captured 2026-10-20 on company 198678. 15 controls, 14 with a known effect, 6 test cases written from it.
+Captured 2026-10-21 on company 198678. 15 controls, 14 with a known effect, 10 test cases written from it.
 
 ## How to reach the create-boq screen
 
@@ -10,22 +10,22 @@ It shows: Please choose a template and upload a BOQ sheet to proceed.
 
 ## What each control on create-boq does
 
-- **Ask Clara** (button): Opens the Clara assistance panel. Affects: Nothing unless Clara applies a change from the panel.. Leads to: Clara summary panel. Check: Click Ask Clara and verify that the Clara panel appears.
-- **Add Attachments** (button): Opens the attachment control so the buyer can add files to the project. Affects: Adds project attachment data for later submission.. Leads to: Attachment drawer or dialog. Check: Click Add Attachments, select a file, and verify that the file is listed.
-- **Add T&Cs** (button): Opens the terms and conditions editor. Affects: Changes the project's terms_and_conditions data.. Leads to: Terms and conditions drawer or dialog. Rule R-FCR-008-3. Check: Click Add T&Cs, enter a clause, and verify that it remains in the editor.
-- **Save as draft** (button, disabled): Does nothing because the Save as draft button is disabled. Affects: Nothing.. Leads to: Stays here. Rule R-FCR-016-2. Check: Verify that clicking Save as draft produces no request or navigation.
-- **Publish** (button): Attempts to publish the event after running the project's validation checks. Affects: If validation succeeds, creates or activates the event and stores its project and stage data.. Leads to: Published event or a validation error on this screen. Rule R-FCR-013-1. Check: Click Publish without a title or required BOQ data and verify that publication is blocked with an error.
-- **Rank on lot** (button): Sets the auction to rank bids on lots. Affects: Changes the auction closing mode to lot-based ranking.. Leads to: Stays here. Rule R-FCR-009-1. Check: Click Rank on lot and verify that the lot-based ranking option is selected.
-- **Select Templates** (button, disabled): Cannot be clicked while disabled. Affects: Nothing because template selection is currently blocked.. Leads to: stays here. Rule R-FCR-016-2. Check: Verify that Select Templates cannot be activated in the current incomplete state.
-- **Participants** (button): Opens the project participants panel. Affects: Changes the event's audience_company_uuids participant list.. Leads to: Participants drawer or panel. Rule R-FCR-008-1. Check: Open Participants, add a vendor, and verify that the vendor appears in the participant list.
-- **Savings** (button, disabled): Does nothing because Savings is disabled. Affects: Nothing.. Leads to: Stays here. Rule R-FCR-024-2. Check: Verify that clicking Savings does not open savings configuration while the required template and product are missing.
-- **Terms & Conditions** (button, disabled): Does nothing because Terms & Conditions is disabled. Affects: Nothing.. Leads to: Stays here. Rule R-FCR-024-2. Check: Verify that clicking Terms & Conditions does not open its editor while the required template and product are missing.
-- **Now - 02:49 am, 21st Oct ( 30 Mins )** (button, disabled): Does nothing because the schedule control is disabled. Affects: Nothing.. Leads to: Stays here. Rule R-FCR-024-2. Check: Verify that clicking the disabled schedule control does not open scheduling options.
-- **Auction** (tab): Keeps the event in Auction mode. Affects: Sets the event mode used for auction configuration and validation.. Leads to: Auction configuration view. Rule R-FCR-009-1. Check: Verify that Auction remains highlighted and auction-specific controls are shown.
-- **Events** (link): Navigates back to the Events area. Affects: Nothing in the event's data.. Leads to: Events list. Check: Click Events and verify that the events list loads.
-- **Enter the title of the project** (field): Sets or edits the project title. Affects: Changes the title field sent in the project payload and used during publication.. Leads to: Stays here. Rule R-FCR-008-1. Check: Enter a title and verify that the value remains populated before publishing.
+- **Ask Clara** (button): Opens the Clara assistant or summary panel. Affects: Nothing unless the assistant is used to update event content.. Leads to: Clara panel. Rule R-FCR-011-5. Check: Click Ask Clara and verify that a Clara panel opens.
+- **Add Attachments** (button): Opens a control for adding file attachments. Affects: Adds attachment data to the event when a file is selected.. Leads to: Attachment picker or drawer. Check: Click Add Attachments and verify that a file-selection control opens.
+- **Add T&Cs** (button): Opens the terms and conditions editor. Affects: Changes the event's terms_and_conditions data.. Leads to: Terms and Conditions drawer or dialog. Rule R-FCR-008-3. Check: Click Add T&Cs and verify that the terms editor opens.
+- **Save as draft** (button, disabled): Cannot save the event as a draft because the required template and BOQ item prerequisites are not met. Affects: Nothing while disabled; when enabled it would create or update a draft project.. Leads to: stays here. Rule R-FCR-024-2. Check: Verify the button is disabled before selecting a template and adding a BOQ item.
+- **Publish** (button): Attempts to publish the event, but it is currently blocked by the missing template and BOQ upload. Affects: When enabled, creates the event and moves it into its published or active flow.. Leads to: stays here. Rule R-FCR-024-2. Check: Verify Publish cannot proceed while the template and BOQ prerequisites are missing.
+- **Rank on lot** (button): Opens the auction strategy configuration with ranking by lot selected or configurable. Affects: Changes the auction strategy and lot-level closing or evaluation configuration.. Leads to: Auction strategy drawer. Rule R-FCR-009-1. Check: Click Rank on lot and verify that the strategy drawer shows lot ranking settings.
+- **Select Templates** (button): Opens the template selector for choosing a BOQ template. Affects: Sets the event template and enables template-dependent event configuration and actions.. Leads to: Template selection drawer. Rule R-FCR-026-4. Check: Click Select Templates and verify that available BOQ templates are listed.
+- **Participants** (button): Opens the participant management view. Affects: Adds or removes audience companies or vendors for the event.. Leads to: Participants drawer or screen. Rule R-FCR-017-1. Check: Click Participants and verify that the event participant list can be viewed or edited.
+- **Savings** (button, disabled): Cannot be opened because the event prerequisites are incomplete. Affects: Nothing while disabled; when configured it would expose savings settings or data.. Leads to: stays here. Rule R-FCR-024-2. Check: Verify Savings remains disabled before a template and BOQ item are provided.
+- **Terms & Conditions** (button, disabled): Cannot be opened because the required event setup is incomplete. Affects: Nothing while disabled; when enabled it would open the event's terms and conditions configuration.. Leads to: stays here. Rule R-FCR-024-2. Check: Verify Terms & Conditions remains disabled until the required template and BOQ data are present.
+- **Auction** (tab): Keeps the event in Auction mode and shows the auction configuration view. Affects: Sets or preserves the stage mode as auction and applies auction-specific settings.. Leads to: Auction configuration view. Rule R-FCR-009-1. Check: Verify Auction is highlighted and auction settings are displayed.
+- **Events** (link): Navigates back to the Events area. Affects: Nothing in the current event.. Leads to: Events screen. Check: Click Events and verify that the Events listing opens.
+- **Enter the title of the project** (field): Accepts the project title entered by the buyer. Affects: Updates the event or project title that is sent in the project payload and shown during publishing.. Leads to: stays here. Rule R-FCR-008-1. Check: Enter a title and verify that the field retains it and the title appears in the publish flow.
+- **Search vendors you want to add** (select, disabled): Cannot search for or add vendors because participant selection is disabled before the required event setup is complete. Affects: Nothing while disabled; when enabled it would update the event audience participants.. Leads to: stays here. Rule R-FCR-017-1. Check: Verify the vendor selector is disabled and cannot accept a vendor search.
 
-Not yet described: "Search vendors you want to add".
+Not yet described: "Now - 04:53 pm, 21st Oct ( 30 Mins )".
 
 ## Test cases written from the create-boq screen
 
@@ -35,3 +35,7 @@ Not yet described: "Search vendors you want to add".
 - GEN-SCR-248: Verify blocked setup controls explain the missing BOQ data. Steps: Observe the message near the project setup area. Observe Save as draft. Observe Select Templates. Expected: The message says "Please choose a template and upload a BOQ sheet to proceed". Save as draft and Select Templates are disabled. [plan: full]
 - GEN-SCR-249: Open Clara from the create screen. Steps: Click Ask Clara. Expected: The Clara assistance panel or dialog opens. [plan: partial]
 - GEN-SCR-250: Return to the events area. Steps: Click Events. Expected: The events area opens and the create screen is no longer displayed. [plan: full]
+- GEN-SCR-378: Enable Save as draft after adding the required template and product. Steps: Verify that "Save as draft" is disabled. Click "Select Templates" and select a valid BOQ template. Click "Add Attachments" and upload a valid BOQ sheet containing at least one product. Expected: Initially, "Save as draft" is disabled and the screen shows "Please choose a template and upload a BOQ sheet to proceed". After the template and product are added, "Save as draft" becomes enabled. [plan: full]
+- GEN-SCR-379: Open the BOQ upload flow. Steps: Click "Add Attachments". Expected: The attachment or file-upload interface opens, allowing a BOQ sheet to be selected. [plan: partial]
+- GEN-SCR-380: Show the publish confirmation before publishing. Steps: Click "Publish". Expected: A confirmation modal opens. Its title is "Publish Event". The modal shows the confirmation action text "Publish" and the cancel action text "Edit Schedule". Do not confirm publishing. [plan: full]
+- GEN-SCR-381: Render the Clara summary when Clara is disabled but a summary exists. Steps: Open the create screen. Click "Ask Clara". Expected: The Clara summary panel renders and displays the existing project summary. [plan: none]

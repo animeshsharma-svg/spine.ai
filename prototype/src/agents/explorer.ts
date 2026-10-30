@@ -43,6 +43,8 @@ export interface ExploreQuestion {
 
 export interface ExploreCase {
   n: number;
+  /** the draft's id when the case was saved to the catalog */
+  id?: string;
   title: string;
   grounded: string;
   rule?: { id: string; cite: string; statement: string };
@@ -78,6 +80,12 @@ interface Live {
   s: ExploreSession;
   listeners: Set<Listener>;
   pending?: { q: ExploreQuestion; resolve: (a: string) => void };
+  /** auto: run every automatable case without asking which; a question that gets no answer in time is skipped, never waited on */
+  auto?: boolean;
+  /** save the drafted cases to the catalog (GEN-SCR ids) */
+  save?: boolean;
+  askTimeoutMs?: number;
+  label?: string;
   stop?: () => void;
   stopped: boolean;
 }
@@ -153,7 +161,7 @@ function emit(L: Live, event: string, data: unknown, line?: { text: string; scre
       /* a closed listener */
     }
   }
-  if (event !== "frame") save(L);
+  if (event !== "frame" && event !== "spot" && event !== "log") save(L);
 }
 
 function ask(L: Live, q: Omit<ExploreQuestion, "id" | "askedAt">): Promise<string> {
@@ -164,7 +172,21 @@ function ask(L: Live, q: Omit<ExploreQuestion, "id" | "askedAt">): Promise<strin
   let resolve!: (a: string) => void;
   const answered = new Promise<string>((r) => (resolve = r));
   L.pending = { q: question, resolve };
-  emit(L, "question", question, { text: `asked: ${question.text}`, screenshot: question.screenshot });
+  // A question with a deadline (auto mode): the run goes on without the answer rather than
+  // waiting for a person who may have walked away; the question stays in the report.
+  if (L.askTimeoutMs) {
+    const timer = setTimeout(() => {
+      if (L.pending?.q.id !== question.id) return;
+      L.pending = undefined;
+      question.answer = "";
+      question.answeredAt = now();
+      L.s.status = "running";
+      emit(L, "unanswered", { qid: question.id }, { text: `no answer in ${Math.round((L.askTimeoutMs ?? 0) / 60_000)} min — going on without it` });
+      resolve("");
+    }, L.askTimeoutMs);
+    void answered.then(() => clearTimeout(timer));
+  }
+  emit(L, "question", { ...question, answerUrl: "/api/explore/answer", timeoutMs: L.askTimeoutMs ?? 0 }, { text: `asked: ${question.text}`, screenshot: question.screenshot });
   return answered;
 }
 
@@ -233,6 +255,8 @@ function runAndWait(L: Live, plan: { title: string; steps: unknown[] }, runId: s
     let inventory: string | undefined;
     const h = runUiPlan({ plan, companyId: L.s.companyId, runId, headed: false }, (e: any) => {
       if (e.type === "frame" && e.frame) emit(L, "frame", { frame: e.frame });
+      if (e.type === "spot") emit(L, "spot", e);
+      if (e.type === "log" && e.line) emit(L, "log", { line: String(e.line) });
       const m = /\[inventory\]\s+(\S+\.inventory\.json)/.exec(String(e.line ?? ""));
       if (m) inventory = m[1];
       if (e.type === "log" && /\[plan\] \d+\/\d+ /.test(String(e.line ?? ""))) emit(L, "progress", { line: short(String(e.line).replace(/^.*\[plan\]\s*/, ""), 240) });
@@ -248,15 +272,21 @@ function startOnPage(plan: { title: string; steps: any[] }, path: string): { tit
   const steps = [...plan.steps];
   if (creating && steps[0]?.step === "open_create") return { ...plan, steps };
   while (steps.length && /^open_(create|events_list|event|prepared)$/.test(steps[0]?.step)) steps.shift();
-  return { ...plan, steps: [{ step: "go_to", args: { screen: "path", path } }, ...steps] };
+  // Off the event screens, the event steps have nothing to act on ("expect_events_list" on the
+  // purchase-requisition page failed a healthy screen, 26 Oct): only the generic steps stay.
+  const eventScreen = /^\/(orders|project)\b/.test(path);
+  const GENERIC = /^(go_to|click|hover|fill|select|toggle|upload|press|expect_text|expect_visible|expect_count|expect_value|expect_message|expect_toast|expect_error|expect_field_error|expect_url_contains|expect_disabled|expect_enabled|expect_navigated|expect_screen_clean|remember|expect_remembered|skip|attempt|inventory_screen|capture_screen|switch_company)$/;
+  const kept = eventScreen ? steps : steps.filter((st) => GENERIC.test(String(st?.step ?? "")));
+  const first = kept[0]?.step === "go_to" && kept[0]?.args?.screen === "path" ? kept.slice(1) : kept;
+  return { ...plan, steps: [{ step: "go_to", args: { screen: "path", path } }, ...first] };
 }
 
-export function startExplore(input: { url: string; companyId: number; max?: number }): { id?: string; why?: string } {
+export function startExplore(input: { url: string; companyId: number; max?: number; auto?: boolean; save?: boolean; askTimeoutMs?: number; label?: string }): { id?: string; why?: string } {
   const p = consolePath(input.url);
   if (!p.path) return { why: p.why };
   const id = `exp-${Date.now().toString(36)}`;
   const s: ExploreSession = { id, url: input.url, path: p.path, companyId: input.companyId, status: "running", startedAt: now(), cases: [], questions: [], notes: priorNotes(p.path), timeline: [] };
-  const L: Live = { s, listeners: new Set(), stopped: false };
+  const L: Live = { s, listeners: new Set(), stopped: false, auto: input.auto, save: input.save, askTimeoutMs: input.askTimeoutMs, label: input.label };
   live.set(id, L);
   save(L);
   void explore(L, input.max ?? 6).catch((e) => {
@@ -272,8 +302,8 @@ async function explore(L: Live, max: number): Promise<void> {
 
   // 1. OPEN + LOOK — ask when the page does not open as a page to test
   let inv: ScreenInventory | null = null;
-  for (let attempt = 0; attempt < 3 && !inv && !L.stopped; attempt++) {
-    const label = (s.path.split("?")[0].split("/").filter(Boolean).slice(0, 2).join("-") || "home").replace(/[^a-z0-9-]/gi, "-").slice(0, 40);
+  for (let attempt = 0; attempt < 4 && !inv && !L.stopped; attempt++) {
+    const label = (L.label || s.path.split("?")[0].split("/").filter(Boolean).slice(0, 2).join("-") || "home").replace(/[^a-z0-9-]/gi, "-").slice(0, 40);
     const r = await runAndWait(L, { title: `explore ${s.path}`, steps: [{ step: "go_to", args: { screen: "path", path: s.path } }, { step: "inventory_screen", args: { label } }] }, `${s.id}-look${attempt}`);
     const got = r.inventory && existsSync(r.inventory) ? (JSON.parse(readFileSync(r.inventory, "utf8")) as ScreenInventory) : null;
     const blocked = got && (/not authori[sz]ed|page not found|404|something went wrong|access denied/i.test([...got.messages, ...got.headings].join(" ")) || got.controls.length < 3);
@@ -283,6 +313,12 @@ async function explore(L: Live, max: number): Promise<void> {
     }
     const failedStep = (r.result?.steps ?? []).find((x: any) => x.status === "failed");
     const said = got ? short([...got.messages, ...got.headings].join(" · "), 200) : short(failedStep?.detail ?? "the page did not load", 200);
+    // Auto mode tries once more on its own before asking; a page that will not open twice is a
+    // question worth a person's time (wrong module, no permission, a dead route).
+    if (L.auto && attempt === 0) {
+      emit(L, "info", { text: `the page did not open as something to test (${said || "almost nothing on it"}) — trying once more` }, { text: `did not open: ${said}` });
+      continue;
+    }
     const a = await ask(L, {
       kind: "one",
       text: `The page did not open as something I can test (${said || "almost nothing on it"}). What should I do?`,
@@ -290,6 +326,7 @@ async function explore(L: Live, max: number): Promise<void> {
       screenshot: got?.screenshot ?? failedStep?.evidence?.screenshot ?? null,
     });
     if (/^stop$/i.test(a.trim())) return finish(L, "stopped");
+    if (a.trim() === "" ) return finish(L, "stopped");
     if (/^try again$/i.test(a.trim())) continue;
     const p = consolePath(a);
     if (p.path) {
@@ -314,9 +351,10 @@ async function explore(L: Live, max: number): Promise<void> {
 
   // 2. DRAFT — from the screen, the code's rules, the memory and what testers said
   emit(L, "info", { text: "writing test cases from the screen, the code's rules and the memory…" });
-  const drafted = await draftCasesFromScreen(inv, { max, companyId: s.companyId, save: false, compile: true, notes: s.notes });
+  const drafted = await draftCasesFromScreen(inv, { max, companyId: s.companyId, save: !!L.save, compile: true, notes: s.notes });
   s.cases = drafted.saved.map((d, i) => ({
     n: i + 1,
+    ...(L.save && d.id ? { id: d.id } : {}),
     title: d.title,
     grounded: d.grounded,
     rule: d.rule,
@@ -330,15 +368,23 @@ async function explore(L: Live, max: number): Promise<void> {
   emit(L, "cases", { cases: s.cases, alreadyCovered: drafted.alreadyCovered, dropped: drafted.dropped }, { text: `wrote ${s.cases.length} case(s); ${drafted.alreadyCovered.length} already in the catalog, ${drafted.dropped.length} dropped` });
   if (!s.cases.length) return finish(L, "done");
 
-  // 3. CHOOSE — the person decides what runs
-  const pick = await ask(L, {
-    kind: "choose",
-    text: "Which of these should I run now?",
-    options: s.cases.map((c) => `${c.n}. ${c.title}${c.coverage !== "full" ? ` (${c.coverage === "none" ? "needs your help" : "partly automatable"})` : ""}`),
-  });
-  if (/^stop$/i.test(pick.trim())) return finish(L, "stopped");
-  const chosen = /^all$/i.test(pick.trim()) ? s.cases.map((c) => c.n) : (pick.match(/\d+/g) ?? []).map(Number);
-  for (const c of s.cases) if (!chosen.includes(c.n)) c.verdict = "skipped";
+  // 3. CHOOSE — the person decides what runs; in auto mode every automatable case runs
+  if (L.auto) {
+    for (const c of s.cases) if (c.coverage === "none" || !c.plan?.steps?.length) {
+      c.verdict = "not_checked";
+      c.why = `no step can do this yet${c.gaps.length ? ` — ${short(c.gaps.slice(0, 2).join("; "), 200)}` : ""}; tell me how in the composer and it is tried next time`;
+      emit(L, "case", c, { text: `not checked: ${c.title} — ${c.why}` });
+    }
+  } else {
+    const pick = await ask(L, {
+      kind: "choose",
+      text: "Which of these should I run now?",
+      options: s.cases.map((c) => `${c.n}. ${c.title}${c.coverage !== "full" ? ` (${c.coverage === "none" ? "needs your help" : "partly automatable"})` : ""}`),
+    });
+    if (/^stop$/i.test(pick.trim())) return finish(L, "stopped");
+    const chosen = /^all$/i.test(pick.trim()) ? s.cases.map((c) => c.n) : (pick.match(/\d+/g) ?? []).map(Number);
+    for (const c of s.cases) if (!chosen.includes(c.n)) c.verdict = "skipped";
+  }
 
   // 4. RUN — asking for what the steps cannot express, and about failures nobody can classify
   for (const c of s.cases.filter((x) => x.verdict === "pending")) {
@@ -388,6 +434,11 @@ async function explore(L: Live, max: number): Promise<void> {
     } else if (/not checked:/i.test(failed.detail ?? "")) {
       c.verdict = "not_checked";
       c.why = short(String(failed.detail).replace(/^.*?not checked:\s*/i, ""), 200);
+    } else if (/needs something to look for|is not an allowed key|does not know the screen|needs a console path|needs an? "(option|key|value)"|needs a name|no such step|unknown step/i.test(failed.detail ?? "")) {
+      // The plan itself was built wrong (an empty expect_count, a key the step refuses): that is
+      // the automation's fault, not a question for the tester.
+      c.verdict = "not_checked";
+      c.why = `the test was built wrong at ${failed.step}: ${short(failed.detail, 160)} — the automation needs fixing, not the product`;
     } else {
       const shot = failed.evidence?.screenshot ?? null;
       const known = /the app's own rule/i.test(failed.detail ?? "");
@@ -398,7 +449,10 @@ async function explore(L: Live, max: number): Promise<void> {
         screenshot: shot,
       });
       const t = a.trim();
-      if (/^a product bug$/i.test(t)) {
+      if (t === "") {
+        c.verdict = "not_checked";
+        c.why = `failed at ${failed.step}: ${short(failed.detail, 160)} — nobody said yet whether this is a bug; the picture is in the report`;
+      } else if (/^a product bug$/i.test(t)) {
         c.verdict = "broken";
         c.why = `failed at ${failed.step}; you confirmed it is a product bug — re-check on a fresh event before it goes to the bug sheet`;
       } else if (/^expected/i.test(t)) {

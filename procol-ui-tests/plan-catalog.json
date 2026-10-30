@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T07:24:50.850Z",
+  "generatedAt": "2026-10-30T07:38:16.818Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -145,16 +145,77 @@
       "assertion": true
     },
     {
-      "name": "expect_responses",
-      "purpose": "The BUYER's view of who responded on a stage, after vendors bid (place_bid from the vendor portal, place_surrogate_bid from the console): the stage's Responses tab, reloaded, has one column per vendor that responded — a surrogate one is tagged \"Surrogate Bid\", one from the vendor portal is not — and \"Participation : x / y\" (responded / invited). Same on an RFQ, a technical stage (RFP) and an auction. Use for \"the buyer sees the response(s)\", \"both bids show for the buyer\", \"N of M vendors responded\". On a two-stage event check each stage with stage:\"rfp\" / \"rfq\".",
+      "name": "extend_time",
+      "purpose": "On an event's page, open Settings → \"Extend Submission Time\" (which:\"submission\", default) or \"Edit Evaluation Time\" (which:\"evaluation\") and set the new time in the \"Increase Event Time\" window: option \"preset\" (a ready slot — the app offers \"15 minutes\", \"30 minutes\", \"an hour\"; preset = its duration e.g. \"1 hour\"), \"custom\" (amount + unit minutes|hours|days; direction \"decrease\" for Edit Evaluation Time's \"Decrease by\"), or \"fixed\" (at = \"E+30m\" = 30 minutes after the event's CURRENT END — use E whenever the case says \"after / before the current end\"; \"+2h\" = two hours from NOW; \"-10m\" = in the past). Presses Ok and judges the window's own answer; when it saves, reads the event's end before and after and checks the SUM (new end = old end + duration, or now + duration when bidding had already ended). expect \"refused\" for a negative case (also passes when the item is not offered, or is greyed out WITH a tooltip; message = words of the refusal). Use for every \"extend submission time / edit evaluation time\" case: by preset, by custom minutes/hours/days, to a fixed time, zero, empty, past time, before the current end, during live / evaluation / after award.",
       "args": {
-        "count": "how many vendor columns (responses) exactly (optional)",
-        "atLeast": "at least this many (optional)",
-        "surrogate": "how many are tagged Surrogate Bid (optional)",
-        "direct": "how many came from the vendor portal — no Surrogate Bid tag (optional)",
-        "vendors": "vendor names that must have a column (optional)",
-        "participation": "\"2/3\" — responded / invited (optional)",
-        "stage": "\"rfq\" | \"rfp\" | \"auction\" — whose Responses (optional; default the first stage)"
+        "which": "\"submission\" (default) | \"evaluation\"",
+        "option": "\"preset\" | \"custom\" (default) | \"fixed\"",
+        "preset": "the slot's words (optional)",
+        "amount": "number for custom (may be 0, empty, letters for negative cases)",
+        "unit": "\"minutes\" | \"hours\" | \"days\"",
+        "direction": "\"increase\" (default) | \"decrease\"",
+        "at": "\"E+30m\" | \"+2h\" | \"-10m\" for fixed",
+        "expect": "\"saved\" (default) | \"refused\"",
+        "message": "words of the refusal (optional)",
+        "confirm": "false = fill but do not press Ok"
+      },
+      "assertion": true
+    },
+    {
+      "name": "expect_settings_menu",
+      "purpose": "Open the event's Settings menu and check what it offers in the event's CURRENT state: offered (must be there), absent (must not be there), greyed (must be greyed out), enabled (must be clickable). Every greyed-out item must show a tooltip saying why (tooltips:false turns that check off). Use for \"is X allowed when the event is upcoming / live / in evaluation / awarded\" — e.g. after award: absent [\"Withdraw\"], greyed [\"Extend Submission Time\"].",
+      "args": {
+        "offered": "[\"Withdraw\", …]",
+        "absent": "[\"Reschedule Event\", …]",
+        "greyed": "[\"Extend Submission Time\", …]",
+        "enabled": "[\"Order Activity\", …]",
+        "tooltips": "false = do not require tooltips on greyed items"
+      },
+      "assertion": true
+    },
+    {
+      "name": "probe_controls",
+      "purpose": "EXPLORATION, not a check: click every control the current screen offers (buttons, tabs, menu items, links, switches), one at a time on the screen reloaded each time, and record what the app did — the dialog it opened (title, fields, buttons), the menu, the new page, the message, the request it sent, an error, or nothing; a greyed-out control is hovered for its tooltip. Never presses the confirm inside a dialog. Controls that usually change the event (Publish, Submit, Save …) go last. Use only when the case asks to find out what each control does (\"what happens if I click …\", \"explore this screen\").",
+      "args": {
+        "within": "\"Settings\" | \"Actions\" | \"⋮ (more)\" — probe the ITEMS of the menu this control opens, opening it again before each item (optional)",
+        "include": "[\"Settings\", …] only controls whose name contains one of these (optional)",
+        "skip": "[\"Publish\", …] controls to leave alone (optional)",
+        "max": "most controls to click (default 30)",
+        "reload": "false = do not reload between clicks (default reloads)"
+      }
+    },
+    {
+      "name": "expect_template_menu",
+      "purpose": "On the SINGLE STAGE create screen, open \"Select Templates\", read the name of every template the menu offers and close it without choosing. eventType (rfq | rfp | auction) switches the event type first; without it the type on screen is read. Checks the menu is not empty (min), names that must / must not be offered (contains / absent, matched as part of the name), and with distinctFrom that none of these templates is also offered for the other event type(s) — e.g. \"RFP shows questionnaire templates, not the RFQ price templates\" → {eventType:\"rfp\", distinctFrom:[\"rfq\"]}. Use for \"the template list matches the event type\", \"only RFQ templates are offered\", \"auction shows its own templates\".",
+      "args": {
+        "eventType": "\"rfq\" | \"rfp\" | \"auction\" (optional — switch to it first)",
+        "min": "least number of templates (default 1)",
+        "contains": "[\"Buy\", …] parts of names that must be offered (optional)",
+        "absent": "[\"Questionnaire\", …] parts of names that must NOT be offered (optional)",
+        "distinctFrom": "[\"rfq\", …] event types whose templates must not appear here (optional)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "set_sheet_cell",
+      "purpose": "Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text (\"Quantity Requested\", \"Price\", \"GST\" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for \"enter a negative quantity\", \"type letters into the price\", \"enter 0\", \"enter 1,00,000.555\". For choosing a product use the product steps, not this.",
+      "args": {
+        "row": "data row number (default 1)",
+        "column": "header text of the column",
+        "value": "what to type"
+      }
+    },
+    {
+      "name": "expect_sheet_cell",
+      "purpose": "Read one cell of the price / BOQ sheet and check it. kept:true = the value typed by set_sheet_cell stayed (numbers compared without separators, so \"1,000\" = \"1000\") and the cell is not marked as an error; refused:true = the sheet did NOT keep it (cleared, changed, locked, or marked as an error). equals / contains / empty check the text the cell shows. Use after set_sheet_cell for \"the sheet does not accept negative quantity\", \"letters are not allowed in price\", \"the value is saved as typed\".",
+      "args": {
+        "row": "data row number (default 1)",
+        "column": "header text of the column",
+        "kept": "true = the typed value must stay (optional)",
+        "refused": "true = the typed value must be refused (optional)",
+        "equals": "exact text expected (optional)",
+        "contains": "part of the text expected (optional)",
+        "empty": "true / false (optional)"
       },
       "assertion": true
     },
@@ -378,7 +439,7 @@
     },
     {
       "name": "set_title",
-      "purpose": "Give the event a title.",
+      "purpose": "Type a title into the event's title box. LEAVE IT OUT when the case is about the AUTOMATIC title (auto title, \"[RFQ] …\", the title the app fills from the products / event type, \"the title box stays empty\"): typing one would replace what the case checks. When the case says to clear or edit the auto title, use the generic fill on \"Enter the title of this event\" instead.",
       "args": {
         "title": "string; omit to auto-generate a unique one"
       }
@@ -948,7 +1009,12 @@
     "extend_submission_time",
     "add_price_cap",
     "expect_price_cap",
-    "expect_responses",
+    "extend_time",
+    "expect_settings_menu",
+    "probe_controls",
+    "expect_template_menu",
+    "set_sheet_cell",
+    "expect_sheet_cell",
     "open_event_settings",
     "reschedule_event",
     "expect_add_stage_options",

@@ -22,6 +22,7 @@ import { retrieve, FACT_KINDS } from "../rag/knowledgeBase.js";
 import { matchTestCase } from "../checks/caseMatcher.js";
 import { compileTestCase } from "./planner.js";
 import { nextDraftId, saveDraft, type DraftRecord } from "./drafts.js";
+import { STYLE_GUIDE, styleExamplesText, toHouseStyle } from "./caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RULES = join(here, "..", "..", "data", "rules", "events-rules.json");
@@ -194,8 +195,9 @@ export async function draftCasesFromScreen(
     "- Prefer the rules marked UNTESTED. Cover disabled controls (what enables them), required fields, refusals with their exact message, and what each important button opens.",
     "- Destructive controls (delete, withdraw, reject) may be tested only for their confirmation step, never pressed to completion.",
     "- Do not repeat a case from EXISTING CASES.",
-    "- Plain language. Steps are short imperative sentences. Expected says what the tester sees, quoting the app's message when the rule gives one.",
-    `Return ONLY a JSON array of at most ${max} objects: {"title","kind":"positive|negative|boundary|state|button","controls":[exact names],"grounded":"R-… or screen","why","setup","steps":[…],"expected","priority":"P0|P1|P2"}.`,
+    STYLE_GUIDE,
+    `How the voice looks:\n${styleExamplesText()}`,
+    `Return ONLY a JSON array of at most ${max} objects: {"title","kind":"positive|negative|boundary|state|button","controls":[exact names],"grounded":"R-… or screen","why","setup":"the pre-conditions in words","configs":"company settings the case needs, one per line as setting_key = On|Off — what it does, or None","testData":"values to type, or -","steps":[…],"expected","priority":"Critical|High|Medium|Low","testType":"Positive|Negative|Edge"}.`,
   ].join("\n");
   const user = [
     `SCREEN: ${inv.label} — ${inv.path}${inv.context && inv.context !== "none" ? ` (event state: ${inv.context})` : ""}`,
@@ -270,22 +272,31 @@ export async function draftCasesFromScreen(
     let gaps: string[] = [];
     let uiPlan: unknown;
     if (opts.compile !== false) {
-      const c = await compileTestCase(opts.notes?.length ? `${caseText} Tester's notes: ${opts.notes.join(" ")}` : caseText, "events", { tier: "fast", dryRun: true }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
+      const screen = { label: inv.label, path: inv.path, controls: inv.controls.filter((x) => x.name && x.name.length >= 2).map((x) => `${x.kind} "${x.name}"${x.disabled ? " (disabled)" : ""}`), headings: [...(inv.headings ?? []), ...(inv.messages ?? [])].filter((t) => t && t.length >= 2).slice(0, 60) };
+      const c = await compileTestCase(opts.notes?.length ? `${caseText} Tester's notes: ${opts.notes.join(" ")}` : caseText, "events", { tier: "fast", dryRun: true, screen }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
       coverage = c.coverage;
       gaps = c.gaps ?? [];
       uiPlan = (c as { plan?: unknown }).plan;
     }
+    const house = toHouseStyle({ title, steps: d.steps.map(String), expected: String(d.expected), setup: d.setup, testData: (d as any).testData, priority: d.priority, testType: (d as any).testType });
     const record: DraftRecord = {
       id: opts.save === false ? `GEN-SCR-(preview ${out.saved.length + 1})` : await nextDraftId("SCR"),
       area: "SCR",
       typed: `screen ${inv.label} (${inv.path})`,
       title,
       why: `${String(d.why ?? "").trim() || "Seen on the screen."} Written from the ${inv.label} screen${rule ? `; grounded in ${rule.id} (${rule.file ?? ""}${rule.lines?.length ? `:${rule.lines.join("-")}` : ""})` : "; grounded in what the screen shows"}${inv.screenshot ? `; screenshot ${inv.screenshot.replace(/^.*\/procol-ui-tests\//, "procol-ui-tests/")}` : ""}`,
-      setup: String(d.setup ?? "").trim() || "A buyer signed in to the client under test.",
-      steps: d.steps.map(String),
-      expected: String(d.expected),
+      setup: house.preconditions !== "-" ? house.preconditions : `The ${inv.label} screen is open (${inv.path}).`,
+      steps: house.steps,
+      expected: house.expected,
+      module: `Screen — ${inv.label}`,
+      scenario: String(d.kind ?? "").trim() || "screen",
+      role: house.role,
+      portal: house.portal,
+      testData: house.testData,
+      testType: house.testType,
+      configs: String((d as any).configs ?? "").trim() || "None",
       oracle: rule ? `The screen behaves as ${rule.id} says: ${rule.statement.replace(/\s+/g, " ").slice(0, 200)}` : `What the tester sees on the ${inv.label} screen.`,
-      priority: ["P0", "P1", "P2"].includes(d.priority) ? d.priority : "P1",
+      priority: house.priority,
       layer: "ui",
       coverage,
       gaps,

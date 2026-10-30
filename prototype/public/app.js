@@ -60,8 +60,8 @@ let runStopRequested = false;
 // welcome = the landing page, login = sign in (both public/welcome.js — no app shell)
 // plan = Plan a run (public/plan.js), which replaced API automation and UI automation
 // sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
-// bugs = Bugs (public/bugs.js), which replaced the bug sheet; stuck = its Stuck points and steps still needed
-const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "stuck", "crosscheck", "product", "matrix", "success", "history", "screens"];
+// bugs = Bugs (public/bugs.js), which replaced the bug sheet; stuck = its Stuck points and steps still needed; sheets = Test sheets
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "stuck", "crosscheck", "product", "matrix", "success", "history", "screens", "sheets"];
 
 /**
  * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark
@@ -5535,11 +5535,23 @@ function runTestCase(textOverride) {
   // A draft of the plan while the case compiles; the compiled plan (or the explorer, or a refusal) replaces it.
   es.addEventListener("outline", (ev) => window.spineSession?.outline?.(JSON.parse(ev.data)));
   for (const t of ["blocked", "explore", "done", "run-error"]) es.addEventListener(t, () => window.spineSession?.draftGone?.());
+  // The test cases the journey carries, what the run proved for each, the new ones its screens
+  // produced, and their export links — the session's Test cases tab (session.js).
+  es.addEventListener("cases", (ev) => window.spineSession?.cases?.(JSON.parse(ev.data)));
+  es.addEventListener("cases-tested", (ev) => window.spineSession?.casesTested?.(JSON.parse(ev.data)));
+  es.addEventListener("new-cases", (ev) => window.spineSession?.newCases?.(JSON.parse(ev.data)));
+  es.addEventListener("journey", (ev) => window.spineSession?.journeyLinks?.(JSON.parse(ev.data)));
+  // A journey no step covers: the screen it is about is explored instead — lines, pictures,
+  // questions to answer, and each case's verdict as it runs (journeyExplore.ts).
+  es.addEventListener("journey-explore", (ev) => window.spineSession?.journeyExplore?.(JSON.parse(ev.data)));
+  es.addEventListener("journey-ask", (ev) => window.spineSession?.journeyAsk?.(JSON.parse(ev.data)));
+  es.addEventListener("journey-answered", (ev) => window.spineSession?.journeyAnswered?.(JSON.parse(ev.data)));
+  es.addEventListener("case-verdict", (ev) => window.spineSession?.caseVerdict?.(JSON.parse(ev.data)));
 
   es.addEventListener("stage", (ev) => {
     const st = JSON.parse(ev.data);
     write("› " + st.line, "cmd");
-    if (st.name === "execute") window.spineSession?.working(st.line);
+    if (st.name === "execute" || st.name === "discover" || st.name === "explore" || st.name === "setup") window.spineSession?.working(st.line);
     // The run's id, so this turn can link to its saved session (a case run from the table needs it).
     if (st.runId) window.spineSession?.setRunId?.(st.runId);
   });
@@ -5765,8 +5777,42 @@ function runTestCase(textOverride) {
     runFinished();
     loadFindings();
   };
+  // "run everything / run the X module": a whole-sheet campaign started; it runs on its own on the server.
+  es.addEventListener("campaign", (ev) => {
+    const d = JSON.parse(ev.data);
+    window.spineSession?.end({
+      tone: "ok",
+      key: "UI",
+      title: `Started: ${d.total} test cases from the sheet, module by module, one case at a time.`,
+      lines: [`In this order: ${d.modules.join(" → ")}.`, "It runs on its own on the server (it carries on after a restart) and repairs its own automation where it can. Follow it on Test sheets; the report fills in as it goes."],
+      links: [{ label: "Campaign report", href: d.report, icon: "chart-column" }, { label: "Test sheets", href: "#/sheets", icon: "list-checks" }],
+    });
+  });
   es.addEventListener("done", (ev) => {
     const d = JSON.parse(ev.data);
+    if (d.campaign) {
+      finish("✓ whole-sheet run started", "ok");
+      return;
+    }
+    // No step covered the journey, so its screen was explored: the end box says what that found.
+    if (Array.isArray(d.explored) && d.explored.length) {
+      const ex = d.explored;
+      const sum = ex.reduce((a, e) => ({ cases: a.cases + e.cases, worked: a.worked + e.worked, partly: a.partly + e.partly, broken: a.broken + e.broken, notChecked: a.notChecked + e.notChecked, skipped: a.skipped + e.skipped, questions: a.questions + e.questions }), { cases: 0, worked: 0, partly: 0, broken: 0, notChecked: 0, skipped: 0, questions: 0 });
+      const names = ex.map((e) => e.name).join(" and ");
+      renderUiInstructResult("notrun", { title: planTitle, reason: `No step covered this journey, so spine.ai explored ${names}: ${sum.cases} test cases written, ${sum.worked + sum.partly} worked, ${sum.broken} broken, ${sum.notChecked} not checked.` });
+      window.spineSession?.end({
+        tone: sum.broken ? "bad" : sum.worked + sum.partly ? "ok" : "skip",
+        key: "UI",
+        title: `No step covered this journey yet, so spine.ai opened ${names}, wrote its test cases and ran them.`,
+        lines: [
+          `${sum.cases} test case${sum.cases === 1 ? "" : "s"} written · ${sum.worked} worked · ${sum.partly} partly checked · ${sum.broken} broken · ${sum.notChecked} not checked${sum.skipped ? ` · ${sum.skipped} skipped` : ""}.`,
+          sum.questions ? `${sum.questions} question${sum.questions === 1 ? " was" : "s were"} asked on the way. ` : "",
+          "Every case, its result and its pictures are in the Test cases tab — export them from there.",
+        ],
+      });
+      finish(sum.broken ? `✗ ${sum.broken} broken on ${names}` : `✓ explored ${names}: ${sum.worked + sum.partly} of ${sum.cases} cases worked`, sum.broken ? "bad" : "ok");
+      return;
+    }
     // Not tested says why in one place: the step that is missing, when the compiler named it.
     if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: planGaps.length ? `There is no step yet for: ${gapWords(planGaps)}. Nothing was run in its place.` : "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
     else if (!planStarted) renderUiInstructResult("notrun", { title: planTitle, reason: `The run could not start${planError ? `: ${planError}` : "."}` });

@@ -336,7 +336,7 @@ function launch(
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean; discover?: boolean },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -378,6 +378,8 @@ export function runUiPlan(
   if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
   if (opts.headed !== false && opts.slowMo) env.UI_SLOWMO = String(opts.slowMo);
   if (opts.warm) env.UI_PLAN_WAIT = "1";
+  // Inventory every screen the run reaches, so new test cases can be written from them after.
+  if (opts.discover) env.UI_DISCOVER = "1";
 
   return launch(`plan ${runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),

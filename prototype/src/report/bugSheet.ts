@@ -1,6 +1,7 @@
 import { knownBugSentence } from "./knownBugs.js";
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import { summariseFindings, type DefectGroup } from "../agents/oracle.js";
+import { sheetDefects } from "./sheetDefects.js";
 import { defectsFromRuns } from "./checkDefects.js";
 import { uiRunDefects } from "./uiFrictionDefects.js";
 import { curatedAsDefects, loadCuratedBugs, type CuratedBug } from "./curatedBugs.js";
@@ -363,6 +364,8 @@ export function allDefects(): DefectGroup[] {
     ...uiRunDefects(),
     // What a tester reported from a run's Console tab (consoleBugs.ts).
     ...consoleBugsAsDefects(),
+    // test sheets run case by case, and the flows explored control by control
+    ...sheetDefects(),
   ]
     .filter((g) => {
       if (seen.has(g.defectFingerprint)) return false;

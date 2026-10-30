@@ -32,6 +32,7 @@ import { caseById } from "../checks/testCatalog.js";
 import type { MatchResult, Understood } from "../checks/caseMatcher.js";
 import { compileTestCase, type CompileResult } from "./planner.js";
 import { areaFor } from "./drafts.js";
+import { STYLE_GUIDE, styleExamplesText, toHouseStyle } from "./caseStyle.js";
 import { compileApiPlan, planInWords, RECIPES, type CompiledApiPlan } from "./apiPlanner.js";
 
 /** Placeholders a draft may use: the ones a run can fill without touching live business records. */
@@ -261,7 +262,7 @@ async function writeWithModel(typed: string, u: Understood, bases: TestCaseRecor
     `A QA engineer typed this NEW test case for Procol (B2B procurement; sourcing events, RFQ/RFP/auctions, bids, awards, vendors):\n"""${typed.slice(0, 700)}"""\n` +
     `(normalised: "${u.normalized}")\n\nClosest existing cases (they do NOT fully cover it):\n${near || "- none"}\n\n` +
     `Known-good API requests you may vary (placeholders in {{…}} are filled at run time):\n${baseText || "- none"}\n\n` +
-    `Write:\n1. "draft": the test case in plain English, like a senior QA engineer — title (short), why (one sentence), setup, steps (list of short strings), expected, oracle (how to tell it worked), priority P0-P3. Plain English only in the draft: no endpoints, no {{placeholders}}, no JSON, no field names.\n` +
+    `Write:\n1. "draft": the test case in plain English, like a senior QA engineer — title (short), why (one sentence), setup (the pre-conditions in words), configs (the company settings it needs, "setting_key = On|Off — what it does" per line, or None), testData, steps (list of short strings), expected, oracle (how to tell it worked), priority (Critical|High|Medium|Low), testType (Positive|Negative|Edge). Plain English only in the draft: no endpoints, no {{placeholders}}, no JSON, no field names.\n${STYLE_GUIDE}\nHow the voice looks:\n${styleExamplesText()}\n` +
     `2. "api": ONLY if the case is about something a single API request can check (a validation, a refusal, an accepted value, "must not crash"): ONE request that is a variation of one known-good request above — copy its method, path and body and change only what the case is about. Use only these placeholders: ${DRAFT_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}. Every title/name must start with "QA_Platform_". Fields: basedOn (the id), scenario, method, path, body, expected ("reject" = must be refused, "accept" = must succeed, "no-5xx" = either is fine but no crash), expectedResult (one sentence), category, severity, rationale, covers ("full" if this one request checks everything the case asks, else "partial"), notCovered (what it does not check, empty string when full). Use null when no request above fits — do not invent an endpoint.\n` +
     `3. "uiNeeded": true when part of the case is about what a screen shows or how a person uses it; "uiWhy": one sentence.\n` +
     `Reply with ONLY one JSON object: {"draft":{...},"api":{...}|null,"uiNeeded":true|false,"uiWhy":"..."}`;
@@ -354,6 +355,13 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
     baseDraft.expected = w.expected;
   }
   const draft = humanDraft(baseDraft);
+  // the house style (caseStyle.ts): login first, words for priority, the sheet's columns
+  {
+    const h = toHouseStyle({ title: draft.title, steps: draft.steps, expected: draft.expected, setup: draft.setup, testData: (baseDraft as any).testData, priority: draft.priority, testType: (baseDraft as any).testType });
+    draft.steps = h.steps;
+    draft.priority = h.priority;
+    Object.assign(draft, { role: h.role, portal: h.portal, testData: h.testData, testType: h.testType, configs: String((baseDraft as any).configs ?? "").trim() || "None" });
+  }
 
   // ── API part ──
   let api: ApiPart | null = null;

@@ -55,6 +55,13 @@ import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/compan
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, runUiExplore, readPlanResult, clampLineItems, readStuck, readLearned, runTeach, handPlan, callOffWarm, clearWarmMarker, type UiRunEvent } from "./ui/uiFlowRunner.js";
 import { buildPlanRun, deletePlanRun, listPlanRuns, savePlanRun } from "./ui/planRunStore.js";
+import { contextForPlan } from "./ui/prepareForPlan.js";
+import { findSheetCase, listSheets, sheetCaseProse, sheetPrep } from "./checks/sheetCases.js";
+import { campaignIntent, startCampaign } from "./checks/sheetCampaign.js";
+import { VALUE_KEYS } from "./agents/screenModel.js";
+import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
+import { exploreJourney } from "./agents/journeyExplore.js";
+import { cancelQuestions } from "./agents/questions.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -1437,7 +1444,41 @@ const server = createServer(async (req, res) => {
       req.on("close", () => void callOff("the session closed while the case compiled"));
 
       try {
-        send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
+        // "run everything starting with create event" / "run the awarding module": the whole sheet (or those
+        // modules) runs on its own, in flow order, as a campaign — followed on the Test sheets page.
+        const defaultSheet = listSheets().find((x) => /sourcing/i.test(x.name))?.id ?? listSheets()[0]?.id;
+        const intent = defaultSheet ? campaignIntent(testCase, defaultSheet) : null;
+        if (intent) {
+          await callOff("the whole sheet runs as a campaign, on its own");
+          try {
+            const camp = startCampaign({ sheet: defaultSheet!, companyId: c, from: intent.from, only: intent.only });
+            const mods = camp.modules.map((m) => m.name.replace(/ — .*/, ""));
+            send("campaign", { id: camp.id, modules: mods, total: camp.modules.reduce((n, m) => n + m.ids.length, 0), report: `/api/sheets/campaign/report?id=${camp.id}` });
+            send("done", { exitCode: 0, campaign: camp.id });
+          } catch (e) {
+            send("run-error", { line: (e as Error).message });
+            send("done", { exitCode: 1 });
+          }
+          res.end();
+          return;
+        }
+        // A case from a test-case sheet (typed by its ID, e.g. SRC-AWD-012, or by its title) runs with
+        // every column of the sheet: its pre-conditions decide which event is built first and which
+        // screen opens, its steps and expected result are what gets compiled.
+        const sheetCase = findSheetCase(testCase);
+        const sheetStart = sheetCase ? sheetPrep(sheetCase) : null;
+        const caseText = sheetCase ? sheetCaseProse(sheetCase) : testCase;
+        if (sheetCase) {
+          send("stage", { name: "compile", line: `Running ${sheetCase.id} from the "${sheetCase.sheet}" sheet: ${sheetCase.title}` });
+          send("sheet-case", { case: sheetCase, startsFrom: sheetStart ? (sheetStart.unbuilt ? `needs ${sheetStart.why} — ${sheetStart.unbuilt}` : `${sheetStart.why} (built by API, opened on ${sheetStart.screenWhat})`) : "from scratch" });
+          if (sheetStart?.unbuilt) {
+            await callOff("the event this case starts from cannot be built yet");
+            send("log", { line: `[plan] not run — ${sheetCase.id} starts from: ${sheetStart.why} ${sheetStart.unbuilt}` });
+            send("done", { exitCode: 0, notRun: true, why: `${sheetCase.id} starts from ${sheetStart.why.toLowerCase()} ${sheetStart.unbuilt}. Run its set-up case first, or run it by hand.` });
+            res.end();
+            return;
+          }
+        } else send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
         // The company's line-item ceiling, read alongside the compile: the
         // compiler does not know it, and a case over it is a refusal test.
         const limitP = openClientContext(c, baseOverride(url))
@@ -1453,7 +1494,7 @@ const server = createServer(async (req, res) => {
         const outlineTimer = quick
           ? setTimeout(() => {
               try {
-                const o = quick(testCase);
+                const o = quick(caseText);
                 if (o?.steps?.length) send("outline", o);
               } catch {
                 /* no draft: the compiled plan still comes */
@@ -1461,7 +1502,9 @@ const server = createServer(async (req, res) => {
             }, 400)
           : null;
         // "Run it again" and the same words again reuse their compiled steps (agents/compileCache.ts).
-        const cachedCompile = await compileCached(testCase, compileTestCase).finally(() => outlineTimer && clearTimeout(outlineTimer));
+        // A sheet case compiles with the state its pre-conditions name (prepared), so its plan opens that event.
+        const compileOpts = sheetStart?.prepared ? { prepared: { state: sheetStart.state, screen: sheetStart.screen, screenWhat: sheetStart.screenWhat, valueKeys: VALUE_KEYS[sheetStart.state] ?? [], technical: sheetStart.technical } } : {};
+        const cachedCompile = await compileCached(caseText, (t) => compileTestCase(t, "events", compileOpts)).finally(() => outlineTimer && clearTimeout(outlineTimer));
         const compiled = cachedCompile.result;
         if (cachedCompile.reused) send("note", { line: `Reused the steps compiled for this exact case ${Math.max(1, Math.round((cachedCompile.ageMs ?? 0) / 60_000))} min ago — the compiler and its steps have not changed since.` });
         const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
@@ -1472,7 +1515,10 @@ const server = createServer(async (req, res) => {
         const unreachable = (compiled.warnings ?? []).some((w: string) => /could not be reached|did not return JSON/i.test(w));
         const noSteps = compiled.coverage === "none" || !compiled.plan.steps.length;
         const wordsFailed = compiled.source === "fallback" && !unreachable && url.searchParams.get("force") !== "1";
-        const explores = (noSteps || wordsFailed) && url.searchParams.get("explore") !== "0";
+        // explore=0 keeps the old "not tested" answer; explore=journey uses the screen-first explorer
+        // (journeyExplore.ts: find the console screen, photograph it, write its cases, run them, ask on the way).
+        const exploreMode = url.searchParams.get("explore") ?? "";
+        const explores = (noSteps || wordsFailed) && exploreMode !== "0";
         // A plan that will not run is not shown as the plan: the explorer's own steps are.
         if (!explores || dryRun) send("plan", {
           title: compiled.plan.title,
@@ -1487,7 +1533,30 @@ const server = createServer(async (req, res) => {
             experience: compiled.context.experience.length,
           },
         });
+        const runId = warmId;
+        // The test cases this journey carries (one per assertion, plus the journey) and the ones a
+        // senior tester would add, matched against the catalog — drafted while the browser runs,
+        // shown as soon as they are ready, marked from the run's result at the end (journeyCases.ts).
+        const discover = url.searchParams.get("discover") !== "0";
+        const journey: TypedJourney = { runId, text: testCase, companyId: c, at: new Date().toISOString(), plan: compiled.plan.steps, cases: [], newCases: [], screens: [] };
+        const casesP = casesForJourney(caseText, compiled.plan, { companyId: c, onLine: (l) => send("log", { line: l }), planCases: compiled.coverage !== "none" && compiled.source !== "fallback" })
+          .then((cases) => {
+            journey.cases = cases;
+            saveJourney(journey);
+            send("cases", { runId, cases });
+            return cases;
+          })
+          .catch((e) => {
+            send("log", { line: `[journey] could not write the test cases: ${(e as Error).message}` });
+            return [] as JourneyCase[];
+          });
+        const exportLinks = { csv: `/api/journey/export?run=${runId}&format=csv`, md: `/api/journey/export?run=${runId}&format=md`, xlsx: `/api/journey/export?run=${runId}&format=xlsx` };
+        // The journey explorer's own events, so they never collide with the browser explorer's "explore" / "ask".
+        const sendJourney = (event: string, data: unknown) => send(event === "explore" ? "journey-explore" : event === "ask" ? "journey-ask" : event === "answered" ? "journey-answered" : event, data);
         if (dryRun) {
+          // A plan-only run still gets its test cases: that is most of what a typed journey is for.
+          await casesP;
+          send("journey", { runId, cases: journey.cases.length, newCases: 0, export: exportLinks });
           send("done", { exitCode: 0 });
           res.end();
           return;
@@ -1500,28 +1569,48 @@ const server = createServer(async (req, res) => {
          * end here as not tested. Now the explorer takes it: it drives the app
          * toward the goal one screen at a time and asks the tester in the chat
          * when it cannot choose, is stuck, or is about to send or delete
-         * something (procol-ui-tests/src/explore/). explore=0 keeps the old
-         * answer. A model that never answered is not a case with no steps, so
-         * the blocked branch below still says so.
+         * something (procol-ui-tests/src/explore/). A model that never answered
+         * is not a case with no steps, so the blocked branch below still says so.
          */
+        if (explores && exploreMode === "journey") {
+          await callOff("the journey explorer finds the screen the case is about");
+          send("log", { line: `[plan] no step yet for: ${compiled.gaps.join("; ") || "what this case checks"} — exploring the screen instead` });
+          send("stage", { name: "explore", line: "No step covers this yet — finding the screen it is about" });
+          const closers: Array<() => void> = [];
+          req.on("close", () => {
+            cancelQuestions(runId);
+            for (const f of closers) f();
+          });
+          const r = await exploreJourney({ text: testCase, gaps: compiled.gaps, companyId: c, runId, journey, send: sendJourney, onClose: (f) => closers.push(f), exportLinks, maxScreens: 2, maxCases: 6 }).catch((e) => ({ explored: [], asked: 0, why: (e as Error).message }));
+          await casesP.catch(() => []);
+          if (!r.explored.length) {
+            send("log", { line: `[plan] not run — ${r.why ?? "no screen to explore"}` });
+            send("done", { exitCode: 0, notRun: true, why: r.why });
+            res.end();
+            return;
+          }
+          send("done", { exitCode: r.explored.some((e) => e.broken) ? 1 : 0, explored: r.explored, asked: r.asked, runId });
+          res.end();
+          return;
+        }
         if (explores) {
           await callOff("the explorer works this case out in its own browser");
-          const runId = `plan-${Date.now().toString(36)}`;
+          const exploreId = `plan-${Date.now().toString(36)}`;
           send("explore", {
-            runId,
+            runId: exploreId,
             goal: testCase,
             why: compiled.gaps?.length ? `there is no ready-made step for: ${compiled.gaps.join("; ")}` : "the step catalog has nothing for this case",
           });
-          send("stage", { name: "execute", line: "Working it out in the browser", runId });
-          const { stop } = runUiExplore({ goal: testCase, companyId: c, runId, headed, showLogin, serverUrl: `http://127.0.0.1:${PORT}` }, (e) => {
+          send("stage", { name: "execute", line: "Working it out in the browser", runId: exploreId });
+          const { stop } = runUiExplore({ goal: testCase, companyId: c, runId: exploreId, headed, showLogin, serverUrl: `http://127.0.0.1:${PORT}` }, (e) => {
             const ending = e.type === "done" || e.type === "run-error";
             if (ending) {
-              const result = readPlanResult(runId);
+              const result = readPlanResult(exploreId);
               if (result) send("plan-result", result);
               // Kept as a session (Sessions lists it, opening it replays it).
-              savePlanRun(buildPlanRun({ runId, ask: testCase, companyId: c, startedAt, exitCode: e.exitCode ?? null, explored: true, result }));
+              savePlanRun(buildPlanRun({ runId: exploreId, ask: testCase, companyId: c, startedAt, exitCode: e.exitCode ?? null, explored: true, result }));
               try {
-                send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
+                send("verdicts", { runId: exploreId, verdicts: readRunVerdicts(exploreId) });
               } catch {
                 /* nothing recorded */
               }
@@ -1577,41 +1666,27 @@ const server = createServer(async (req, res) => {
           return;
         }
 
-        /**
-         * A plan that opens an API-built event (open_prepared) needs that event built first —
-         * the screen-case runner does it (scripts/run-ui-cases.ts); a typed case never did, so
-         * "On an event where a vendor has already bid, open the vendor's bid on the Responses
-         * tab…" failed at step 1 with nothing built (B13, 22 Oct). The state is read from the
-         * case's own words (uiCasePrep.prepFor) and built through the API (uiSetup.buildUiState).
-         */
-        if (compiled.plan.steps.some((st: { step: string }) => st.step === "open_prepared") && !(compiled.plan as any).context) {
-          const p = prepFor({ id: "typed", group: "", title: testCase, setup: testCase, steps: "", expected: "" } as any);
-          if (p.ok && p.prepared && p.state !== "none") {
-            send("stage", { name: "prepare", line: `Building the event this case starts from through the API (${p.state}${p.technical ? ", with a technical stage" : ""})` });
-            const built = await buildUiState(c, p.state as any, { technical: p.technical, auction: (p as any).auction });
-            if (!built.ok || !built.context) {
-              await callOff("the event this case starts from could not be built");
-              send("blocked", { reason: `the event this case starts from could not be built through the API: ${built.why ?? "no reason given"}`, suggestion: compiled.plan.steps.map((st: { step: string }) => st.step) });
-              send("done", { exitCode: 1 });
-              res.end();
-              return;
-            }
-            const x = built.context as any;
-            (compiled.plan as any).context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
-            send("note", { line: `Built through the API in ${Math.round((x.builtInMs ?? 0) / 1000)}s: ${x.title}` });
-          }
+        // A case that starts from an existing event gets that event built by API first — the state read from
+        // the case's own words (or the sheet's pre-conditions), built through the API (prepareForPlan.ts).
+        const prep = await contextForPlan(caseText, compiled.plan, c, (l) => send("stage", { name: "setup", line: l }), sheetStart?.prepared ? { state: sheetStart.state, technical: sheetStart.technical, auction: sheetStart.auction } : undefined);
+        if (prep.why) {
+          await callOff("the event this case starts from could not be built");
+          send("blocked", { reason: `the event this case starts from could not be built through the API: ${prep.why}`, suggestion: compiled.plan.steps.map((st: { step: string }) => st.step) });
+          send("done", { exitCode: 1 });
+          res.end();
+          return;
         }
-
-        const runId = warmId;
+        const planToRun = prep.context ? { ...compiled.plan, context: prep.context } : compiled.plan;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)`, runId });
-        const onRun = (e: UiRunEvent) => {
+        let closed = false;
+        const onRun = async (e: UiRunEvent) => {
           const ending = e.type === "done" || e.type === "run-error";
           if (ending) {
             // The result and the verdict go out before the end event: the
             // browser closes the stream on `done`, so anything written after
             // it is dropped — which is how a finished plan arrived with no
             // steps and no verdict attached.
-            const result = readPlanResult(runId);
+            const result = readPlanResult(runId) as { passed?: boolean; steps?: Array<{ status: string; detail?: string }> } | null;
             if (result) send("plan-result", result);
             // Kept as a session (Sessions lists it, opening it replays it).
             savePlanRun(buildPlanRun({ runId, ask: testCase, companyId: c, startedAt, exitCode: e.exitCode ?? null, explored: false, result }));
@@ -1620,6 +1695,33 @@ const server = createServer(async (req, res) => {
             } catch {
               /* nothing recorded */
             }
+            // What the run proved for each case, then the cases its screens deserve.
+            const cases = await casesP;
+            if (result?.steps) {
+              journey.cases = markTested(cases, { steps: result.steps });
+              journey.result = { passed: !!result.passed, ok: result.steps.filter((s) => s.status === "ok").length, steps: result.steps.length };
+              saveJourney(journey);
+              send("cases-tested", { runId, cases: journey.cases, result: journey.result });
+            }
+            if (discover && !closed) {
+              send("stage", { name: "discover", line: "Writing test cases from the screens this run passed through" });
+              const found = await discoverFromRun(runId, compiled.plan.steps, c, (l) => send("log", { line: `[journey] ${l}` })).catch((err) => ({ cases: [] as JourneyCase[], screens: [] as string[], why: (err as Error).message }));
+              journey.newCases = found.cases;
+              journey.screens = found.screens;
+              saveJourney(journey);
+              send("new-cases", { runId, cases: found.cases, screens: found.screens });
+            }
+            // A partly covered journey: the part no step reaches is explored the same way, when
+            // the words name its screen clearly (no question, nothing when they do not).
+            if (compiled.coverage === "partial" && compiled.gaps.length && !closed && exploreMode === "journey") {
+              const closers: Array<() => void> = [];
+              req.on("close", () => {
+                for (const f of closers) f();
+              });
+              const r = await exploreJourney({ text: testCase, gaps: compiled.gaps, companyId: c, runId, journey, send: sendJourney, onClose: (f) => closers.push(f), exportLinks, silent: true, maxScreens: 1, maxCases: 4 }).catch((e) => ({ explored: [], asked: 0, why: (e as Error).message }));
+              if (r.explored.length) (e as any).explored = r.explored;
+            }
+            send("journey", { runId, cases: journey.cases.length, newCases: journey.newCases.length, export: exportLinks });
           }
           send(e.type, e);
           if (ending) res.end();
@@ -1629,16 +1731,20 @@ const server = createServer(async (req, res) => {
         let stop: () => void;
         if (warm && !warmEnded && !warmOff) {
           warmTo = onRun;
-          handPlan(runId, compiled.plan);
+          if (discover) process.env.UI_DISCOVER = "1"; // the warm run was started before the plan: tell it the same way
+          handPlan(runId, planToRun);
           stop = warm.stop;
         } else if (warmOff) {
           // Called off because the session closed while the case compiled: nobody to run it for.
           res.end();
           return;
         } else {
-          ({ stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, onRun));
+          ({ stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo, discover }, onRun));
         }
-        req.on("close", () => stop());
+        req.on("close", () => {
+          closed = true;
+          stop();
+        });
       } catch (err: any) {
         await callOff("the case could not be compiled");
         send("run-error", { line: `could not compile that test case: ${err?.message ?? err}` });
@@ -2796,8 +2902,14 @@ const server = createServer(async (req, res) => {
           }
           const partial = compiled.coverage === "partial";
           const runId = `case-${k.id}-${Date.now().toString(36)}`;
+          const prep = await contextForPlan(`${k.title}. ${k.setup ?? ""} ${k.steps ?? ""} ${k.expected ?? ""}`, compiled.plan, c, (l) => send("note", { id: k.id, line: l }));
+          if (prep.why) {
+            send("note", { id: k.id, line: prep.why });
+            continue;
+          }
+          const planToRun = prep.context ? { ...compiled.plan, context: prep.context } : compiled.plan;
           await new Promise<void>((resolve) => {
-            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+            const { stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
               if (e.type === "queued") send("queued", { id: k.id, line: e.line });
               if (e.type === "done" || e.type === "run-error") {

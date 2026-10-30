@@ -34,6 +34,7 @@
  * the verdict comes from the engine's classify() and the assertion ops.
  */
 import { join } from "node:path";
+import { statusInWords } from "../checks/humanApi.js";
 import { pathToFileURL } from "node:url";
 
 import { chat, llmMode, usageReport } from "../ai/llm.js";
@@ -975,11 +976,17 @@ export function actInWords(a: ActStep): string {
 
 function assertWords(a: Assertion): string {
   if (a.say) return a.say;
+  // which kind of check it is, so a reader sees status, schema and data checks apart
+  const kind = a.op === "status" || a.op === "status_2xx" ? "Status check" : a.op === "exists" || a.op === "absent" || a.op === "type_is" || a.op === "format" || a.op === "non_empty" ? "Schema check" : "Data check";
+  return `${kind}: ${assertWordsBare(a)}`;
+}
+
+function assertWordsBare(a: Assertion): string {
   const f = a.path ? `“${a.path.replace(/\[\*\]/g, "").replace(/\{\{vendor2Uuid\}\}/g, "QA vendor 2").replace(/\{\{vendorUuid\}\}/g, "QA vendor 1").replace(/\{\{lineItemUuid\}\}/g, "the line").replace(/\{\{\w+\}\}/g, "…").replace(/_/g, " ").replace(/\./g, " › ")}”` : "the reply";
   const v = typeof a.value === "string" ? a.value.replace(/\{\{act(\d)\.body\.([\w.]+)\}\}/, (_m, n, k) => `the ${k.replace(/_/g, " ")} sent in step ${n}`) : JSON.stringify(a.value);
   switch (a.op) {
-    case "status": return `the read answers HTTP ${a.value}`;
-    case "status_2xx": return "the read succeeds";
+    case "status": return `the reply's status code is ${statusInWords(Number(a.value))}`;
+    case "status_2xx": return "the reply's status code is a success (2xx — the request worked)";
     case "exists": return `${f} is present`;
     case "absent": return `${f} is absent`;
     case "equals": return `${f} equals ${v}`;
@@ -991,7 +998,7 @@ function assertWords(a: Assertion): string {
     case "non_empty": return `${f} is not empty`;
     case "gte": return `${f} is at least ${a.value}`;
     case "lte": return `${f} is at most ${a.value}`;
-    case "type_is": return `${f} is a ${Array.isArray(a.value) ? a.value.join(" or ") : a.value}`;
+    case "type_is": return `${f} is a ${(Array.isArray(a.value) ? a.value : [a.value]).map((t) => ({ string: "text", number: "number", boolean: "yes/no value", array: "list", object: "group of fields", null: "empty value" } as Record<string, string>)[String(t)] ?? t).join(" or ")}`;
     case "format": return `${f} is ${FORMATS[String(a.value)]?.words ?? a.value}`;
   }
   return `${f} ${a.op}`;
