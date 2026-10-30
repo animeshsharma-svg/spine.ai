@@ -1027,7 +1027,8 @@ async function scrollUntil(ctx: GenericCtx, t: Target, a: Record<string, unknown
 
 async function goTo(ctx: GenericCtx, a: Record<string, unknown>): Promise<GenericOutcome> {
   const { page } = ctx;
-  const screen = String(a.screen ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+  // go_to {path:"/x"} with no screen named means the path (11 of 157 bench plans wrote it that way, 30 Oct).
+  const screen = (String(a.screen ?? "") || (a.path || a.url ? "path" : "")).toLowerCase().replace(/[\s-]+/g, "_");
   const onProject = () => /\/project\//.test(page.url());
   const needProject = () => {
     if (!onProject()) throw new Error(`go_to ${screen} needs a published event's page — publish (or open_event) first; the browser is at ${new URL(page.url()).pathname}`);
