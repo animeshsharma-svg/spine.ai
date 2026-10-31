@@ -1,4 +1,4 @@
-import type { Page, Request } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 
 /**
  * THE PAGE-READY SIGNAL — the false-positive guard for every absence check.
@@ -109,6 +109,7 @@ export async function screenReady(page: Page, budgetMs = 45_000): Promise<Readin
   let stableSince = 0;
   let otherwiseReadySince = 0;
   let lastBlocker = "";
+  let hydrationNote = "";
   await page.waitForLoadState("domcontentloaded", { timeout: Math.min(budgetMs, 30_000) }).catch(() => {});
   while (Date.now() < deadline) {
     const loading = await loadingVisible(page);
@@ -121,21 +122,31 @@ export async function screenReady(page: Page, budgetMs = 45_000): Promise<Readin
     }
     const stable = now - stableSince >= 600;
     const pending = inflight.get(page)?.size ?? 0;
-    const blocker = loading
+    let blocker = loading
       ? `${loading} is showing`
       : anchor && !anchor.present
         ? `${anchor.name} has not appeared`
         : !stable
           ? "the screen is still changing"
           : "";
+    // The controls are drawn but the page's scripts have not taken them over yet (hydration — see
+    // hydrationState below): a press now lands on a dead button. Waited for up to 8s; after that the
+    // screen counts as ready and the note says the scripts were still behind.
+    if (!blocker) {
+      const h = await hydrationState(page);
+      if (!h.hydrated) {
+        if (now - start < 8_000) blocker = `the page's scripts have not taken over its controls yet (${h.framework} still hydrating)`;
+        else if (!hydrationNote) hydrationNote = `${h.framework} had not finished hydrating after ${now - start}ms — proceeding`;
+      }
+    }
     if (!blocker) {
       if (!otherwiseReadySince) otherwiseReadySince = now;
       if (pending === 0) {
-        notes.push(`screen ready after ${now - start}ms${anchor ? ` (${anchor.name} visible)` : ""}`);
+        notes.push(`screen ready after ${now - start}ms${anchor ? ` (${anchor.name} visible)` : ""}${hydrationNote ? `; ${hydrationNote}` : ""}`);
         return { ready: true, ms: now - start, notes };
       }
       if (now - otherwiseReadySince >= 8_000) {
-        notes.push(`screen ready after ${now - start}ms; ${pending} background request(s) still open — this console keeps some open, so proceeding`);
+        notes.push(`screen ready after ${now - start}ms; ${pending} background request(s) still open — this console keeps some open, so proceeding${hydrationNote ? `; ${hydrationNote}` : ""}`);
         return { ready: true, ms: now - start, notes };
       }
     } else {
@@ -146,4 +157,78 @@ export async function screenReady(page: Page, budgetMs = 45_000): Promise<Readin
   }
   notes.push(`the screen was not ready within ${Math.round(budgetMs / 1000)}s — ${lastBlocker || "API calls were still in flight"}`);
   return { ready: false, ms: Date.now() - start, notes };
+}
+
+/**
+ * HYDRATION — a server-rendered page (Next.js / React, Nuxt / Vue) shows its controls before its
+ * scripts have attached their handlers. A click in that window lands on a dead button: Playwright
+ * reports it clicked and the page does nothing — or React replays the queued clicks against the
+ * state it had before any of them, so two "Next page" presses moved the pager ONE page (bench H-10,
+ * 31 Oct, with the CPU busy: 26 of 161 challenges failed that way at 4 browsers and passed at 1).
+ *
+ * The framework marks every element it has taken over (React: a `__reactFiber$…` own property on the
+ * node; Vue: `__vnode`), so "has this control been taken over yet" is a direct read of the DOM, not a
+ * guess about timing. A page with no such framework is live as soon as it is drawn.
+ */
+export interface Hydration {
+  framework: string;
+  hydrated: boolean;
+}
+
+export async function hydrationState(page: Page, el?: Locator): Promise<Hydration> {
+  // No inner function bindings here: the bundler would wrap them in a __name helper the page lacks.
+  const probe = (node: Element | null) => {
+    const w = window as unknown as Record<string, unknown>;
+    const ssrReact = !!(w.__next_f || w.__NEXT_DATA__ || w.__remixContext || document.querySelector("script[src*='/_next/'], [data-reactroot]"));
+    const ssrVue = !!(w.__NUXT__ || document.querySelector("#__nuxt"));
+    const controls = Array.prototype.slice.call(document.querySelectorAll("button, a[href], input, select, textarea, [role='button'], [role='link'], [role='tab']"), 0, 400) as Element[];
+    let reactN = 0;
+    let vueN = 0;
+    for (const c of controls) {
+      let react = false;
+      for (const k of Object.keys(c)) if (k.indexOf("__reactFiber") === 0 || k.indexOf("__reactProps") === 0 || k.indexOf("__reactContainer") === 0) react = true;
+      if (react) reactN++;
+      else if ("__vnode" in c || "__vueParentComponent" in c) vueN++;
+    }
+    const framework = reactN || ssrReact ? "react" : vueN || ssrVue ? "vue" : "";
+    if (!framework) return { framework: "", hydrated: true };
+    const takenN = framework === "react" ? reactN : vueN;
+    if (node) {
+      for (let e: Element | null = node; e && e !== document.documentElement; e = e.parentElement) {
+        let taken = false;
+        if (framework === "react") {
+          for (const k of Object.keys(e)) if (k.indexOf("__reactFiber") === 0 || k.indexOf("__reactProps") === 0 || k.indexOf("__reactContainer") === 0) taken = true;
+        } else taken = "__vnode" in e || "__vueParentComponent" in e;
+        if (taken) return { framework, hydrated: true };
+      }
+      // Outside the framework's tree (a static island): nothing will ever mark it — it is live once the page's own controls are.
+      return { framework, hydrated: takenN > 0 && takenN >= controls.length * 0.5 };
+    }
+    return { framework, hydrated: controls.length === 0 ? !ssrReact && !ssrVue : takenN >= controls.length * 0.9 };
+  };
+  const fallback: Hydration = { framework: "", hydrated: true };
+  const quiet = (e: unknown) => {
+    if (process.env.UI_TRACE === "1") console.log(`  [trace] hydrationState could not read the page: ${String((e as Error).message).split("\n")[0].slice(0, 160)}`);
+    return fallback;
+  };
+  if (el) return el.evaluate(probe, undefined, { timeout: 2_500 }).catch(quiet);
+  return page.evaluate(probe, null).catch(quiet);
+}
+
+/**
+ * Wait until a control (or, with none given, the page) has been taken over by its scripts, for at
+ * most `budgetMs`; then act regardless. Returns a note for the step's detail: empty when there was
+ * nothing to wait for, how long it waited when that mattered, and a warning when it ran out.
+ */
+export async function interactive(page: Page, el?: Locator, budgetMs = 6_000): Promise<string> {
+  const start = Date.now();
+  let last: Hydration = { framework: "", hydrated: true };
+  for (;;) {
+    last = await hydrationState(page, el);
+    if (last.hydrated || Date.now() - start >= budgetMs) break;
+    await page.waitForTimeout(150);
+  }
+  const waited = Date.now() - start;
+  if (!last.hydrated) return ` (the page's scripts had not taken over ${el ? "this control" : "the page"} after ${waited}ms — acted anyway)`;
+  return waited >= 300 ? ` (waited ${waited}ms for the page's scripts to take over)` : "";
 }

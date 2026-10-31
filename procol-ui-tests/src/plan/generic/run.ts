@@ -15,7 +15,7 @@ import { heal, healerEnabled } from "../../ai/healer.js";
 import type { PlanStep } from "../steps.js";
 import { GENERIC_NAMES } from "./catalog.js";
 import { countVisible, describe, esc, findVisible, isDisabled, norm, pattern, Target, targetFromArgs, targetWords, visibleMatches, visibleText } from "./find.js";
-import { screenReady, trackRequests } from "./ready.js";
+import { interactive, screenReady, trackRequests } from "./ready.js";
 import { MessageKind, toastMark, waitForMessage } from "./messages.js";
 import { isKnownLabel, noteSeen } from "./labels.js";
 
@@ -207,8 +207,25 @@ function formatDate(d: Date, fmt: string): string {
  * Click a form control the way a person does: a visually hidden checkbox or
  * radio (a styled box or swatch in its place) is reached through its label.
  */
+/**
+ * "Choose Top 50 in Chart" where the words led to a select that does not offer it, while a tab, a
+ * button or a radio named exactly "Top 50" stands on the screen: that control IS the choice (bench
+ * R-34 — the Top 50 / New & hot tabs beside the Genre select). Only an exact, unique name counts.
+ */
+async function optionElsewhere(ctx: GenericCtx, t: Target, option: string): Promise<GenericOutcome | null> {
+  const { page } = ctx;
+  const direct = await findVisible(page, { name: option, exact: true, within: t.within }, 2_000);
+  if (!direct || !/^role (tab|button|radio|link|menuitem)/.test(direct.strategy)) return null;
+  const all = await visibleMatches(direct);
+  if (all.length > 1) return null;
+  await clickControl(ctx, direct.locator, option);
+  await page.waitForTimeout(300);
+  return { detail: `the select ${describe(t)} does not offer "${option}" — pressed the ${direct.strategy.replace(/^role (\w+).*/, "$1")} "${option}" that stands for it`, strategy: direct.strategy };
+}
+
 async function clickControl(ctx: GenericCtx, field: Locator, words = ""): Promise<void> {
   const { page } = ctx;
+  await interactive(page, field);
   const box = await field.boundingBox().catch(() => null);
   const visible = await field.isVisible().catch(() => false);
   if (visible && box && box.width >= 8 && box.height >= 8) {
@@ -334,9 +351,10 @@ async function openOverlays(page: Page): Promise<number> {
  */
 async function clickHard(ctx: GenericCtx, el: Locator, timeoutMs = 3_000): Promise<string> {
   const { page } = ctx;
+  const hyd = await interactive(page, el);
   try {
     await el.click({ timeout: timeoutMs });
-    return "clicked";
+    return `clicked${hyd}`;
   } catch (e) {
     const box = await el.boundingBox().catch(() => null);
     trace(`clickHard: ${String((e as Error).message).split("\n")[0].slice(0, 80)}; box=${JSON.stringify(box)}; matches=${await el.count().catch(() => -1)}`);
@@ -520,6 +538,18 @@ async function clickTarget(ctx: GenericCtx, t: Target, timeoutMs: number): Promi
     );
     if (new Set(where).size > 1) matches = matches.map((m, i) => ({ m, w: where[i], i })).sort((x, y) => x.w - y.w || x.i - y.i).map((x) => x.m);
   }
+  // Several matches on a screen that is still changing — a list a search box filters as you type,
+  // 400ms behind the keystrokes (bench T-04): the right one is among them only once the screen holds
+  // still. Let it, then look again.
+  if (matches.length > 1 && (await holdsStill(page, 1_500))) {
+    const again = await findVisible(page, t, 2_000);
+    if (again) {
+      found = again;
+      strategy = again.strategy;
+      matches = await visibleMatches(again);
+      if (!matches.length) matches = [again.locator];
+    }
+  }
   // Several matches: the first that can take a click. A match that is
   // disabled, inert (pointer-events none) or covered is skipped for the
   // next; only when none works is the failure reported.
@@ -536,13 +566,14 @@ async function clickTarget(ctx: GenericCtx, t: Target, timeoutMs: number): Promi
       continue;
     }
     try {
+      const hyd = await interactive(page, el);
       await el.click({ timeout: matches.length > 1 ? 4_000 : Math.max(10_000, timeoutMs) });
       lastErr = null;
       ctx.lastClick = t;
       noteSeen(targetWords(t)[0], page.url(), strategy);
       await page.waitForTimeout(400);
       const which = matches.length > 1 ? ` (match ${i + 1} of ${matches.length}${skipped.length ? `; skipped ${skipped.join(", ")}` : ""})` : "";
-      return { detail: `clicked ${describe(t)}${which}`, strategy };
+      return { detail: `clicked ${describe(t)}${which}${hyd}`, strategy };
     } catch (e) {
       lastErr = e as Error;
       const msg = String((e as Error).message);
@@ -738,6 +769,105 @@ async function uploadSource(file: string, pageUrl: string): Promise<{ path: stri
 }
 
 /** Money or a plain number in a text: the first amount, as a number. */
+/**
+ * Did the screen change in the last moment, and has it now stopped? True when a change was seen and
+ * then the structure held for 450ms (within the budget); false when nothing was changing.
+ */
+async function holdsStill(page: Page, budgetMs: number): Promise<boolean> {
+  const sig = () =>
+    page
+      .evaluate(() => [document.querySelectorAll("button").length, document.querySelectorAll("a[href]").length, document.querySelectorAll("tr,[role='row'],li").length, document.querySelectorAll("input,select,textarea").length, Math.round((document.body?.innerText ?? "").length / 50)].join("/"))
+      .catch(() => "?");
+  const deadline = Date.now() + budgetMs;
+  let last = await sig();
+  let changed = false;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(450);
+    const now = await sig();
+    if (now === last) return changed;
+    changed = true;
+    last = now;
+  }
+  return changed;
+}
+
+const DATE_IN_TEXT = new RegExp(`(\\d{1,2})\\s+(${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].join("|")})\\s+(\\d{4})|(${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].join("|")})\\s+(\\d{1,2}),?\\s+(\\d{4})|(\\d{4})-(\\d{2})-(\\d{2})`, "i");
+
+/**
+ * "The first available date after 15 November" — choose_by_number with measure "date": read the date
+ * in every day control's name, leave out the disabled ones and those marked sold out / unavailable /
+ * past, keep those after `after` (and before `before`), and press the earliest (or latest). The plan
+ * never picks the day from the expected result: the calendar decides.
+ */
+async function chooseByDate(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number): Promise<GenericOutcome> {
+  const { page } = ctx;
+  const latest = /latest|last|highest|most recent/i.test(String(a.by ?? "earliest"));
+  const bound = (v: unknown, what: string) => {
+    if (v === undefined || v === null || v === "") return null;
+    const d = parseDateWords(String(v));
+    if (!d) throw new Error(`choose_by_number: "${v}" (${what}) is not a date I can read`);
+    return d.getTime();
+  };
+  const after = bound(a.after, "after");
+  const before = bound(a.before, "before");
+  const t = targetOf({ ...a, within: undefined, by: undefined, measure: undefined, exclude: undefined, only: undefined, after: undefined, before: undefined });
+  const scopeText = a.within ? String(a.within) : "";
+  const root = scopeText ? ((await findVisible(page, { text: scopeText }, 5_000))?.locator ?? page) : page;
+  const role = t.role ?? "";
+  const sel = role ? `[role='${role}']${role === "button" ? ", button" : role === "link" ? ", a[href]" : ""}` : "button, [role='button'], [role='gridcell'], [role='option'], a[href], [role='link']";
+  const cands = (root as Locator | Page).locator(sel);
+  const deadline = Date.now() + timeoutMs;
+  type Day = { i: number; name: string; when: number; out: string };
+  let days: Day[] = [];
+  let seen = 0;
+  do {
+    const infos = await cands
+      .evaluateAll((els) =>
+        els.slice(0, 600).map((e) => {
+          const el = e as HTMLElement;
+          const name = (el.getAttribute("aria-label") || el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+          const disabled = el.hasAttribute("disabled") || el.getAttribute("aria-disabled") === "true" || !!el.closest("[aria-disabled='true']");
+          const r = el.getBoundingClientRect();
+          return { name, disabled, visible: r.width > 0 && r.height > 0 };
+        }),
+      )
+      .catch(() => [] as Array<{ name: string; disabled: boolean; visible: boolean }>);
+    days = [];
+    seen = 0;
+    for (const [i, info] of infos.entries()) {
+      if (!info.visible) continue;
+      const m = info.name.match(DATE_IN_TEXT);
+      if (!m) continue;
+      seen++;
+      const d = parseDateWords(m[0]);
+      if (!d) continue;
+      const when = d.getTime();
+      const out = info.disabled ? "disabled" : /sold.?out|unavailable|not available|fully booked|booked out|no availability|in the past|closed/i.test(info.name) ? "marked unavailable" : after !== null && when <= after ? "not after the cutoff" : before !== null && when >= before ? "not before the cutoff" : "";
+      days.push({ i, name: info.name, when, out });
+    }
+    if (days.some((d) => !d.out)) break;
+    await page.waitForTimeout(400);
+  } while (Date.now() < deadline);
+  const open = days.filter((d) => !d.out);
+  if (!open.length) {
+    if (!seen) throw new Error(`no control on screen is named by a date${scopeText ? ` within "${scopeText}"` : ""} — nothing to choose a date from`);
+    const why = days.map((d) => `${d.name.slice(0, 40)}: ${d.out}`).slice(0, 8).join("; ");
+    throw new Error(`every date on screen is out (${why}${days.length > 8 ? "; …" : ""})`);
+  }
+  open.sort((x, y) => (latest ? y.when - x.when : x.when - y.when));
+  const best = open[0];
+  const control = cands.nth(best.i);
+  await control.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+  const hyd = await interactive(page, control);
+  await control.click({ timeout: 8_000 });
+  await page.waitForTimeout(400);
+  const skipped = days.filter((d) => d.out && (after === null || d.when > after) && (before === null || d.when < before));
+  return {
+    detail: `${latest ? "latest" : "earliest"} available date${after !== null ? ` after ${String(a.after)}` : ""}${before !== null ? ` before ${String(a.before)}` : ""}: pressed "${best.name}"${skipped.length ? ` (left out ${skipped.length} in range: ${skipped.slice(0, 4).map((d) => `${d.name.slice(0, 30)} — ${d.out}`).join("; ")}${skipped.length > 4 ? "; …" : ""})` : ""} of ${days.length} dated controls${hyd}`,
+    strategy: "compared the dates in the controls' names",
+  };
+}
+
 function amountIn(text: string, measure: RegExp): number {
   const m = text.match(measure);
   if (!m) return Number.NaN;
@@ -753,6 +883,7 @@ function amountIn(text: string, measure: RegExp): number {
  */
 async function chooseByNumber(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number): Promise<GenericOutcome> {
   const { page } = ctx;
+  if (/^dates?$/i.test(String(a.measure ?? "")) || a.after !== undefined || a.before !== undefined) return chooseByDate(ctx, a, timeoutMs);
   const by = /high|most|large|long|max|great|big|expens/i.test(String(a.by ?? "lowest")) ? "highest" : "lowest";
   const measureArg = String(a.measure ?? "price");
   const measure =
@@ -853,6 +984,7 @@ async function chooseByNumber(ctx: GenericCtx, a: Record<string, unknown>, timeo
     control = firstControl;
   }
   await control.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+  await interactive(page, control);
   await control.click({ timeout: 8_000 });
   await page.waitForTimeout(400);
   return {
@@ -869,7 +1001,7 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
  * found by their accessible name ("12 December 2026", "December 12, 2026")
  * or by their number inside the month's block.
  */
-async function pickDate(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number): Promise<GenericOutcome> {
+async function pickDate(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number, runInner: (inner: PlanStep) => Promise<string | undefined>): Promise<GenericOutcome> {
   const { page } = ctx;
   const dateStr = String(a.date ?? a.value ?? "").trim();
   const d = parseDateWords(dateStr);
@@ -881,6 +1013,23 @@ async function pickDate(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: 
     if (!found) throw new Error(`no date field ${describe(t)} on screen`);
     const field = await fieldFor(found.locator);
     const kind = await fieldKind(field);
+    if (kind === "select") {
+      // The "date field" is a dropdown of dates (bench D-10): choose the one that reads as this date, in any of the ways a site writes it.
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const variants = [...new Set([dateStr, `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`, `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`, `${d.getFullYear()}-${mm}-${dd}`, `${dd}/${mm}/${d.getFullYear()}`, `${mm}/${dd}/${d.getFullYear()}`])];
+      let lastErr: Error | null = null;
+      for (const v of variants) {
+        try {
+          const out = await execute(ctx, "select", { label: targetWords(t)[0], within: t.within, option: v }, runInner);
+          return { ...out, detail: `${out.detail} (a dropdown of dates, not a calendar)` };
+        } catch (e) {
+          lastErr = e as Error;
+          if (!/does not offer/.test(lastErr.message)) throw e;
+        }
+      }
+      throw new Error(`${describe(t)} is a dropdown that offers no "${dateStr}": ${lastErr?.message.split("\n")[0] ?? ""}`);
+    }
     if (kind === "text") {
       // A plain date input: type it.
       const type = ((await field.getAttribute("type").catch(() => "")) ?? "").toLowerCase();
@@ -930,6 +1079,7 @@ async function pickDate(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: 
     const btn = dayButton();
     if (await btn.count().catch(() => 0)) {
       if (await isDisabled(btn)) throw new Error(`${dateStr} is shown in the calendar but cannot be chosen (disabled)${opened}`);
+      await interactive(page, btn);
       await btn.click({ timeout: 8_000 });
       await page.waitForTimeout(300);
       return { detail: `picked ${dateStr}${turned ? ` after turning ${turned} month(s)` : ""}${opened}`, strategy: "calendar day by name" };
@@ -1192,9 +1342,10 @@ async function execute(
     case "press": {
       const key = String(a.key ?? "").trim();
       if (!/^(Escape|Enter|Tab|ArrowDown|ArrowUp|ArrowLeft|ArrowRight|Backspace|Delete|Space|PageDown|PageUp|Home|End)$/.test(key)) throw new Error(`press: "${key}" is not an allowed key`);
+      const hyd = await interactive(page);
       await page.keyboard.press(key === "Space" ? " " : key);
       await page.waitForTimeout(300);
-      return { detail: `pressed ${key}` };
+      return { detail: `pressed ${key}${hyd}` };
     }
 
     case "fill": {
@@ -1374,6 +1525,7 @@ async function execute(
         await field.click({ timeout: 8_000 }).catch(() => {});
         throw new Error(`${describe(t)} is a read-only field that opens a picker — it cannot be typed into; use pick_date, or click the value in the picker`);
       }
+      const hyd = await interactive(page, field);
       await field.click({ timeout: 8_000 }).catch(() => {});
       const type = ((await field.getAttribute("type").catch(() => "")) ?? "").toLowerCase();
       // A date written in words into a plain text field that states its
@@ -1427,7 +1579,7 @@ async function execute(
         await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
         return { detail: `${describe(t)} now holds "${now}"${reformatted} — submitted with Enter`, strategy };
       }
-      return { detail: `${describe(t)} now holds "${now}"${reformatted}`, strategy };
+      return { detail: `${describe(t)} now holds "${now}"${reformatted}${hyd}`, strategy };
     }
 
     case "select": {
@@ -1485,6 +1637,7 @@ async function execute(
       const tag = await field.evaluate((n) => (n as HTMLElement).tagName.toLowerCase()).catch(() => "");
       trace(`select: field is <${tag}>`);
       if (tag === "select") {
+        await interactive(page, field);
         // By visible label first; a native select whose labels differ in case/spacing by value.
         try {
           await field.selectOption({ label: option }, { timeout: 8_000 });
@@ -1498,6 +1651,8 @@ async function execute(
           }, option);
           if (match === null) {
             const offered = await field.evaluate((n) => Array.from((n as HTMLSelectElement).options).map((o) => o.text.trim()));
+            const elsewhere = await optionElsewhere(ctx, t, option);
+            if (elsewhere) return elsewhere;
             throw new Error(`the select ${describe(t)} does not offer "${option}" — it offers: ${offered.slice(0, 12).join(", ")}`);
           }
           await field.selectOption(match, { timeout: 8_000 });
@@ -1507,7 +1662,10 @@ async function execute(
         const trigger = (await opener.count().catch(() => 0)) ? opener : field;
         const OPTIONS = "[role='option'], [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='treeitem'], [role='radiogroup'] [role='radio'], [role='radiogroup'] label, .ant-select-dropdown-menu-item, .ant-select-item-option, .ant-dropdown-menu-item, .ant-cascader-menu-item, [role='listbox'] li, [role='menu'] li";
         const optionsOpen = async () => (await page.locator(OPTIONS).filter({ visible: true }).count().catch(() => 0)) > 0;
-        if (!(await optionsOpen())) await trigger.click({ timeout: 8_000 });
+        if (!(await optionsOpen())) {
+          await interactive(page, trigger);
+          await trigger.click({ timeout: 8_000 });
+        }
         trace("select: list opened");
         const LISTS = "[role='listbox'], [role='menu'], [role='radiogroup'], [role='group'][aria-expanded], .ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-dropdown:not(.ant-dropdown-hidden)";
         const optFor = () =>
@@ -1533,6 +1691,8 @@ async function execute(
         if (!(await opt.count())) {
           const offered = (await page.locator(OPTIONS).filter({ visible: true }).allInnerTexts().catch(() => [])).map((x) => x.trim()).filter(Boolean);
           await page.keyboard.press("Escape").catch(() => {});
+          const elsewhere = await optionElsewhere(ctx, t, option);
+          if (elsewhere) return elsewhere;
           throw new Error(`the select ${describe(t)} does not offer "${option}" — it offers: ${offered.slice(0, 12).join(", ") || "(nothing visible)"}`);
         }
         await clickControl(ctx, opt, option);
@@ -1664,7 +1824,7 @@ async function execute(
       return switchTab(ctx, a);
 
     case "pick_date":
-      return pickDate(ctx, a, timeoutMs);
+      return pickDate(ctx, a, timeoutMs, runInner);
 
     case "choose_by_number":
       return chooseByNumber(ctx, a, timeoutMs);
@@ -1974,6 +2134,7 @@ async function pdfText(buf: Buffer): Promise<string> {
 
 async function hoverEl(page: Page, el: Locator): Promise<void> {
   await el.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
+  await interactive(page, el);
   // A disabled antd button ignores pointer events — its tooltip lives on a
   // wrapper span, so move the real mouse to the spot rather than hover() the
   // node, and if no tooltip shows, fire the hover on the wrapper as React
@@ -2029,6 +2190,27 @@ async function attempt(
     }
     if (found) {
       controlStrategy = found.strategy;
+      // On a site with no domain knowledge to settle it, words that name two DIFFERENT controls (a
+      // submit button and a sidebar link both reading "Book firing", bench G-025) are not acted on: a
+      // careful tester asks which was meant. Only without a role or a region — those settle it.
+      if (ctx.site && innerName === "click" && !control.role && !control.within) {
+        const all = await visibleMatches(found);
+        if (all.length > 1) {
+          const kinds = await Promise.all(
+            all.map((m) =>
+              m
+                .evaluate((n) => {
+                  const e = n as HTMLElement;
+                  const kind = e.getAttribute("role") || e.tagName.toLowerCase();
+                  return `${kind === "a" ? "link" : kind}${e.closest("nav, aside, header, footer, [role='navigation'], [role='complementary']") ? " in the page chrome" : " in the content"}`;
+                }, undefined, Q)
+                .catch(() => "?"),
+            ),
+          );
+          const distinct = [...new Set(kinds)];
+          if (distinct.length > 1) return { detail: `blocked: "${targetWords(control)[0]}" names ${all.length} different controls (${distinct.join(", ")}) — ambiguous, so nothing was pressed`, strategy: found.strategy };
+        }
+      }
       if (await isDisabled(found.locator)) {
         let tip = "";
         if (because || mode === "refused") {

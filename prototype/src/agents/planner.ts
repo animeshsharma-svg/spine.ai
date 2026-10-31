@@ -299,6 +299,7 @@ THE SITE UNDER TEST — not Procol. Only the steps above exist; none knows this 
 - Dates: a field that opens a calendar (check-in, departure, date of birth) is pick_date{label, date:"12 December 2026"} — one step per date; it opens the field, turns the months and presses the day. A plain date/time input is fill with YYYY-MM-DD / HH:MM. Hour/minute spinners are fill{label:"hour", value:"2"}; AM/PM are buttons (click).
 - Something in a long list, a table that loads as you scroll, or a paged table ("find INV-2037 in the table", "scroll until Order 1587 is visible"): scroll_to{text:"INV-2037"} first (it scrolls and turns pages), then act within it.
 - "Expand the row X" / "open the details of X" is click{role:"button", name:"Show details", within:"X"} (or the row's Expand / chevron button); what the row reveals is then read within:"X". "Read its Y and fill Answer with it": remember{key, text:"Y", within:"X"} is only for comparing later — when the answer must be typed, coverage is "partial" unless the value is given.
+- "Click the first available date after 15 November", "the earliest free night", "the next open slot": choose_by_number{measure:"date", by:"earliest", after:"15 November 2026", role:"button"} — it reads every day's name, leaves out disabled, sold-out and past days, and presses the earliest after the cutoff. Never take the day from the Verify text: the calendar decides.
 - "Click / add / open the cheapest (most expensive, longest-lasting, highest-rated) one", "compare the packs' unit prices and add the cheapest": choose_by_number{by, measure, exclude, role, name} — one step that reads the numbers and presses the control (name the control: role:"button", name:"Add to cart", or role:"link"). For a unit price or hours give measure as a regex with one capture group. When the case limits the comparison to some items ("among the Voltpine AA packs"), pass only:"Voltpine Alkaline AA" so near-namesakes (AAA) stay out. This is how a value read off the screen decides the next action; a plan never guesses which block wins.
 - "the review with the most people found this helpful", "the flight with the fewest stops", "the highest-rated": also choose_by_number{by:"highest"|"lowest", measure:"(\\d+) people found this helpful", role:"button", name:"Helpful"}. Never guess which item it is from the Verify text — the step reads the numbers.
 - "Open the confirmation link in the mail body" (a URL shown as text): go_to{screen:"url_on_screen", within:"<text near it>"}.
@@ -308,8 +309,43 @@ THE SITE UNDER TEST — not Procol. Only the steps above exist; none knows this 
 - A multi-step case sentence ("Fill A with 1, choose B in C and fill D with 2") is several plan steps.
 - "Find the row X and read its Y, then fill Answer with it": use remember{key, within:"X", text:<column text>} only if the value is on screen; otherwise coverage "none".
 - The LAST step must be an assertion (expect_text, expect_download, expect_dialog, expect_value, expect_visible, expect_count). If the case's final check cannot be expressed, coverage is "none" — never hand back a plan that only acts. A case step that comes AFTER the final Verify and cannot be expressed or is ambiguous is left out with coverage "partial" (named in cannotExpress): the Verify is still the test.
-- REFUSE rather than invent. If finishing the goal needs data the case does not give (a name, an email, a password, a card number, a code), a date or option the page does not offer, or the target is ambiguous or a bot wall, set coverage "none", list why in cannotExpress, and return no steps. A plan that reports success it did not reach is the worst possible output.
+- A step the agent must REFUSE — its target is ambiguous (the same words on two different controls, e.g. a submit button and a sidebar link both reading "Book firing"), or the control is sold out / disabled / marked unavailable — is attempt{step:"click", args:{text or role+name}, expect:"refused"}: the executor presses nothing unless the refusal is real, and reports it. Never drop such a step and never guess which control was meant. The attempt is the plan's LAST step — nothing is verified after a refusal.
+- within is the words that tell the row or card from the others (a name, an id, the text in it); "the only row left in the table" is within:"table". Give a field its label as the page writes it when the case quotes it ("Min", not "Min price"); the executor still finds a field whose label is part of the words.
+- "… and report that the item cannot be added / the form cannot be sent without X": the action the case says cannot go through is attempt{step:"click", args:{role:"button", name:"Add to cart"}, expect:"refused"} and it is the LAST step — never an assertion that the page asks for the missing data, which would read as success.
+- REFUSE rather than invent. If finishing the goal needs data the case does not give (a name, an email, a password, a card number, a code, an account, a phone number, a date of birth), a date or option the page does not offer, or the target is ambiguous or a bot wall, set coverage "none", list why in cannotExpress, and return no steps. A plan that reports success it did not reach is the worst possible output.
 `.trim();
+
+/**
+ * The site lint: no product knowledge, only the shape of a plan. One rule so far — after an attempt
+ * that expects a refusal, an assertion that the SAME control is visible is not a check (the attempt
+ * found it, and found it refused); the model adds one now and then (G-R37, 31 Oct) and it reads as
+ * "the plan acted after the refusal".
+ */
+export function lintSitePlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } {
+  const repairs: string[] = [];
+  // The model now and then writes a step's args beside "step" instead of under "args" (S-01, 31 Oct:
+  // {"step":"choose_by_number","by":"lowest",…}). The keys are unmistakable: fold them in.
+  const steps = plan.steps.map((s) => {
+    const extra = Object.keys(s).filter((k) => !["step", "args", "note"].includes(k));
+    if (s.args || !extra.length) return s;
+    const args: Record<string, unknown> = {};
+    for (const k of extra) args[k] = (s as unknown as Record<string, unknown>)[k];
+    repairs.push(`${s.step}: moved ${extra.join(", ")} under args — they were written beside the step`);
+    return { step: s.step, args, ...(s.note ? { note: s.note } : {}) } as PlanStep;
+  });
+  const key = (a: Record<string, unknown> | undefined) => String(a?.name ?? a?.text ?? a?.label ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const i = steps.findIndex((s) => s.step === "attempt" && String((s.args as Record<string, unknown> | undefined)?.expect ?? "refused") === "refused");
+  if (i >= 0 && i < steps.length - 1) {
+    const inner = ((steps[i].args as Record<string, unknown> | undefined)?.args ?? {}) as Record<string, unknown>;
+    const target = key(inner);
+    const rest = steps.slice(i + 1);
+    if (target && rest.every((s) => /^expect_(visible|text|count)$/.test(s.step) && key(s.args as Record<string, unknown> | undefined) === target)) {
+      steps.splice(i + 1);
+      repairs.push(`dropped ${rest.length} check(s) on "${target}" after the attempt that expects it refused — the attempt is the plan's last word`);
+    }
+  }
+  return { plan: { ...plan, steps }, repairs };
+}
 
 const SITE_SYSTEM = `You compile QA test cases into runnable plans for a web site.
 
@@ -1785,10 +1821,11 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     steps.unshift({ step: "open_prepared", args: { screen: opts.prepared.screen }, note: "the API built this case's state" });
     warnings.push(`added open_prepared(${opts.prepared.screen}) — the API built this case's state`);
   }
-  // lintPlan repairs Procol's flows; on another site it would insert them.
+  // lintPlan repairs Procol's flows; on another site it would insert them — the site lint only tidies.
   const linted = opts.site
-    ? { plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps }, repairs: [] }
+    ? lintSitePlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps })
     : lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
+  warnings.push(...linted.repairs);
   // A plan that acts but never checks proves nothing: the executor refuses to
   // pass it, so say so here, where the case can still be marked untestable.
   const assertionNames = new Set(catalog.steps.filter((st) => st.assertion).map((st) => st.name));

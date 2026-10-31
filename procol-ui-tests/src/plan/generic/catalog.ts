@@ -32,7 +32,7 @@ const TARGET_ARGS: Record<string, string> = {
   label: "a form field's label (instead of role+name)",
   text: "plain visible text (instead of role+name)",
   placeholder: "an input's placeholder (instead of label)",
-  within: 'optional region: "dialog" | "menu" | the text of the row/card it sits in',
+  within: 'optional region: "dialog" | "menu" | "table" | "list" | "form" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)',
 };
 
 export const GENERIC_STEPS: StepSpec[] = [
@@ -156,17 +156,19 @@ export const GENERIC_STEPS: StepSpec[] = [
     name: "pick_date",
     generic: true,
     purpose:
-      "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date. Use for any check-in / departure / date-of-birth field that opens a calendar.",
+      "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date; for a dropdown of dates it chooses the matching option. Use for any check-in / departure / date-of-birth / meeting date field.",
     args: { label: "the date field's label (optional when the calendar is already open)", date: 'the date, e.g. "12 December 2026" or "2026-12-12"' },
   },
   {
     name: "choose_by_number",
     generic: true,
     purpose:
-      "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". Reports the numbers it compared.",
+      "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". With measure \"date\" it compares the DATES in the controls' names instead and presses the earliest (or latest) that is open — disabled, sold-out, unavailable and past days are left out: \"click the first available date after 15 November 2026\" is choose_by_number{measure:\"date\", by:\"earliest\", after:\"15 November 2026\", role:\"button\"}. Reports what it compared.",
     args: {
-      by: '"lowest" (default) | "highest"',
-      measure: '"price" (default: a money amount) | "number" | a regex with one capture group for the figure, e.g. "([\\d.]+)\\s*hours"',
+      by: '"lowest" (default) | "highest" | for dates: "earliest" (default) | "latest"',
+      measure: '"price" (default: a money amount) | "number" | "date" (the date in each control\'s name) | a regex with one capture group for the figure, e.g. "([\\d.]+)\\s*hours"',
+      after: 'for dates: only dates after this one count, e.g. "15 November 2026" (optional)',
+      before: 'for dates: only dates before this one count (optional)',
       only: 'only blocks naming this, as whole words, take part — e.g. "Voltpine Alkaline AA" keeps the AA packs and not the AAA ones (optional)',
       exclude: "blocks containing this text are left out, e.g. \"Sponsored\" (optional)",
       within: "the region holding the blocks (optional)",
@@ -233,7 +235,7 @@ export const GENERIC_STEPS: StepSpec[] = [
     generic: true,
     assertion: true,
     purpose:
-      "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
+      "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. On a site that is not Procol, words that name two DIFFERENT controls (a submit button and a sidebar link with the same label) are also a refusal: nothing is pressed. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
     args: {
       step: 'the action to try: "click" | "save_draft" | "publish" | "add_line_items" | "set_schedule" | "fill" | "select" | "toggle" | …',
       args: "the inner step's args as an object, e.g. {role:\"button\", name:\"Items\"} for a click",
