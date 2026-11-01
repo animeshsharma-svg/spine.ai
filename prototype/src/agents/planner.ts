@@ -673,6 +673,18 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // portal with no event published (or opened) before it signs the vendor in to look for an event that
   // does not exist (2 Nov, UI-VBID-003: switch_portal was step 1). The create flow through publish goes
   // in front of the first switch.
+  // …and the vendor's bid is the case's to ask for: "as the vendor, open the event and check the line items"
+  // got a place_bid before the switch (2 Nov) — a bid the case never mentioned, which also turns the bid
+  // sheet the vendor then sees into "Revise Quote".
+  const vendorBids = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b/i.test(testCase);
+  if (steps.some((s) => s.step === "switch_portal" || s.step === "vendor_open_event") && !vendorBids) {
+    for (let k = steps.length - 1; k >= 0; k--) {
+      if (steps[k].step === "place_bid") {
+        steps.splice(k, 1);
+        repairs.push("dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids");
+      }
+    }
+  }
   const firstSwitch = steps.findIndex((s) => s.step === "switch_portal" && !/^buyer$/i.test(String(s.args?.to ?? "vendor")) || s.step === "vendor_open_event");
   if (firstSwitch >= 0 && !steps.slice(0, firstSwitch).some((s) => ["publish", "expect_published", "open_event", "open_prepared", "open_first_event", "save_draft"].includes(s.step))) {
     const build = fallbackPlan(testCase).steps.filter((s) => !steps.slice(0, firstSwitch).some((x) => x.step === s.step));

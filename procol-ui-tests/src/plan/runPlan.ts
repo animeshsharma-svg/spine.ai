@@ -1044,9 +1044,13 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
   if (!browser) throw new Error("no browser available to open a vendor session");
   // The vendor: the one named (an email, or a name the invited list resolves), else the event's own QA
   // vendor (the API-built state names them), else the next invited vendor this run can sign in as.
+  // The vendor: the one named (an email, or a name the invited list resolves); else the one who already
+  // bid from the portal in this plan (a place_bid before the switch — the same person comes back to look,
+  // 2 Nov); else the API-built state's vendor; else the next invited vendor this run can sign in as.
   let email = "";
   const named = vendor ? String(vendor).trim() : "";
   if (/@/.test(named)) email = named;
+  else if (!named && biddersUsed.length) email = biddersUsed[biddersUsed.length - 1];
   else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
   else email = await bidderEmail(named || undefined);
   const vendorCtx = await browser.newContext();
