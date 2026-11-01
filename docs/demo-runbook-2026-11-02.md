@@ -44,15 +44,20 @@ a typed case to the catalog still works.
 
 ## New tonight (say it as "the vocabulary grew")
 
-- 129 → 131 steps. `switch_portal` (buyer ↔ supplier portal, a second browser signed in as the event's
+- 127 → 130 steps. `switch_portal` (buyer ↔ supplier portal, a second browser signed in as the event's
   QA vendor, streamed and photographed), `vendor_open_event` (the event in the vendor's list, its bid sheet
   or overview), `open_first_event` (first card under Live / History / Drafts). After `switch_portal` every
   generic step — click, fill, expect_text, expect_count — acts on the vendor's screen.
 - The supplier portal is a SCREEN in the model: UI-VBID cases (29 of 32) compile and run; the plan creates
   and publishes the event in the console first (an API-built event never reaches the vendor's list).
+  Proven live twice tonight: UI-VBID-005 through the screen-case runner (2 min) and the typed showcase
+  case through the Home composer (14 steps, all passed, 9 test cases written).
 - A "converted" start state: the API converts a bid RFQ into a live auction and the vendor bids in it.
-- The 97 UI cases every claim of which is API-observable now route to the API test compiler; their plans
-  were compiled tonight (see `bench/night/api-decided-compile.log` for how many came out full).
+- The 97 UI cases every claim of which is API-observable now route to the API test compiler; compiled
+  tonight: 16 full (stored, run without a model), 39 partial, 42 none — UI cases rarely fit the API
+  vocabulary, and the honest number is the point.
+- Numbers to say: UI screen cases that run went from 295 to **346 of 645**; the whole catalog from
+  2,463 to **2,516 of 7,881** run now, and 3,837 reach a runner.
 - The bench executor fixes from 31 Oct (hydration guard etc.) are in the same branch.
 
 ## If it stalls
