@@ -639,8 +639,14 @@ export function routeFor(c: CatalogCase): CaseRoute {
     // screen. A stored plan the compiler said covers none of the case is not runnable.
     if (/^UI-/.test(c.group) && c.group !== "UI-XCHK") {
       const d = decideLayerSync(c);
-      if (d.layer === "api")
+      if (d.layer === "api") {
+        // Every claim is API-observable: the API test compiler is the runner for it (a stored, validated
+        // plan runs without a model; otherwise it compiles on request) — 97 of these had no runner at all
+        // before 2 Nov, deflected from the browser and never handed to the API side.
+        const planned = apiPlanRoute(c, "every expectation of this case can be observed through the API — the layer decider keeps the browser out of it", ownIds);
+        if (planned) return planned;
         return { kind: "ui-compile", because: "every expectation of this case can be observed through the API — the layer decider keeps the browser out of it", runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
+      }
       const p = prepFor(c);
       if (!p.ok) return { kind: "ui-compile", because: `the screen-case runner cannot start it yet: ${p.why}`, runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
       if (preparedPlanCoverage(c.id) === "none")

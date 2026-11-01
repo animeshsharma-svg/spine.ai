@@ -22,6 +22,8 @@ export interface CasePrep {
   auction?: boolean;
   /** true when the plan opens a screen on an API-built event (open_prepared); false for a fresh create screen / list */
   prepared: boolean;
+  /** the case is about what the VENDOR sees: after publish the plan switches to the supplier portal */
+  vendorSide?: boolean;
   why: string;
 }
 
@@ -36,6 +38,7 @@ const WHAT: Record<string, string> = {
   participants: "the pricing round's Participants tab",
   master_qcs: "Master QCS",
   analytics: "the pricing round's Analytics tab",
+  vendor: "the supplier portal, on this event, as the invited vendor",
 };
 
 const r = (state: UiState, screen: string, technical: boolean, why: string): CasePrep => ({
@@ -64,8 +67,17 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
   const g = c.group;
 
   // Screens not in the model yet — said plainly, never forced elsewhere.
-  if (g === "UI-VBID" || /supplier portal|vendor portal|\bas the vendor\b|the vendor('s)? (sees|view|screen|sheet|side|portal|opens|reads)|vendor side/.test(t))
-    return { ok: false, state: "live", screen: "vendor", screenWhat: "the vendor portal", technical, prepared: true, why: "the vendor portal is not in the screen model yet" };
+  // The supplier portal (2 Nov): the event is built by API with its QA vendor invited (bid / closed when the
+  // case says so) and opened in the vendor's own browser, signed in as that vendor (open_prepared vendor).
+  if (g === "UI-VBID" || /supplier portal|vendor portal|\bas the vendor\b|the vendor('s)? (sees|view|screen|sheet|side|portal|opens|reads)|vendor side/.test(t)) {
+    const setup2 = String(c.setup ?? "").toLowerCase();
+    if (/uninvited|not invited|another vendor|a second vendor|other vendor|two vendors|\b2 vendors\b/.test(`${setup2} ${c.title.toLowerCase()}`))
+      return { ok: false, state: "live", screen: "vendor", screenWhat: WHAT.vendor, technical, prepared: true, why: "needs a vendor the event does not have (an uninvited or second vendor) — the API setup invites the one QA vendor" };
+    // An event the API builds never reaches the vendor's own list (2 Nov: 132s of looking, "not among the
+    // vendor's events" — the API's audience is not the invitation the portal lists). So the plan creates
+    // and publishes the event in the console, invites the QA vendor there, and only then switches sides.
+    return { ...r("none", "create", technical, "a vendor-side case — the plan creates and publishes the event in the console with its QA vendor invited, then switches to the supplier portal as that vendor (switch_portal + vendor_open_event)"), vendorSide: true };
+  }
   if (g === "UI-PR" || g === "UI-XDPRE" || /purchase request|\bpr\b line|intake/.test(t))
     return { ok: false, state: "none", screen: "pr", screenWhat: "the purchase-request screens", technical, prepared: false, why: "the purchase-request screens are not in the screen model yet" };
   if (g === "UI-ENV" || g === "UI-PERM" || g === "UI-NFR")
@@ -81,7 +93,13 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
   if (/newer version|superseded|old(er)? version|previous version|amended (event|rfq|rfp)|after an amendment/.test(setup) || /on an old version|old version/.test(c.title.toLowerCase()))
     return notBuilt("an amended event (an older version beside a newer one)");
   if (/masking (is )?on|vendor masking enabled|isvendormaskingenabled/.test(setup)) return notBuilt("a client with vendor masking switched on");
-  if (/already[- ]converted|a converted (rfq|auction)|converted auction/.test(setup)) return notBuilt("an RFQ already converted to an auction");
+  // A published RFQ with the vendor's bid, converted into a live auction (2 Nov): the API converts it and the
+  // vendor bids in the auction; the screens open on the AUCTION round.
+  if (/already[- ]converted|a converted (rfq|auction)|converted auction|after (the |a )?conversion|once converted/.test(setup)) {
+    const t2 = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+    const screen = /counter offer|negotiat|responses|comparison|bid(s)? (list|table)/.test(t2) ? "responses" : /master qcs|\bqcs\b|rank/.test(t2) ? "master_qcs" : /participants?|surrogate/.test(t2) ? "participants" : /overview/.test(t2) ? "overview" : "summary";
+    return r("converted", screen, technical, `the case starts from an RFQ already converted to an auction — built by API (RFQ with a bid, converted; the vendor bid in the auction); opened on ${WHAT[screen] ?? screen}`);
+  }
   // An award proposal already SUBMITTED for approval: the "awarded" state submits the proposal
   // into the client's approval workflow (eventJourney award_submit) and keeps its id, so the
   // proposal page opens on a requested / in-approval proposal.

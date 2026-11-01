@@ -191,6 +191,14 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
       return content;
     }
     if ((res.status === 429 || res.status === 503) && attempt === 0) {
+      // An exhausted budget is also a 429 ("ExceededBudget … Spend=250.4, Budget=250.0", 31 Oct) — it
+      // will not clear in six seconds. Remember it for ten minutes, so the next calls go straight to the
+      // next provider instead of each waiting out a retry first.
+      const text = await res.clone().text().catch(() => "");
+      if (/budget/i.test(text)) {
+        slingringOverBudgetUntil = Date.now() + 10 * 60_000;
+        throw new Error(`Slingring 429: ${text.slice(0, 200)} — budget exhausted; skipping Slingring for 10 minutes`);
+      }
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
       await sleep(Math.min(6000, retryAfter * 1000 || 2500));
       continue;
@@ -198,6 +206,12 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     throw new Error(`Slingring ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
   return "";
+}
+
+/** When the gateway said the budget is gone: until then, the chain starts at the next provider. */
+let slingringOverBudgetUntil = 0;
+export function slingringOverBudget(): boolean {
+  return Date.now() < slingringOverBudgetUntil;
 }
 
 /** The same request, streamed: the gateway's empty-answer cache does not catch it. */
@@ -313,7 +327,7 @@ async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<s
  */
 export async function chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
   const chain: Array<[string, () => Promise<string>]> = [];
-  if (process.env[AI.slingring.apiKeyEnvVar]) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
+  if (process.env[AI.slingring.apiKeyEnvVar] && !slingringOverBudget()) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
   if (process.env[AI.groq.apiKeyEnvVar]) chain.push(["groq", () => groqChat(messages, opts)]);
   if (process.env.GOOGLE_API_KEY) chain.push(["gemini", () => geminiChat(messages, opts)]);
   if (!chain.length) return "";

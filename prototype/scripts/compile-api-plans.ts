@@ -29,6 +29,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
+import { decideLayerSync } from "../src/agents/layerDecider.js";
 import { allCases } from "../src/checks/testCatalog.js";
 import { routeFor } from "../src/checks/caseRouting.js";
 import { compileApiPlan, validatePlan, PLAN_VERSION, planInWords } from "../src/agents/apiPlanner.js";
@@ -75,8 +76,12 @@ if (REVALIDATE) {
 }
 
 // ── which cases ─────────────────────────────────────────────────────────────
+// --decided: also the UI cases the layer decider hands to the API side (every claim API-observable).
+const DECIDED = flag("decided") || flag("decided-only");
+const DECIDED_ONLY = flag("decided-only");
 const wanted = allCases().filter((c) => {
-  if (c.layer !== "api") return false;
+  if (DECIDED_ONLY && !/^UI-/.test(c.id)) return false;
+  if (c.layer !== "api" && !(DECIDED && /^UI-/.test(c.id) && decideLayerSync(c).layer === "api")) return false;
   if (IDS.size) return IDS.has(c.id);
   // "automate" cases only (the build order's own filter), unless asked otherwise.
   if (!ALL_VERDICTS && c.verdict !== "automate") return false;

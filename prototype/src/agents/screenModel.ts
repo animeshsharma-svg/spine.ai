@@ -630,7 +630,7 @@ export async function newCaseOnScreen(id: string, text: string, opts: { companyI
 
 export interface ScreenPrep {
   /** the event state the API builds before the run ("none" = the plan starts from nothing) */
-  state: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
+  state: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted";
   /** a SCREENS key (procol-ui-tests/src/plan/screens.ts) the plan opens first, or "create" */
   screen: string;
   screenWhat: string;
@@ -659,6 +659,7 @@ export const VALUE_KEYS: Record<string, string[]> = { none: [], draft: ["title",
 VALUE_KEYS.closed = VALUE_KEYS.bid;
 VALUE_KEYS.awarded = VALUE_KEYS.bid;
 VALUE_KEYS.proposal = VALUE_KEYS.bid;
+VALUE_KEYS.converted = VALUE_KEYS.bid;
 
 /**
  * Which event the cases of a screen must run on. A screen photographed on a published event

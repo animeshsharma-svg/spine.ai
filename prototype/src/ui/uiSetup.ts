@@ -32,8 +32,8 @@ import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
 import { qaVendorsOnly } from "../checks/eventVendors.js";
 
-export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
-export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded"];
+export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted";
+export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted"];
 
 /** What the browser (and the screen assertions) get from the build. */
 export interface UiSetupContext {
@@ -74,6 +74,8 @@ const PREFIX: Record<Exclude<UiState, "none">, string> = {
   closed: "wait_close",
   proposal: "award_lines",
   awarded: "award_submit",
+  // a published RFQ with the vendor's bid, converted into a live auction (the vendor bids in it too)
+  converted: "convert_auction",
 };
 
 /** Clients (or a test) can share one opened client context across builds. */
@@ -155,7 +157,7 @@ export async function buildUiState(
     return { ok: false, why: `client ${companyId} has no QA test vendor to bid with (${client?.ctx?.noQaVendor ?? "none configured"}) — refusing to build with a real supplier` };
   }
   // an auction case gets a live auction round (behind a technical round when it needs one)
-  const plan = journeyPlan([opts.auction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only"]);
+  const plan = journeyPlan([opts.auction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only", ...(state === "converted" ? ["auction.convert"] : [])]);
   const stop = plan.steps.indexOf(PREFIX[state] as any);
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
   plan.steps = plan.steps.slice(0, stop + 1);
@@ -189,7 +191,8 @@ export async function buildUiState(
   if (!made.eventGroupUuid || failed) {
     return { ok: false, why: `the API build of the ${state} state stopped: ${j?.outcome ?? "no outcome"}${failed ? ` (at ${failed.kind}: ${String(failed.actual ?? failed.why ?? "").slice(0, 160)})` : ""}` };
   }
-  const stageUuid = made.pricingTradeUuid;
+  // On a converted event the screens are about the NEW auction round: its trade uuid is the stage.
+  const stageUuid = state === "converted" && made.auctionTradeUuid ? made.auctionTradeUuid : made.pricingTradeUuid;
   // Who the screen should find on the event: the vendor that bid (or, before a bid, the one that would).
   const bidder = eventVendors ? r?.bidder : undefined;
   if (bidder) opts.onLine?.(`the event went to ${r?.invited ?? "the"} vendor(s) Procol suggests; ${bidder.name} is the one that ${["live", "upcoming", "draft"].includes(state) ? "can bid" : "bid"}`);

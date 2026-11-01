@@ -20,6 +20,7 @@
  */
 
 import { GENERIC_STEPS } from "./generic/catalog.js";
+import { VENDOR_PORTAL_CATALOG } from "./vendorPortalCatalog.js";
 import { EXPECTATION_STEPS } from "./expectCatalog.js";
 import { QCS_AUDIENCE_STEPS } from "./qcsAudienceCatalog.js";
 import type { PlanContext } from "./screens.js";
@@ -80,6 +81,12 @@ export const STEP_CATALOG: StepSpec[] = [
     name: "filter_events",
     purpose: "On the events list, switch to a tab: Live, History, Drafts or Recurring.",
     args: { tab: '"Live" | "History" | "Drafts" | "Recurring"' },
+  },
+  {
+    name: "open_first_event",
+    purpose:
+      "On the events list, open the FIRST event shown under a tab — \"open the first closed event in History\", \"open the top event in Drafts\", \"open the latest live event\" — the list's own order (newest first), no search. With `containing`, the first card whose text has those words (a title fragment, a stage name, \"In - Evaluation\"). Lands on the event's page (a draft reopens its create screen). Use open_event when the case names the event.",
+    args: { tab: '"Live" (default) | "History" | "Drafts" | "Recurring"', containing: "words the card must show (optional)" },
   },
   {
     name: "expect_event_in_list",
@@ -582,6 +589,7 @@ export const STEP_CATALOG: StepSpec[] = [
 // The generic read/verify/navigate/act steps (generic/catalog.ts) close the
 // largest family on the gap ledger: "assert this tooltip / count / value /
 // message", "click this control", "this must NOT render".
+STEP_CATALOG.push(...VENDOR_PORTAL_CATALOG);
 STEP_CATALOG.push(...GENERIC_STEPS);
 // Prepared-state + expectation steps (expectCatalog.ts / expectations.ts): open the
 // screen on the state the API built, and the expectations a screen case needs.

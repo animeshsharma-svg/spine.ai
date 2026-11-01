@@ -8,7 +8,7 @@
 
 /** What the API built for this case (prototype/src/ui/uiSetup.ts), handed to the plan. */
 export interface PlanContext {
-  state?: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
+  state?: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted";
   eventGroupUuid?: string;
   stageUuid?: string;
   technicalStageUuid?: string;
@@ -38,10 +38,14 @@ export interface ScreenSpec {
 }
 
 // "upcoming" = published, bidding not yet open (the only state that offers Reschedule Event)
-const ANY_EVENT: ScreenSpec["needs"] = ["upcoming", "live", "bid", "closed", "proposal", "awarded"];
+const ANY_EVENT: ScreenSpec["needs"] = ["upcoming", "live", "bid", "closed", "proposal", "awarded", "converted"];
 
 export const SCREENS: Record<string, ScreenSpec> = {
-  events_list: { path: "/orders", feeds: ["/api/event_groups\\?"], needs: ["none", "draft", "upcoming", "live", "bid", "closed", "proposal", "awarded"], lands: /\/orders(\?|$)/, what: "the events list" },
+  // The supplier portal, signed in as the event's QA vendor, on this event (runPlan.ts handles it: a second
+  // browser context, not a buyer path — `path` is unused). Any published state: the vendor sees the event
+  // live, bid, closed or awarded.
+  vendor: { path: "", feeds: [], needs: ["upcoming", "live", "bid", "closed", "proposal", "awarded", "converted"], lands: /./, what: "the supplier portal, on this event, as the invited vendor" },
+  events_list: { path: "/orders", feeds: ["/api/event_groups\\?"], needs: ["none", "draft", "upcoming", "live", "bid", "closed", "proposal", "awarded", "converted"], lands: /\/orders(\?|$)/, what: "the events list" },
   drafts_list: { path: "/orders?tab=draft", feeds: ["/api/event_groups/draft"], needs: ["none", "draft"], lands: /\/orders\?tab=draft/, what: "the Drafts tab of the events list" },
   history_list: { path: "/orders?tab=history", feeds: ["/api/event_groups/history"], needs: ["none", "closed", "proposal", "awarded"], lands: /\/orders\?tab=history/, what: "the History tab of the events list" },
   create: { path: "/orders/quick-create?projectCreation=true", feeds: [], needs: ["none"], lands: /\/orders\/quick-create/, what: "a new event's create screen" },
@@ -58,9 +62,9 @@ export const SCREENS: Record<string, ScreenSpec> = {
   responses: { path: "/project/{eg}/{stage}?tab=compare", feeds: ["/trade/{stage}/schema"], needs: ANY_EVENT, lands: /\/project\/[^/]+\/[^/?]+\?tab=compare/, what: "the pricing round's Responses (comparison)" },
   overview: { path: "/project/{eg}/{stage}?tab=order_info", feeds: ["/trade/{stage}/event_summary"], needs: ANY_EVENT, lands: /tab=order_info/, what: "the pricing round's Overview" },
   participants: { path: "/project/{eg}/{stage}?tab=audience", feeds: ["/companies/audience_for_product"], needs: ANY_EVENT, lands: /tab=audience/, what: "the pricing round's Participants" },
-  analytics: { path: "/project/{eg}/{stage}?tab=analytics", feeds: [], needs: ["bid", "closed", "proposal", "awarded"], lands: /tab=analytics/, what: "the pricing round's Analytics" },
+  analytics: { path: "/project/{eg}/{stage}?tab=analytics", feeds: [], needs: ["bid", "closed", "proposal", "awarded", "converted"], lands: /tab=analytics/, what: "the pricing round's Analytics" },
   technical: { path: "/project/{eg}/{tstage}?tab=compare", feeds: [], needs: ANY_EVENT, lands: /\/project\/[^/]+\/[^/?]+/, what: "the technical round" },
-  master_qcs: { path: "/project/{eg}/master_qcs", feeds: ["/api/sheets/schema\\?view_type=summary_view"], needs: ["bid", "closed", "proposal", "awarded"], lands: /\/master_qcs/, what: "Master QCS (the comparison across rounds)" },
+  master_qcs: { path: "/project/{eg}/master_qcs", feeds: ["/api/sheets/schema\\?view_type=summary_view"], needs: ["bid", "closed", "proposal", "awarded", "converted"], lands: /\/master_qcs/, what: "Master QCS (the comparison across rounds)" },
 };
 
 export const SCREEN_NAMES = Object.keys(SCREENS);

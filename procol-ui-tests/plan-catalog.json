@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T07:42:25.248Z",
+  "generatedAt": "2026-11-01T19:21:24.106Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -649,6 +649,22 @@
       "assertion": true
     },
     {
+      "name": "switch_portal",
+      "purpose": "Change which side of Procol the next steps act on. to:\"vendor\" signs in to the SUPPLIER portal as the event's invited QA vendor (a second browser beside the buyer's, streamed and photographed like it) and every later generic step (click, fill, select, expect_text, expect_visible, expect_count, expect_value) acts there; to:\"buyer\" returns to the buyer's console on the page it was left at. Use for any case about what the vendor sees or can do.",
+      "args": {
+        "to": "\"vendor\" | \"buyer\"",
+        "vendor": "the vendor to sign in as — an email or the name the case gives (optional: the event's QA vendor, or the one that bid in this plan)"
+      }
+    },
+    {
+      "name": "vendor_open_event",
+      "purpose": "In the supplier portal (after switch_portal{to:\"vendor\"}), open THIS plan's event from the vendor's events list and land on its round: stage:\"pricing\" (default: the RFQ/auction bid sheet, with the Add Bid / bid form opened when the round offers it) or stage:\"technical\" (the RFP questionnaire), or overview:true to stay on the Event Overview. Fails as NOT INVITED when the event is not in the vendor's list — a finding, never covered by opening another event.",
+      "args": {
+        "stage": "\"pricing\" (default) | \"technical\"",
+        "overview": "true: stay on the event's overview instead of entering a round (optional)"
+      }
+    },
+    {
       "name": "go_to",
       "generic": true,
       "purpose": "Navigate to a screen that has no domain step: a published event's stage tab or one of its sub-tabs (responses, overview, participants, analytics, price trends, participant remarks), any tab by name, or a console path. Waits for the screen to be ready. Prefer open_events_list / open_event / open_create / open_master_qcs / open_participants when they fit.",
@@ -670,7 +686,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)"
       }
     },
     {
@@ -683,7 +699,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)"
       }
     },
     {
@@ -755,7 +771,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)",
         "visible": "true | false"
       }
     },
@@ -770,7 +786,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)",
         "count": "exact number (optional)",
         "min": "at least (optional)",
         "max": "at most (optional)"
@@ -808,7 +824,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)"
       }
     },
     {
@@ -833,7 +849,7 @@
     {
       "name": "pick_date",
       "generic": true,
-      "purpose": "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date. Use for any check-in / departure / date-of-birth field that opens a calendar.",
+      "purpose": "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date; for a dropdown of dates it chooses the matching option. Use for any check-in / departure / date-of-birth / meeting date field.",
       "args": {
         "label": "the date field's label (optional when the calendar is already open)",
         "date": "the date, e.g. \"12 December 2026\" or \"2026-12-12\""
@@ -842,13 +858,15 @@
     {
       "name": "choose_by_number",
       "generic": true,
-      "purpose": "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". Reports the numbers it compared.",
+      "purpose": "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". With measure \"date\" it compares the DATES in the controls' names instead and presses the earliest (or latest) that is open — disabled, sold-out, unavailable and past days are left out: \"click the first available date after 15 November 2026\" is choose_by_number{measure:\"date\", by:\"earliest\", after:\"15 November 2026\", role:\"button\"}. Reports what it compared.",
       "args": {
-        "by": "\"lowest\" (default) | \"highest\"",
-        "measure": "\"price\" (default: a money amount) | \"number\" | a regex with one capture group for the figure, e.g. \"([\\d.]+)\\s*hours\"",
+        "by": "\"lowest\" (default) | \"highest\" | for dates: \"earliest\" (default) | \"latest\"",
+        "measure": "\"price\" (default: a money amount) | \"number\" | \"date\" (the date in each control's name) | a regex with one capture group for the figure, e.g. \"([\\d.]+)\\s*hours\"",
+        "after": "for dates: only dates after this one count, e.g. \"15 November 2026\" (optional)",
+        "before": "for dates: only dates before this one count (optional)",
         "only": "only blocks naming this, as whole words, take part — e.g. \"Voltpine Alkaline AA\" keeps the AA packs and not the AAA ones (optional)",
         "exclude": "blocks containing this text are left out, e.g. \"Sponsored\" (optional)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)",
         "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
         "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
         "label": "a form field's label (instead of role+name)",
@@ -866,7 +884,7 @@
         "label": "a form field's label (instead of role+name)",
         "text": "plain visible text (instead of role+name)",
         "placeholder": "an input's placeholder (instead of label)",
-        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "within": "optional region: \"dialog\" | \"menu\" | \"table\" | \"list\" | \"form\" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)",
         "timeoutMs": "budget in ms (default 60000)"
       }
     },
@@ -934,7 +952,7 @@
       "name": "attempt",
       "generic": true,
       "assertion": true,
-      "purpose": "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
+      "purpose": "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. On a site that is not Procol, words that name two DIFFERENT controls (a submit button and a sidebar link with the same label) are also a refusal: nothing is pressed. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
       "args": {
         "step": "the action to try: \"click\" | \"save_draft\" | \"publish\" | \"add_line_items\" | \"set_schedule\" | \"fill\" | \"select\" | \"toggle\" | …",
         "args": "the inner step's args as an object, e.g. {role:\"button\", name:\"Items\"} for a click",
@@ -946,7 +964,7 @@
       "name": "open_prepared",
       "purpose": "FIRST STEP of a case whose starting state was built through the API: open the named screen on that event (no create, no publish, no search). Waits for the API calls that feed the screen and fails as 'could not tell' if they never come.",
       "args": {
-        "screen": "one of: events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs"
+        "screen": "one of: vendor | events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs"
       }
     },
     {
@@ -954,7 +972,7 @@
       "assertion": true,
       "purpose": "Assert the browser is now on a named screen (after a click that should move it): the URL matches the screen's route and the screen is ready.",
       "args": {
-        "screen": "one of: events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs",
+        "screen": "one of: vendor | events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs",
         "path": "or: a substring the URL must contain"
       }
     },
@@ -1185,6 +1203,8 @@
     "expect_bid_submitted",
     "expect_publish_blocked",
     "expect_stages",
+    "switch_portal",
+    "vendor_open_event",
     "go_to",
     "click",
     "hover",

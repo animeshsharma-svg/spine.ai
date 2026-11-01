@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
+import type { BrowserContext } from "@playwright/test";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
@@ -34,7 +35,7 @@ import { installSpotlight, beginStep, stepShots, stepActions, spotlightVerify, s
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
-import { resolveScreen, type PlanContext } from "./screens.js";
+import { resolveScreen, type PlanContext, SCREENS } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 import { sideFrames } from "../support/liveCursor.js";
 import { askTester, SAYS_STOP, mask } from "../explore/ask.js";
@@ -320,7 +321,20 @@ export interface PlanResult {
 /** ask_tester parts handed to the explorer in this run (each gets its own evidence folder). */
 let gapCount = 0;
 
+/** The supplier-portal side of a run: a second browser signed in as the vendor (switch_portal). */
+interface PortalState {
+  ctx: BrowserContext;
+  page: Page;
+  side: { stop: () => Promise<void>; relabel: (label: string) => void };
+  email: string;
+  how: string;
+  /** Which page the generic steps act on now. */
+  on: "buyer" | "vendor";
+  buyer: { page: Page; events: EventsPage };
+}
+
 interface RunState {
+  portal?: PortalState;
   /** the tester did part of this run by hand: a later step's work may already be in Procol */
   handDone?: boolean;
   /** set by place_surrogate_bid when Procol already holds what it was about to enter (done by hand) */
@@ -996,6 +1010,91 @@ async function createEventForCase(s: RunState, need: "bids" | "live"): Promise<s
 /** Steps that drive the create screen — nothing to do once the event is published. */
 const CREATE_SCREEN_STEP = /^(compose_stages|expect_stages|set_title|select_template|add_line_items|expect_line_items|fill_sheet|set_schedule|invite_vendor|publish|save_draft|configure_single_stage)$/;
 
+/**
+ * switch_portal: make the supplier portal (signed in as the vendor) or the buyer's console the page the
+ * next steps act on. The vendor's browser is opened once per run and kept; "buyer" does not close it,
+ * so a plan can go back and forth (bid as the vendor, read the buyer's grid, revise as the vendor).
+ */
+async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknown): Promise<string> {
+  if (to === "buyer") {
+    if (!s.portal || s.portal.on === "buyer") return "on the buyer's console already";
+    s.page = s.portal.buyer.page;
+    s.events = s.portal.buyer.events;
+    s.portal.on = "buyer";
+    await s.page.bringToFront().catch(() => {});
+    return `back on the buyer's console at ${new URL(s.page.url()).pathname}`;
+  }
+  if (s.portal) {
+    const want = vendor ? String(vendor).trim().toLowerCase() : "";
+    if (!want || want === s.portal.email.toLowerCase() || s.portal.on === "vendor") {
+      if (s.portal.on === "vendor") return `on the supplier portal already, signed in as ${s.portal.email}`;
+      s.page = s.portal.page;
+      s.events = new EventsPage(s.page);
+      s.portal.on = "vendor";
+      await s.page.bringToFront().catch(() => {});
+      return `on the supplier portal again, signed in as ${s.portal.email}`;
+    }
+    // A different vendor: sign the first one out by closing its browser.
+    await s.portal.side.stop().catch(() => {});
+    await s.portal.ctx.close().catch(() => {});
+    s.portal = undefined;
+  }
+  const buyerPage = s.page;
+  const browser = buyerPage.context().browser();
+  if (!browser) throw new Error("no browser available to open a vendor session");
+  // The vendor: the one named (an email, or a name the invited list resolves), else the event's own QA
+  // vendor (the API-built state names them), else the next invited vendor this run can sign in as.
+  let email = "";
+  const named = vendor ? String(vendor).trim() : "";
+  if (/@/.test(named)) email = named;
+  else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
+  else email = await bidderEmail(named || undefined);
+  const vendorCtx = await browser.newContext();
+  const vendorPage = await vendorCtx.newPage();
+  shareObserver(buyerPage, vendorPage);
+  installSpotlight(vendorPage, joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_")));
+  const side = sideFrames(vendorPage, `Vendor portal · ${email}`);
+  const portal = new VendorPortalPage(vendorPage);
+  let how = "";
+  try {
+    await portal.goto();
+    how = await portal.login(email);
+  } catch (e) {
+    await side.stop().catch(() => {});
+    await vendorCtx.close().catch(() => {});
+    throw new Error(`could not sign in to the supplier portal as ${email}: ${(e as Error).message.split("\n")[0]}`);
+  }
+  s.portal = { ctx: vendorCtx, page: vendorPage, side, email, how, on: "vendor", buyer: { page: buyerPage, events: s.events } };
+  s.page = vendorPage;
+  s.events = new EventsPage(vendorPage);
+  return `on the supplier portal, signed in as ${email} (with ${how})`;
+}
+
+/** vendor_open_event: this plan's event in the supplier portal, on its round (or its overview). */
+async function vendorOpenEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
+  if (!s.portal || s.portal.on !== "vendor") throw new Error("vendor_open_event needs switch_portal{to:\"vendor\"} first — the supplier portal is not open");
+  const portal = new VendorPortalPage(s.portal.page);
+  const title = s.context.title ?? s.title;
+  // A freshly published event reaches the vendor's list late on UAT (the buyer's own list lags too): look
+  // again every ~15s for up to two minutes before calling it NOT INVITED.
+  const started = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await portal.openEvent(title);
+      break;
+    } catch (e) {
+      if (!(e instanceof NotOnEventError)) throw e;
+      if (Date.now() - started > 120_000) throw new Error(`NOT INVITED: “${title}” is not among ${s.portal.email}'s events on the supplier portal after ${Math.round((Date.now() - started) / 1000)}s`);
+      console.log(`[vendor] “${title}” not in ${s.portal.email}'s list yet (look ${attempt}) — waiting for UAT to list it`);
+      await s.portal.page.waitForTimeout(12_000);
+    }
+  }
+  if (a.overview === true || /^(true|yes|1)$/i.test(String(a.overview ?? ""))) return `opened “${title}” on the supplier portal (Event Overview) as ${s.portal.email}`;
+  const stage = /tech|rfp|question/i.test(String(a.stage ?? "")) ? "technical" : "pricing";
+  await portal.startBidding(stage === "technical" ? "technical|rfp" : undefined);
+  return `opened “${title}” on the supplier portal as ${s.portal.email}, on its ${stage} round`;
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   // The tester took the browser and published the event themselves: the page
@@ -1008,6 +1107,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.didByHand = true;
       return `the event is already published (project ${id})`;
     }
+  }
+  // The supplier portal (vendorPortalCatalog.ts): a second browser the generic steps then act on.
+  if (step.step === "switch_portal") return switchPortal(s, String(a.to ?? "vendor").toLowerCase() === "buyer" ? "buyer" : "vendor", a.vendor);
+  if (step.step === "vendor_open_event") return vendorOpenEvent(s, a);
+  // open_prepared{screen:"vendor"}: the vendor side of an API-built event — sign in and open it there.
+  if (step.step === "open_prepared" && /^vendor/i.test(String(a.screen ?? ""))) {
+    const state = s.context.state ?? "none";
+    if (!SCREENS.vendor.needs.includes(state as never)) throw new Error(`the vendor portal needs a published event (${SCREENS.vendor.needs.join("/")}), and this case's state is ${state} — automation needs update`);
+    const signedIn = await switchPortal(s, "vendor", s.context.vendorEmail);
+    const opened = await vendorOpenEvent(s, { overview: a.overview });
+    return `${signedIn}; ${opened}`;
   }
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
   // its inner step back through this function, so a domain step can be tried
@@ -1547,6 +1657,54 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       s.closed = true;
       return `event closed: ${done}`;
+    }
+    case "open_first_event": {
+      const tab = String(a.tab ?? "Live").trim() || "Live";
+      const containing = a.containing ? String(a.containing).trim() : "";
+      await s.events.goto();
+      const onTab = await s.events.openTab(tab);
+      // UAT's list can take most of a minute to fill on a slow day.
+      const shown = await s.page
+        .waitForFunction(() => /RFX-\d+/.test(document.body.innerText), null, { timeout: 60_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!shown) {
+        const empty = ((await s.page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200);
+        throw new Error(`the ${onTab} tab showed no events within a minute — the screen reads: ${empty}`);
+      }
+      await s.page.waitForTimeout(600);
+      // Each card: the smallest block around an RFX number that holds only that one event (EventsPage.pickFromLive).
+      const picked = await s.page.evaluate((want) => {
+        const refs = (el: HTMLElement) => ((el.innerText || "").match(/RFX-\d+/g) || []).length;
+        const leaves: HTMLElement[] = [];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (/RFX-\d+/.test(n.nodeValue || "") && n.parentElement && !leaves.includes(n.parentElement)) leaves.push(n.parentElement);
+        }
+        const boxes: HTMLElement[] = [];
+        for (const leaf of leaves) {
+          let box: HTMLElement = leaf;
+          while (box.parentElement && refs(box.parentElement) === 1 && !/Search Title|Create Event/i.test(box.parentElement.innerText || "")) box = box.parentElement;
+          if (!boxes.includes(box)) boxes.push(box);
+        }
+        for (const el of Array.from(document.querySelectorAll("[data-spine-first]"))) el.removeAttribute("data-spine-first");
+        const needle = (want || "").toLowerCase().replace(/\s+/g, " ").trim();
+        const texts = boxes.map((b) => (b.innerText || "").replace(/\s+/g, " ").trim());
+        const at = texts.findIndex((t) => !needle || t.toLowerCase().includes(needle));
+        if (at < 0) return { at, n: boxes.length, sample: texts.slice(0, 4).map((t) => t.slice(0, 90)) };
+        boxes[at].setAttribute("data-spine-first", "1");
+        return { at, n: boxes.length, text: texts[at].slice(0, 160), sample: [] as string[] };
+      }, containing);
+      if (picked.at < 0) throw new Error(`no card under ${onTab}${containing ? ` showing "${containing}"` : ""} among ${picked.n} — the first cards read: ${picked.sample.join(" | ")}`);
+      const card = s.page.locator("[data-spine-first='1']").first();
+      const link = card.locator("a[href*='/project/'], a[href*='/orders/']").first();
+      const target = (await link.count().catch(() => 0)) ? link : card.getByRole("link").first();
+      await (await target.count().catch(() => 0) ? target : card).click({ timeout: 15_000 });
+      await s.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/^\/orders\/?$/.test(u.pathname), { timeout: 60_000 });
+      await s.events.dismissDistractions().catch(() => false);
+      const id = s.page.url().match(/\/project\/([^/?#]+)/)?.[1];
+      if (id) s.projectId = id;
+      return `opened the first event under ${onTab}${containing ? ` showing "${containing}"` : ""} (card ${picked.at + 1} of ${picked.n}: ${picked.text}) → ${new URL(s.page.url()).pathname}`;
     }
     case "open_event": {
       // The event the API built for this case is opened by its route, not by
@@ -3031,8 +3189,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   // `picture`: a screenshot too — only where a step failed (Aanya, 26 Oct: no picture per step).
   // `at`: the step's result, which gets the screen in words and what the step did.
   const look = async (i: number, name: string, force: boolean, picture = false, at?: number) => {
+    // The page the step acted on — the supplier portal after switch_portal — not the buyer's page the run began on.
     const o = await Promise.race([
-      observe(page, i + 1, name, { force, picture }).catch(() => null),
+      observe(s.page, i + 1, name, { force, picture }).catch(() => null),
       new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
     ]);
     if (at !== undefined && results[at]) {
@@ -3355,6 +3514,14 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
   }
 
+  // The supplier portal, when a step opened one: its last frame stays in the stream, the browser closes.
+  if (s.portal) {
+    await s.portal.side.stop().catch(() => {});
+    await s.portal.ctx.close().catch(() => {});
+    s.page = s.portal.buyer.page;
+    s.events = s.portal.buyer.events;
+    s.portal = undefined;
+  }
   const byHand = results.filter((r) => r.byHand).length;
   const untested = results.filter((r) => r.untested).length;
   // A plan with no assertion step acted but checked nothing: "a test that acts but never checks proves

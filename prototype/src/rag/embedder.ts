@@ -55,7 +55,10 @@ export async function ensureEmbedderReady(): Promise<string> {
         await slingringEmbed(["embedder readiness probe"]);
       } catch (err) {
         const status = (err as { status?: number }).status ?? 0;
-        if (status === 429) {
+        // An exhausted budget also comes back as 429 ("ExceededBudget … Spend=250.4, Budget=250.0", 31 Oct)
+        // — that is not busy, it is gone for the day: the local embedder takes over at once.
+        const overBudget = /budget/i.test(String((err as Error).message ?? ""));
+        if (status === 429 && !overBudget) {
           // Busy, not broken: each call backs off and retries. Switching the
           // whole process to the local model on a rate limit changed every
           // score after it, mid-run — the matcher's run-to-run swing.
