@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "UI-AWD-012",
+  "title": "Submitting the proposal sends it into the approval workflow",
+  "compiledAt": "2026-11-01T19:46:30.097Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "approvers having tasks cannot be checked directly through the sourcing event vocabulary"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "GET /proposal/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that Data check: “proposals[0] › status” equals requested."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “proposals[0] › status” equals requested."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-AWD-012",
+  "title": "Submitting the proposal sends it into the approval workflow",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAPR-056",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals[0].status",
+      "op": "equals",
+      "value": "requested"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "UI-FCOL-005",
+  "title": "In an English auction a revised bid must improve by at least the tick size",
+  "compiledAt": "2026-11-01T19:49:30.646Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer",
+   "The setup recipe does not explicitly configure a custom English auction tick size parameter in the vocabulary, relying on the library case EDGE-BID-084 for the tick size validation logic.",
+   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer"
+  ],
+  "warnings": [
+   "error code 214 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "PATCH /bids/revise_bid/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "QA vendor places the initial bid to obtain a bidUuid.",
+    "The vendor attempts to revise the bid by less than the tick size."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-FCOL-005",
+  "title": "In an English auction a revised bid must improve by at least the tick size",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": false,
+    "say": "QA vendor places the initial bid to obtain a bidUuid."
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-084",
+    "decisive": true,
+    "say": "The vendor attempts to revise the bid by less than the tick size."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "214"
+  }
+ }
+}

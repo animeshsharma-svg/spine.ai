@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "UI-PART-009",
+  "title": "Publishing twice does not double the audience",
+  "compiledAt": "2026-11-01T19:38:23.170Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "audience size count check"
+  ],
+  "warnings": [
+   "verify 1: read_audience's reply shape has not been sampled; \"status_2xx\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id/get_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer publishes the event.",
+    "As the buyer, list the event's invited vendors and check that Data check: “status 2xx” equals true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status 2xx” equals true."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-PART-009",
+  "title": "Publishing twice does not double the audience",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status_2xx",
+      "op": "equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

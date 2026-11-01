@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "UI-SAV-013",
+  "title": "A vendor must see the terms before bidding where acceptance is required",
+  "compiledAt": "2026-11-01T19:39:33.123Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Accepting terms explicitly via API call before bidding is not yet supported in the vocabulary",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "Read stage terms and acceptance",
+    "Try to place a bid without accepting terms"
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-SAV-013",
+  "title": "A vendor must see the terms before bidding where acceptance is required",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAMD-068",
+    "say": "Read stage terms and acceptance"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true,
+    "ifRefused": "pass",
+    "say": "Try to place a bid without accepting terms"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

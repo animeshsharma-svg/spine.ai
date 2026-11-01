@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "UI-PART-017",
+  "title": "Self-participation is refused where open tenders are off",
+  "compiledAt": "2026-11-01T19:38:38.539Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-PUB-049 is written for the buyer, but the plan sends it as vendor",
+   "library case EDGE-PUB-049 is written for the buyer, but the plan sends it as vendor"
+  ],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
+   "act 2: the vendor is not invited to this setup — it acts as an outsider"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /event_groups/:id/participants"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The invited QA vendor sends the event groups participants request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-PART-017",
+  "title": "Self-participation is refused where open tenders are off",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-PUB-049",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455"
+  }
+ }
+}

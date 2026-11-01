@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-022",
+  "title": "Cloning a PR-created event is refused",
+  "compiledAt": "2026-11-01T19:41:23.322Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /event_groups/:id/create_clone"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer sends the event groups create clone request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Events with purchase requests cannot be cloned.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "UI-PUB-022",
+  "title": "Cloning a PR-created event is refused",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-111",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "Events with purchase requests cannot be cloned."
+  }
+ }
+}

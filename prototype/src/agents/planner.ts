@@ -388,6 +388,9 @@ function fallbackPlan(testCase: string): TestPlan {
  * naming each repair — silent correction would hide a compiler that needs
  * improving.
  */
+/** The case says the VENDOR bids (places / submits a bid, quote, price) — not merely looks at the bid sheet. */
+const VENDOR_BIDS = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b/i;
+
 export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repairs: string[] } {
   const steps = [...plan.steps];
   const repairs: string[] = [];
@@ -676,7 +679,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // …and the vendor's bid is the case's to ask for: "as the vendor, open the event and check the line items"
   // got a place_bid before the switch (2 Nov) — a bid the case never mentioned, which also turns the bid
   // sheet the vendor then sees into "Revise Quote".
-  const vendorBids = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b/i.test(testCase);
+  const vendorBids = VENDOR_BIDS.test(testCase);
   if (steps.some((s) => s.step === "switch_portal" || s.step === "vendor_open_event") && !vendorBids) {
     for (let k = steps.length - 1; k >= 0; k--) {
       if (steps[k].step === "place_bid") {
@@ -1228,7 +1231,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // A case that only TRIES a bid Procol must refuse (an attempt, or the missing Add Bid as the check) places
   // none: adding one here put a real bid before SB08's / SB10's refusal check (27 Oct).
   const triesOnly = steps.some((st) => (st.step === "attempt" && /^place_(surrogate_)?bid$/.test(String(st.args?.step ?? ""))) || (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? st.args?.text ?? "")) && Number(st.args?.count ?? st.args?.max ?? 1) === 0) || (st.step === "expect_participant" && st.args?.addBid === false && !/\b(then|after)\b/i.test(testCase)));
-  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly) {
+  // A plan that switches to the supplier portal does its vendor work THERE — a look at the bid sheet, or a
+  // bid with fill + Submit — never through a second place_bid sign-in (2 Nov).
+  const looksOnly = has("switch_portal") || has("vendor_open_event");
+  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly && !looksOnly) {
     const step = wantsSurrogate ? "place_surrogate_bid" : "place_bid";
     const at = has("expect_published") ? indexOf("expect_published") + 1 : has("publish") ? indexOf("publish") + 1 : steps.length;
     steps.splice(at, 0, { step });
