@@ -1,0 +1,47 @@
+// cpanel: Vendors → Prospects → our QA prospect → Start Onboarding drawer (look only; --start to actually start with the named template)
+import { chromium } from "@playwright/test";
+const OUT = "/Users/animesh/Desktop/procol/prototype/data/evidence/vo-e2e";
+const firm = process.argv[2], tpl = process.argv[3], start = process.argv.includes("--start");
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ storageState: ".auth/user.json", viewport: { width: 1600, height: 1000 } });
+const page = await ctx.newPage();
+const net: string[] = []; page.on("response", (r) => { const u = r.url(); if (/vendor_onboarding|onboarding|templates\?type/.test(u)) net.push(`${r.request().method()} ${r.status()} ${u.replace(/^https:\/\/[^/]+\/api/, "").slice(0, 140)}`); });
+const txt = async () => (await page.locator("body").innerText()).replace(/\n+/g, " | ");
+await page.goto("https://cpanel.ag-ri.in/vendors", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(6000);
+for (const b of ["Got it", "Not now"]) await page.getByRole("button", { name: b }).first().click({ timeout: 1500 }).catch(() => {});
+console.log("VENDORS:", (await txt()).slice(0, 700));
+await page.getByRole("tab", { name: /Prospects/ }).first().click().catch(() => page.getByText(/^Prospects/).first().click());
+await page.waitForTimeout(3000);
+const search = page.locator('input[placeholder*="Search" i]').first();
+await search.fill(firm); await page.keyboard.press("Enter"); await page.waitForTimeout(3500);
+const row = page.locator("tr, [role=row]").filter({ hasText: firm }).first();
+console.log("ROW:", (await row.innerText().catch(() => "not found")).replace(/\n+/g, " | "));
+await row.locator('input[type=checkbox], .ant-checkbox').first().click().catch((e) => console.log("checkbox:", e.message.split("\n")[0]));
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${OUT}/buyer-prospect-selected.png` });
+const btns = await page.locator("button").allInnerTexts(); console.log("BUTTONS:", btns.map((b) => b.trim()).filter(Boolean).join(" | "));
+await page.getByRole("button", { name: /Start Onboarding/i }).first().click().catch((e) => console.log("start btn:", e.message.split("\n")[0]));
+await page.waitForTimeout(2500);
+const drawer = page.locator(".ant-drawer-content").last();
+console.log("DRAWER:", (await drawer.innerText().catch(() => "none")).replace(/\n+/g, " | ").slice(0, 600));
+await drawer.locator(".ant-select-selection").first().click().catch(() => {}); await page.waitForTimeout(1200);
+const opts = await page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li").allInnerTexts();
+console.log("TEMPLATES:", opts.map((o) => o.trim()).join(" | "));
+await page.screenshot({ path: `${OUT}/buyer-start-onboarding.png` });
+if (start && tpl) {
+  await page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li").filter({ hasText: tpl }).first().click(); await page.waitForTimeout(2000);
+  console.log("DRAWER after pick:", (await drawer.innerText()).replace(/\n+/g, " | ").slice(0, 700));
+  const dur = drawer.locator(".ant-select").filter({ hasText: /Mins|Hrs|Hours|Days/ }).first();
+  await dur.locator(".ant-select-selection").click().catch(() => {}); await page.waitForTimeout(700);
+  const dOpts = (await page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li").allInnerTexts()).map((x) => x.trim());
+  console.log("DURATIONS:", dOpts.join(" | "));
+  const longest = dOpts.filter((x) => !/custom/i.test(x)).pop();
+  if (longest) await page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li").filter({ hasText: longest }).first().click();
+  await page.waitForTimeout(700);
+  console.log("DRAWER final:", (await drawer.innerText()).replace(/\n+/g, " | ").slice(0, 500));
+  await drawer.getByRole("button", { name: /Start|Initiate|Submit|Send/i }).last().click(); await page.waitForTimeout(4000);
+  console.log("TOAST:", await page.locator(".ant-message-notice").allInnerTexts());
+  await page.screenshot({ path: `${OUT}/buyer-onboarding-started.png` });
+}
+console.log(net.join("\n"));
+await browser.close();

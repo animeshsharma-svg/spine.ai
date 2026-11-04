@@ -1,0 +1,32 @@
+// Probe the Template Studio editor's DOM (no save).
+import { chromium } from "@playwright/test";
+const OUT = "/Users/animesh/Desktop/procol/prototype/data/evidence/template-studio";
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ storageState: ".auth/user.json", viewport: { width: 1600, height: 1000 } });
+const page = await ctx.newPage();
+await page.goto("https://cpanel.ag-ri.in/template-studio", { waitUntil: "domcontentloaded" });
+await page.getByText("New Template").first().waitFor({ timeout: 30000 });
+for (const t of ["Got it", "Not now"]) { const b = page.getByRole("button", { name: t }); if (await b.count()) await b.first().click().catch(() => {}); }
+await page.getByRole("button", { name: /New Template/ }).click();
+await page.waitForTimeout(1500);
+const modal = page.locator(".ant-modal-content");
+console.log("MODAL:", (await modal.innerText()).replace(/\n+/g, " | "));
+console.log("CARD classes:", await modal.locator("[class*=typeCard]").evaluateAll((els) => els.map((e) => e.className).slice(0, 3)));
+await modal.getByText("Multi-section onboarding form", { exact: false }).click();
+await page.waitForTimeout(3000);
+console.log("URL:", page.url());
+const rail = await page.evaluate(() => Array.from(document.querySelectorAll("button, [role=button]")).map((b) => (b.textContent || "").trim()).filter(Boolean).slice(0, 60));
+console.log("BUTTONS:", rail.join(" | "));
+await page.getByText("Short Text", { exact: true }).first().click();
+await page.waitForTimeout(800);
+const panel = await page.evaluate(() => { const el = Array.from(document.querySelectorAll("div")).find((d) => /^Field settings/.test((d.textContent || "").trim()) && d.className.includes("config")); return el ? { cls: el.className, html: el.outerHTML.slice(0, 6000) } : null; });
+console.log("PANEL cls:", panel?.cls);
+console.log((panel?.html || "").replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/ style="[^"]*"/g, "").slice(0, 5000));
+const canvas = await page.evaluate(() => { const el = document.querySelector("[class*=builderCanvas]"); return el ? el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 2500) : "none"; });
+console.log("CANVAS:", canvas);
+const tabs = await page.evaluate(() => { const el = document.querySelector("[class*=pageTabs]"); return el ? el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 1500) : "none"; });
+console.log("TABS:", tabs);
+const head = await page.evaluate(() => { const el = document.querySelector("input[value='']") ; return Array.from(document.querySelectorAll("input")).map((i) => `${i.placeholder}|${i.className.slice(0,40)}`).join(" ;; "); });
+console.log("INPUTS:", head);
+await page.screenshot({ path: `${OUT}/explore_vo_editor.png` });
+await browser.close();

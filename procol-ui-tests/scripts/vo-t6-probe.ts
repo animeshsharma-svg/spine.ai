@@ -1,0 +1,23 @@
+// T6: each rule checked on a fresh form (draft reset between), so a rule that never undoes cannot mask the comparison.
+import { chromium } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import * as F from "./vo-form.js";
+import { vendorUiLogin } from "./vo-vendor-ui.js";
+const OUT = "/Users/animesh/Desktop/procol/prototype/data/evidence/vo-e2e";
+const setup = JSON.parse(readFileSync(`${OUT}/setup.json`, "utf8"));
+const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } }); const page = await ctx.newPage();
+console.log("login", await vendorUiLogin(page, setup.prospects[process.argv[2] ?? "T6"].email));
+const fresh = async () => { await F.openOnboardingForm(page); await F.resetDraft(page); await page.reload(); await page.waitForTimeout(8000); await page.getByRole("tab").filter({ hasNotText: /overview/i }).first().click().catch(() => {}); await page.waitForTimeout(9000); };
+const sw = async () => { const k = await F.keysShown(page); return k.includes("swift_code") ? `SWIFT shown${(await F.isRequired(page, "swift_code")) ? "*" : ""}` : "SWIFT hidden"; };
+await fresh(); console.log("fresh baseline:", await sw(), "| HR policy required =", await F.isRequired(page, "hr_policy"));
+await F.chooseRadio(page, "vendor_type", "Foreign"); console.log("fresh → Foreign, turnover empty:", await sw());
+await page.screenshot({ path: `${OUT}/shots/probe-${process.argv[2] ?? "T6"}-and-one-side.png`, fullPage: true });
+await fresh(); await F.typeInto(page, "turnover", "500000"); await F.chooseRadio(page, "vendor_type", "Foreign"); console.log("fresh → turnover 500000 then Foreign:", await sw());
+await fresh(); await F.chooseRadio(page, "vendor_type", "Indian"); await F.typeInto(page, "turnover", "2500000"); console.log("fresh → Indian + 2500000:", await sw());
+await fresh(); await F.typeInto(page, "employees", "99"); console.log("fresh → employees 99: HR policy required =", await F.isRequired(page, "hr_policy"));
+await F.typeInto(page, "employees", "1000"); console.log("   then 1000: HR policy required =", await F.isRequired(page, "hr_policy"));
+await fresh(); await F.typeInto(page, "employees", "150"); console.log("fresh → employees 150: required =", await F.isRequired(page, "hr_policy"));
+await F.typeInto(page, "employees", "20"); console.log("   then 20: required =", await F.isRequired(page, "hr_policy"));
+await page.screenshot({ path: `${OUT}/shots/probe-${process.argv[2] ?? "T6"}-sticky.png`, fullPage: true });
+await fresh(); await F.typeInto(page, "employees", "50"); console.log("fresh → employees 50: required =", await F.isRequired(page, "hr_policy"));
+await browser.close();

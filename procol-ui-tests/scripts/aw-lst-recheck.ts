@@ -1,0 +1,11 @@
+import { openBrowser, settle, shot, WEB, Ledger, OUT } from "./aw-lib";
+const L = new Ledger(`${OUT}/ui-results.json`);
+const { browser, page } = await openBrowser();
+await page.goto(`${WEB}/approvals-workflows?approvalType=team`, { waitUntil: "domcontentloaded", timeout: 120_000 }); await settle(page, 4000);
+await page.locator("th").first().waitFor({ timeout: 60_000 }).catch(() => {});
+const tabs = (await page.locator(".ant-tabs-tab").allInnerTexts().catch(() => [])).map((t) => t.trim());
+const heads = (await page.locator("th").allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+const s = await shot(page, "B-01-list");
+L.put({ id: "UI-LST-001", title: "Approval Workflows opens on the Team tab with the workflow table and a Create button", verdict: tabs.includes("Team") && heads.includes("Name") && heads.includes("Approval Type") && (await page.getByRole("button", { name: /Create/ }).count()) > 0 ? "Pass" : "Fail", observed: `tabs=${tabs.join(",")} columns=${heads.join(" | ")}`, shots: [s] });
+L.put({ id: "UI-LST-002", title: "The table has one column per routing condition in use, named '<Field> - DLF PO - General Details (Test)'", verdict: heads.some((h) => /Form Type - DLF PO - General Details \(Test\)/.test(h)) ? "Pass" : "Fail", observed: heads.filter((h) => /General Details/.test(h)).join(" | "), shots: [s] });
+await browser.close();

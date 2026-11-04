@@ -1,0 +1,24 @@
+// Probe 4: the NTD page between "Submit Proposal" and the approval modal (DLF: ntd_required_on_proposal).
+import { openBrowser, settle, shot, sleep, WEB, uuidOf, DLF, toasts } from "./aw-lib";
+const { browser, page, net } = await openBrowser();
+const P = uuidOf(DLF.draftProposalId);
+await page.goto(`${WEB}/po-form/${P}`, { waitUntil: "domcontentloaded", timeout: 120_000 }); await settle(page, 5000);
+await page.getByRole("button", { name: /Submit Proposal/ }).first().click({ force: true }); await sleep(6000);
+console.log("NTD page url:", page.url());
+const heads = (await page.locator("h1,h2,h3,h4,[class*=title],label").allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 20);
+console.log("heads:", heads);
+console.log("required marks:", await page.locator("[class*=required], .ant-form-item-required").count());
+const btn = page.getByRole("button", { name: /Submit Proposal/ }).first();
+const t0 = Date.now();
+await btn.click({ force: true }); await sleep(6000);
+console.log("after NTD submit: url", page.url(), "modals", await page.locator(".ant-modal:visible").count(), "toasts", await toasts(page));
+console.log("api:", net.filter((n) => n.at >= t0).map((n) => `${n.method} ${n.status} ${n.url.slice(0, 120)} ${(n.reply || "").slice(0, 150)}`));
+const modal = page.locator(".ant-modal:visible").last();
+console.log("modal:", (await modal.innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 900));
+console.log("modal buttons:", await modal.getByRole("button").allInnerTexts().catch(() => []));
+console.log("modal html classes:", (await modal.evaluate((e) => Array.from(e.querySelectorAll("[class]")).map((x) => x.className).filter((c) => /approval|flow|radio|search/i.test(c)).slice(0, 15)).catch(() => [])));
+await shot(page, "probe4-after-ntd-submit");
+const errs = (await page.locator(".ant-form-explain, [class*=error], .has-error").allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 10);
+console.log("errors:", errs);
+await page.keyboard.press("Escape"); await sleep(600);
+await browser.close();

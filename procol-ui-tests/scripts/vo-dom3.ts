@@ -1,0 +1,11 @@
+import { chromium } from "@playwright/test";
+import * as F from "./vo-form.js";
+const email = "qa_voe_653131_t1@example.com";
+const browser = await chromium.launch(); const ctx = await browser.newContext({ storageState: `.auth/vendor-${email.split("@")[0]}.json`, viewport: { width: 1500, height: 950 } }); const page = await ctx.newPage();
+await F.openOnboardingForm(page);
+console.log((await F.field(page, "company_brochure").evaluate((e) => e.outerHTML)).replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 1500));
+await F.field(page, "company_brochure").getByText(/Upload/).first().click(); await page.waitForTimeout(2000);
+console.log("AFTER CLICK modal:", (await page.locator(".ant-modal-content:visible, .ant-drawer-content:visible").last().innerText().catch(() => "none")).replace(/\n+/g, " | ").slice(0, 500));
+console.log("file inputs on page:", await page.locator("input[type=file]").count());
+await page.screenshot({ path: "/Users/animesh/Desktop/procol/prototype/data/evidence/vo-e2e/upload-click.png" });
+await browser.close();

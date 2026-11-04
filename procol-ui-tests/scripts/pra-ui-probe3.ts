@@ -1,0 +1,12 @@
+import { openAs, tokenFor, ME, pshot, WEB, sleep, settle } from "./pra-lib";
+const { browser, page, net } = await openAs(await tokenFor(ME));
+await page.goto(`${WEB}/purchase-requisitions`, { waitUntil: "domcontentloaded", timeout: 120000 }); await settle(page, 8000);
+await page.getByRole("button", { name: /Search/ }).first().click(); await sleep(1200);
+await page.keyboard.type("1010", { delay: 60 }); await sleep(3000);
+await page.locator(".ant-modal-wrap").getByText(/^1010$/).first().click(); await sleep(5000);
+console.log("url", page.url());
+await pshot(page, "probe-05-pr-filtered");
+console.log(net.filter((n) => /purchase_requests/.test(n.url)).slice(-3).map((n) => `${n.status} ${n.method} ${decodeURIComponent(n.url).slice(0, 300)}`).join("\n"));
+const rows = page.locator(".ant-table-tbody tr");
+console.log("rows", await rows.count(), (await rows.allInnerTexts()).slice(0, 4).map((t) => t.replace(/\s+/g, " ").slice(0, 120)));
+await browser.close();
