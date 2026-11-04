@@ -3530,7 +3530,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   const untested = results.filter((r) => r.untested).length;
   // A plan with no assertion step acted but checked nothing: "a test that acts but never checks proves
   // nothing" is enforced here, not only asked of the compiler (the bench, 29 Oct).
-  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion);
+  // do_on_screen passes only when the screen proves its goal, so a goal that reads as a check counts as one (same rule as the compiler)
+  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion || (st.step === "do_on_screen" && /\b(check|verify|confirm|expect|must (be|read|show)|is (still )?(shown|visible|listed)|reads?\b)/i.test(String((st as any).args?.goal ?? ""))));
   if (!failed && !asserts) console.log(`[plan] ${plan.title}: every step ran, but the plan has no assertion step — it checked nothing, so it is NOT a pass`);
   return { title: plan.title, steps: results, passed: !failed && asserts, ...(asserts ? {} : { unverified: true }), ...(byHand ? { byHand } : {}), ...(untested ? { untested } : {}), observations };
 }

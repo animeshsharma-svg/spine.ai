@@ -1877,7 +1877,9 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   // A plan that acts but never checks proves nothing: the executor refuses to
   // pass it, so say so here, where the case can still be marked untestable.
   const assertionNames = new Set(catalog.steps.filter((st) => st.assertion).map((st) => st.name));
-  if (!linted.plan.steps.some((st) => assertionNames.has(st.step))) {
+  // do_on_screen "passes only when the screen proves the goal", so a goal that reads as a check IS an assertion
+  const checksOnScreen = (st: { step: string; args?: Record<string, unknown> }) => st.step === "do_on_screen" && /\b(check|verify|confirm|expect|must (be|read|show)|is (still )?(shown|visible|listed)|reads?\b)/i.test(String(st.args?.goal ?? ""));
+  if (!linted.plan.steps.some((st) => assertionNames.has(st.step) || checksOnScreen(st))) {
     const gap = "the plan has no assertion step — nothing the case checks can be observed";
     warnings.push(`cannot test this case yet — ${gap}`);
     return {

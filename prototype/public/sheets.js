@@ -12,7 +12,7 @@
   const q = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const root = () => q("#sht-root");
-  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [], camp: null, from: "3" };
+  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [], camp: null, from: "3", single: null, und: null };
   const PILL = { Pass: "ok", Fail: "bad", "Partly checked": "warn", "Couldn't tell": "idle", "Not run": "idle" };
 
   function clientId() {
@@ -56,13 +56,16 @@
         <label class="sht-upload">Upload a sheet (.xlsx or .csv)<input type="file" id="sht-file" accept=".xlsx,.xls,.csv"></label>
         <span class="sht-hint">Columns: Test Case ID, Module, Scenario, Test Case Title, User Role, Portal, Pre-conditions, Test Data, Test Steps, Expected Result, Priority, Test Type, Status. A sheet with the same name replaces the old one.</span>
       </div>
+      <section class="sht-single" id="sht-single">${singleHtml()}</section>
       <section class="sht-camp" id="sht-camp">${campHtml(mods)}</section>
+      <div class="sht-und" id="sht-und" ${S.und ? "" : "hidden"}>${undHtml()}</div>
       <div class="sht-run" id="sht-run" ${S.run ? "" : "hidden"}></div>
       <div class="sht-filters">
         <input type="search" id="sht-q" placeholder="Search IDs, titles, steps, expected results" value="${esc(S.qtext)}">
         <select id="sht-mod"><option value="">All modules</option>${mods.map((m) => `<option ${m === S.mod ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
         <button class="btn" id="sht-all">Tick all shown (${list.length})</button>
         <button class="btn" id="sht-none">Untick all</button>
+        <button class="btn" id="sht-understand" ${S.picked.size ? "" : "disabled"} title="What the platform understood of each ticked case: where it starts, what it will check, whether it can run here">Understand ticked first</button>
         <label class="sht-check"><input type="checkbox" id="sht-headed"> Watch the browser</label>
         <button class="btn primary" id="sht-go" ${S.picked.size && !S.run?.live ? "" : "disabled"}>Run ${S.picked.size || ""} ticked case${S.picked.size === 1 ? "" : "s"} one by one</button>
       </div>
@@ -71,6 +74,46 @@
       ${S.runs.length ? `<section class="sht-past"><h3>Earlier runs</h3><ul>${S.runs.map((r) => `<li><a href="/api/sheets/report?run=${r.id}" target="_blank" rel="noopener">${esc(new Date(r.startedAt).toLocaleString())} · ${esc(r.sheet)} · ${r.total} case${r.total === 1 ? "" : "s"}</a> <span>${Object.entries(r.counts).map(([k, v]) => `${v} ${esc(k.toLowerCase())}`).join(" · ")}</span> <a href="/api/sheets/export?run=${r.id}&format=xlsx">results sheet</a></li>`).join("")}</ul></section>` : ""}`;
     wire();
     if (S.run) paintRun();
+  }
+
+  function singleHtml() {
+    const g = S.single;
+    const busy = g?.live;
+    return `<div class="sht-camphead"><b>Type one test case</b><span class="sht-hint" style="flex-basis:auto">Plain English. It is read as a TEST CASE, not a journey: rewritten into the house columns, understood (where it starts, what it checks, whether it can run here), run, and answered in the same words — with a bug row when it fails and the edge cases worth adding.</span></div>
+      <textarea id="sht-text" rows="3" placeholder='e.g. On a live RFQ with a vendor bid, extend the submission time by 30 minutes and check the end time moved by exactly 30 minutes and Order Activity lists the extension' ${busy ? "disabled" : ""}>${esc(g?.text || "")}</textarea>
+      <div class="sht-filters"><button class="btn" id="sht-single-dry" ${busy ? "disabled" : ""}>Show the understanding only</button><button class="btn primary" id="sht-single-go" ${busy ? "disabled" : ""}>Understand and run it</button><label class="sht-check"><input type="checkbox" id="sht-single-headed"> Watch the browser</label>${g?.case ? `<span class="sht-hint" style="flex-basis:auto">Saved as <b>${esc(g.case.id)}</b> in the sheet "Typed test cases" — it can be run again from the list.</span>` : ""}</div>
+      ${g ? `<div class="sht-singleout">${g.lines?.length && busy ? `<ul class="sht-lines">${g.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : ""}${g.case ? caseCard(g.case, g.source, g.note) : ""}${g.und ? undCard(g.und) : ""}${g.end ? endCard(g.end) : ""}${g.sugg?.length ? suggCard(g.sugg) : g.end && !g.end.dry ? `<p class="sht-hint">No extra cases were suggested.</p>` : ""}${g.error ? `<p class="sht-msg bad">${esc(g.error)}</p>` : ""}</div>` : ""}`;
+  }
+  function caseCard(c, source, note) {
+    const f = (k, v) => `<div class="sht-f"><b>${esc(k)}</b><span>${esc(v)}</span></div>`;
+    return `<div class="sht-cc"><div class="sht-cchead"><span class="sht-id">${esc(c.id)}</span><b>${esc(c.title)}</b><span class="pill ${c.priority === "Critical" ? "bad" : c.priority === "High" ? "warn" : "idle"}">${esc(c.priority)}</span><span class="pill idle">${esc(c.testType)}</span><span class="pill idle">${esc(c.layer === "api" ? "API" : c.portal)}</span>${source === "sheet" ? `<span class="pill ok">from the sheet</span>` : source === "ai" ? `<span class="pill ok">rewritten in house format</span>` : `<span class="pill warn">read as typed</span>`}</div>
+      ${note ? `<p class="sht-hint">${esc(note)}</p>` : ""}
+      <div class="sht-grid">${f("Module", c.module)}${f("Scenario", c.scenario)}${f("User role", c.role)}${f("Portal", c.portal)}${f("Pre-conditions", c.preconditions)}${f("Configs needed", c.configs || "None")}${f("Test data", c.testData)}</div>
+      <div class="sht-cols"><div><b>Test steps</b><ol>${c.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div><div><b>Expected result</b><p class="sht-exp">${esc(c.expected)}</p></div></div></div>`;
+  }
+  function undCard(u) {
+    return `<div class="sht-uc"><div class="sht-cchead"><b>What the platform understood</b>${u.canRunHere ? `<span class="pill ok">can run here</span>` : `<span class="pill bad">cannot run here</span>`}${u.coverage ? `<span class="pill ${u.coverage === "full" ? "ok" : u.coverage === "partial" ? "warn" : "bad"}">steps cover: ${esc(u.coverage)}</span>` : ""}</div>
+      <div class="sht-grid"><div class="sht-f"><b>Goal</b><span>${esc(u.goal)}</span></div><div class="sht-f"><b>Who acts</b><span>${esc(u.actor)}</span></div><div class="sht-f"><b>Where</b><span>${esc(u.where.join(" · "))}</span></div><div class="sht-f"><b>Starts from</b><span>${esc(u.startState)}</span></div>
+      <div class="sht-f"><b>Company settings</b><span>${u.configs.length ? esc(u.configs.map((x) => `${x.key} = ${JSON.stringify(x.value)}${x.why ? ` — ${x.why}` : ""}`).join("; ")) : u.configPhrase ? esc(`looked up from the pre-condition: "${u.configPhrase}"`) : "none"}</span></div><div class="sht-f"><b>Kind</b><span>${esc(u.kind.join(", "))}</span></div></div>
+      <div class="sht-cols"><div><b>Checks it will make</b><ol class="sht-checks">${u.checks.map((k) => `<li><span class="pill idle">${esc(k.how)}</span> ${esc(k.what)}</li>`).join("")}</ol></div>
+      <div>${u.plannedSteps?.length ? `<b>How it will run (${u.plannedSteps.length} steps)</b><ol class="sht-steps">${u.plannedSteps.map((x) => `<li><code>${esc(x)}</code></li>`).join("")}</ol>` : ""}${u.gaps?.length ? `<p class="sht-hint"><b>Not covered by any step:</b> ${esc(u.gaps.join("; "))}</p>` : ""}${u.whyNot ? `<p class="sht-msg bad">${esc(u.whyNot)}</p>` : ""}</div></div></div>`;
+  }
+  function endCard(e) {
+    if (e.dry) return "";
+    if (e.notRun) return `<div class="sht-uc"><div class="sht-cchead"><span class="pill idle">Not run</span><b>${esc(e.notRun)}</b></div></div>`;
+    return `<div class="sht-uc"><div class="sht-cchead"><span class="pill ${PILL[e.status] || "idle"}">${esc(e.status || "")}</span><b>${esc(e.why || "")}</b></div><div class="sht-filters">${e.report ? `<a class="btn primary" href="${esc(e.report)}" target="_blank" rel="noopener">Open the report (screenshots, the bug row)</a><a class="btn" href="${esc(e.export)}">Download the results sheet</a>` : ""}</div></div>`;
+  }
+  function suggCard(list) {
+    return `<div class="sht-uc"><div class="sht-cchead"><b>Cases worth adding beside it</b><span class="sht-hint" style="flex-basis:auto">Not saved until you add them.</span></div>
+      <ol class="sht-sugg">${list.map((c, i) => `<li><div><span class="pill idle">${esc(c.testType)}</span> <b>${esc(c.title)}</b><small>${esc(c.preconditions)}</small><ol>${c.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><p class="sht-exp">${esc(c.expected)}</p></div><div><button class="btn sht-sugg-add" data-i="${i}">Add to Typed test cases</button></div></li>`).join("")}</ol></div>`;
+  }
+  function undHtml() {
+    if (!S.und) return "";
+    if (S.und.loading) return `<p class="sht-hint">Reading ${S.und.n} ticked case${S.und.n === 1 ? "" : "s"}: where each starts, what it checks, and whether it can run here…</p>`;
+    const list = S.und.list || [];
+    const no = list.filter((u) => !u.canRunHere).length;
+    return `<div class="sht-cchead"><b>Understood ${list.length} case${list.length === 1 ? "" : "s"} before running</b><span class="pill ${no ? "warn" : "ok"}">${list.length - no} can run here</span>${no ? `<span class="pill bad">${no} cannot — see why</span>` : ""}<button class="btn" id="sht-und-close">Close</button></div>
+      <table class="sht-table"><thead><tr><th>Case</th><th>Starts from</th><th>Checks</th><th>Steps cover</th><th>Can run here</th></tr></thead><tbody>${list.map((u) => `<tr><td><b>${esc(u.id)}</b><br><small>${esc(u.goal)}</small></td><td>${esc(u.startState)}${u.configs.length ? `<br><small>settings: ${esc(u.configs.map((x) => `${x.key} = ${JSON.stringify(x.value)}`).join(", "))}</small>` : ""}</td><td>${u.checks.map((k) => `<div><span class="pill idle">${esc(k.how)}</span> ${esc(k.what)}</div>`).join("")}</td><td>${u.layer === "api" ? "API test" : u.coverage ? `<span class="pill ${u.coverage === "full" ? "ok" : u.coverage === "partial" ? "warn" : "bad"}">${esc(u.coverage)}</span>${u.gaps?.length ? `<br><small>${esc(u.gaps.join("; "))}</small>` : ""}` : "-"}</td><td>${u.canRunHere ? `<span class="pill ok">yes</span>` : `<span class="pill bad">no</span><br><small>${esc(u.whyNot || "")}</small>`}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function campHtml(mods) {
@@ -100,7 +143,7 @@
         <button class="sht-title"><span class="sht-id">${esc(c.id)}</span><span>${esc(c.title)}<small>${esc(c.module)} · ${esc(c.layer === "api" ? "API" : c.portal)} · ${esc(c.startsFrom)}</small></span></button>
         <span class="pill ${c.priority === "Critical" ? "bad" : c.priority === "High" ? "warn" : "idle"}">${esc(c.priority)}</span>
         <button class="btn sht-one" ${S.run?.live ? "disabled" : ""}>Run this case</button></div>
-      ${open ? `<div class="sht-body"><p><b>Before you start:</b> ${esc(c.preconditions)}</p>${c.testData && c.testData !== "-" ? `<p><b>Test data:</b> ${esc(c.testData)}</p>` : ""}<ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="sht-exp"><b>What you should see:</b> ${esc(c.expected)}</p></div>` : ""}
+      ${open ? `<div class="sht-body"><p><b>Before you start:</b> ${esc(c.preconditions)}</p>${c.configs && c.configs !== "None" ? `<p><b>Configs needed:</b> ${esc(c.configs)}</p>` : ""}${c.testData && c.testData !== "-" ? `<p><b>Test data:</b> ${esc(c.testData)}</p>` : ""}<ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="sht-exp"><b>What you should see:</b> ${esc(c.expected)}</p>${c.reference ? `<p class="sht-hint" style="flex-basis:auto"><b>Reference:</b> ${esc(c.reference)}</p>` : ""}</div>` : ""}
     </li>`;
   }
 
@@ -111,6 +154,19 @@
     q("#sht-all")?.addEventListener("click", () => { shown().forEach((c) => S.picked.add(c.id)); paint(); });
     q("#sht-none")?.addEventListener("click", () => { S.picked.clear(); paint(); });
     q("#sht-go")?.addEventListener("click", () => start([...S.picked]));
+    q("#sht-single-go")?.addEventListener("click", () => startSingle(false));
+    q("#sht-single-dry")?.addEventListener("click", () => startSingle(true));
+    q("#sht-text")?.addEventListener("input", (e) => { S.single = S.single || {}; S.single.text = e.target.value; });
+    q("#sht-understand")?.addEventListener("click", understandPicked);
+    q("#sht-und-close")?.addEventListener("click", () => { S.und = null; paint(); });
+    root().querySelectorAll(".sht-sugg-add").forEach((b) => b.addEventListener("click", async () => {
+      const c = S.single?.sugg?.[Number(b.dataset.i)];
+      if (!c) return;
+      const r = await fetch("/api/sheets/add", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ cases: [c] }) }).then((x) => x.json()).catch(() => ({ why: "The server did not answer." }));
+      if (r.why) { alertBox(r.why); return; }
+      b.textContent = `Added as ${r.added[0].id}`; b.disabled = true;
+      S.sheet = r.sheet; load();
+    }));
     q("#sht-file")?.addEventListener("change", upload);
     q("#sht-from")?.addEventListener("change", (e) => (S.from = e.target.value));
     q("#sht-camp-go")?.addEventListener("click", async () => {
@@ -147,6 +203,37 @@
     el.textContent = text;
     root().prepend(el);
     setTimeout(() => el.remove(), 9000);
+  }
+
+  async function understandPicked() {
+    const ids = [...S.picked];
+    if (!ids.length) return;
+    S.und = { loading: true, n: ids.length };
+    paint();
+    const r = await fetch(`/api/sheets/understand?sheet=${encodeURIComponent(S.sheet)}&ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" }).then((x) => x.json()).catch(() => ({ understood: [] }));
+    S.und = { list: r.understood || [] };
+    paint();
+    q("#sht-und")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function startSingle(dry) {
+    const text = (q("#sht-text")?.value || "").trim();
+    if (!text || S.single?.live || S.run?.live) return;
+    const headed = q("#sht-single-headed")?.checked ? "1" : "0";
+    S.single = { text, live: true, lines: [], case: null, und: null, sugg: null, end: null, error: null };
+    paint();
+    const es = new EventSource(`/api/sheets/single?text=${encodeURIComponent(text)}&c=${clientId()}&headed=${headed}&dry=${dry ? "1" : "0"}`);
+    const repaint = () => { const el = q("#sht-single"); if (el) { el.innerHTML = singleHtml(); wire(); } };
+    es.addEventListener("line", (ev) => { const d = JSON.parse(ev.data); if (d.id === "typed") { S.single.lines.push(d.line); S.single.lines = S.single.lines.slice(-4); repaint(); } else if (S.run) { S.run.lines.push(d.line); S.run.lines = S.run.lines.slice(-6); paintRun(); } });
+    es.addEventListener("case", (ev) => { const d = JSON.parse(ev.data); S.single.case = d.case; S.single.source = d.source; S.single.note = d.note; repaint(); });
+    es.addEventListener("understanding", (ev) => { S.single.und = JSON.parse(ev.data); repaint(); });
+    es.addEventListener("case-start", (ev) => { const d = JSON.parse(ev.data); S.run = { live: true, total: 1, done: [], current: d, lines: [], frame: null, runId: null, end: null }; const r = q("#sht-run"); if (r) r.hidden = false; paintRun(); });
+    es.addEventListener("frame", (ev) => { const d = JSON.parse(ev.data); if (!S.run) return; S.run.frame = d.frame; const img = q("#sht-frame"); if (img) img.src = `data:image/jpeg;base64,${d.frame}`; else paintRun(); });
+    es.addEventListener("case-done", (ev) => { const d = JSON.parse(ev.data); if (S.run) { S.run.done.push(d.result); S.run.current = null; S.run.live = false; paintRun(); } });
+    es.addEventListener("suggestions", (ev) => { S.single.sugg = JSON.parse(ev.data).cases || []; repaint(); });
+    es.addEventListener("done", (ev) => { S.single.end = JSON.parse(ev.data); S.single.live = false; if (S.run) { S.run.live = false; S.run.end = S.single.end; } es.close(); paint(); load(); });
+    es.addEventListener("run-error", (ev) => { S.single.error = JSON.parse(ev.data).line; S.single.live = false; if (S.run) S.run.live = false; es.close(); paint(); });
+    es.onerror = () => { if (S.single?.live) { S.single.live = false; S.single.error = S.single.error || "The live connection dropped. If a run had started it goes on on the server; its report will appear under Earlier runs."; if (S.run) S.run.live = false; es.close(); paint(); } };
   }
 
   function start(ids) {

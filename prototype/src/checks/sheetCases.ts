@@ -41,6 +41,8 @@ export interface SheetCase {
   priority: string;
   testType: string;
   status: string;
+  /** "Reference": where the case comes from (a ticket id, a document) — shown, never compiled. */
+  reference?: string;
   layer: "ui" | "api";
 }
 export interface SheetInfo { id: string; name: string; file: string; importedAt: string; count: number; skipped: number }
@@ -62,6 +64,7 @@ const HEAD: Array<[RegExp, keyof SheetCase]> = [
   [/^(priority|severity)$/i, "priority"],
   [/^(test ?type|type|case ?type)$/i, "testType"],
   [/^(status|result|actual ?status)$/i, "status"],
+  [/^(reference|refs?|source|ticket|ticket ?id)$/i, "reference"],
 ];
 
 let cache: Store | null = null;
@@ -133,7 +136,7 @@ export function parseSheet(name: string, buf: Buffer): { cases: Omit<SheetCase, 
         id: v.id || `${slug(name).toUpperCase()}-${String(i + 1).padStart(3, "0")}`,
         module: v.module || "-", scenario: v.scenario || "-", title: v.title, role: v.role || "Buyer", portal: v.portal || "Buyer portal",
         preconditions: v.preconditions || "-", configs: v.configs || "None", testData: v.testData || "-", steps, expected: v.expected || "-",
-        priority: v.priority || "Medium", testType: v.testType || "Positive", status: v.status || "Not Run",
+        priority: v.priority || "Medium", testType: v.testType || "Positive", status: v.status || "Not Run", reference: v.reference || undefined,
       };
       cases.push({ ...base, layer: layerOf(base) });
     });
@@ -152,6 +155,25 @@ export function importSheetBuffer(name: string, buf: Buffer, id?: string): Sheet
   store.sheets = store.sheets.filter((s) => s.id !== sid).concat(info);
   save();
   return info;
+}
+/** The sheet typed cases land in (single-case mode): one case at a time, kept with the others. */
+export const TYPED_SHEET = "typed-cases";
+/** Add (or replace by id) cases that were typed or suggested rather than uploaded. */
+export function addSheetCases(list: Array<Omit<SheetCase, "sheet" | "layer"> & { layer?: "ui" | "api" }>, sheet = TYPED_SHEET): SheetCase[] {
+  const store = cache ?? load();
+  const added = list.map((c) => ({ ...c, sheet, layer: c.layer ?? layerOf(c) }));
+  const ids = new Set(added.map((c) => c.id.toUpperCase()));
+  store.cases = store.cases.filter((c) => !(c.sheet === sheet && ids.has(c.id.toUpperCase()))).concat(added);
+  const count = store.cases.filter((c) => c.sheet === sheet).length;
+  const info: SheetInfo = { id: sheet, name: sheet === TYPED_SHEET ? "Typed test cases" : sheet, file: "", importedAt: new Date().toISOString(), count, skipped: 0 };
+  store.sheets = store.sheets.filter((s) => s.id !== sheet).concat(info);
+  save();
+  return added;
+}
+/** The next free id in a typed sheet: TYP-001, TYP-002 … */
+export function nextTypedId(prefix = "TYP", sheet = TYPED_SHEET): string {
+  const n = sheetCases(sheet).map((c) => Number(c.id.match(/-(\d+)$/)?.[1] ?? 0)).reduce((a, b) => Math.max(a, b), 0) + 1;
+  return `${prefix}-${String(n).padStart(3, "0")}`;
 }
 export function importSheetFile(path: string, id?: string): SheetInfo {
   return importSheetBuffer(basename(path), readFileSync(path), id);
@@ -274,6 +296,7 @@ function screenFor(c: SheetCase, state: UiState): string {
   if (/counter offer|reject bid|select quote|select bid|edit bid/.test(t)) return "responses";
   if (/proposal page|allocation summary|submit proposal|letter of award/.test(t) && (state === "proposal" || state === "awarded")) return "proposal";
   if (/master qcs|start awarding|download report|rank 1|ranks?/.test(t) && state !== "live" && state !== "upcoming") return "master_qcs";
+  if (state === "converted" && /master qcs|rank|amount|price/.test(t)) return "master_qcs";
   if (/participants tab|add bid|surrogate|add price cap|weight param|search vendors/.test(t)) return "participants";
   if (/responses|counter offer|reject bid|select quote|select bid|edit bid|revision|revise/.test(t)) return "responses";
   if (/overview|participation \d/.test(t)) return "overview";
@@ -287,9 +310,12 @@ function stateFromWords(pre: string): UiState | null {
   if (/^(-|the buyer can create events|the buyer can see purchase requisitions)/.test(t.trim()) || !t.trim()) return null;
   if (!/\b(event|rfq|auction|project|stage|proposal|award|bid|quote)/.test(t)) return null;
   if (/\b(po|purchase order) (is )?(created|generated)|awarded/.test(t)) return "awarded";
+  if (/already converted|converted (to|into) an? auction|after (the )?conversion/.test(t)) return "converted";
   if (/proposal/.test(t)) return "proposal";
   if (/withdrawn|forward auction|from a pr\b|pr line|service/.test(t)) return null;
   if (/closed|evaluation|ended|is over|finished|after the close/.test(t)) return "closed";
+  // "no bid yet" / "without a bid" is the live state, not the bid state
+  if (/\bno bids?\b|without (a |any )?bids?\b|not (yet )?bid|unbid/.test(t)) return /\blive\b|published/.test(t) ? "live" : "upcoming";
   if (/quoted|\bbids?\b|has bid|bidding with/.test(t)) return "bid";
   if (/upcoming|starts (later|tomorrow)|not started/.test(t)) return "upcoming";
   if (/\bdraft\b/.test(t)) return "draft";
