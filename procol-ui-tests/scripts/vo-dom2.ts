@@ -1,0 +1,10 @@
+import { chromium } from "@playwright/test";
+import * as F from "./vo-form.js";
+const email = "qa_voe_653131_t1@example.com";
+const browser = await chromium.launch(); const ctx = await browser.newContext({ storageState: `.auth/vendor-${email.split("@")[0]}.json`, viewport: { width: 1500, height: 950 } }); const page = await ctx.newPage();
+await F.openOnboardingForm(page);
+const html = await page.evaluate(() => { const el = Array.from(document.querySelectorAll("*")).find((e) => (e.textContent || "").trim() === "Constitution*" || (e.textContent || "").trim() === "Constitution"); let p: any = el; for (let i = 0; i < 4 && p; i++) p = p.parentElement; return p ? p.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/ style="[^"]*"/g, "").slice(0, 3000) : "none"; });
+console.log(html);
+const html2 = await page.evaluate(() => { const el = Array.from(document.querySelectorAll("*")).find((e) => (e.textContent || "").trim() === "Incorporation date*"); let p: any = el; for (let i = 0; i < 3 && p; i++) p = p.parentElement; return p ? p.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/ style="[^"]*"/g, "").slice(0, 1500) : "none"; });
+console.log("DATE:", html2);
+await browser.close();

@@ -1,0 +1,13 @@
+import { chromium } from "@playwright/test";
+import * as F from "./vo-form.js";
+const OUT = "/Users/animesh/Desktop/procol/prototype/data/evidence/vo-e2e";
+const email = "qa_voe_653131_t1@example.com";
+const browser = await chromium.launch(); const ctx = await browser.newContext({ storageState: `.auth/vendor-${email.split("@")[0]}.json`, viewport: { width: 1500, height: 950 } }); const page = await ctx.newPage();
+await F.openOnboardingForm(page);
+console.log("FIELDS:", (await F.tagFields(page)).join(" | "));
+for (const l of ["Legal name", "Number of employees", "Constitution", "Products supplied", "Vendor type", "Company brochure", "Contact email", "Buyer reference"]) console.log(l, "→ found", await F.field(page, l).count(), "required", await F.isRequired(page, l).catch(() => "?"));
+console.log("Constitution options:", (await F.optionsOf(page, "Constitution")).join(", "));
+await F.fillText(page, "Legal name", "QA Steel Pvt Ltd");
+const s1 = await F.submit(page); console.log("SUBMIT with only legal name:", JSON.stringify(s1), "inline:", (await F.inlineErrors(page)).slice(0, 8).join(" | "));
+await page.screenshot({ path: `${OUT}/t1-submit-partial.png`, fullPage: true });
+await browser.close();

@@ -1,0 +1,31 @@
+// Probe 3: what happens after "Submit Proposal" on the PO form, and why the edit page of an API-made workflow stalls.
+import { openBrowser, settle, shot, sleep, WEB, uuidOf, DLF, api, toasts, NAME } from "./aw-lib";
+const { browser, page, net } = await openBrowser();
+const P = uuidOf(DLF.draftProposalId);
+await page.goto(`${WEB}/po-form/${P}`, { waitUntil: "domcontentloaded", timeout: 120_000 }); await settle(page, 5000);
+const btn = page.getByRole("button", { name: /Submit Proposal/ }).first();
+console.log("submit btn:", await btn.count(), "enabled:", await btn.isEnabled().catch(() => "?"), "visible:", await btn.isVisible().catch(() => "?"));
+const t0 = Date.now();
+await btn.click({ force: true }); await sleep(1500);
+console.log("after click: url", page.url(), "modals", await page.locator(".ant-modal:visible").count(), "toasts", await toasts(page));
+await shot(page, "probe3-submit-1s");
+await sleep(5000);
+console.log("after 6s: modals", await page.locator(".ant-modal:visible").count(), "toasts", await toasts(page), "drawers", await page.locator(".ant-drawer:visible").count());
+console.log("api since click:", net.filter((n) => n.at >= t0).map((n) => `${n.method} ${n.status} ${n.url.slice(0, 110)} ${(n.reply || "").slice(0, 120)}`));
+const modalText = await page.locator(".ant-modal:visible").last().innerText().catch(() => "");
+console.log("modal:", modalText.replace(/\s+/g, " ").slice(0, 800));
+console.log("modal buttons:", await page.locator(".ant-modal:visible").last().getByRole("button").allInnerTexts().catch(() => []));
+console.log("body has 'approval':", /approval/i.test(await page.locator("body").innerText()));
+await shot(page, "probe3-submit-6s");
+await page.keyboard.press("Escape"); await sleep(800);
+// edit page of an API-made workflow
+const r0 = await api("POST", "/approval_workflow/approval_flows/create_approval_flows", { approval_flows: [{ name: NAME("PROBE edit"), approval_type: "close_event_group", config: { stop_expiry_in_approval: true }, initiators: [{ type: "team", role: "member", uuid: uuidOf(DLF.teamAll), name: "All Categories" }], conditions: [{ key: "department", values: ["IT"] }], steps: [{ name: "Step 1", order: 0, expires_in: 86400, config: { no_of_approvals_required: false }, approvers: [{ type: "user", uuid: uuidOf(DLF.testUserId) }] }] }] });
+const u = r0.json?.[0]?.uuid; console.log("made", u);
+const t1 = Date.now();
+await page.goto(`${WEB}/approvals-workflows/edit/${u}?approvalType=team`, { waitUntil: "domcontentloaded", timeout: 120_000 }); await settle(page, 6000);
+console.log("edit url", page.url(), "table", await page.locator("#approvalTable").count(), "rows", await page.locator("#approvalTable tbody tr").count(), "skeleton", await page.locator(".ant-skeleton").count());
+console.log("api:", net.filter((n) => n.at >= t1).map((n) => `${n.method} ${n.status} ${n.url.slice(0, 120)} ${(n.reply || "").slice(0, 160)}`));
+console.log("page text:", (await page.locator("body").innerText()).replace(/\s+/g, " ").slice(0, 500));
+await shot(page, "probe3-edit");
+if (u) console.log("del", (await api("DELETE", "/approval_workflow/approval_flows/delete_approval_flows", { uuids: [u] })).status);
+await browser.close();

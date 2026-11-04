@@ -1,0 +1,15 @@
+import { openAs, tokenFor, ME, pshot, WEB, sleep, settle, L } from "./pra-lib";
+const { browser, page } = await openAs(await tokenFor(ME));
+await page.goto(`${WEB}/purchase-requisitions?tab=active`, { waitUntil: "domcontentloaded", timeout: 120000 }); await settle(page, 7000);
+await page.locator(`tr[data-row-key="ZGtnTlpj"]`).first().waitFor({ timeout: 60000 }); await page.locator(`tr[data-row-key="ZGtnTlpj"]`).first().locator(".ant-checkbox-input").click({ force: true }); await sleep(800);
+const pi = page.locator("button", { hasText: "Purchase Items" }).first();
+const piOn = !(await pi.isDisabled()); const piText = (await pi.innerText()).replace(/\s+/g, " ");
+await page.locator("button", { hasText: "Actions" }).first().click(); await sleep(1200);
+const actions = (await page.locator(".ant-dropdown:visible li").allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+const s1 = await pshot(page, "R01-actions-menu");
+await page.keyboard.press("Escape"); await sleep(500);
+await pi.click(); await sleep(1200); const piMenu = (await page.locator(".ant-dropdown:visible li").allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+const s2 = await pshot(page, "R02-purchase-items-menu"); await page.keyboard.press("Escape");
+const upload = await page.locator("button", { hasText: "Upload PRs" }).count();
+L.put({ id: "PRA-REG-003", title: "Other PR list actions still work with an item ticked", verdict: piOn && actions.length > 0 && upload > 0 ? "Pass" : "Fail", observed: `Purchase Items ${piOn ? "enabled" : "greyed out"} ("${piText}") with menu: ${piMenu.join(" / ")}; Actions menu: ${actions.join(" / ")}; Upload PRs button present: ${upload > 0}. Menus opened only, nothing submitted.`, shots: [s1, s2] } as any);
+await browser.close();
