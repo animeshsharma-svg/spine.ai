@@ -160,7 +160,12 @@ export const handle: RouteHandler = async (ctx) => {
     const line = (l: string) => !closed && out.send("line", { id: "typed", line: l });
     try {
       const made = await caseFromText(text, { log: line });
-      const c = made.case;
+      let c = made.case;
+      // Home's "API" choice: the case is checked through the API, whatever words it used
+      if (sp.get("layer") === "api" && c.layer !== "api" && made.source !== "sheet") {
+        [c] = addSheetCases([{ ...c, portal: "API", layer: "api" }], c.sheet);
+        line("Run through the API, as chosen on Home.");
+      }
       if (!closed) out.send("case", { case: c, source: made.source, note: made.note });
       const u = await understandCase(c, { compile: true, log: line });
       if (!closed) out.send("understanding", u);

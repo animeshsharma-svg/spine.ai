@@ -30,7 +30,7 @@ COLS = ["Test Case ID", "Module", "Scenario", "Test Case Title", "User Role", "P
 LIVE = "A live RFQ published with QA vendors invited and no bid yet."
 BID = "A live RFQ with a vendor's bid."
 CLOSED = "A closed RFQ with a vendor's bid, not awarded."
-GIVEN = "The built event has one line item, quantity 10; the existing bid is 100 per unit (given by the set-up, nothing to configure)."
+GIVEN = "The built event has one line item; its quantity and the existing bid's price are whatever the set-up made — read them on screen, do not assume numbers."
 AWARDED = "An awarded RFQ whose proposal went into approval."
 TECH = "A live eRFX project with a Technical stage and an RFQ stage, QA vendors invited."
 CONVERTED = "An RFQ already converted to an auction: the vendor bid 100 per unit in the RFQ, the auction is live and the vendor has bid in it."
@@ -213,11 +213,11 @@ case("RCA-AWD-019", "6. Awarding", "Select for awarding",
 
 case("RCA-AWD-020", "6. Awarding", "Total proposal value",
      "Total proposal value is 0 before any selection and equals the allocated amount after",
-     "Buyer", "Buyer portal", CLOSED, "None", GIVEN + " Awarded amount = 10 × 100 = 1,000.",
-     [LOGIN, 'Open the event and open Master QCS', 'Click Start Awarding', 'Before selecting anything, check the Total Proposal Value reads 0',
-      'Select the line item for awarding to the vendor', 'Read the Total Proposal Value again',
-      'Deselect the line item and read the Total Proposal Value once more'],
-     'Before any selection the Total Proposal Value is 0. After selecting the line it equals the awarded amount, 1,000 (10 × 100; with GST added only if the template adds it). After deselecting it is 0 again — nothing is left behind.',
+     "Buyer", "Buyer portal", CLOSED, "None", GIVEN,
+     [LOGIN, 'Open the event and open Master QCS', 'Click Start Awarding', 'Before selecting anything, check "Tot. Proposal Value" reads ₹ 0',
+      'Select the line item for awarding to the vendor', 'Check "Tot. Proposal Value" now equals the vendor\'s "Sum Total" shown on the same screen',
+      'Untick the line item (deselect it) and check "Tot. Proposal Value" reads ₹ 0 again'],
+     'Before any selection "Tot. Proposal Value" is ₹ 0. After selecting the line it equals the vendor\'s Sum Total shown on the awarding screen (the awarded quantity × price). After deselecting it is ₹ 0 again — nothing is left behind.',
      "Critical", "Regression", "HubSpot 336911220460 / 323861342966 / 320771298014 (Jul–Sep 2026): Total Proposal Value non-zero with nothing selected; select/deselect left GST behind; NFA value ₹0")
 
 case("RCA-AWD-021", "6. Awarding", "Awarded quantity limits",
@@ -260,9 +260,9 @@ case("RCA-QCS-023B", "7. Master QCS", "Savings follow L1",
 
 case("RCA-QCS-024", "7. Master QCS", "Totals on one line",
      "The total of a one-line bid equals that line's amount",
-     "Buyer", "Buyer portal", BID, "None", GIVEN + " Line amount = 10 × 100 = 1,000.",
-     [LOGIN, 'Open the event and open Master QCS', 'Read the line amount and the total for the vendor'],
-     'The line amount is 1,000 (10 × 100) and the vendor\'s total equals it, 1,000. With a single line the total is never different from the line amount.',
+     "Buyer", "Buyer portal", BID, "None", GIVEN,
+     [LOGIN, 'Open the event and open Master QCS', 'Read the line\'s amount (quantity × price) and the vendor\'s total (Sum Total)'],
+     'The vendor\'s total (Sum Total) equals the single line\'s amount, quantity × price as shown. With one line the total is never different from the line amount.',
      "Medium", "Regression", "HubSpot 335365587648 (Sep 2026): Total Cost = SUM(Total Amount) differed from Total Amount with a single line")
 
 case("RCA-QCS-025", "7. Master QCS", "Every bidding vendor is on Master QCS",
@@ -294,9 +294,9 @@ case("RCA-EVT-027", "9. After the PO", "Event leaves Live after the PO",
 API = "API"
 case("RCA-API-028", "10. API", "Publish an auction",
      "Publishing an auction and reading its round answers 2xx, never 5xx",
-     "Buyer", API, "The buyer's token works on the API.", "None", "Rank auction, 1 line item, 1 QA vendor.",
-     ['Send the requests to create a draft auction event with one line item and one vendor', 'Send POST to publish the event',
-      'Send GET for the event and GET for the auction round'],
+     "Buyer", API, "A draft auction event with one line item and a QA vendor, made by the API.", "None", "Rank auction, 1 line item, 1 QA vendor.",
+     ['Log in to Procol (buyer side) with the buyer user', 'Send POST to publish the draft auction event',
+      'Read the event back (GET /event_groups/<event>) and read its auction round'],
      'Every reply is 2xx. The round read returns the auction with its status (upcoming or live), its start and end time and the line item. No request answers 500.',
      "Critical", "Regression", "HubSpot 333437557450 (Sep 2026)")
 
@@ -342,7 +342,7 @@ case("RCA-API-034", "10. API", "Second bid replaces the first",
      ['As the vendor, send the requests to open the bid, price the line item at 120 and submit the bid',
       'As the same vendor, send the requests again with 110 per unit and submit',
       'As the buyer, send GET for the round\'s responses / indicators'],
-     'Both submissions answer 2xx. The round shows exactly one active bid for the vendor and its price is 110. The 120 bid is not active alongside it.',
+     'The first submission is accepted (2xx). The second submission by the same vendor is ALSO accepted (2xx): a vendor may revise a bid. After it the round shows exactly one active bid for the vendor, at 110. There is no second active bid at 120.',
      "Critical", "Regression", "HubSpot 337866985159 (Sep 2026)")
 
 case("RCA-API-035", "10. API", "Removed vendor cannot bid",

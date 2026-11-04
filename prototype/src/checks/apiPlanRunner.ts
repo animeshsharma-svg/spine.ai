@@ -673,7 +673,12 @@ const show = (v: unknown): string => {
 const jsonType = (v: unknown) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b) || (a !== null && b !== null && typeof a !== "object" && typeof b !== "object" && String(a) === String(b));
 
+const HTTP_CODES = new Set([200, 201, 202, 204, "200", "201", "202", "204"]);
 function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boolean | null; actual: string } {
+  // "status is 200" on a field named status: the plan meant the HTTP status, not a data field that happens to
+  // be called status (seen 5 Nov: the round's own status "active" was compared with 200 and failed a sound case)
+  if ((a.op === "equals" || a.op === "one_of") && /(^|\.)status$/.test(a.path.replace(/^\$\.?/, "")) && (Array.isArray(value) ? value.every((v) => HTTP_CODES.has(v as never)) : HTTP_CODES.has(value as never)))
+    return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
   if (a.op === "status") return { pass: reply.status === Number(value), actual: `HTTP ${reply.status}` };
   if (a.op === "status_2xx") return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
   if (!reply.ok) return { pass: null, actual: `the read was refused (${said(reply)}), so the field could not be checked` };
@@ -706,6 +711,9 @@ function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boo
     }
     case "contains": {
       if (!present.length) return { pass: false, actual: "absent" };
+      // a yes/no flag cannot "contain" anything: the plan looked in the wrong place, which proves nothing
+      if (present.every((v) => typeof v === "boolean" || typeof v === "number"))
+        return { pass: null, actual: `${show(present[0])} — the field is a flag or a number, not a list; the plan looked in the wrong place` };
       const hit = present.some((v) => (Array.isArray(v) ? v.some((x) => same(x, value)) : typeof v === "string" ? v.includes(String(value)) : same(v, value)));
       return { pass: hit, actual: show(present[0]) };
     }

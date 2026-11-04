@@ -837,6 +837,13 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
         errors.push(`verify ${n}: unknown assertion op "${String(as?.op)}"`);
         continue;
       }
+      // "status equals 200" on a field called status means the HTTP status (a round's own status is "active", never 200)
+      if ((as.op === "equals" || as.op === "one_of") && typeof as.path === "string" && /(^|\.)status$/.test(as.path.replace(/^\$\.?/, "")) && [200, 201, 202, 204].includes(Number(Array.isArray(as.value) ? as.value[0] : as.value))) {
+        warnings.push(`verify ${n}: "${as.path} equals ${JSON.stringify(as.value)}" read as the HTTP status check`);
+        as.op = "status_2xx";
+        as.path = "$";
+        delete (as as { value?: unknown }).value;
+      }
       if (as.op === "status" && !(typeof as.value === "number" && as.value >= 100 && as.value < 600)) errors.push(`verify ${n}: status needs an HTTP status number`);
       if (as.op === "status" || as.op === "status_2xx") continue;
       if (typeof as.path !== "string" || !(as.path === "" || as.path === "$" || PATH_RE.test(as.path))) {

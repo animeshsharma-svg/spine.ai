@@ -766,6 +766,11 @@
   /** API · Browser: one on = that run type, both on = API then browser. */
   const VIA_KEY = "spine.home.via";
   const HINT = { api: "Requests only · fastest", ui: "Real Chrome, watch it live", both: "API first, then a real browser" };
+  const HINT_CASE = "Read as a TEST CASE: rewritten in the house columns, understood, run, a verdict per check";
+  // What the typed words are: picked from the words each time until the tester picks one themselves.
+  let asMode = "case";
+  let asChosen = false;
+  const detectAs = (text) => (window.spineSingle?.looksLikeCase?.(text) ? "case" : "journey");
   let via = { api: false, ui: true };
   const modeOf = () => (via.api && via.ui ? "both" : via.api ? "api" : "ui");
   /** A run already streaming in this tab: its session is where to type next. */
@@ -790,7 +795,9 @@
       if (only) b.title = `Turn off to run through ${b.dataset.via === "api" ? "the browser" : "the API"} instead`;
       else b.removeAttribute("title");
     }
-    const text = busy() ? "A run is in progress · open it from the sidebar" : HINT[mode];
+    if (!asChosen && box?.value.trim()) asMode = detectAs(box.value);
+    for (const b of document.querySelectorAll("#home-ask .as")) b.setAttribute("aria-pressed", String(b.dataset.as === asMode));
+    const text = busy() ? "A run is in progress · open it from the sidebar" : asMode === "case" ? HINT_CASE : HINT[mode];
     if (hint && hint.textContent !== text) hint.textContent = text;
     if (start) {
       const off = !box?.value.trim() || busy();
@@ -876,10 +883,26 @@
         syncAsk();
       });
     }
+    for (const b of form.querySelectorAll(".as")) {
+      b.addEventListener("click", () => {
+        asMode = b.dataset.as;
+        asChosen = true;
+        syncAsk();
+      });
+    }
+    q$("#home-sheet")?.addEventListener("change", uploadSheet);
     const go = () => {
       const text = box.value.trim();
       const runBox = q$("#request");
       if (!text || busy() || !runBox || typeof runInstruction !== "function") return;
+      // A TEST CASE runs here on Home through the sheet runner (single-case mode), never as a journey.
+      if (asMode === "case" && !looksLikeQuestion(text) && window.spineSingle) {
+        runTypedCase(text);
+        box.value = "";
+        asChosen = false;
+        syncAsk();
+        return;
+      }
       // A question is answered, not run (session.js answerQuestion).
       if (looksLikeQuestion(text) && window.spineSession?.answerQuestion) {
         window.spineSession.answerQuestion(text, modeOf());
@@ -907,6 +930,48 @@
       }
     });
     syncAsk();
+  }
+
+  // ── a typed TEST CASE, answered on Home (singleCase.js) ───────────────────
+  let caseRun = null;
+  function runTypedCase(text) {
+    const mount = q$("#home-case");
+    if (!mount) return;
+    caseRun?.stop?.();
+    mount.hidden = false;
+    const mode = modeOf();
+    caseRun = window.spineSingle.start({
+      text, client: clientIdNow(), headed: mode !== "api", layer: mode === "api" ? "api" : "", dry: false,
+      onState: (g) => {
+        mount.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test case</h2>${g.live ? `<span class="pill warn">${g.run ? "running" : g.und ? "starting the run" : g.case ? "understanding it" : "reading it"}</span><button type="button" class="btn" id="home-case-stop">Stop</button>` : `<button type="button" class="btn" id="home-case-close">Close</button>`}</div>${window.spineSingle.render(g)}`;
+        window.spineSingle.wire(mount, g);
+        q$("#home-case-stop")?.addEventListener("click", async () => { await fetch("/api/sheets/stop", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null); });
+        q$("#home-case-close")?.addEventListener("click", () => { mount.hidden = true; mount.innerHTML = ""; });
+        if (!g.live) renderRunNow();
+      },
+    });
+    mount.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function clientIdNow() {
+    const n = Number(q$("#client")?.value);
+    return n > 0 ? n : 198678;
+  }
+  /** A sheet dropped on Home: imported, then opened on Test sheets with every row ticked, ready to understand or run. */
+  async function uploadSheet(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const mount = q$("#home-case");
+    if (mount) { mount.hidden = false; mount.innerHTML = `<p class="sht-hint">Importing "${f.name}"…</p>`; }
+    const buf = await f.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const r = await fetch("/api/sheets/upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: f.name, data: btoa(bin) }) }).then((x) => x.json()).catch(() => ({ why: "The upload did not reach the server." }));
+    e.target.value = "";
+    if (r.why) { if (mount) mount.innerHTML = `<p class="sht-msg bad">${r.why.replace(/[<>&]/g, "")}</p>`; return; }
+    try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet: r.sheet.id, tickAll: true })); } catch { /* ignore */ }
+    if (mount) mount.innerHTML = `<div class="sht-uc"><div class="sht-cchead"><b>Imported "${r.sheet.name.replace(/[<>&]/g, "")}": ${r.sheet.count} test cases${r.sheet.skipped ? ` (${r.sheet.skipped} rows skipped — no title or no steps)` : ""}</b></div><div class="sht-filters"><a class="btn primary" href="#/sheets">Open it — understand first, then run the rows</a></div></div>`;
+    location.hash = "#/sheets";
   }
 
   // ── opening a session by its address: #/session/{id} ─────────────────────
