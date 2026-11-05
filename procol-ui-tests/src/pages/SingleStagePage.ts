@@ -169,15 +169,19 @@ export class SingleStagePage extends BasePage {
         [d.locator(".pro-radio-tabs__tab", { hasText: re }), d.getByRole("radio", { name: re }), d.getByText(re)],
         { label: `${label}-visible`, timeout: TIMEOUTS.MEDIUM },
       );
-      await this.click(
-        [
-          d.locator(".pro-radio-tabs__tab", { hasText: re }),
-          d.getByRole("radio", { name: re }),
-          d.getByText(re),
-        ],
-        { label, timeout: TIMEOUTS.MEDIUM, force: true },
-      );
-      await this.pause(500);
+      // Click like a person (no force) and confirm the card reads checked; a toast or a re-render can eat a
+      // click (UAT 5 Nov: the drawer closed and RFQ was never chosen). Three tries, the drawer reopened between.
+      const card = d.locator(".pro-radio-tabs__tab", { hasText: re }).first();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (!(await d.isVisible().catch(() => false))) await this.openConfigDrawer();
+        await this.closeNotices();
+        const clicked = await card.click({ timeout: 5_000 }).then(() => true).catch(() => false);
+        if (!clicked) await this.click([card, d.getByRole("radio", { name: re }), d.getByText(re)], { label, timeout: TIMEOUTS.MEDIUM, force: true }).catch(() => {});
+        await this.pause(500);
+        const checked = (await card.getAttribute("aria-checked").catch(() => null)) === "true" || /checked|active|selected/.test((await card.getAttribute("class").catch(() => "")) ?? "");
+        if (checked) return;
+      }
+      throw new Error(`the configuration drawer would not keep "${label}" selected after three tries`);
     };
 
     await pick(EVENT_TYPE_LABEL[cfg.eventType], `event-type:${cfg.eventType}`);
