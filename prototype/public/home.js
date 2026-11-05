@@ -766,10 +766,11 @@
   /** API · Browser: one on = that run type, both on = API then browser. */
   const VIA_KEY = "spine.home.via";
   const HINT = { api: "Requests only · fastest", ui: "Real Chrome, watch it live", both: "API first, then a real browser" };
-  const HINT_CASE = "Read as a TEST CASE: rewritten in the house columns, understood, run, a verdict per check";
-  // What the typed words are: picked from the words each time until the tester picks one themselves.
+  const HINT_CASE = "Read as a test case (it has an expected result): understood, run, a verdict per check";
+  const HINT_JOURNEY = "Read as a journey (no expected result): walked and photographed";
+  // What the typed words are is read from the words themselves: steps with an expected result are a test
+  // case; a flow with nothing to check is a journey. No switch — the hint says which it is.
   let asMode = "case";
-  let asChosen = false;
   const detectAs = (text) => (window.spineSingle?.looksLikeCase?.(text) ? "case" : "journey");
   let via = { api: false, ui: true };
   const modeOf = () => (via.api && via.ui ? "both" : via.api ? "api" : "ui");
@@ -795,9 +796,9 @@
       if (only) b.title = `Turn off to run through ${b.dataset.via === "api" ? "the browser" : "the API"} instead`;
       else b.removeAttribute("title");
     }
-    if (!asChosen && box?.value.trim()) asMode = detectAs(box.value);
-    for (const b of document.querySelectorAll("#home-ask .as")) b.setAttribute("aria-pressed", String(b.dataset.as === asMode));
-    const text = busy() ? "A run is in progress · open it from the sidebar" : asMode === "case" ? HINT_CASE : HINT[mode];
+    if (box?.value.trim()) asMode = detectAs(box.value);
+    const typed = !!box?.value.trim();
+    const text = busy() ? "A run is in progress · open it from the sidebar" : !typed ? HINT[mode] : asMode === "case" ? HINT_CASE : `${HINT_JOURNEY} · ${HINT[mode]}`;
     if (hint && hint.textContent !== text) hint.textContent = text;
     if (start) {
       const off = !box?.value.trim() || busy();
@@ -883,13 +884,7 @@
         syncAsk();
       });
     }
-    for (const b of form.querySelectorAll(".as")) {
-      b.addEventListener("click", () => {
-        asMode = b.dataset.as;
-        asChosen = true;
-        syncAsk();
-      });
-    }
+    q$("#home-plus")?.addEventListener("click", () => q$("#home-sheet")?.click());
     q$("#home-sheet")?.addEventListener("change", uploadSheet);
     const go = () => {
       const text = box.value.trim();
@@ -899,7 +894,6 @@
       if (asMode === "case" && !looksLikeQuestion(text) && window.spineSingle) {
         runTypedCase(text);
         box.value = "";
-        asChosen = false;
         syncAsk();
         return;
       }

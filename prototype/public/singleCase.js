@@ -80,8 +80,17 @@
     es.onerror = () => { if (g.live) { g.live = false; g.error = g.error || "The live connection dropped. If a run had started it goes on on the server; its report is under Test sheets → Earlier runs."; es.close(); tell(); } };
     return { stop: () => es.close() };
   }
-  /** Typed words that read as a TEST CASE (an expected result to check), not a flow to walk. */
-  const CHECK = /\b(check|verify|expect(ed|s)?|should|must|assert|make sure|confirm)\b|\bexpected result\b/i;
-  const looksLikeCase = (text) => CHECK.test(String(text || ""));
+  /**
+   * Typed words that read as a TEST CASE rather than a flow to walk: a pasted case (Steps / Expected /
+   * Pre-conditions headings, numbered steps) or a sentence with something to check at the end (check,
+   * verify, expect, should, must, is shown, is refused).
+   */
+  const HEADINGS = /\b(expected( result)?|pre-?conditions?|test steps|steps|test data|actual result)\s*[:\-]/i;
+  const NUMBERED = /(^|\n)\s*\d+[.)]\s+\S/;
+  const CHECK = /\b(check|verify|expect(ed|s)?|should|must|assert|make sure|confirm|is (shown|visible|listed|refused|rejected|accepted|not (shown|offered|allowed)))\b/i;
+  const looksLikeCase = (text) => {
+    const t = String(text || "");
+    return HEADINGS.test(t) || (NUMBERED.test(t) && CHECK.test(t)) || CHECK.test(t);
+  };
   window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase };
 })();
