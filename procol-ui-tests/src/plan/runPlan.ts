@@ -2013,7 +2013,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const detail = new EventDetailPage(s.page);
       const offered = await detail.openStageOfferingConversion();
       if (!offered) throw new Error(`Convert to Auction is not offered on this event${detail.lastReason ? ` — ${detail.lastReason}` : ""}`);
+      const fromPage = s.page;
       const newPage = await detail.convertToAuction();
+      // the observation pass (server errors, NaN, crashes) follows the run onto the converted event's tab
+      shareObserver(fromPage, newPage);
       // The converted event opens in a new tab; every later step acts there.
       s.page = newPage;
       s.events = new EventsPage(newPage);

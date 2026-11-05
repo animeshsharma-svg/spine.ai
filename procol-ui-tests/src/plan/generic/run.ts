@@ -1,4 +1,5 @@
 import type { Download, Locator, Page } from "@playwright/test";
+import { shareObserver } from "../observe.js";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spotlightMark } from "../spotlight.js";
@@ -727,6 +728,8 @@ async function switchTab(ctx: GenericCtx, a: Record<string, unknown>): Promise<G
   if (!target) throw new Error(`no ${wantTitle ? `tab titled "${wantTitle}"` : wantUrl ? `tab at "${wantUrl}"` : "other tab"} opened within 15s (the browser has ${context.pages().length} tab(s))`);
   await target.bringToFront().catch(() => {});
   await target.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => {});
+  // the observation pass (server errors, NaN, crashes) follows the run onto the new tab
+  shareObserver(page, target);
   ctx.page = target;
   trackRequests(target);
   let where = "";

@@ -172,8 +172,8 @@ case("RCA-EVT-014", "4. Event settings", "Extend the Technical stage",
 case("RCA-EVT-015", "4. Event settings", "Edit a live RFQ with no auction",
      "A published RFQ that was never converted can still be edited (new version)",
      "Buyer", "Buyer portal", LIVE, "None", "-",
-     [LOGIN, 'Open the event', 'Open the Settings menu of the event', 'Choose the option to edit the event (Create New Version) and confirm'],
-     'The Settings menu offers the edit / new-version option. Choosing it opens the event in edit mode. The app does not say "You cannot edit the RFQ once the Auction is created" — there is no auction.',
+     [LOGIN, 'Open the event', 'Check the "Create New Version" button is shown in the event header (next to Messages)', 'Create a new version of the event and confirm'],
+     'The "Create New Version" button is shown in the event header. Creating the new version opens the event in edit mode. The app does not say "You cannot edit the RFQ once the Auction is created" — there is no auction.',
      "High", "Regression", "HubSpot 326555175666 (Aug 2026): \"You cannot edit the RFQ once the Auction is created\" shown although no auction existed")
 
 case("RCA-EVT-016", "4. Event settings", "Order Activity after an extension",

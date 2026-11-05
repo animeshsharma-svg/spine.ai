@@ -336,7 +336,7 @@ function launch(
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean; discover?: boolean },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean; discover?: boolean; askMs?: number },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -360,6 +360,9 @@ export function runUiPlan(
     UI_PLAN_RESULT: resultFile,
     UI_QUIET_MAP: "1",
     QA_RUN_ID: runId,
+    // An unattended run (a sheet) cannot wait a quarter of an hour for an answer: its questions time out
+    // sooner and the case ends "Couldn't tell" (two awarding cases lost 15 min each, 5 Nov).
+    ...(opts.askMs ? { UI_EXPLORE_ASK_MS: String(opts.askMs) } : {}),
     // A plan run can ask the tester too (no event fits the case: create one,
     // pick one, or stop) — the explorer's question channel, same folder.
     UI_EXPLORE_DIR: dir,

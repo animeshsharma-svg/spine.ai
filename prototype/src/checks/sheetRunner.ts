@@ -284,7 +284,8 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   const planRunId = `sheet-${c.id}-${Date.now().toString(36)}`;
   const toRun = prep.context ? { ...plan, context: prep.context } : plan;
   await new Promise<void>((resolve) => {
-    const h = runUiPlan({ plan: toRun, companyId: opts.companyId, runId: planRunId, headed: !!opts.headed }, (e: any) => {
+    // a sheet runs unattended: a question to the tester waits 2 minutes, not 15, then the case ends "Couldn't tell"
+    const h = runUiPlan({ plan: toRun, companyId: opts.companyId, runId: planRunId, headed: !!opts.headed, askMs: 120_000 }, (e: any) => {
       if (e.type === "frame" && e.frame) emit({ type: "frame", frame: e.frame });
       if (e.type === "spot") emit({ type: "spot", spot: e.spot ?? e });
       if (e.type === "log" && /\[plan\] \d+\/\d+/.test(String(e.line ?? ""))) line(String(e.line).replace(/^.*\[plan\]\s*/, ""));
@@ -338,6 +339,17 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
+    } else if (/^expect_(text|visible)$/.test(f.step) && compiled.gaps.some((g) => /unconfirmed label/i.test(g) && g.includes(String(f.args?.text ?? f.args?.name ?? "\u0000")))) {
+      // the compiler guessed this label ("unconfirmed label") — a name the product may not use; its absence proves nothing
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} looked for "${String(f.args?.text ?? f.args?.name)}", a label the compiler itself marked as a guess, and did not find it. A guessed label proves nothing about the product; see the screenshot and judge by eye.`;
+    } else if (/automation needs update|observation pass is not installed/.test(d)) {
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) could not be judged: ${d.slice(0, 200)}. The automation, not the product, fell short.`;
+    } else if (/\blocator\.\w+: Timeout \d+ms exceeded|\bwaitFor: Timeout|strict mode violation|Target (page|context|browser) has been closed|page\.(goto|click|fill): Timeout/.test(d) && !f.evidence?.appSaid) {
+      // the automation never reached the control (a Playwright timeout), so the screen was not judged: never a bug
+      r.status = "Couldn't tell";
+      r.why = `The automation could not reach the control for step ${failedAt + 1} (${words}): ${d.slice(0, 200)}. The app refused nothing, so this is an automation gap, not a product bug.`;
     } else if (ASSERT.test(f.step) || f.evidence?.appSaid || /\[product\]/.test(d)) {
       r.status = "Fail";
       r.why = ASSERT.test(f.step)
