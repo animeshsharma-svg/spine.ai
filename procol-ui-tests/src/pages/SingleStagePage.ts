@@ -139,18 +139,21 @@ export class SingleStagePage extends BasePage {
    * (UAT, 5 Nov): a forced click landed on the toast, the drawer closed and RFQ was never chosen.
    */
   private async closeNotices(): Promise<void> {
+    // every call is bounded: a toast can vanish between being counted and being read, and a locator call with
+    // no timeout then waits forever (5 Nov: a step hung 15 minutes until the run's budget closed the browser)
     const notes = this.page.locator(".ant-notification-notice:visible");
-    for (let i = 0; i < 5 && (await notes.count().catch(() => 0)); i++) {
+    for (let i = 0; i < 5; i++) {
+      if (!(await notes.count().catch(() => 0))) return;
       const n = notes.first();
-      const words = ((await n.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
-      if (words && !this.closedNotices.includes(words)) this.closedNotices.push(words.slice(0, 160));
+      const words = ((await n.innerText({ timeout: 1_000 }).catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      if (words && !this.closedNotices.includes(words.slice(0, 160))) this.closedNotices.push(words.slice(0, 160));
       // the browser-notifications prompt is declined ("Not now", the privacy-preserving answer); others are closed
       const notNow = n.getByRole("button", { name: /^not now$/i }).first();
       const x = n.locator(".ant-notification-notice-close").first();
-      if (await notNow.count().catch(() => 0)) await notNow.click({ timeout: 3_000 }).catch(() => {});
-      else if (await x.count().catch(() => 0)) await x.click({ timeout: 3_000 }).catch(() => {});
-      if (await n.isVisible().catch(() => false)) await n.evaluate((el) => el.remove()).catch(() => {});
-      await this.page.waitForTimeout(400);
+      if (await notNow.count().catch(() => 0)) await notNow.click({ timeout: 2_000 }).catch(() => {});
+      else if (await x.count().catch(() => 0)) await x.click({ timeout: 2_000 }).catch(() => {});
+      await this.page.waitForTimeout(400).catch(() => {});
+      if (await n.isVisible({ timeout: 500 }).catch(() => false)) await n.evaluate((el) => el.remove(), undefined, { timeout: 1_000 }).catch(() => {});
     }
   }
 
@@ -178,7 +181,7 @@ export class SingleStagePage extends BasePage {
         const clicked = await card.click({ timeout: 5_000 }).then(() => true).catch(() => false);
         if (!clicked) await this.click([card, d.getByRole("radio", { name: re }), d.getByText(re)], { label, timeout: TIMEOUTS.MEDIUM, force: true }).catch(() => {});
         await this.pause(500);
-        const checked = (await card.getAttribute("aria-checked").catch(() => null)) === "true" || /checked|active|selected/.test((await card.getAttribute("class").catch(() => "")) ?? "");
+        const checked = (await card.getAttribute("aria-checked", { timeout: 2_000 }).catch(() => null)) === "true" || /checked|active|selected/.test((await card.getAttribute("class", { timeout: 2_000 }).catch(() => "")) ?? "");
         if (checked) return;
       }
       throw new Error(`the configuration drawer would not keep "${label}" selected after three tries`);
@@ -222,7 +225,7 @@ export class SingleStagePage extends BasePage {
     const want = cfg.eventType === "auction" ? /auction|rank|price|traffic/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
     const appliedByItself = async (): Promise<boolean> => {
       if (await d.isVisible().catch(() => false)) return false;
-      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic)\b/i }).first().innerText().catch(() => "")) || "").trim();
+      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic)\b/i }).first().innerText({ timeout: 3_000 }).catch(() => "")) || "").trim();
       if (want.test(chip)) return true;
       throw new Error(`the configuration drawer closed before Save and the event type reads "${chip || "nothing"}", not ${cfg.eventType}`);
     };
