@@ -37,7 +37,10 @@ CONVERTED = "An RFQ already converted to an auction: the vendor bid 100 per unit
 LOGIN = 'Log in to Procol (buyer side) with the buyer user'
 CREATE = 'From the left menu click "Events" and click the blue "Create Event"'
 
-LOCK = 'lock_vendors_addition_in_event_creation = Off — with it On the create screen greys out Invite Vendor and Publish (seen live on PROCOL DEMO)'
+LOCK_ONLY = 'lock_vendors_addition_in_event_creation = Off — with it On the create screen greys out Invite Vendor and Publish (seen live on PROCOL DEMO)'
+# single-stage RFQ cases open the create screen as RFQ through the company default (switched for the case, then back):
+# on UAT changing the type in the configuration drawer re-rendered the page and lost the choice (5 Nov)
+LOCK = LOCK_ONLY + "\ndefault_event_type = rfq — the single-stage create screen opens as RFQ"
 
 SINGLE = [LOGIN, CREATE, 'Open the single-stage create screen (RFQ)', 'Pick the template and add 1 line item with quantity 10', 'Invite 1 vendor', 'Set the schedule and publish the event']
 SINGLE2 = [LOGIN, CREATE, 'Open the single-stage create screen (RFQ)', 'Pick the template and add 1 line item with quantity 10', 'Invite 2 vendors', 'Set the schedule and publish the event']

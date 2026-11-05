@@ -159,6 +159,14 @@ export class SingleStagePage extends BasePage {
 
   async configure(cfg: SingleStageConfig): Promise<void> {
     await this.closeNotices();
+    // The create screen opens with the company's default event type. When that is already the type asked for and
+    // nothing else is to be set (no auction sub-type, no partial awarding), the drawer has nothing to do — and on
+    // UAT (5 Nov) changing the type in it re-rendered the page and lost the choice. Leave it closed.
+    {
+      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic)\b/i }).first().innerText({ timeout: 10_000 }).catch(() => "")) || "").trim();
+      const wantNow = cfg.eventType === "auction" ? /auction|rank|price|traffic/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
+      if (wantNow.test(chip) && !cfg.auctionSubtype && cfg.awarding !== "line_item") return;
+    }
     await this.openConfigDrawer();
     const d = this.drawer();
 
