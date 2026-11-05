@@ -275,19 +275,20 @@ case("RCA-QCS-025", "7. Master QCS", "Every bidding vendor is on Master QCS",
 
 case("RCA-CO-026", "8. Counter offer", "Counter offer accepted",
      "A counter offer accepted by the vendor becomes the vendor's price on Master QCS",
-     "Buyer, Vendor A", "Buyer + Vendor portal", BID, "None", "Counter offer 95 per unit.",
-     [LOGIN, 'Open the event and open Master QCS', 'Open Vendor A\'s Counter Offer, enter 95 per unit with a remark and send it',
-      'As Vendor A, sign in to the vendor portal, open the event and accept the counter offer', LOGIN, 'Open Master QCS again and read Vendor A\'s price'],
-     'The counter offer is sent (the buyer sees it as sent) and the vendor can accept it. After acceptance Master QCS shows Vendor A at 95 per unit. The rate cell is active throughout — the counter offer is never greyed out on a live bid.',
+     "Buyer, Vendor A", "Buyer + Vendor portal", "The buyer can create events.", LOCK, "Single-stage RFQ, 1 line item, 1 QA vendor. Vendor 1 bids 100 per unit; counter offer 95 per unit.",
+     SINGLE + ['As vendor 1, sign in to the vendor portal, open the event and submit a bid of 100 per unit',
+      'Back on the buyer side, open Master QCS and send vendor 1 a counter offer of 95 per unit with a remark',
+      'As vendor 1, open the event in the vendor portal and accept the counter offer',
+      'Back on the buyer side, open Master QCS and check vendor 1\'s price is now 95 per unit'],
+     'The counter offer is sent and the vendor can accept it. After acceptance Master QCS shows vendor 1 at 95 per unit. The counter offer is never greyed out on a live bid.',
      "High", "Regression", "HubSpot 321402759885 (Jul 2026): counter-offer rate cell inactive; 329423982297 (Aug 2026): NFA kept the old offer after the vendor accepted a new price")
 
-# ── 9. After the PO ──────────────────────────────────────────────────────────────────────────
 case("RCA-EVT-027", "9. After the PO", "Event leaves Live after the PO",
      "After the award is approved and the PO is created, the event is no longer under Live",
      "Buyer", "Buyer portal", AWARDED, "None", "-",
-     [LOGIN, 'Open the event\'s award proposal and approve it', 'Create the purchase order', 'From the left menu click "Events" and search the event\'s title under the Live tab',
-      'Open the History tab and search the title there'],
-     'The event is not listed under Live. It is listed under History (completed). The PO was created with the awarded line.',
+     [LOGIN, 'Approve the award on its proposal page', 'Create the purchase order', 'Check the event is not listed under the Live tab of the events list',
+      'Check the event is listed under the History tab'],
+     'The PO is created. The event is not listed under Live; it is listed under History.',
      "High", "Regression", "HubSpot 331034220221 (Sep 2026): event stuck in the Live tab after NFA approval because PO generation skipped a line silently")
 
 # ── 10. API checks (the same rules through the API) ──────────────────────────────────────────
@@ -297,7 +298,7 @@ case("RCA-API-028", "10. API", "Publish an auction",
      "Buyer", API, "A draft auction event with one line item and a QA vendor, made by the API.", "None", "Rank auction, 1 line item, 1 QA vendor.",
      ['Log in to Procol (buyer side) with the buyer user', 'Send POST to publish the draft auction event',
       'Read the event back (GET /event_groups/<event>) and read its auction round'],
-     'Every reply is 2xx. The round read returns the auction with its status (upcoming or live), its start and end time and the line item. No request answers 500.',
+     'Every reply is 2xx. The round read returns the auction with a status (Procol calls a running round "active"), its start and end time and the line item. No request answers 500.',
      "Critical", "Regression", "HubSpot 333437557450 (Sep 2026)")
 
 case("RCA-API-029", "10. API", "Edit a live RFQ with no auction",

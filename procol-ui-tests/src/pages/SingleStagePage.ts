@@ -132,11 +132,35 @@ export class SingleStagePage extends BasePage {
     return filled;
   }
 
+  /** Toasts seen and closed while configuring (their words go in the step's detail). */
+  closedNotices: string[] = [];
+  /**
+   * Close every antd notification toast. One sits in the top-right corner over the drawer's RFQ card
+   * (UAT, 5 Nov): a forced click landed on the toast, the drawer closed and RFQ was never chosen.
+   */
+  private async closeNotices(): Promise<void> {
+    const notes = this.page.locator(".ant-notification-notice:visible");
+    for (let i = 0; i < 5 && (await notes.count().catch(() => 0)); i++) {
+      const n = notes.first();
+      const words = ((await n.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      if (words && !this.closedNotices.includes(words)) this.closedNotices.push(words.slice(0, 160));
+      // the browser-notifications prompt is declined ("Not now", the privacy-preserving answer); others are closed
+      const notNow = n.getByRole("button", { name: /^not now$/i }).first();
+      const x = n.locator(".ant-notification-notice-close").first();
+      if (await notNow.count().catch(() => 0)) await notNow.click({ timeout: 3_000 }).catch(() => {});
+      else if (await x.count().catch(() => 0)) await x.click({ timeout: 3_000 }).catch(() => {});
+      if (await n.isVisible().catch(() => false)) await n.evaluate((el) => el.remove()).catch(() => {});
+      await this.page.waitForTimeout(400);
+    }
+  }
+
   async configure(cfg: SingleStageConfig): Promise<void> {
+    await this.closeNotices();
     await this.openConfigDrawer();
     const d = this.drawer();
 
     const pick = async (re: RegExp, label: string) => {
+      await this.closeNotices();
       // Options are custom cards `div.pro-radio-tabs__tab[role=radio]` (not antd
       // radios). Click the card; force bypasses the inner text-node overlay.
       // Wait for the option to render first (awarding/sub-type appear only after
@@ -191,20 +215,26 @@ export class SingleStagePage extends BasePage {
 
     // Some builds apply the choice and close the drawer by themselves (UAT, 5 Nov: the drawer was gone before
     // Save). Then there is nothing to save — but only when the event-type chip now shows what was chosen.
-    await this.pause(600);
-    if (!(await d.isVisible().catch(() => false))) {
+    const want = cfg.eventType === "auction" ? /auction|rank|price|traffic/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
+    const appliedByItself = async (): Promise<boolean> => {
+      if (await d.isVisible().catch(() => false)) return false;
       const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic)\b/i }).first().innerText().catch(() => "")) || "").trim();
-      const want = cfg.eventType === "auction" ? /auction|rank|price|traffic/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
-      if (want.test(chip)) {
-        await this.dismissDistractions();
-        return;
-      }
+      if (want.test(chip)) return true;
       throw new Error(`the configuration drawer closed before Save and the event type reads "${chip || "nothing"}", not ${cfg.eventType}`);
+    };
+    await this.pause(1200);
+    if (await appliedByItself()) return void (await this.dismissDistractions());
+    try {
+      await this.click([d.getByRole("button", { name: /^Save$/i }), this.page.getByRole("button", { name: /^Save$/i })], {
+        label: "config-save",
+        timeout: TIMEOUTS.MEDIUM,
+      });
+    } catch (e) {
+      // the drawer may close while Save is being clicked (UAT 5 Nov): judge by the outcome, not the click
+      await this.pause(800);
+      if (await appliedByItself()) return void (await this.dismissDistractions());
+      throw e;
     }
-    await this.click([d.getByRole("button", { name: /^Save$/i }), this.page.getByRole("button", { name: /^Save$/i })], {
-      label: "config-save",
-      timeout: TIMEOUTS.MEDIUM,
-    });
     // Drawer closes on save — unless the app REFUSED the configuration (e.g. a traffic-light
     // range whose lower bound is above the upper): then the drawer stays open with its own
     // message. Report that refusal instead of carrying on under an open drawer (the next step
