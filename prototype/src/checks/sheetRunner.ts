@@ -343,6 +343,10 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // the compiler guessed this label ("unconfirmed label") — a name the product may not use; its absence proves nothing
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} looked for "${String(f.args?.text ?? f.args?.name)}", a label the compiler itself marked as a guess, and did not find it. A guessed label proves nothing about the product; see the screenshot and judge by eye.`;
+    } else if (/^expect_(value|text|sheet_cell)$/.test(f.step) && /\b(shows|reads) "?(spine-(ui|api)-automation-\d+|QA_Platform_[\w-]+)/i.test(d)) {
+      // the value read is the run's own generated title: the label lookup landed on the title field, not the one named
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) read the event title the run itself typed, so it looked at the wrong field. The field the case names was never read: ${d.slice(0, 160)}. This is an automation gap, not a product bug.`;
     } else if (/automation needs update|observation pass is not installed/.test(d)) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be judged: ${d.slice(0, 200)}. The automation, not the product, fell short.`;

@@ -162,11 +162,11 @@ case("RCA-BID-013", "3. Bidding", "Vendor bid sheet columns",
      "Medium", "Regression", "HubSpot 214553542330 (Sep 2026): vendor could not see \"Line GST percentage\" in a non-multicurrency event (base currency null)")
 
 case("RCA-EVT-014", "4. Event settings", "Extend the Technical stage",
-     "Extending the Technical stage's submission time works on a Technical + RFQ project",
-     "Buyer", "Buyer portal", TECH, "None", "Extend by 1 hour.",
-     [LOGIN, 'Open the project and open the Technical stage', 'Note the Technical stage\'s submission end time',
-      'From the stage\'s Settings choose Extend Submission Time and extend by 1 hour', 'Read the new submission end time'],
-     'The extension is accepted without an error. The Technical stage\'s end time is exactly the old end time plus 1 hour.',
+     "Extending the Technical stage's submission time works on a Technical + RFQ project, within the RFQ window",
+     "Buyer", "Buyer portal", TECH, "None", "Extend the RFQ stage by 1 hour, then the Technical stage by 30 minutes.",
+     [LOGIN, 'Open the project and open the RFQ stage', 'From the stage\'s Settings choose Extend Submission Time and extend by 1 hour',
+      'Open the Technical stage', 'From the stage\'s Settings choose Extend Submission Time and extend by 30 minutes', 'Check the Technical stage\'s new end time is the old end time plus 30 minutes'],
+     'Both extensions are accepted without an error. The Technical stage\'s end time moves by exactly 30 minutes. (Extending the Technical stage past the RFQ\'s end is refused by the product\'s own rule, "RFP duration exceeds RFQ end time" — that refusal is expected, not a bug.)',
      "High", "Regression", "HubSpot 326982812387 (Aug 2026): extending the Technical stage failed because the check read the last-created RFQ's end time")
 
 case("RCA-EVT-015", "4. Event settings", "Edit a live RFQ with no auction",

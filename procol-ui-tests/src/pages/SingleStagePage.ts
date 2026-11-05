@@ -189,6 +189,18 @@ export class SingleStagePage extends BasePage {
       await pick(AWARDING_LABEL[cfg.awarding], `awarding:${cfg.awarding}`);
     }
 
+    // Some builds apply the choice and close the drawer by themselves (UAT, 5 Nov: the drawer was gone before
+    // Save). Then there is nothing to save — but only when the event-type chip now shows what was chosen.
+    await this.pause(600);
+    if (!(await d.isVisible().catch(() => false))) {
+      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic)\b/i }).first().innerText().catch(() => "")) || "").trim();
+      const want = cfg.eventType === "auction" ? /auction|rank|price|traffic/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
+      if (want.test(chip)) {
+        await this.dismissDistractions();
+        return;
+      }
+      throw new Error(`the configuration drawer closed before Save and the event type reads "${chip || "nothing"}", not ${cfg.eventType}`);
+    }
     await this.click([d.getByRole("button", { name: /^Save$/i }), this.page.getByRole("button", { name: /^Save$/i })], {
       label: "config-save",
       timeout: TIMEOUTS.MEDIUM,
