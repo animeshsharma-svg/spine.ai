@@ -336,7 +336,13 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     const f = steps[failedAt];
     const d = mask(f.detail ?? "");
     const words = r.steps[failedAt].words;
-    if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
+    const skippedBefore = steps.slice(0, failedAt).find((s) => s.status === "skipped" && /nobody answered|not tested|no step for/i.test(s.detail ?? ""));
+    if (skippedBefore) {
+      // a check that comes after a part nobody did proves nothing about that part (5 Nov: a revised bid was never
+      // placed, and Master QCS rightly showed the first price — that is not a bug)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) checked the screen after a part that was never done: ${stepWords({ step: skippedBefore.step, args: skippedBefore.args })} — ${String(skippedBefore.detail).slice(0, 160)}. What the screen showed is what you would expect without that part, so nothing about the product can be concluded.`;
+    } else if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
     } else if (/^expect_(text|visible)$/.test(f.step) && compiled.gaps.some((g) => /unconfirmed label/i.test(g) && g.includes(String(f.args?.text ?? f.args?.name ?? "\u0000")))) {
