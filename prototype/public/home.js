@@ -788,7 +788,7 @@
     const start = q$("#home-start");
     const hint = q$("#home-hint");
     const mode = modeOf();
-    for (const b of document.querySelectorAll("#home-ask .via")) {
+    for (const b of document.querySelectorAll("#home-ask .via[data-via]")) {
       const on = !!via[b.dataset.via];
       b.setAttribute("aria-pressed", String(on));
       // Turning off the only one on switches to the other; say so.
