@@ -1475,6 +1475,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // invite_vendor without named vendors takes every vendor Procol suggests (193 on PROCOL DEMO), so a response check
+  // that pins participation to the number of bidders ("2/2") can never hold — drop that figure, keep the counts
+  {
+    const inviteAll = steps.some((st) => st.step === "invite_vendor" && !(Array.isArray(st.args?.vendors) && (st.args!.vendors as unknown[]).length));
+    if (inviteAll)
+      for (const st of steps)
+        if (st.step === "expect_responses" && st.args && "participation" in st.args) {
+          delete (st.args as Record<string, unknown>).participation;
+          repairs.push("dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders");
+        }
+  }
   return { plan: { ...plan, steps }, repairs };
 }
 
