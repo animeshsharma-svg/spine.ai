@@ -233,7 +233,7 @@ case("RCA-AWD-021", "6. Awarding", "Awarded quantity limits",
 
 case("RCA-AWD-022", "6. Awarding", "Partial award, one PO per vendor",
      "Awarding two line items to two vendors creates one PO per vendor with its own quantity",
-     "Buyer, Vendor A, Vendor B", "Buyer + Vendor portal", "The buyer can create events. The company has a PO template.", "lock_vendors_addition_in_event_creation = Off — with it On the create screen greys out Invite Vendor and Publish (seen live on PROCOL DEMO)",
+     "Buyer, Vendor A, Vendor B", "Buyer + Vendor portal", "The buyer can create events. The company has a PO template.", LOCK,
      "Bolt quantity 100, Nut quantity 200. Vendor A bids 100 per unit, Vendor B bids 95 per unit.",
      [LOGIN, CREATE, 'Pick the single-stage event (RFQ) with awarding by line item (partial awarding to multiple vendors)',
       'Pick the template and add 2 line items: Bolt quantity 100 and Nut quantity 200', 'Invite 2 vendors', 'Set the schedule and publish the event',
