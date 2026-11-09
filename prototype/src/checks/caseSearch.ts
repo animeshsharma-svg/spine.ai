@@ -141,6 +141,15 @@ function bm25(q: string[], d: Doc, ix: Index): number {
 interface Extra { embedder: string; items: Record<string, { h: string; v: string }> }
 let vectors: Map<string, Float32Array> | null = null;
 let storeEmbedder = "";
+/** Unit length, so a dot product is a cosine (the store's vectors are not all unit length — a dot of 14 swamped the words, 9 Nov). */
+function unit(v: ArrayLike<number>): Float32Array {
+  const out = Float32Array.from(v as number[]);
+  let n = 0;
+  for (let i = 0; i < out.length; i++) n += out[i] * out[i];
+  n = Math.sqrt(n) || 1;
+  for (let i = 0; i < out.length; i++) out[i] /= n;
+  return out;
+}
 const b64 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString("base64");
 const unb64 = (s: string) => new Float32Array(Buffer.from(s, "base64").buffer.slice(0));
 const hashOf = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 12);
@@ -151,7 +160,7 @@ async function loadVectors(fill: boolean, log: (l: string) => void): Promise<voi
   const store = catalogCaseVectors();
   storeEmbedder = store.embedder || embedderId();
   vectors ??= new Map();
-  for (const [id, v] of store.vectors) if (!vectors.has(id)) vectors.set(id, Float32Array.from(v));
+  for (const [id, v] of store.vectors) if (!vectors.has(id)) vectors.set(id, unit(v));
   let extra: Extra = { embedder: storeEmbedder, items: {} };
   if (existsSync(EXTRA)) {
     try {
@@ -161,7 +170,7 @@ async function loadVectors(fill: boolean, log: (l: string) => void): Promise<voi
     }
   }
   if (extra.embedder !== storeEmbedder) extra = { embedder: storeEmbedder, items: {} };
-  for (const [id, it] of Object.entries(extra.items)) if (!vectors.has(id)) vectors.set(id, unb64(it.v));
+  for (const [id, it] of Object.entries(extra.items)) if (!vectors.has(id)) vectors.set(id, unit(unb64(it.v)));
   if (!fill) return;
   const missing = cases.filter((c) => !vectors!.has(c.id));
   if (!missing.length) return;
@@ -170,7 +179,7 @@ async function loadVectors(fill: boolean, log: (l: string) => void): Promise<voi
   try {
     for (let i = 0; i < texts.length; i += 256) {
       const vs = await embedMany(texts.slice(i, i + 256));
-      vs.forEach((v, j) => { const c = missing[i + j]; vectors!.set(c.id, Float32Array.from(v)); extra.items[c.id] = { h: hashOf(texts[i + j]), v: b64(v) }; });
+      vs.forEach((v, j) => { const c = missing[i + j]; vectors!.set(c.id, unit(v)); extra.items[c.id] = { h: hashOf(texts[i + j]), v: b64(v) }; });
       log(`  ${Math.min(i + 256, texts.length)} / ${texts.length}`);
     }
     mkdirSync(dirname(EXTRA), { recursive: true });
@@ -200,7 +209,8 @@ export async function searchCases(query: string, opts: { k?: number; groups?: nu
   await loadVectors(opts.fill ?? false, log);
   let qv: number[] | null = null;
   try {
-    qv = await embedFor(storeEmbedder, query);
+    const raw = await embedFor(storeEmbedder, query);
+    qv = raw ? Array.from(unit(raw)) : null;
   } catch {
     qv = null;
   }
@@ -218,12 +228,15 @@ export async function searchCases(query: string, opts: { k?: number; groups?: nu
     const w = words.get(d.id) ?? 0;
     const m = meaning.get(d.id);
     const wn = maxW ? w / maxW : 0;
-    const mn = m !== undefined ? Math.max(0, (m - 0.25) / 0.5) : 0; // cosines live roughly in 0.25–0.75 for this embedder
+    const mn = m !== undefined ? Math.min(1, Math.max(0, (m - 0.3) / 0.45)) : 0; // cosines of this embedder: ~0.3 unrelated … ~0.75 the same subject
     let score = qv ? 0.55 * wn + 0.45 * mn : wn;
     // the section itself names the subject: a strong sign for a topic query
     let hit = 0;
     for (const t of q) if (d.sectionTerms.has(t)) hit++;
     if (q.length && hit) score += 0.15 * (hit / q.length);
+    // a roadmap specification is not in the product; a catch-all product-sheet section says little about the topic
+    if (/roadmap/i.test(d.c.section)) score *= 0.4;
+    else if (/^(core|optional) features$/i.test(d.c.section)) score *= 0.75;
     if (score < (qv ? 0.18 : 0.12)) continue;
     scored.push({ id: d.id, title: d.c.title, layer: d.c.layer, section: d.c.section, group: d.c.group, priority: d.c.priority, score, words: wn, meaning: m ?? null, sheet: d.c.sheet?.sheet });
   }
