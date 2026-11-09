@@ -108,7 +108,7 @@ async function compileOne(c: CatalogCase): Promise<TextPlanMeta> {
   const prepared = sp?.prepared && !sp.unbuilt
     ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } }
     : {};
-  const r = await withWatchdog(compileTestCase(prose, "events", { tier: "fast", ...prepared }), 180_000, `compiling ${c.id}`);
+  const r = await withWatchdog(compileTestCase(prose, "events", { tier: "fast", ...prepared }), 300_000, `compiling ${c.id}`);
   const plan = (r.plan ?? { steps: [] }) as { steps?: Array<{ step: string }> };
   const meta: TextPlanMeta = {
     caseId: c.id,

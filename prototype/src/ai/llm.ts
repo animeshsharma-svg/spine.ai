@@ -205,6 +205,7 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
         throw new Error(`Slingring 429: ${text.slice(0, 200)} — budget exhausted; skipping Slingring for 10 minutes`);
       }
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
+      if (retries429 > 1) console.log(`[llm] slingring ${res.status} (${text.slice(0, 60).replace(/\s+/g, " ")}) — retry ${attempt + 1}/${retries429}`);
       // one retry: the old 2.5–6 s; a batch (SLINGRING_429_RETRIES > 1): 3 s, 6 s, 12 s, 24 s… up to 60 s
       await sleep(retries429 > 1 ? Math.min(60_000, Math.max(retryAfter * 1000, 3000 * 2 ** attempt)) : Math.min(6000, retryAfter * 1000 || 2500));
       continue;
