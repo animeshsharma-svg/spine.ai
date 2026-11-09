@@ -88,6 +88,7 @@ export type OpId =
   | "read_line_items"
   | "read_indicators"
   | "read_bid"
+  | "read_bid2"
   | "read_proposal"
   | "read_history"
   | "list_events"
@@ -342,6 +343,8 @@ export const OPS: Record<OpId, OpDef> = {
   list_events: { id: "list_events", kind: "read", method: "GET", path: "/orders", actor: "buyer", actors: ["buyer", "vendor"], template: "—", needs: [], produces: [], does: "lists events" },
   // bids#show (plain route; the supplier app may call it — actors.ts VENDOR_APP_PLAIN) — the bid as its owner or the buyer sees it
   read_bid: { id: "read_bid", kind: "read", method: "GET", path: "/bids/{{bidUuid}}", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "—", needs: ["bidUuid"], produces: [], does: "reads the bid" },
+  // the SECOND QA vendor's bid (setup rfq_with_2_bids / closed_rfq_with_2_bids): "a vendor cannot read another vendor's bid" = read_bid2 as vendor
+  read_bid2: { id: "read_bid2", kind: "read", method: "GET", path: "/bids/{{bid2Uuid}}", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "—", needs: ["bid2Uuid"], produces: [], does: "reads the second QA vendor's bid" },
   // proposal#show — the award proposal (buyer only)
   read_proposal: { id: "read_proposal", kind: "read", method: "GET", path: "/proposal/{{proposalUuid}}", actor: "buyer", actors: ["buyer"], template: "—", needs: ["proposalUuid"], produces: [], does: "reads the award proposal" },
   // event_groups#history — the event's change history (both apps may call it)
@@ -671,7 +674,8 @@ const READ_HINTS: Partial<Record<OpId, string>> = {
   read_line_items: "(shape not sampled yet — use status_2xx / non_empty on the root)",
   read_indicators: "auction_identifiers_data.<vendor company uuid>.inline.<line item uuid>.rank.best_bidder",
   list_events: "(a list — use status_2xx)",
-  read_bid: "(shape not sampled yet — use status_2xx / exists on the fields the case names)",
+  read_bid: "(shape not sampled yet — use status_2xx / exists on the fields the case names); the acting vendor's OWN bid",
+  read_bid2: "the SECOND QA vendor's bid — 'a vendor cannot read another vendor's bid' = read_bid2 as vendor on rfq_with_2_bids, expected reject",
   read_proposal: "(shape not sampled yet — use status_2xx / exists on the fields the case names)",
   read_history: "(shape not sampled yet — use status_2xx / non_empty on the root)",
   request: "a GET the case names: {\"op\":\"request\",\"request\":{\"method\":\"GET\",\"path\":\"/…\"},\"assert\":[…]} (shape unknown — assert the fields the case names)",
@@ -952,7 +956,9 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       if (!have.has(need)) {
         const by = ACT_PRODUCES[need];
         errors.push(
-          `act ${n}: ${a.op === "library" ? `library case ${a.caseId}` : a.op === "request" ? "the request" : a.op} needs {{${need}}}, which ${recipe ? `setup "${recipe.id}"` : "the setup"} does not provide${by ? ` (an earlier ${by.join(" / ")} step would)` : ""}`,
+          need === "evalFormUuid"
+            ? `act ${n}: ${a.op === "library" ? `library case ${a.caseId}` : a.op === "request" ? "the request" : a.op} needs {{evalFormUuid}} — the evaluator's session and the form assigned to them; it needs a starting state no recipe builds (no recipe signs the evaluator in)`
+            : `act ${n}: ${a.op === "library" ? `library case ${a.caseId}` : a.op === "request" ? "the request" : a.op} needs {{${need}}}, which ${recipe ? `setup "${recipe.id}"` : "the setup"} does not provide${by ? ` (an earlier ${by.join(" / ")} step would)` : ""}`,
         );
       }
     }
@@ -1823,8 +1829,12 @@ export function polarityOf(t: string): Outcome | null {
   return null;
 }
 
+/** A model gap that admits the plan tests something else than the case ("…instead", "verifies only…"). */
+const SUBSTITUTE_SIGNAL = /\binstead\b|verifies only|checks only|tests only|only (?:verifies|checks|tests|exercises|covers) (?:that|the|whether)|substitut|as a proxy|approximat/i;
+
 function judgeCoverage(text: string, plan: ApiPlan, modelGaps: string[], extra: string[], heads: string[] = []): { coverage: "full" | "partial"; gaps: string[] } {
-  const gaps = [...modelGaps.filter((g) => g.trim()), ...extra];
+  // a gap in which the model says the decisive step stands in for the case's point is named as such, so routing sees it is about the point
+  const gaps = [...modelGaps.filter((g) => g.trim()).map((g) => (SUBSTITUTE_SIGNAL.test(g) && !/^the decisive step/.test(g) ? `the decisive step tests something else than the case's point: ${g}` : g)), ...extra];
   const t = text.toLowerCase();
   // the title says what the case expects; the long prose (code notes) is noisy
   const pol = casePolarity({ text, heads });

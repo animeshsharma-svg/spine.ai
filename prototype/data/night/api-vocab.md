@@ -53,3 +53,18 @@ starting state no recipe builds"; 22 "no read-back"; 20 "compiled by a fixed rul
   gateway failures retried once after 30 s then listed in `data/night/not-compiled-gateway.json`.
 - `scripts/apiplanner-unit-tests.ts`: 37 checks, green. `scripts/compile-api-plans-stats.ts`: the numbers.
 - Worktree: `procol-backend` symlinked at the root (untracked) so `errorMessage(code)` finds en-IN.yml.
+
+## 01:00 IST — first long run in progress
+
+- `compile-api-plans-all.ts --redo none --concurrency 2` started 00:53 on 883 cases (242 never
+  compiled + 641 none); ~25 cases/min, no gateway problems so far. Log: `data/night/api-compile.log`.
+- At 75/883: 30 full, 23 partial (51 speak), 22 none.
+- Commits: 673d5ba (compiler v2 + scripts), b01c0b6 (convert_to_auction, empty-body rule,
+  dependsOnSetting, recheckStoredPlan/--revalidate).
+- Seen in the first results and fixed for the next pass: a vendor reading "another vendor's bid" was
+  planned as reading its own (`read_bid2` added, prompt names it); a model gap admitting the decisive
+  step stands in for the case ("…instead", "verifies only…") is now prefixed "the decisive step tests
+  something else than the case's point" so routing's `planSpeaksForCase` sees it is about the point.
+- Next: when the run ends → `compile-api-plans.ts --revalidate` (re-checks all stored plans in code:
+  actors, outcome, codes, read-backs) → `--redo silent` for partial plans that still do not speak →
+  stats → notes.
