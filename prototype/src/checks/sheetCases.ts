@@ -250,17 +250,17 @@ export function findSheetCase(text: string): SheetCase | null {
 interface SetupEvent { names: RegExp; state: UiState | null; technical?: boolean; auction?: boolean; setup: string; note?: string }
 const SETUP_EVENTS: Record<string, SetupEvent> = {
   "SRC-SET-001": { names: /live rfq \(no bids\)/i, state: "live", setup: "A live RFQ published with QA vendors invited and no bid yet." },
-  "SRC-SET-002": { names: /rfq with two bids/i, state: "bid", setup: "A live RFQ with a vendor's bid.", note: "the API set-up places one QA vendor's bid, not two — steps about a second vendor's bid are not covered" },
+  "SRC-SET-002": { names: /rfq with two bids/i, state: "two_bids", setup: "A live RFQ with a bid from each of two QA vendors." },
   "SRC-SET-003": { names: /rfq in evaluation/i, state: "closed", setup: "A closed RFQ with a vendor's bid, just after bidding ended.", note: "the API set-up closes bidding; whether an evaluation window is still running depends on the company's default evaluation time" },
   "SRC-SET-004": { names: /closed rfq/i, state: "closed", setup: "A closed RFQ with a vendor's bid, not awarded." },
   "SRC-SET-005": { names: /upcoming rfq/i, state: "upcoming", setup: "An upcoming RFQ whose bidding starts later." },
   "SRC-SET-006": { names: /live reverse auction/i, state: "live", auction: true, setup: "A live reverse auction." },
-  "SRC-SET-007": { names: /live forward auction/i, state: null, setup: "A live forward auction.", note: "the API set-up does not build forward auctions yet" },
+  "SRC-SET-007": { names: /live forward auction/i, state: "forward", auction: true, setup: "A live forward auction (a sell-side auction round: the price climbs) with two QA vendors invited." },
   "SRC-SET-008": { names: /tech\+rfq project|technical \+ rfq project/i, state: "live", technical: true, setup: "A live eRFX project with a Technical stage and an RFQ stage." },
   "SRC-SET-009": { names: /draft project/i, state: "draft", setup: "A draft RFQ saved and not published." },
-  "SRC-SET-010": { names: /pr-based rfq/i, state: null, setup: "An RFQ made from a PR line.", note: "the API set-up does not build events from a PR yet" },
+  "SRC-SET-010": { names: /pr-based rfq/i, state: "pr_rfq", setup: "A live RFQ made from an open purchase request's material line (linked to the PR)." },
   "SRC-SET-011": { names: /awarded event with po/i, state: "awarded", setup: "An awarded RFQ whose proposal went into approval." },
-  "SRC-SET-012": { names: /withdrawn event/i, state: null, setup: "A withdrawn RFQ.", note: "the API set-up does not build a withdrawn event yet" },
+  "SRC-SET-012": { names: /withdrawn event/i, state: "withdrawn", setup: "A published RFQ withdrawn by the buyer with a remark." },
   "SRC-SET-013": { names: /service rfq/i, state: null, setup: "A service RFQ.", note: "the API set-up does not build service events yet" },
 };
 
@@ -312,7 +312,13 @@ function stateFromWords(pre: string): UiState | null {
   if (/\b(po|purchase order) (is )?(created|generated)|awarded/.test(t)) return "awarded";
   if (/already converted|converted (to|into) an? auction|after (the )?conversion/.test(t)) return "converted";
   if (/proposal/.test(t)) return "proposal";
-  if (/withdrawn|forward auction|from a pr\b|pr line|service/.test(t)) return null;
+  if (/service/.test(t)) return null;
+  if (/from a pr\b|pr line|pr-based/.test(t)) return "pr_rfq";
+  if (/withdrawn/.test(t) && !/withdrawn (approval|request|proposal)/.test(t)) return "withdrawn";
+  if (/forward auction/.test(t)) return "forward";
+  if (/dutch/.test(t) && !/convert/.test(t)) return "dutch";
+  if (/knock-?out|japanese/.test(t) && !/convert/.test(t)) return "knockout";
+  if (/two bids|two vendors|2 vendors|both vendors|second vendor/.test(t) && /\bbids?\b|quoted/.test(t)) return "two_bids";
   if (/closed|evaluation|ended|is over|finished|after the close/.test(t)) return "closed";
   // "no bid yet" / "without a bid" is the live state, not the bid state
   if (/\bno bids?\b|without (a |any )?bids?\b|not (yet )?bid|unbid/.test(t)) return /\blive\b|published/.test(t) ? "live" : "upcoming";
