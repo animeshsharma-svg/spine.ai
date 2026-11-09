@@ -37,17 +37,24 @@ import { join } from "node:path";
 import { statusInWords } from "../checks/humanApi.js";
 import { pathToFileURL } from "node:url";
 
-import { chat, llmMode, usageReport } from "../ai/llm.js";
+import { chat, llmMode, usageReport, lastServedModel } from "../ai/llm.js";
 import { PROCOL_TEST } from "../executor.js";
 import { heldCases, loadCases, type TestCaseRecord } from "../checks/caseLibrary.js";
 import { caseById, type CatalogCase } from "../checks/testCatalog.js";
 import { endpointInWords, errorMessage } from "../checks/caseDisplay.js";
 import { FORMATS } from "../checks/apiAssertions.js";
+import { appRefusal } from "../checks/appAccess.js";
+import { vendorAppRefusal } from "../checks/actors.js";
 import type { EventType, StepKind } from "../checks/journeyModel.js";
 
 // ── the language ────────────────────────────────────────────────────────────
 
-export const PLAN_VERSION = 1;
+/**
+ * 2 (10 Nov 2026): the `request` op (the case's own request, sourcing-event routes only), read_bid /
+ * read_proposal / read_history read-backs, actors fixed from the app allow-lists at validation, the
+ * expected outcome checked against the case's words, read-backs added in code after a changing act.
+ */
+export const PLAN_VERSION = 2;
 
 export type ActorId = "buyer" | "vendor" | "vendor2";
 export type Outcome = "accept" | "reject" | "no-5xx";
@@ -80,7 +87,12 @@ export type OpId =
   | "read_audience"
   | "read_line_items"
   | "read_indicators"
+  | "read_bid"
+  | "read_proposal"
+  | "read_history"
   | "list_events"
+  // the case's own request (method, path, body written in the case), sourcing-event routes only
+  | "request"
   // buyer writes
   | "create_draft"
   | "add_rfq_round"
@@ -137,11 +149,22 @@ export interface Change {
   add?: boolean;
 }
 
+/** The request a case writes itself ("`PATCH /bids/{{bidUuid}}/reject` with `{…}`"). */
+export interface OwnRequest {
+  method: "GET" | "POST" | "PATCH" | "PUT";
+  /** the path with {{placeholders}}, query string allowed */
+  path: string;
+  /** JSON body (not for GET); strings may carry {{tokens}} */
+  body?: unknown;
+}
+
 export interface ActStep {
   op: OpId;
   as?: ActorId;
   /** library op only: the library case whose request is sent */
   caseId?: string;
+  /** request op only: the request itself */
+  request?: OwnRequest;
   /** edits to the working body */
   change?: Change[];
   /** op parameters: price (bids), vendor (whose bid/award: vendor|vendor2), until (wait: bid_end|close) */
@@ -168,6 +191,8 @@ export interface Assertion {
 export interface VerifyStep {
   op: OpId;
   as?: ActorId;
+  /** op "request" only: a GET the case itself names */
+  request?: OwnRequest;
   assert: Assertion[];
   say?: string;
 }
@@ -219,6 +244,12 @@ export interface CompiledApiPlan {
   exemplars?: Array<{ id: string; title: string; score: number; dense: number; structure: number; verdict: string; source: string }>;
   /** the exemplar whose validated plan was reused without a model */
   reusedFrom?: string;
+  /**
+   * The model was not properly reached: "unreachable: …" (the gateway did not answer / returned no JSON
+   * after an error) or "fallback: <model>" (another provider answered, not Slingring). Such a result is
+   * not a verdict on the case — the caller compiles it again later rather than storing it.
+   */
+  gateway?: string;
   ms: number;
 }
 
@@ -308,6 +339,20 @@ export const OPS: Record<OpId, OpDef> = {
   read_line_items: { id: "read_line_items", kind: "read", method: "GET", path: "/event_groups/{{eventGroupUuid}}/get_line_items", actor: "buyer", actors: ["buyer"], template: "—", needs: ["eventGroupUuid"], produces: [], does: "lists the event's line items" },
   read_indicators: { id: "read_indicators", kind: "read", method: "GET", path: "/v1/trade/{{tradeId}}/event_indicators", actor: "buyer", actors: ["buyer", "vendor"], template: "—", needs: ["tradeId"], produces: [], does: "reads the round's comparison (ranks, best bidder)" },
   list_events: { id: "list_events", kind: "read", method: "GET", path: "/orders", actor: "buyer", actors: ["buyer", "vendor"], template: "—", needs: [], produces: [], does: "lists events" },
+  // bids#show (plain route; the supplier app may call it — actors.ts VENDOR_APP_PLAIN) — the bid as its owner or the buyer sees it
+  read_bid: { id: "read_bid", kind: "read", method: "GET", path: "/bids/{{bidUuid}}", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "—", needs: ["bidUuid"], produces: [], does: "reads the bid" },
+  // proposal#show — the award proposal (buyer only)
+  read_proposal: { id: "read_proposal", kind: "read", method: "GET", path: "/proposal/{{proposalUuid}}", actor: "buyer", actors: ["buyer"], template: "—", needs: ["proposalUuid"], produces: [], does: "reads the award proposal" },
+  // event_groups#history — the event's change history (both apps may call it)
+  read_history: { id: "read_history", kind: "read", method: "GET", path: "/event_groups/{{eventGroupUuid}}/history", actor: "buyer", actors: ["buyer", "vendor"], template: "—", needs: ["eventGroupUuid"], produces: [], does: "reads the event's history" },
+  /**
+   * THE CASE'S OWN REQUEST (10 Nov). Hundreds of written cases name their request outright — "`PATCH
+   * /bids/{{bidUuid}}/reject` with `{"rejection_remarks": …, "allow_rebidding": true}`" — on routes no
+   * operation covers (reject a bid, weights, reminders, documents, chats). The step carries method, path
+   * and body as the case writes them; the validator keeps it to the sourcing-event routes, known
+   * placeholders and the actor whose app may call the route. A verify step may be a GET request too.
+   */
+  request: { id: "request", kind: "write", method: "", path: "", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "the case's own request, as written", needs: [], produces: [], does: "sends the request the case itself writes" },
 
   create_draft: { id: "create_draft", kind: "write", method: "POST", path: "/event_groups", actor: "buyer", actors: ["buyer", "vendor"], template: "bodies.buildEventGroupBody (journey step: create the draft)", needs: ["productUuid", "productQualityUuid"], produces: ["eventGroupUuid", "lineItemUuid"], does: "creates a draft event" },
   add_rfq_round: { id: "add_rfq_round", kind: "write", method: "POST", path: "/trade/template_input?template_name=trade&additional_fields=order_details", actor: "buyer", actors: ["buyer"], template: "bodies.buildPricingStageBody (journey step: add the pricing round)", needs: ["eventGroupUuid", "lineItemUuid"], produces: ["pricingTradeUuid", "tradeId"], does: "adds a pricing (RFQ) round to the event" },
@@ -615,7 +660,14 @@ const READ_HINTS: Partial<Record<OpId, string>> = {
   read_line_items: "(shape not sampled yet — use status_2xx / non_empty on the root)",
   read_indicators: "auction_identifiers_data.<vendor company uuid>.inline.<line item uuid>.rank.best_bidder",
   list_events: "(a list — use status_2xx)",
+  read_bid: "(shape not sampled yet — use status_2xx / exists on the fields the case names)",
+  read_proposal: "(shape not sampled yet — use status_2xx / exists on the fields the case names)",
+  read_history: "(shape not sampled yet — use status_2xx / non_empty on the root)",
+  request: "a GET the case names: {\"op\":\"request\",\"request\":{\"method\":\"GET\",\"path\":\"/…\"},\"assert\":[…]} (shape unknown — assert the fields the case names)",
 };
+
+/** Routes a `request` step may send: the sourcing-event area and what hangs off an event (reminders, messages). */
+const REQUEST_DOMAIN = /^\/(event_groups|trade|v1\/trade|v1\/bids|bids|template_responses|evaluations|proposal|item_versions|additional_request|user_intents|orders|reminders|v1\/chats|templates\/upload_attachment|v1\/attachments)(\/|\?|$)/;
 
 // ── validation ──────────────────────────────────────────────────────────────
 
@@ -650,17 +702,73 @@ export interface Validation {
   ok: boolean;
   errors: string[];
   warnings: string[];
+  /**
+   * Problems with the plan's READING of the case (its expected outcome contradicts the case's words).
+   * The plan is still runnable; the compiler sends them back to the model once for a repair and,
+   * when the repair does not help, keeps the plan with the gap named.
+   */
+  soft: string[];
   plan: ApiPlan;
+}
+
+/** The case's words, when the validator has them: used to check the outcome and the actor. */
+export interface ValidateContext {
+  text?: string;
+  /** the title and the expected-result column — what the case expects, without the long prose */
+  heads?: string[];
+}
+
+const METHODS = new Set(["GET", "POST", "PATCH", "PUT"]);
+
+/** Would this actor's APP be refused this request at the gate? (appAccess.ts / actors.ts) */
+function appBar(actor: ActorId, method: string, path: string): string | undefined {
+  const p = String(path).split("?")[0];
+  return actor === "buyer" ? appRefusal("console", method, p) : vendorAppRefusal(method, p);
+}
+
+/**
+ * A case ABOUT the wrong app being turned away ("a buyer token on POST /v1/bids is refused") must not
+ * have its actor corrected — but it can never run either: the 401 signs the session out (appAccess.ts).
+ */
+const CROSS_APP_CASE = /not authori[sz]ed to use this api|wrong app|cross-?app|app[- ]?key|app (gate|allow-?list)|(buyer|console)('s)? (token|session)\b[^.]{0,60}\b(vendor|supplier|bid)|(vendor|supplier)('s)? (token|session)\b[^.]{0,60}\b(buyer|console)/i;
+
+/** The actor whose app may send this, among those the op allows; undefined when none may. */
+function actorWhoMay(allowed: ActorId[], method: string, path: string, prefer: ActorId): ActorId | undefined {
+  const order: ActorId[] = [prefer, ...(["buyer", "vendor", "vendor2"] as ActorId[]).filter((x) => x !== prefer)];
+  return order.find((x) => allowed.includes(x) && !appBar(x, method, path));
+}
+
+/**
+ * The polarity of the case's words: the title / expected column first (what the case expects), the long
+ * prose last. null when the words do not say.
+ */
+export function casePolarity(ctx: ValidateContext | undefined): Outcome | null {
+  if (!ctx) return null;
+  // the whole title / expected column (an "HTTP 200" at its end counts), the long prose last
+  const heads = (ctx.heads ?? []).map((h) => String(h ?? "").slice(0, 400));
+  return [...heads, ctx.text ?? ""].map((h) => (h.trim() ? polarityOf(h) : null)).find((x) => x !== null) ?? null;
+}
+
+/** "HTTP 422, code 258 'You cannot re-schedule this event!'" → "258" */
+function codeInWords(text: string | undefined): string | undefined {
+  const m = String(text ?? "").match(/\b(?:error[_ ])?code\s*[:=]?\s*(\d{1,4})\b/i);
+  return m?.[1];
 }
 
 /**
  * Check a plan against the vocabulary. Unknown recipe, op, actor, field,
  * placeholder, assertion op or code → an error (the plan is not runnable);
  * smaller doubts → warnings. Normalises defaults (actors, decisive step).
+ *
+ * With the case's words (ctx): a step whose actor's app may not call its route
+ * is sent as the actor whose app may (a warning), unless the case is about
+ * that very refusal; an expected outcome that contradicts the case's words is
+ * a soft problem (see Validation.soft); a refusal code the case names is kept.
  */
-export async function validatePlan(raw: unknown): Promise<Validation> {
+export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise<Validation> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const soft: string[] = [];
   const p = (raw && typeof raw === "object" ? raw : {}) as Partial<ApiPlan>;
   const recipeId = (p.setup as any)?.recipe as RecipeId;
   const recipe = RECIPES[recipeId];
@@ -670,10 +778,38 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
   if (!acts.length && !verify.length) errors.push("the plan has no act and no verify step");
   if (acts.length > LIMITS.acts) errors.push(`at most ${LIMITS.acts} act steps (got ${acts.length})`);
   if (verify.length > LIMITS.verify) errors.push(`at most ${LIMITS.verify} verify steps (got ${verify.length})`);
-  const outcome = (p.expected as any)?.outcome as Outcome;
+  let outcome = (p.expected as any)?.outcome as Outcome;
   if (!["accept", "reject", "no-5xx"].includes(outcome)) errors.push(`expected.outcome must be accept, reject or no-5xx (got "${String(outcome)}")`);
   let code = (p.expected as any)?.code !== undefined && (p.expected as any)?.code !== null && (p.expected as any)?.code !== "" ? String((p.expected as any).code) : undefined;
   let message = typeof (p.expected as any)?.message === "string" ? (p.expected as any).message : undefined;
+  let codeInferred = (p.expected as any)?.codeInferred === true;
+  const caseText = [ctx?.text ?? "", ...(ctx?.heads ?? [])].join("\n");
+  const crossApp = !!ctx && CROSS_APP_CASE.test(caseText);
+
+  // ── the expected outcome against the case's words ──
+  const pol = casePolarity(ctx);
+  if (pol && ["accept", "reject", "no-5xx"].includes(outcome)) {
+    const recordsToday = /\bshould\b|\bmust\b|\bideally\b|\btoday\b|\bcurrently\b|current behaviou?r/i.test(caseText);
+    if (outcome === "no-5xx" && pol === "accept") {
+      outcome = "accept";
+      warnings.push("the plan checked only “no server error”; the case expects its action to go through, so that is what is checked");
+    } else if (pol === "reject" && outcome === "accept") {
+      soft.push("the case reads as “it is refused”, but the plan expects “it is accepted” — arrange the state that makes the app refuse the decisive step (a closed_* / withdrawn / uninvited setup, or the invalid input the case names) and set expected.outcome \"reject\"");
+    } else if (pol === "reject" && outcome === "no-5xx" && !recordsToday) {
+      soft.push("the case reads as “it is refused”, but the plan checks only “no server error” — set expected.outcome \"reject\" (with the app's code when the case names it)");
+    } else if (pol === "accept" && outcome === "reject") {
+      soft.push("the case reads as “it is accepted”, but the plan expects a refusal — set expected.outcome \"accept\" and plan only the steps the case describes");
+    }
+    // the code the case names is the code the plan expects
+    if (outcome === "reject" && !code) {
+      const named = codeInWords(caseText);
+      if (named) {
+        code = named;
+        codeInferred = false;
+        warnings.push(`expected.code ${named} taken from the case's words`);
+      }
+    }
+  }
   if (code !== undefined) {
     if (!/^\d{1,5}$/.test(code)) {
       errors.push(`expected.code "${code}" is not an app error code`);
@@ -685,15 +821,54 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
     if (outcome !== "reject") warnings.push("an error code only applies to an expected refusal; it is ignored");
   }
 
+  /** a request step's request, checked: method, path, domain, placeholders (errors pushed), and the needs it has */
+  const checkRequest = (n: string, r: OwnRequest | undefined, isVerify: boolean): { req?: OwnRequest; needs: string[]; body?: unknown } => {
+    const method = String(r?.method ?? "").toUpperCase();
+    if (!r || typeof r !== "object" || !METHODS.has(method) || typeof r.path !== "string" || !r.path.trim().startsWith("/")) {
+      errors.push(`${n}: a request step needs request.method (GET|POST|PATCH|PUT) and request.path ("/…")`);
+      return { needs: [] };
+    }
+    if (isVerify && method !== "GET") errors.push(`${n}: a read-back request must be a GET`);
+    // the cases write "/api/event_groups" for what the client sends as "/event_groups"
+    const path = r.path.trim().replace(/^\/api(?=\/)/, "");
+    const route = path.split("?")[0];
+    if (/[<>]/.test(path)) errors.push(`${n}: the path "${path}" names a record by description (<…>) — use a {{placeholder}} the setup provides`);
+    if (!REQUEST_DOMAIN.test(path)) errors.push(`${n}: ${method} ${route} is outside the sourcing-event area a plan may act on`);
+    if (/\/\d+(\/|$)/.test(route) || FORMATS.encodedId.test(route.split("/").pop() ?? "")) errors.push(`${n}: the path carries a fixed record id — a plan acts only on the records its own setup built`);
+    const req: OwnRequest = { method: method as OwnRequest["method"], path, ...(r.body !== undefined && r.body !== null && method !== "GET" ? { body: r.body } : {}) };
+    if (method === "GET" && r.body !== undefined && r.body !== null) warnings.push(`${n}: a GET sends no body; it was dropped`);
+    if (req.body !== undefined && (typeof req.body !== "object")) errors.push(`${n}: request.body must be a JSON object or list`);
+    const toks = tokensIn({ p: path, b: req.body ?? null });
+    const live = [...new Set(toks.filter((t) => LIVE_RECORD_PLACEHOLDERS.has(t)))];
+    if (live.length) errors.push(`${n}: it needs ${live.map((t) => `{{${t}}}`).join(", ")}, a live business record a plan never touches`);
+    const unknown = [...new Set(toks.filter((t) => !PLAN_PLACEHOLDERS.has(t) && !TIME_TOKEN.test(t) && !ACT_TOKEN.test(t) && !LIVE_RECORD_PLACEHOLDERS.has(t)))];
+    if (unknown.length) errors.push(`${n}: unknown placeholder${unknown.length > 1 ? "s" : ""} ${unknown.map((t) => `{{${t}}}`).join(", ")}`);
+    return { req, needs: [...new Set(toks.filter((t) => PLAN_PLACEHOLDERS.has(t)))], body: req.body };
+  };
+
+  /** the step's actor, corrected to one whose app may call the route (or an error when the case is about that refusal) */
+  const fixActor = (n: string, as: ActorId, allowed: ActorId[], method: string, path: string): ActorId => {
+    const bar = appBar(as, method, path);
+    if (!bar) return as;
+    const alt = crossApp ? undefined : actorWhoMay(allowed.filter((x) => x !== as), method, path, as === "buyer" ? "vendor" : "buyer");
+    if (alt) {
+      warnings.push(`${n}: sent as the ${alt} — ${bar}`);
+      return alt;
+    }
+    errors.push(`${n}: cannot be executed — ${bar}; such a call is answered 401 and signs the session out`);
+    return as;
+  };
+
   const have = new Set<string>(recipe?.provides ?? []);
   const normActs: ActStep[] = [];
   for (let i = 0; i < acts.length; i++) {
-    const src = (acts[i] ?? {}) as ActStep & { until?: string; price?: number };
-    // only the language's own keys survive (a stray top-level "until"/"price" is moved into params)
+    const src = (acts[i] ?? {}) as ActStep & { until?: string; price?: number; method?: string; path?: string; body?: unknown };
+    // only the language's own keys survive (a stray top-level "until"/"price" is moved into params; a stray method/path make a request)
     const a: ActStep = {
       op: src.op,
       ...(src.as !== undefined ? { as: src.as } : {}),
       ...(src.caseId !== undefined ? { caseId: src.caseId } : {}),
+      ...(src.request !== undefined ? { request: src.request } : src.op === "request" && src.method && src.path ? { request: { method: src.method as OwnRequest["method"], path: src.path, body: src.body } } : {}),
       ...(src.change !== undefined ? { change: src.change } : {}),
       ...(src.params !== undefined || src.until !== undefined || src.price !== undefined
         ? { params: { ...(src.params ?? {}), ...(src.until !== undefined ? { until: src.until as "close" } : {}), ...(src.price !== undefined ? { price: src.price } : {}) } }
@@ -712,10 +887,10 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
     }
     a.as = (a.as ?? op.actor) as ActorId;
     if (!op.actors.includes(a.as)) errors.push(`act ${n}: ${a.op} cannot be sent as ${a.as} (allowed: ${op.actors.join(", ")})`);
-    if (a.as === "vendor" && recipe && recipe.vendors < 1 && recipe.id !== "none") warnings.push(`act ${n}: the vendor is not invited to this setup — it acts as an outsider`);
-    if (a.as === "vendor2" && recipe && recipe.vendors < 2 && !normActs.some((x) => x.op === "add_vendor")) warnings.push(`act ${n}: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor`);
     let needs = [...op.needs];
     let body: unknown;
+    let method = op.method as string;
+    let path = op.path;
     if (a.op === "library") {
       const c = a.caseId ? library().byId.get(a.caseId) : undefined;
       const problem = libraryCaseProblem(c);
@@ -723,10 +898,35 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
       if (c) {
         needs = [...new Set(tokensIn({ p: c.path, b: c.body }).filter((t) => PLAN_PLACEHOLDERS.has(t)))];
         body = c.body;
+        method = String(c.method ?? "").toUpperCase();
+        path = String(c.path ?? "");
+        // the actor the library case was written for (libraryActProblems would otherwise name the mismatch as a gap)
+        const r = recipeForLibraryCase(c);
+        const head = `${c.title} ${c.preconditions ?? ""}`.toLowerCase().replace(/_/g, " ");
+        const vendorSide = /^(?:qa platform )?vendor\b|\bvendor (?:calls|session|user)\b|\bauthenticated vendor\b|\bsession: the invited vendor\b/.test(head);
+        if (vendorSide && a.as === "buyer" && !crossApp) {
+          a.as = r.actor === "vendor2" ? "vendor2" : "vendor";
+          warnings.push(`act ${n}: library case ${c.id} is written for a vendor's session — sent as the ${a.as}`);
+        } else if (!vendorSide && r.actor === "buyer" && a.as !== "buyer" && /\bbuyer\b/.test(head) && !crossApp) {
+          a.as = "buyer";
+          warnings.push(`act ${n}: library case ${c.id} is written for the buyer — sent as the buyer`);
+        }
+      }
+    } else if (a.op === "request") {
+      const r = checkRequest(`act ${n}`, a.request, false);
+      if (r.req) {
+        a.request = r.req;
+        needs = r.needs;
+        body = r.body;
+        method = r.req.method;
+        path = r.req.path;
       }
     } else {
       body = await sampleBody(a.op as OpId).catch(() => undefined);
     }
+    if (method && path && op.actors.length) a.as = fixActor(`act ${n}`, a.as, op.actors, method, path);
+    if (a.as === "vendor" && recipe && recipe.vendors < 1 && recipe.id !== "none") warnings.push(`act ${n}: the vendor is not invited to this setup — it acts as an outsider`);
+    if (a.as === "vendor2" && recipe && recipe.vendors < 2 && !normActs.some((x) => x.op === "add_vendor")) warnings.push(`act ${n}: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor`);
     if (a.op === "wait") {
       if (!recipe || recipe.eventType === null) errors.push(`act ${n}: there is no round to wait for in this setup`);
       const u = a.params?.until ?? "close";
@@ -738,7 +938,7 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
       if (!have.has(need)) {
         const by = ACT_PRODUCES[need];
         errors.push(
-          `act ${n}: ${a.op === "library" ? `library case ${a.caseId}` : a.op} needs {{${need}}}, which ${recipe ? `setup "${recipe.id}"` : "the setup"} does not provide${by ? ` (an earlier ${by.join(" / ")} step would)` : ""}`,
+          `act ${n}: ${a.op === "library" ? `library case ${a.caseId}` : a.op === "request" ? "the request" : a.op} needs {{${need}}}, which ${recipe ? `setup "${recipe.id}"` : "the setup"} does not provide${by ? ` (an earlier ${by.join(" / ")} step would)` : ""}`,
         );
       }
     }
@@ -773,7 +973,13 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
       if (ch.remove && ch.set !== undefined) errors.push(`act ${n}: change ${ch.path} both sets and removes`);
       if (!ch.remove && !("set" in ch)) errors.push(`act ${n}: change ${ch.path} neither sets nor removes`);
       if (body !== undefined && !pathResolves(body, ch.path, !!ch.add)) {
-        errors.push(`act ${n}: ${ch.add ? "the parent of " : ""}"${ch.path}" is not a field of ${a.op === "library" ? `${a.caseId}'s` : `the ${a.op}`} body${ch.add ? "" : " (use add:true for a new field)"}`);
+        // a new key whose parent exists: the model forgot add:true
+        if (!ch.add && !ch.remove && pathResolves(body, ch.path, true)) {
+          ch.add = true;
+          warnings.push(`act ${n}: "${ch.path}" is not a field of the ${a.op === "library" ? `${a.caseId}` : a.op} body — sent as a new field (add:true)`);
+        } else {
+          errors.push(`act ${n}: ${ch.add ? "the parent of " : ""}"${ch.path}" is not a field of ${a.op === "library" ? `${a.caseId}'s` : a.op === "request" ? "the request's" : `the ${a.op}`} body${ch.add ? "" : " (use add:true for a new field)"}`);
+        }
       }
       for (const t of tokensIn(ch.set)) {
         const actRef = t.match(ACT_TOKEN);
@@ -791,10 +997,23 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
         warnings.push(`act ${n}: the title was prefixed QA_Platform_ (sandbox naming)`);
       }
     }
+    // a request body's own {{act…}} tokens must point back
+    if (a.op === "request" && a.request?.body !== undefined)
+      for (const t of tokensIn(a.request.body)) {
+        const actRef = t.match(ACT_TOKEN);
+        if (actRef && (Number(actRef[1]) >= n || Number(actRef[1]) < 1)) errors.push(`act ${n}: {{${t}}} refers to a step that has not run yet`);
+      }
     if (a.expect !== undefined && !["accept", "reject", "no-5xx"].includes(a.expect)) errors.push(`act ${n}: expect must be accept, reject or no-5xx`);
     if (a.ifRefused !== undefined && !["pass", "inconclusive", "continue"].includes(a.ifRefused)) errors.push(`act ${n}: ifRefused must be pass, inconclusive or continue`);
     for (const pr of op.produces) have.add(pr);
     if (a.op === "add_vendor") have.add("vendor2Uuid");
+    // a request that opens a bid / proposal gives the plan that record
+    if (a.op === "request" && a.request) {
+      const k = endpointKey(a.request.method, a.request.path);
+      if (k === "POST /v1/bids") have.add("bidUuid");
+      if (k === "POST /proposal") have.add("proposalUuid");
+      if (k === "POST /template_responses") have.add("templateResponseUuid");
+    }
     normActs.push(a);
   }
   // the decisive act: the one marked, else the last that is not a wait
@@ -803,6 +1022,8 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
     if (last) last.decisive = true;
   }
   if (normActs.filter((a) => a.decisive).length > 1) errors.push("only one act can be the decisive one");
+  // the decisive step follows the plan's outcome unless it says otherwise; a stale "no-5xx" on it follows the flip above
+  for (const a of normActs) if (a.decisive && a.expect === "no-5xx" && outcome !== "no-5xx") delete a.expect;
   // A wait is capped at 6 minutes: an extension before it must stay inside that.
   const waitAt = normActs.findIndex((a) => a.op === "wait");
   if (waitAt > 0)
@@ -820,14 +1041,25 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
     const v = { ...verify[i] } as VerifyStep;
     const n = i + 1;
     const op = OPS[v.op as OpId];
-    if (!op || op.kind !== "read") {
-      errors.push(`verify ${n}: "${String(v.op)}" is not a read-back (use one of: ${Object.values(OPS).filter((o) => o.kind === "read").map((o) => o.id).join(", ")})`);
+    if (!op || (op.kind !== "read" && v.op !== "request")) {
+      errors.push(`verify ${n}: "${String(v.op)}" is not a read-back (use one of: ${Object.values(OPS).filter((o) => o.kind === "read").map((o) => o.id).join(", ")}, or a GET request)`);
       normVerify.push(v);
       continue;
     }
     v.as = (v.as ?? op.actor) as ActorId;
     if (!op.actors.includes(v.as)) errors.push(`verify ${n}: ${v.op} cannot be read as ${v.as}`);
-    for (const need of op.needs) if (!have.has(need)) errors.push(`verify ${n}: ${v.op} needs {{${need}}}, which nothing provides`);
+    let needs = [...op.needs];
+    let path = op.path;
+    if (v.op === "request") {
+      const r = checkRequest(`verify ${n}`, v.request, true);
+      if (r.req) {
+        v.request = { method: "GET", path: r.req.path };
+        needs = r.needs;
+        path = r.req.path;
+      }
+    }
+    if (path) v.as = fixActor(`verify ${n}`, v.as, op.actors, "GET", path);
+    for (const need of needs) if (!have.has(need)) errors.push(`verify ${n}: ${v.op === "request" ? "the request" : v.op} needs {{${need}}}, which nothing provides`);
     const asserts = Array.isArray(v.assert) ? v.assert : [];
     if (!asserts.length) errors.push(`verify ${n}: no assertions`);
     if (asserts.length > LIMITS.asserts) errors.push(`verify ${n}: at most ${LIMITS.asserts} assertions`);
@@ -854,7 +1086,7 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
         if (!have.has(t)) errors.push(`verify ${n}: the path uses {{${t}}}, which nothing provides`);
       const top = as.path.replace(/^\$\.?/, "").split(/[.[]/)[0];
       if (shape && top && !shape.includes(top)) errors.push(`verify ${n}: "${as.path}" — ${v.op} replies have no "${top}" field (seen: ${shape.slice(0, 14).join(", ")}…)`);
-      if (!shape && top) warnings.push(`verify ${n}: ${v.op}'s reply shape has not been sampled; "${as.path}" is unverified`);
+      if (!shape && top) warnings.push(`verify ${n}: ${v.op === "request" ? "the request" : v.op}'s reply shape has not been sampled; "${as.path}" is unverified`);
       if (["equals", "not_equals", "contains"].includes(as.op) && as.value === undefined) errors.push(`verify ${n}: ${as.op} needs a value`);
       if (as.op === "one_of" && !Array.isArray(as.value)) errors.push(`verify ${n}: one_of needs a list`);
       if (["count", "count_gte", "gte", "lte"].includes(as.op) && typeof as.value !== "number") errors.push(`verify ${n}: ${as.op} needs a number`);
@@ -885,19 +1117,20 @@ export async function validatePlan(raw: unknown): Promise<Validation> {
       outcome: outcome ?? "no-5xx",
       ...(code && outcome === "reject" ? { code } : {}),
       ...(message && outcome === "reject" ? { message } : {}),
-      ...(code && outcome === "reject" && (p.expected as any)?.codeInferred === true ? { codeInferred: true } : {}),
+      ...(code && outcome === "reject" && codeInferred ? { codeInferred: true } : {}),
     },
     ...(typeof p.dependsOnSetting === "string" && p.dependsOnSetting.trim() ? { dependsOnSetting: p.dependsOnSetting.trim().slice(0, 240) } : {}),
   };
-  return { ok: errors.length === 0, errors, warnings, plan };
+  return { ok: errors.length === 0, errors, warnings, soft, plan };
 }
 
 /** The endpoints a plan sends, "METHOD /route/:id", in order (waits and library-less ops resolved). */
 export function planEndpoints(plan: ApiPlan): { all: string[]; decisive?: string } {
   const all: string[] = [];
   let decisive: string | undefined;
-  const ep = (a: { op: OpId; caseId?: string }): string[] => {
+  const ep = (a: { op: OpId; caseId?: string; request?: OwnRequest }): string[] => {
     if (a.op === "wait") return [];
+    if (a.op === "request") return a.request ? [endpointKey(a.request.method, a.request.path)] : [];
     if (a.op === "library") {
       const c = a.caseId ? library().byId.get(a.caseId) : undefined;
       return c ? [endpointKey(c.method, c.path)] : [];
@@ -975,6 +1208,10 @@ export function actInWords(a: ActStep): string {
     const what = c ? endpointInWords(c.method, c.path) : "the request";
     return `${who.charAt(0).toUpperCase()}${who.slice(1)} sends ${what}, exactly as the matching library case writes it${changeWords(a.change)}.`;
   }
+  if (a.op === "request" && a.request) {
+    const what = endpointInWords(a.request.method, a.request.path);
+    return `${who.charAt(0).toUpperCase()}${who.slice(1)} sends ${what}, the request the case itself writes${changeWords(a.change)}.`;
+  }
   let verb = pricedWords(a) ?? OPS[a.op]?.does ?? a.op;
   if (a.params?.round) verb = verb.replace(/\bthe (live )?round\b|the round's|the pricing round/, (m) => (a.params!.round === "technical" ? m.replace(/round|pricing round/, "technical round") : m.replace(/\bround\b/, "pricing round").replace("pricing pricing", "pricing")));
   const forWho = a.params?.vendor ? ` for ${ACTOR_WORD[a.params.vendor]}` : "";
@@ -1019,7 +1256,8 @@ function imperative(does: string): string {
 export function verifyInWords(v: VerifyStep): string {
   if (v.say) return v.say;
   const who = ACTOR_WORD[v.as ?? "buyer"];
-  return `As ${who}, ${imperative(OPS[v.op]?.does ?? v.op)} and check that ${v.assert.map(assertWords).join("; ")}.`;
+  const does = v.op === "request" && v.request ? `read ${endpointInWords("GET", v.request.path)}` : imperative(OPS[v.op]?.does ?? v.op);
+  return `As ${who}, ${does} and check that ${v.assert.map(assertWords).join("; ")}.`;
 }
 
 export function planInWords(plan: ApiPlan): { preconditions: string; steps: string[]; expected: string } {
@@ -1245,9 +1483,191 @@ function rulesPlan(text: string): { plan: Omit<ApiPlan, "version" | "title">; ru
   return null;
 }
 
+// ── read-backs added in code (10 Nov) ────────────────────────────────────────
+
+/** The event's status right after its recipe is built. */
+function recipeEventStatus(r: Recipe): "draft" | "active" | undefined {
+  if (!r.eventType) return undefined;
+  return r.steps.includes("publish") ? "active" : "draft";
+}
+
+/** What the plan knows after act `upto` (placeholders the setup and the acts so far provide). */
+function providedAfter(plan: ApiPlan, upto: number): Set<string> {
+  const have = new Set<string>(RECIPES[plan.setup.recipe]?.provides ?? []);
+  for (const a of plan.act.slice(0, upto + 1)) {
+    for (const pr of OPS[a.op]?.produces ?? []) have.add(pr);
+    if (a.op === "add_vendor") have.add("vendor2Uuid");
+    if (a.op === "request" && a.request) {
+      const k = endpointKey(a.request.method, a.request.path);
+      if (k === "POST /v1/bids") have.add("bidUuid");
+      if (k === "POST /proposal") have.add("proposalUuid");
+    }
+  }
+  return have;
+}
+
+/**
+ * A plan with no read-back gets one, decided from its decisive step and outcome: an accepted change is
+ * read back as kept (the title sent, the status reached, a bid counted, a proposal present); a refused
+ * one as not applied (the status unchanged, no extra bid). Only reads whose fields were seen in real
+ * replies (READ_SHAPES); when the validator does not accept the read, the plan stays as it was.
+ */
+export async function autoVerify(plan: ApiPlan): Promise<{ plan: ApiPlan; added?: string }> {
+  if (plan.verify.length || !plan.act.length) return { plan };
+  const recipe = RECIPES[plan.setup.recipe];
+  if (!recipe) return { plan };
+  const di = plan.act.findIndex((a) => a.decisive);
+  if (di < 0) return { plan };
+  const a = plan.act[di];
+  const n = di + 1;
+  const outcome = plan.expected.outcome;
+  if (outcome === "no-5xx") return { plan };
+  const accept = outcome === "accept";
+  const have = providedAfter(plan, di);
+  const status0 = recipeEventStatus(recipe);
+  const lc = a.op === "library" && a.caseId ? library().byId.get(a.caseId) : undefined;
+  const key = a.op === "library" ? (lc ? endpointKey(lc.method, lc.path) : "") : a.op === "request" && a.request ? endpointKey(a.request.method, a.request.path) : OPS[a.op]?.method ? endpointKey(OPS[a.op].method, OPS[a.op].path) : "";
+  const body: any = a.op === "library" ? lc?.body : a.op === "request" ? a.request?.body : undefined;
+  const changes = a.change ?? [];
+  const eventShape = READ_SHAPES.read_event ?? [];
+  let v: VerifyStep | undefined;
+  const readEvent = (assert: Assertion[]): VerifyStep | undefined => (have.has("eventGroupUuid") && assert.length ? { op: "read_event", as: "buyer", assert } : undefined);
+  const readRound = (assert: Assertion[]): VerifyStep | undefined => (have.has("tradeId") && assert.length ? { op: "read_round", as: "buyer", assert } : undefined);
+  if (a.op === "update_event" || (key === "PATCH /event_groups/:id" && a.op !== "publish_event" && a.op !== "withdraw_event")) {
+    // the scalar fields the step sets, read back as sent (a title set by the template included)
+    const setKeys = new Set<string>();
+    for (const ch of changes) if (!ch.remove && typeof ch.set !== "object" && /^[A-Za-z_]\w*$/.test(ch.path) && eventShape.includes(ch.path)) setKeys.add(ch.path);
+    if (body && typeof body === "object") for (const [k, val] of Object.entries(body)) if (val !== null && typeof val !== "object" && eventShape.includes(k) && k !== "status") setKeys.add(k);
+    if (a.op === "update_event" && !changes.some((c) => c.path === "title" && c.remove)) setKeys.add("title");
+    const statusTo = changes.find((c) => c.path === "status" && typeof c.set === "string")?.set ?? (typeof body?.status === "string" ? body.status : undefined);
+    if (accept) {
+      const asserts: Assertion[] = [...setKeys].filter((k) => k !== "status").slice(0, 4).map((k) => ({ path: k, op: "equals" as const, value: `{{act${n}.body.${k}}}`, say: `the event's ${k.replace(/_/g, " ")} is what step ${n} sent` }));
+      if (typeof statusTo === "string" && eventShape.includes("status")) asserts.push({ path: "status", op: "equals", value: statusTo, say: `the event's status is ${statusTo}` });
+      v = readEvent(asserts);
+    } else if (setKeys.has("title")) {
+      v = readEvent([{ path: "title", op: "not_equals", value: `{{act${n}.body.title}}`, say: `the event's title is not the one step ${n} sent (nothing changed)` }]);
+    } else if (status0) {
+      v = readEvent([{ path: "status", op: "equals", value: status0, say: `the event is still ${status0} (nothing changed)` }]);
+    }
+  } else if (a.op === "publish_event") {
+    v = readEvent([{ path: "status", op: "equals", value: accept ? "active" : "draft", say: accept ? "the event is live" : "the event is still a draft (not published)" }]);
+  } else if (a.op === "withdraw_event") {
+    v = readEvent([{ path: "status", op: "equals", value: accept ? "withdrawn" : status0 ?? "active", say: accept ? "the event is withdrawn" : `the event is still ${status0 ?? "active"} (not withdrawn)` }]);
+  } else if (a.op === "create_draft" && accept) {
+    v = readEvent([{ path: "status", op: "equals", value: "draft", say: "the new event is a draft" }]);
+  } else if (a.op === "add_rfq_round" || a.op === "add_rfp_round") {
+    if (accept) v = readEvent([{ path: "stages", op: "count_gte", value: 1, say: "the event carries the round" }]);
+    else if (recipe.id === "draft_event") v = readEvent([{ path: "stages", op: "count", value: 0, say: "the event still has no round (nothing was added)" }]);
+  } else if (a.op === "place_bid" || a.op === "submit_bid" || a.op === "surrogate_bid") {
+    v = readRound(accept ? [{ path: "bid_count", op: "gte", value: recipe.bids + 1, say: "the round counts the new bid" }] : [{ path: "bid_count", op: "equals", value: recipe.bids, say: "the round counts no new bid (the refused bid left nothing)" }]);
+  } else if ((a.op === "open_proposal" || a.op === "award_vendor") && accept) {
+    v = readEvent([{ path: "proposals", op: "non_empty", say: "the event carries the award proposal" }]);
+  }
+  if (!v) return { plan };
+  const withV: ApiPlan = { ...plan, verify: [v] };
+  const check = await validatePlan(withV);
+  if (!check.ok) return { plan };
+  return { plan: check.plan, added: `a read-back was added in code: ${verifyInWords(v)}` };
+}
+
+// ── the journey-step mutation family (API-N*), planned in code (10 Nov) ──────
+
+/**
+ * "Send `POST /trade/template_input` exactly as the journey does. Remove `widgets.inline_components[0].name`
+ * from the body." — one request of the event journey with one field removed or mistyped, expected refused.
+ * 138 written cases have exactly this shape. The journey's request IS the op's template body, so the case
+ * is the op plus the one change; the setup is the journey cut just before that step.
+ */
+const JOURNEY_STEP_OPS: Record<string, { op: OpId; as: ActorId; recipe: RecipeId; arrange: ActStep[] }> = {
+  "POST /event_groups": { op: "create_draft", as: "buyer", recipe: "none", arrange: [] },
+  "POST /trade/template_input": { op: "add_rfq_round", as: "buyer", recipe: "draft_event", arrange: [] },
+  "PATCH /event_groups/:id": { op: "publish_event", as: "buyer", recipe: "draft_rfq", arrange: [] },
+  "POST /v1/bids": { op: "open_bid", as: "vendor", recipe: "published_rfq", arrange: [] },
+  "POST /v1/bids/:id/create_bid_products": { op: "price_bid", as: "vendor", recipe: "published_rfq", arrange: [{ op: "open_bid", as: "vendor", expect: "accept", say: "The invited QA vendor opens a bid on the pricing round." }] },
+  "PATCH /v1/bids/:id": { op: "submit_bid", as: "vendor", recipe: "published_rfq", arrange: [{ op: "open_bid", as: "vendor", expect: "accept", say: "The invited QA vendor opens a bid on the pricing round." }, { op: "price_bid", as: "vendor", expect: "accept", say: "The vendor prices the line on the bid." }] },
+  "POST /template_responses": { op: "start_tech_response", as: "vendor", recipe: "published_rfp_rfq", arrange: [] },
+  "POST /template_responses/create_surrogate_response": { op: "surrogate_tech_response", as: "buyer", recipe: "published_rfp_rfq", arrange: [] },
+  "POST /bids/template_input": { op: "surrogate_bid", as: "buyer", recipe: "published_rfq", arrange: [] },
+  "POST /proposal": { op: "open_proposal", as: "buyer", recipe: "closed_rfq_with_bid", arrange: [] },
+  "POST /proposal/:id/add_response": { op: "award_vendor", as: "buyer", recipe: "closed_rfq_with_bid", arrange: [{ op: "open_proposal", as: "buyer", expect: "accept", say: "The buyer opens the award proposal." }] },
+  "POST /item_versions": { op: "new_version", as: "buyer", recipe: "awarded_rfq", arrange: [] },
+};
+
+export function journeyMutation(text: string, caseId?: string): { plan: Omit<ApiPlan, "version">; note: string } | { none: string } | null {
+  const m = text.match(/Send `(GET|POST|PATCH|PUT) ([^`]+)` exactly as the journey does\.\s*([\s\S]*?)(?:\nExpected:|$)/);
+  if (!m) return null;
+  const [, method, rawPath, rest] = m;
+  const key = `${method} ${rawPath.replace(/:[a-z_]+/g, ":id").split("?")[0]}`;
+  const spec = JOURNEY_STEP_OPS[key];
+  if (!spec) return { none: `the step the case mutates (${method} ${rawPath}) is not an operation the plan vocabulary sends — the journey's request for it has no builder here` };
+  const op = spec.op === "add_rfq_round" && (/\bRFP\b|technical/i.test(text.split("\n")[0]) || /^API-NRFPSTG/.test(caseId ?? "")) ? "add_rfp_round" : spec.op;
+  const change: Change[] = [];
+  const rm = rest.match(/Remove `([^`]+)` from the body/);
+  const st = rest.match(/Send `([^`]+)` as (.+?) \(it is (\w+) in a working request\)/);
+  if (rm) change.push({ path: rm[1], remove: true });
+  else if (st) {
+    let val: unknown = st[2].trim();
+    try {
+      val = JSON.parse(st[2].trim());
+    } catch {
+      val = st[2].trim().replace(/^"|"$/g, "");
+    }
+    change.push({ path: st[1], set: val });
+  } else return { none: `the change the case makes to the journey's request (“${rest.trim().slice(0, 80)}”) is not one the plan language writes (remove a field / send it with another type)` };
+  const expectedText = text.match(/\nExpected:\s*([\s\S]*)$/)?.[1] ?? "";
+  const outcome: Outcome = /refus|reject|4xx|not (?:created|accepted)|error/i.test(expectedText) ? "reject" : /accept|2xx|200|created|succeed/i.test(expectedText) ? "accept" : "no-5xx";
+  const field = change[0].path.split(".").pop()!.replace(/\[\d+\]$/, "").replace(/_/g, " ");
+  return {
+    plan: {
+      ...(caseId ? { caseId } : {}),
+      title: text.split("\n")[0].slice(0, 140),
+      setup: { recipe: spec.recipe },
+      act: [...spec.arrange.map((a) => ({ ...a })), { op, as: spec.as, change, decisive: true, say: `${spec.as === "buyer" ? "The buyer" : "The invited QA vendor"} ${OPS[op].does}, exactly as the journey does, ${rm ? `with the ${field} left out of the body` : `with the ${field} sent as ${JSON.stringify(change[0].set)}`}.` }],
+      verify: [],
+      expected: { outcome },
+    },
+    note: `planned in code: one journey request (${key}) with one field ${rm ? "removed" : "mistyped"}`,
+  };
+}
+
+/** Dotted paths of a body's keys, for the model's eyes ("line_items[0].quantity.value"). */
+function bodyKeyPaths(body: unknown, depth = 3, prefix = ""): string[] {
+  if (body === null || typeof body !== "object" || depth === 0) return [];
+  const out: string[] = [];
+  if (Array.isArray(body)) {
+    if (body.length) out.push(...bodyKeyPaths(body[0], depth, `${prefix}[0]`));
+    return out;
+  }
+  for (const [k, v] of Object.entries(body as Record<string, unknown>)) {
+    if (FORMATS.encodedId.test(k) || /^\{\{/.test(k)) continue;
+    const p = prefix ? `${prefix}.${k}` : k;
+    out.push(p);
+    if (v && typeof v === "object") out.push(...bodyKeyPaths(v, depth - 1, p));
+  }
+  return out;
+}
+
+let bodyKeysText: string | undefined;
+/** The real field paths of every write op's template body (so the model names fields that exist). */
+async function bodyKeysPrompt(): Promise<string> {
+  if (bodyKeysText !== undefined) return bodyKeysText;
+  const lines: string[] = [];
+  for (const op of Object.values(OPS)) {
+    if (op.kind !== "write" || op.id === "library" || op.id === "request" || op.id === "place_bid") continue;
+    const b = await sampleBody(op.id).catch(() => undefined);
+    const keys = bodyKeyPaths(b, 3);
+    if (!keys.length) continue;
+    const shown = keys.length > 28 ? [...keys.slice(0, 28), `… (${keys.length - 28} more)`] : keys;
+    lines.push(`  ${op.id}: ${shown.join(", ")}`);
+  }
+  bodyKeysText = lines.join("\n");
+  return bodyKeysText;
+}
+
 // ── compiling: the model (fast tier; reason tier once, if allowed) ──────────
 
-function vocabularyPrompt(cands: TestCaseRecord[]): string {
+async function vocabularyPrompt(cands: TestCaseRecord[]): Promise<string> {
+  const bodyKeys = await bodyKeysPrompt();
   const recipes = Object.values(RECIPES).map((r) => `  ${r.id}: ${r.title}`).join("\n");
   const ops = Object.values(OPS)
     .map((o) => `  ${o.id} [${o.kind}${o.method ? ` ${o.method}` : ""}${o.actors.length ? `; as ${o.actors.join("|")}` : ""}]: ${o.does}${o.needs.length ? `; needs ${o.needs.join(",")}` : ""}${o.produces.length ? `; gives ${o.produces.join(",")}` : ""}`)
@@ -1261,12 +1681,14 @@ ${recipes}
 
 OPERATIONS (act steps; reads are also verify steps):
 ${ops}
-  Body field paths you may change (dotted): create_draft: line_items[0].quantity.value, line_items[0].quantity.unitSymbol, line_items[0].product_uuid, status, title(add:true)
-  add_rfq_round / add_rfp_round: data (the round template's line items; set [] for "a template with no line items"), data[0].creator_quantity.value, configurations.bid_start_time, configurations.bid_end_time, configurations.extra_closing_time, configurations.title, audience_company_uuids
-  publish_event: title, draft_trade_request_uuids, audience_company_uuids, attachments, terms_and_conditions.clauses
-  update_event: title (default "QA_Platform_Renamed_{{stamp}}"); other keys need add:true
-  withdraw_event: withdraw_remark.remarks, status
-  extend_round: increase_auction_time (epoch seconds; default now+600), remarks
+  request: the case's OWN request when it names METHOD /path (and a body) and no operation covers it —
+    {"op":"request","as":"buyer|vendor","request":{"method":"PATCH","path":"/bids/{{bidUuid}}/reject","body":{"rejection_remarks":"QA_Platform_{{stamp}}","allow_rebidding":true}}}
+    routes allowed: /event_groups /trade /v1/trade /bids /v1/bids /template_responses /evaluations /proposal /item_versions /additional_request /reminders /v1/chats;
+    placeholders ONLY from the TOKENS list below (never a fixed id, never <description>); a verify step may be a GET request: {"op":"request","request":{"method":"GET","path":"/reminders/{{eventGroupUuid}}?resource_type=event_group"},"assert":[…]}
+  BODY FIELDS of each operation's working request (dotted paths you may set/remove with "change"; a path not listed needs add:true):
+${bodyKeys}
+  Notes: add_rfq_round / add_rfp_round "data" = the round template's line items (set [] for "a template with no line items");
+  update_event: title (default "QA_Platform_Renamed_{{stamp}}"); withdraw_event: withdraw_remark.remarks, status; extend_round: increase_auction_time (epoch seconds; default roundEnd+60), remarks
   price_bid / surrogate_bid: the price is params.price (a number) — a bid is never a library case. A surrogate bid with NO price: params.price null
   price_cap: the cap per unit is params.price, for the invited vendor (params.vendor "vendor2" for the second); a bid must be strictly BELOW it (equal is refused)  open_bid: trade_request_uuid, company_uuid
   library: the named case's own body keys
@@ -1299,6 +1721,8 @@ const EXAMPLES = `EXAMPLES
 interface ModelAnswer {
   plan: unknown;
   gaps: string[];
+  /** the answer did not come from the gateway's model: "unreachable: …" or "fallback: <model>" */
+  gateway?: string;
 }
 
 function parseModel(raw: string): ModelAnswer | null {
@@ -1319,27 +1743,37 @@ async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "r
     "You use ONLY the vocabulary given: recipes, operations, fields, tokens and assertion ops. Never invent an endpoint, field or recipe. " +
     "When part of the case cannot be expressed, keep the part that can and list the rest in gaps; when nothing can, return plan:null. Reply with JSON only.";
   const user =
-    `${vocabularyPrompt(cands)}\n\n${EXAMPLES}\n\n${worked ? `${worked}\n\n` : ""}RULES: the setup must create the state the case starts from (closed_* = the window is over; *_short = still open but closing in ~2 min, so a wait can see it close). ` +
+    `${await vocabularyPrompt(cands)}\n\n${EXAMPLES}\n\n${worked ? `${worked}\n\n` : ""}RULES: the setup must create the state the case starts from (closed_* = the window is over; *_short = still open but closing in ~2 min, so a wait can see it close). ` +
     `The decisive act is the one the case is about; earlier acts arrange (they must succeed; when an arrange act carries the case's own invalid input, give it "ifRefused":"pass"). Use verify read-backs when the case says something is kept, changed, shown or not changed. ` +
     `expected.code only when the app's error code is known (33 order not active/window over, 712 RFP ends after RFQ, 536 not allowed to view, 455/101 not authorised, 95 stage closed or withdrawn, 2 insufficient parameters, 801 proposal exists, 96 the vendor already bid themselves (surrogate refused), 99 a surrogate bid already exists for the vendor, 737 technical response pending, 512 cannot remove a vendor who already participated, 782 uninvited vendor cannot bid, 34 a bid already placed from your team, 875 revise locked after submission, 94 already converted to auction); otherwise leave it out. ` +
-    `Use no-5xx only when the case is about not crashing; a case that says something is refused expects reject.\n\n` +
+    `Use no-5xx only when the case is about not crashing; a case that says something is REFUSED by the app (cannot / not allowed / HTTP 4xx / an error code) expects reject — but "the buyer rejects a bid", "the vendor regrets a line", "blocks the vendor" are product ACTIONS the app performs on request: plan them as accept unless the case says the app turns them away — and the setup + earlier acts must create the state that makes the app refuse it. A case that says something works or is kept expects accept, with a verify read-back of what was kept. ` +
+    `Send each step as the actor whose app may call it: /v1/bids and bid submission are the vendor's (as "vendor"); event, round, audience, surrogate, award and indicator calls are the buyer's.\n\n` +
     `TEST CASE:\n"""${text.slice(0, 1200)}"""\n\n` +
     (repair ? `Your previous answer:\n${repair.previous.slice(0, 1800)}\nIt failed validation:\n- ${repair.errors.slice(0, 8).join("\n- ")}\nFix it.\n\n` : "") +
     `Reply: {"plan":{"title":"…","setup":{"recipe":"…"},"act":[…],"verify":[…],"expected":{"outcome":"accept|reject|no-5xx","code":"…"}},"gaps":["what the plan does not check"]}`;
+  const before = usageReport().byModel;
+  let raw: string;
   try {
-    const raw = await chat(
+    raw = await chat(
       [
         { role: "system", content: sys },
         { role: "user", content: user },
       ],
-      { tier, maxTokens: tier === "reason" ? 2400 : 1600 },
+      { tier, maxTokens: tier === "reason" ? 2400 : 2200 },
     );
-    const a = parseModel(raw);
-    if (a) (a as any).raw = raw;
-    return a;
-  } catch {
-    return null;
+  } catch (e) {
+    return { plan: null, gaps: [], gateway: `unreachable: ${String((e as Error).message ?? e).slice(0, 160)}` };
   }
+  // Which model answered: a Slingring answer is tallied under the model the gateway served (lastServedModel);
+  // a call tallied under any other model came from the next provider in the chain (Groq, Gemini).
+  const after = usageReport().byModel;
+  const answered = Object.keys(after).filter((m) => (after[m]?.calls ?? 0) > (before[m]?.calls ?? 0));
+  const fallback = answered.find((m) => m !== lastServedModel);
+  const a = parseModel(raw);
+  if (!a) return { plan: null, gaps: [], gateway: fallback ? `fallback: ${fallback}` : `unreachable: the answer was not JSON (${raw.trim().slice(0, 80) || "empty"})` };
+  (a as any).raw = raw;
+  if (fallback) a.gateway = `fallback: ${fallback}`;
+  return a;
 }
 
 // ── coverage, decided in code ───────────────────────────────────────────────
@@ -1348,9 +1782,24 @@ const UI_WORDS = /\b(?:screen|page|button|click\w*|drawer|modal|popup|toast|tool
 const STATE_WORDS = /\bkeeps?\b|\bkept\b|\bretain\w*|\bpersist\w*|\bstill\b|\bafterwards?\b|\bread[- ]?back\b|\bunchanged\b|\bupdates?\b.*\bfor\b|\bshows?\b|\bsees?\b|\bstored\b|\bsaved\b|\bnot (?:changed|created)\b|\bnothing (?:is )?(?:created|changed)\b/;
 const OUT_OF_SCOPE = /\b(e-?mail(?:ed|s)?|notification|sms|whatsapp|pdf|excel|download|report|performance|load|concurren\w*|seconds? to load|purchase order|\bpo\b|invoice|grn|bulk upload|erp|sap)\b/;
 
+/**
+ * Product ACTIONS that share a word with a refusal: "the buyer rejects a bid", "the vendor regrets a line",
+ * "blocks the vendor", "cancels the round" are things the app does on request, not the app turning the
+ * request away. They are taken out of the words before the polarity is read.
+ */
+const DOMAIN_OBJECTS = "bids?|vendors?|participants?|proposals?|offers?|lines?|line items?|events?|rounds?|requests?|responses?|quotes?|suppliers?|re-?bidding";
+const DOMAIN_ACTIONS = new RegExp(`\\b(reject|regret|block|cancel|discard|disallow|decline|remove|revoke)\\w*\\s+(?:(?:a|an|the|its|his|her|their|that|this|each|every|one|all|both|qa|vendor\\s*\\d?'?s?|submitted|draft|own|same)\\s+)*(?:${DOMAIN_OBJECTS})\\b`, "g");
+/** the same actions in the passive: "the bid is rejected", "the vendor was blocked" */
+const DOMAIN_ACTIONS_PASSIVE = new RegExp(`\\b(?:${DOMAIN_OBJECTS})\\s+(?:is|are|was|were|gets?|got|has been|have been|stays?|remains?)\\s+(?:now\\s+)?(?:reject|regret|block|cancel|discard|remov|revok|declin)\\w*`, "g");
+
 export function polarityOf(t: string): Outcome | null {
-  const s = t.toLowerCase();
+  const s = t.toLowerCase().replace(DOMAIN_ACTIONS, "acts on it").replace(DOMAIN_ACTIONS_PASSIVE, "it is acted on");
   if (/\b(500|5xx|crash\w*|server error|must not break|never breaks?)\b/.test(s)) return "no-5xx";
+  // the HTTP status the case names says it plainly
+  if (/\bhttp\s*(?:4\d\d|4xx)\b|\b(?:422|401|403|404|400|409)\b[ ,]*(?:code|unprocessable|unauthori)/.test(s)) return "reject";
+  if (/\bhttp\s*(?:2\d\d|2xx)\b/.test(s) && !/\b(cannot|can't|refus\w*|not allowed|is denied|must not|should not)\b/.test(s)) return "accept";
+  // "code 33 'Order not active'" — an app error code with its message is a refusal
+  if (/\bcode\s+\d{1,4}\b\s*['‘"“]/.test(s)) return "reject";
   if (/\b(cannot|can't|can not|not allowed|refus\w*|reject\w*|block\w*|prevent\w*|disallow\w*|is denied|fails?|error|invalid|must not|should not|isn't allowed|not be able)\b/.test(s)) return "reject";
   // "check whether a vendor can bid…" is a question, not an expected outcome
   if (/\b(whether|check if|verify if|see if|find out if)\b|\?/.test(s)) return null;
@@ -1362,7 +1811,7 @@ function judgeCoverage(text: string, plan: ApiPlan, modelGaps: string[], extra: 
   const gaps = [...modelGaps.filter((g) => g.trim()), ...extra];
   const t = text.toLowerCase();
   // the title says what the case expects; the long prose (code notes) is noisy
-  const pol = [...heads.map((h) => h.split(/(?<=[.;])\s|\n/)[0]), text].map((h) => polarityOf(h)).find((x) => x !== null) ?? null;
+  const pol = casePolarity({ text, heads });
   if (pol && pol !== plan.expected.outcome && !(pol === "reject" && plan.expected.outcome === "no-5xx" && /should|must|ideally/.test(t)))
     gaps.push(`the case reads as “${OUTCOME_WORD[pol]}”, but the plan checks “${OUTCOME_WORD[plan.expected.outcome]}”`);
   if (STATE_WORDS.test(t) && !plan.verify.length) gaps.push("it does not read the record back to confirm what was kept or shown");
@@ -1437,6 +1886,9 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
   const cat = input.caseId ? caseById(input.caseId) : null;
   const libCase = input.caseId ? lib.byId.get(input.caseId) : undefined;
   const text = (input.text ?? (cat ? catalogCaseText(cat) : libCase ? `${libCase.title.replace(/_/g, " ")}. ${libCase.preconditions ?? ""} Expected: ${libCase.expectedResult}` : "")).trim();
+  let gateway: string | undefined;
+  const heads = cat ? [cat.title, cat.expected].filter(Boolean) : [];
+  const ctx: ValidateContext = { text, heads };
   const out = (r: Partial<CompiledApiPlan> & Pick<CompiledApiPlan, "plan" | "coverage" | "gaps" | "source">): CompiledApiPlan => {
     const after = usageReport();
     const sum = (u: ReturnType<typeof usageReport>, k: "calls" | "promptTokens" | "completionTokens") => Object.values(u.byModel).reduce((n, x) => n + x[k], 0);
@@ -1448,6 +1900,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       ...r,
       endpoints: [...new Set(eps.all)],
       decisiveEndpoint: eps.decisive,
+      ...(gateway ? { gateway } : {}),
       llm: {
         calls: sum(after, "calls") - sum(before, "calls"),
         promptTokens: sum(after, "promptTokens") - sum(before, "promptTokens"),
@@ -1460,6 +1913,22 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     };
   };
   if (!text && !libCase) return out({ plan: null, coverage: "none", gaps: ["nothing to compile — no text and no known case id"], source: "none" });
+  /** a validated plan → its read-back (when none), then its coverage */
+  const finish = async (v: Validation, modelGaps: string[], extra: string[], rest: Partial<CompiledApiPlan> & Pick<CompiledApiPlan, "source">): Promise<CompiledApiPlan> => {
+    const av = await autoVerify(v.plan);
+    const cov = judgeCoverage(text, av.plan, modelGaps, extra, heads);
+    return out({ ...rest, plan: av.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...(rest.warnings ?? v.warnings), ...(av.added ? [av.added] : [])] });
+  };
+
+  // 0 · one journey request with one field removed or mistyped (API-N*): planned in code, no model.
+  if (!opts.modelOnly) {
+    const jm = journeyMutation(text, input.caseId);
+    if (jm && "none" in jm) return out({ plan: null, coverage: "none", gaps: [jm.none], source: "rules" });
+    if (jm) {
+      const v = await validatePlan({ ...jm.plan, version: PLAN_VERSION }, ctx);
+      if (v.ok) return finish(v, [], [], { source: "rules", warnings: [...v.warnings, jm.note], candidates: [] });
+    }
+  }
 
   // 1 · a case that IS, or cites, a runnable library case: compiled without a model.
   let libraryUnbuilt: string | undefined;
@@ -1469,15 +1938,12 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     if (usable) {
       const { plan, gaps, unbuilt } = await planFromLibraryCase(usable, input.caseId);
       if (cat) plan.title = cat.title;
-      const v = await validatePlan(plan);
+      const v = await validatePlan(plan, ctx);
       // A starting state no recipe builds would make the library request test
       // the wrong thing (and a "failure" a false positive): the model may
       // arrange it with extra steps; without one, there is no plan.
       if (v.ok && unbuilt) libraryUnbuilt = `the starting state “${unbuilt}” is more specific than any recipe — library case ${usable.id} cannot run as written on a fresh record`;
-      else if (v.ok) {
-        const cov = judgeCoverage(text, v.plan, [], gaps, [cat?.title ?? "", cat?.expected ?? ""].filter(Boolean));
-        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: "library-case", candidates: [usable.id] });
-      }
+      else if (v.ok) return finish(v, [], [...gaps, ...v.soft.map((g) => g.split(" — ")[0])], { source: "library-case", candidates: [usable.id] });
     }
   }
 
@@ -1500,14 +1966,9 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       if (!opts.modelOnly) {
         const fit = ex.exactFit(text, exHits, input.caseId, cat?.title ?? text.split("\n")[0].slice(0, 140));
         if (fit) {
-          const v = await validatePlan(fit.plan);
-          if (v.ok) {
-            const cov = judgeCoverage(text, v.plan, [], [], cat ? [cat.title, cat.expected] : []);
-            return out({
-              plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...v.warnings, fit.why], source: "exemplar",
-              candidates: [fit.from.ex.id], exemplars: exSummary(exHits), reusedFrom: fit.from.ex.id,
-            });
-          }
+          const v = await validatePlan(fit.plan, ctx);
+          if (v.ok && !v.soft.length)
+            return finish(v, [], [], { source: "exemplar", warnings: [...v.warnings, fit.why], candidates: [fit.from.ex.id], exemplars: exSummary(exHits), reusedFrom: fit.from.ex.id });
         }
       }
       worked = ex.workedExamples(exHits.slice(0, 4));
@@ -1523,7 +1984,8 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     .map((h) => h.ex.libraryId ?? h.ex.plan?.act.find((a) => a.op === "library")?.caseId)
     .map((id) => (id ? lib.byId.get(id) : undefined))
     .filter((c): c is TestCaseRecord => !!c && !libraryCaseProblem(c) && !cited.includes(c));
-  const cands = [...new Set([...cited, ...fromExemplars.slice(0, 3), ...nearestLibraryCases(text).filter((c) => !cited.includes(c))])].slice(0, 8);
+  // A library case whose starting state no recipe builds is never offered: a plan that sent it would test the wrong thing.
+  const cands = [...new Set([...cited, ...fromExemplars.slice(0, 3), ...nearestLibraryCases(text, 8).filter((c) => !cited.includes(c))])].filter((c) => !recipeForLibraryCase(c).unbuilt).slice(0, 8);
   const useModel = opts.llm !== false && llmMode() !== "fallback";
   let lastErrors: string[] = [];
   let lastWarnings: string[] = [];
@@ -1533,12 +1995,15 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
   if (useModel) {
     const tiers: Array<"fast" | "reason"> = ["fast", "fast", ...(opts.allowReason ? (["reason"] as const) : [])];
     let previous: string | undefined;
+    /** a runnable plan whose reading of the case the validator doubts (soft) — kept when the repair does not do better */
+    let kept: { v: Validation; ans: ModelAnswer; tier: "fast" | "reason" } | undefined;
     for (let i = 0; i < tiers.length; i++) {
       const tier = tiers[i];
       if (tier === "reason") reasonTried = true;
       const ans = await askModel(text, cands, tier, previous && lastErrors.length ? { previous, errors: lastErrors } : undefined, worked);
-      if (!ans) {
-        lastErrors = ["the model's answer was not JSON"];
+      if (ans?.gateway) gateway = ans.gateway;
+      if (!ans || (ans.plan === null && !ans.gaps.length && ans.gateway)) {
+        lastErrors = [`the model could not be reached: ${ans?.gateway ?? "no answer"}`];
         continue;
       }
       previous = (ans as any).raw ?? JSON.stringify(ans.plan);
@@ -1553,13 +2018,21 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
         const stated = new RegExp(`\\b${mcode}\\b`).test(text) || cands.some((c) => codeIn(c.expectedResult) === mcode && (mp.act ?? []).some((a) => a.caseId === c.id));
         if (!stated) (mp.expected as any).codeInferred = true;
       }
-      const v = await validatePlan({ ...(ans.plan as object), ...(input.caseId ? { caseId: input.caseId } : {}) });
+      const v = await validatePlan({ ...(ans.plan as object), ...(input.caseId ? { caseId: input.caseId } : {}) }, ctx);
       lastWarnings = v.warnings;
+      const src = tier === "reason" ? "llm-reason" : "llm-fast";
+      if (v.ok && !v.soft.length) return finish(v, ans.gaps, libraryActProblems(v.plan), { source: src, candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
       if (v.ok) {
-        const cov = judgeCoverage(text, v.plan, ans.gaps, libraryActProblems(v.plan), cat ? [cat.title, cat.expected] : []);
-        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: tier === "reason" ? "llm-reason" : "llm-fast", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
+        // runnable, but it reads the case differently than the words do: one repair round, then keep the better of the two
+        if (!kept || v.soft.length < kept.v.soft.length) kept = { v, ans, tier };
+        lastErrors = v.soft;
+        continue;
       }
       lastErrors = v.errors;
+    }
+    if (kept) {
+      const src = kept.tier === "reason" ? "llm-reason" : "llm-fast";
+      return finish(kept.v, kept.ans.gaps, [...libraryActProblems(kept.v.plan), ...kept.v.soft.map((g) => g.split(" — ")[0])], { source: src, candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
     }
   }
 
@@ -1567,11 +2040,8 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
   if (!opts.modelOnly) {
     const r = rulesPlan(text);
     if (r) {
-      const v = await validatePlan({ ...r.plan, title: text.split("\n")[0].slice(0, 140), ...(input.caseId ? { caseId: input.caseId } : {}) });
-      if (v.ok) {
-        const cov = judgeCoverage(text, v.plan, [], ["compiled by a fixed rule, not read in full — check the steps match the case"], cat ? [cat.title, cat.expected] : []);
-        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: "rules", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits) });
-      }
+      const v = await validatePlan({ ...r.plan, title: text.split("\n")[0].slice(0, 140), ...(input.caseId ? { caseId: input.caseId } : {}) }, ctx);
+      if (v.ok) return finish(v, [], ["compiled by a fixed rule, not read in full — check the steps match the case", ...v.soft.map((g) => g.split(" — ")[0])], { source: "rules", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits) });
       lastErrors = [...lastErrors, ...v.errors.map((e) => `rule: ${e}`)];
     }
   }
