@@ -5,6 +5,7 @@
  *   npx tsx scripts/night-ui-run.ts --c 198678 --budget-min 420 [--groups SRC,DRV] [--chunk 20] [--limit N]
  *     --coverage full,partial   which stored verdicts to run (default both, full first)
  *     --skip-ran                leave out cases a sheet run already recorded tonight (default on; --no-skip-ran to rerun)
+ *     --skip-groups SRC-AUC     leave these groups out (a known automation trap)
  *     --repair                  switch on the sheet runner's repair pass (teach a stuck locator, build steps from the screen library)
  *
  * What it runs: every case the night compile stored (data/compiled-plans/ui-text, compiledUiText.ts)
@@ -48,6 +49,8 @@ const CHUNK = Math.max(1, Number(arg("chunk")) || 20);
 const LIMIT = Number(arg("limit")) || Infinity;
 const COVERAGE = new Set((arg("coverage") ?? "full,partial").split(",").map((s) => s.trim()));
 const GROUPS = (arg("groups") ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+/** groups left out tonight (e.g. SRC-AUC while the single-stage auction drawer trap is open) */
+const SKIP = (arg("skip-groups") ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
 const SKIP_RAN = !flag("no-skip-ran");
 const REPAIR = flag("repair");
 const OUT_DIR = join(here, "..", "data", "night");
@@ -85,6 +88,7 @@ for (const sp of allStoredTextPlans()) {
   const m = sp.meta;
   if (m.source === "fallback" || !COVERAGE.has(m.coverage) || m.unbuilt || !sp.plan?.steps?.length) { left[m.unbuilt ? "start state not built" : m.source === "fallback" ? "fallback" : m.coverage] = (left[m.unbuilt ? "start state not built" : m.source === "fallback" ? "fallback" : m.coverage] ?? 0) + 1; continue; }
   if (GROUPS.length && !GROUPS.includes(prefix(m.caseId)) && !GROUPS.includes(m.group.toUpperCase())) continue;
+  if (SKIP.length && (SKIP.includes(prefix(m.caseId)) || SKIP.includes(m.group.toUpperCase()))) { left["skipped group"] = (left["skipped group"] ?? 0) + 1; continue; }
   if (ran.has(m.caseId)) { left["ran already"] = (left["ran already"] ?? 0) + 1; continue; }
   if (!textPlanIsFresh(sp)) { left["stale plan (compile again)"] = (left["stale plan (compile again)"] ?? 0) + 1; continue; }
   const sc = sheetCaseById(m.caseId);
