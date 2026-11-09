@@ -120,3 +120,7 @@ the vendor's bid body prices a product row, not activity rates; a service build 
 - The vendor-side two_bids/uninvited routes rely on the UI runner's open_prepared{screen:"vendor"} signing in as context.vendorEmail
   (runPlan.ts 1119): not exercised tonight (no browser).
 - Events created tonight on DEMO: 12 (all spine-API-automation-<n>, QA vendors only, rounds open 1 h).
+
+## 01:55 — amended with a technical round (UI-XDAMD-011 "v1 of an amended RFP with responses")
+Built once: RFP + RFQ event, QA vendor's technical response and bid, new version issued and published → old stages RFP-24321, RFQ-24322
+(is_latest_version false), new RFP-24321.1, RFQ-24322.1 active. ~3 min. Events created tonight on DEMO: 13.
