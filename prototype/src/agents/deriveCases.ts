@@ -201,18 +201,39 @@ async function settingsForSubject(subject: string, companyId: number | undefined
   }
   return out;
 }
+let catalogCache: Array<{ id: string; title: string; steps?: string; expected?: string }> | null = null;
+/** The catalog cases about this subject: scored by the words they share with it (a phrase search found nothing). */
 function existingFor(subject: string, limit = 40): Array<{ id: string; title: string }> {
   try {
-    const found = findCases({ q: subject }) as Array<{ id: string; title: string }>;
+    catalogCache ??= findCases({}) as Array<{ id: string; title: string; steps?: string; expected?: string }>;
     const want = words(subject);
-    return found
-      .map((c) => ({ c, s: score(c.title, want) }))
+    // "reject" also appears as "rejects / rejected / rejection": compare on stems of 5 letters
+    const stem = (w: string) => w.slice(0, 5);
+    const stems = new Set([...want].map(stem));
+    return catalogCache
+      .map((c) => {
+        const have = new Set([...words(`${c.title} ${c.expected ?? ""}`)].map(stem));
+        let n = 0;
+        for (const w of stems) if (have.has(w)) n++;
+        return { c, s: n };
+      })
+      .filter((x) => x.s >= Math.min(2, stems.size))
       .sort((a, b) => b.s - a.s)
       .slice(0, limit)
       .map((x) => ({ id: x.c.id, title: x.c.title }));
   } catch {
     return [];
   }
+}
+/** Two titles that say the same thing: most of the significant word stems of the shorter are in the longer. */
+function sameTitle(a: string, b: string): boolean {
+  const stem = (w: string) => w.slice(0, 5);
+  const A = new Set([...words(a)].map(stem)), B = new Set([...words(b)].map(stem));
+  if (A.size < 3 || B.size < 3) return false;
+  const [small, big] = A.size <= B.size ? [A, B] : [B, A];
+  let n = 0;
+  for (const w of small) if (big.has(w)) n++;
+  return n / small.size >= 0.7;
 }
 
 // ── the model's two jobs: understand, then fill the matrix ────────────────
@@ -241,6 +262,7 @@ WALK EVERY DIMENSION and write a case for each cell that MEANS SOMETHING for thi
 - channel: the same request sent to the API directly (bypassing the screen) must be refused the same way; the mobile app where it applies;
 - calculation: every number on screen worked out (ranks, totals, savings, counters);
 - visibility: who sees what (vendor sees nothing of other vendors; masking; History vs Live).
+TITLES read like the team's sheet: what is checked, as a short sentence — "Reject Bid is disabled while bidding is on", never "Buyer successfully rejects…" or "…works correctly". Every case must be about THIS subject's behaviour (not a general field check that happens nearby). Name only controls Procol has (Reject Bid, Rejected Bids, Master QCS, Participants, Settings menu…).
 GROUND every case: cite the rule ids (R-…), setting keys, RCA ticket ids or product feature ids given below that it rests on — only those; never invent an id. A case that rests on nothing given is grounded "screen".
 WHAT BROKE BEFORE (the RCA tickets) must each get at least one case that would have caught it.
 ${STYLE_GUIDE}
@@ -358,7 +380,9 @@ export async function deriveCases(input: { text: string; companyId?: number; max
     const base = { ...house, configs: clean(d?.configs) || "None", status: "Not Run", module: `${module} — ${subject.slice(0, 60)}`, scenario: `${dimension}${d?.permission ? ` · ${clean(d.permission)}` : ""}` };
     const caseText = `${title}. ${steps.join(" ")} Expected: ${expected}`;
     const m = await matchTestCase(caseText, { llm: false, top: 3 }).catch(() => null);
-    const same = m?.decision === "existing" ? m.same.filter((c: any) => c.origin === "catalog")[0] : null;
+    const byMatcher = m?.decision === "existing" ? m.same.filter((c: any) => c.origin === "catalog")[0] : null;
+    const byTitle = existing.find((e) => sameTitle(e.title, title));
+    const same = byMatcher ?? byTitle ?? null;
     const row: DerivedCase = {
       id: same ? same.id : nextId(), ...base, steps: house.steps, dimension, grounded: grounded.length ? grounded : ["screen"],
       permission: d?.permission ? clean(d.permission) : undefined,
