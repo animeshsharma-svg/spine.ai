@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-076",
+  "title": "A currency that is not on the event is refused",
+  "compiledAt": "2026-11-09T22:56:02.265Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup recipe does not guarantee a multi-currency RFQ configured with INR and USD.",
+   "No available read-back exposes the event's configured currencies or verifies that GBP was not added."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.126Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-076",
+  "title": "A currency that is not on the event is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "GBP": 110
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

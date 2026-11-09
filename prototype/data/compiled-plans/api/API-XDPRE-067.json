@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-067",
+  "title": "Withdrawing logs which PR lines reopened and by how much",
+  "compiledAt": "2026-11-09T22:56:13.956Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not specify or guarantee a PR line quantity of 40.",
+   "The available read-back fields do not expose whether the line returned to open.",
+   "The available read-back fields do not expose activity-log entry type, event reference, or reopened quantity."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id/history"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event with the remarks set to “QA_Platform_…”.",
+    "As the buyer, read the event's history and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.135Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-067",
+  "title": "Withdrawing logs which PR lines reopened and by how much",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "withdraw_remark.remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_history",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

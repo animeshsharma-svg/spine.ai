@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-016",
+  "title": "Saving a new value for the same weight replaces the old one",
+  "compiledAt": "2026-11-09T22:22:49.760Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The happy-path save with value 100 cannot be expressed because no operation or named request is provided for saving weight values.",
+   "Saving the same key with value 250 cannot be expressed because no operation or named request is provided for that request.",
+   "The round read-back vocabulary does not include the vendor weight value, so replacement with 250 and absence of 350 cannot be verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 2,
+   "promptTokens": 12812,
+   "completionTokens": 853,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.865Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-016",
+  "title": "Saving a new value for the same weight replaces the old one",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

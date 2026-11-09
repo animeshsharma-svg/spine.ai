@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-XDAMD-061",
+  "title": "A new stage can only be added from an RFP",
+  "compiledAt": "2026-11-09T22:56:00.358Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot enable is_add_new_stage_allowed; when it is OFF, the application returns code 1127 instead of code 2001.",
+   "it depends on a company setting this run does not change (is_add_new_stage_allowed=ON) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/trade/:id/add_new_stage_in_live_event"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade add new stage in live event request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “New stage cannot be added unless the referring stage is an RFP”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.115Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDAMD-061",
+  "title": "A new stage can only be added from an RFP",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/trade/{{tradeId}}/add_new_stage_in_live_event",
+     "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2001",
+   "message": "New stage cannot be added unless the referring stage is an RFP"
+  },
+  "dependsOnSetting": "is_add_new_stage_allowed=ON"
+ }
+}

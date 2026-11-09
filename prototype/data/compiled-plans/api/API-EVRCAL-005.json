@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-005",
+  "title": "The overall best price is one number, the same under every vendor, and is not rounded",
+  "compiledAt": "2026-11-09T19:35:46.045Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields for read_indicators expose rank and best_bidder but not the best-price value, so the shared value 100.456 cannot be verified.",
+   "The available read-back fields do not expose bid-price formatting, so the unrounded 100.456 value and B's displayed 101.5 without a trailing zero cannot be verified.",
+   "The available vocabulary does not provide a vendor-row-specific best-price assertion.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [
+   "act 2: the vendor is not invited to this setup — it acts as an outsider",
+   "act 3: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event to 2 vendors.",
+    "The invited QA vendor places a complete bid of 100.456 (open, price, submit).",
+    "A second QA vendor places a complete bid of 101.5 (open, price, submit).",
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "The buyer reads the bid."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.885Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-005",
+  "title": "The overall best price is one number, the same under every vendor, and is not rounded",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_company_uuids",
+      "set": [
+       "{{vendorUuid}}",
+       "{{vendor2Uuid}}"
+      ]
+     }
+    ]
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100.456
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 101.5
+    }
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer"
+   },
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

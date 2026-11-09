@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-026",
+  "title": "Each weight must be an object, not a bare number",
+  "compiledAt": "2026-11-09T22:45:00.450Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.869Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-026",
+  "title": "Each weight must be an object, not a bare number",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "values": {
+       "qa_freight_adj": "100"
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

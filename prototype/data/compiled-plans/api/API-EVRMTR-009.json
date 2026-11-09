@@ -1,0 +1,99 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-009",
+  "title": "An auction's end includes automatic extensions; an RFQ's end does not",
+  "compiledAt": "2026-11-09T20:14:32.649Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary cannot configure an auction's automatic-extension schedule of two minutes during the last two minutes.",
+   "read_round has no extension-count field, so the change from 0 to 1 cannot be verified.",
+   "No token exposes the original round end plus 120 seconds, so the exact new end time cannot be asserted.",
+   "The same plan cannot compare the auction schedule with an RFQ end without a separate fresh RFQ scenario."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "PATCH /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked); Data check: “rfx mode” equals auction; Schema check: “ending at” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Data check: “rfx mode” equals auction; Schema check: “ending at” is a Unix timestamp in seconds."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.919Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-009",
+  "title": "An auction's end includes automatic extensions; an RFQ's end does not",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "ifRefused": "pass"
+   },
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+60}}"
+     }
+    ],
+    "ifRefused": "pass"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "rfx_mode",
+      "op": "equals",
+      "value": "auction"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

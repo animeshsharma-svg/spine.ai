@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "UI-AUC-017",
+  "title": "A Dutch offer accepted without a quantity is refused",
+  "compiledAt": "2026-11-09T22:53:19.130Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup does not create a specifically Dutch auction or an open Dutch offer.",
+   "The quantity-specific refusal message cannot be asserted because no response field or exact message is provided."
+  ],
+  "warnings": [
+   "act 2: the vendor is not invited to this setup — it acts as an outsider"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /bids/accept_dutch_offer"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The invited QA vendor sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.185Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-AUC-017",
+  "title": "A Dutch offer accepted without a quantity is refused",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "expect": "accept"
+   },
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "POST",
+     "path": "/bids/accept_dutch_offer",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "accepted_round_no": 1
+     }
+    },
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

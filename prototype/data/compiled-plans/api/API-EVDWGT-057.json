@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-057",
+  "title": "A 400-digit weight becomes Infinity and the round still reads",
+  "compiledAt": "2026-11-09T19:57:19.377Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The operation and field for setting an absolute weight are not available, so the 400-digit value and its expected refusal cannot be sent or verified.",
+   "The round read-back vocabulary has no weight field, so the value Infinity cannot be asserted."
+  ],
+  "warnings": [
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.881Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-057",
+  "title": "A 400-digit weight becomes Infinity and the round still reads",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

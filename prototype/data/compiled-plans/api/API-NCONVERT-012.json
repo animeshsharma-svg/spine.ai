@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-NCONVERT-012",
+  "title": "Convert the pricing round into a live auction: data[0].product.event_group_line_item_uuid has the wrong type",
+  "compiledAt": "2026-11-09T22:26:07.304Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction, exactly as the journey does, with the event group line item uuid sent as 12345.",
+    "As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event has no new round (the conversion left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.973Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NCONVERT-012",
+  "title": "Convert the pricing round into a live auction: data[0].product.event_group_line_item_uuid has the wrong type",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data[0].product.event_group_line_item_uuid",
+      "set": 12345
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer converts the pricing round into a live auction, exactly as the journey does, with the event group line item uuid sent as 12345."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 1,
+      "say": "the event has no new round (the conversion left nothing)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

@@ -2,18 +2,23 @@
  "meta": {
   "caseId": "API-XAWD-124",
   "title": "Submitting without a flow when approval is configured is refused",
-  "compiledAt": "2026-10-03T09:49:39.000Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:32.073Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-AWD-124 needs a starting state no recipe builds (“destructive — acts on the sandbox copy only and must run last: if the company has NO award approval configured, this bod”)"
+   "it depends on a company setting this run does not change (award (close_event_group) approval configured) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_proposal's reply shape has not been sampled; \"status\" is unverified",
+   "verify 1: read_proposal's reply shape has not been sampled; \"approval_requests\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "POST /proposal",
-   "POST /proposal/:id/submit"
+   "POST /proposal/:id/add_response",
+   "POST /proposal/:id/submit",
+   "GET /proposal/:id"
   ],
   "llm": {
    "calls": 0,
@@ -22,20 +27,23 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
     "The buyer opens an award proposal.",
-    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "The buyer sends the award proposal call, the request the case itself writes.",
+    "As the buyer, read the award proposal and check that Data check: “status” equals draft; Schema check: “approval requests” is absent."
    ],
-   "expected": "The app refuses the step the case is about with “Approval Flow not found”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Approval Flow not found”, and never with a server error. Read back afterwards: Data check: “status” equals draft; Schema check: “approval requests” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.079Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XAWD-124",
   "title": "Submitting without a flow when approval is configured is refused",
   "setup": {
-   "recipe": "awarded_rfq"
+   "recipe": "closed_rfq_with_bid"
   },
   "act": [
    {
@@ -43,17 +51,49 @@
     "as": "buyer"
    },
    {
-    "op": "library",
+    "op": "award_vendor",
     "as": "buyer",
-    "caseId": "EDGE-AWD-124",
+    "params": {
+     "vendor": "vendor"
+    }
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/proposal/{{proposalUuid}}/submit",
+     "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+     }
+    },
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     },
+     {
+      "path": "approval_requests",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "570",
    "message": "Approval Flow not found"
-  }
+  },
+  "dependsOnSetting": "award (close_event_group) approval configured"
  }
 }

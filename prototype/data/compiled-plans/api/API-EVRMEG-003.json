@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-003",
+  "title": "Event numbers are \"RFX-n\", gain \".1\", \".2\" on each amendment, and can be searched",
+  "compiledAt": "2026-11-09T19:58:32.775Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot verify the generated RFX-n, RFX-n.1, RFX-n.2, or RFX-(n+1) reference numbers because no read-back field exposes event numbers.",
+   "Cannot verify that event numbers are unique across the company.",
+   "Cannot search the events list for RFX-n.2 because list_events exposes no search input or matching assertion field.",
+   "Cannot verify that the second amendment is returned by that search.",
+   "Cannot verify the show_reference_id gate or titles formatted with the reference number because the available read-back fields do not expose the gate or rendered title."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /item_versions",
+   "GET /event_groups/:id/history",
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “EventGroup”.",
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “EventGroup”.",
+    "As the buyer, read the event's history and check that Schema check: the reply is not empty.",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: the reply is not empty; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.907Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-003",
+  "title": "Event numbers are \"RFX-n\", gain \".1\", \".2\" on each amendment, and can be searched",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{eventGroupUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "EventGroup"
+     }
+    ]
+   },
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{eventGroupUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "EventGroup"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_history",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   },
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

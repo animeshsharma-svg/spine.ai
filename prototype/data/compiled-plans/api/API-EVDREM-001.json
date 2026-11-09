@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "API-EVDREM-001",
   "title": "A live RFQ with no bids lists the invited vendor under \"Offer submissions\"",
-  "compiledAt": "2026-10-15T12:45:52.941Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:06:35.538Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The reminders endpoint and reminder response fields are not available.",
-   "Cannot verify the Offer submissions reminder kind, exactly one vendor, QA vendor 1 identity, the RFQ title under Bid Pending For, absent last-reminded time, remindable status, or empty reminder kinds.",
-   "Cannot verify the reminders HTTP 200 response directly; read_audience status_2xx only checks the invited-vendor audience response."
+   "Does not verify that Offer submissions contains exactly one entry for QA vendor 1.",
+   "Does not verify the RFQ round title under Bid Pending For.",
+   "Does not verify that last-reminded time is absent and the reminder is remindable.",
+   "Does not verify that pending evaluations, counter offers, best offer, cost breakdown, and auction reminders are empty (null)."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /event_groups/:id/get_audience"
+   "GET /reminders/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,26 +26,36 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer lists the event's invited vendors."
+    "As the buyer, read the reminders request and check that Status check: the reply's status code is 200 — OK — the request worked."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.795Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDREM-001",
   "title": "A live RFQ with no bids lists the invited vendor under \"Offer submissions\"",
   "setup": {
    "recipe": "published_rfq"
   },
-  "act": [
+  "act": [],
+  "verify": [
    {
-    "op": "read_audience",
+    "op": "request",
     "as": "buyer",
-    "decisive": true
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group"
+    },
+    "assert": [
+     {
+      "op": "status",
+      "value": 200
+     }
+    ]
    }
   ],
-  "verify": [],
   "expected": {
    "outcome": "accept"
   }

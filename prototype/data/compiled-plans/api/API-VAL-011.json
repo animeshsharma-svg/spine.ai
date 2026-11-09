@@ -3,7 +3,7 @@
   "caseId": "API-VAL-011",
   "title": "Epoch times outside a sane range are refused",
   "compiledAt": "2026-10-15T13:07:46.345Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -24,13 +24,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer adds a pricing (RFQ) round to the event with the bid start time 0."
+    "The buyer adds a pricing (RFQ) round to the event with the bid start time 0.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.055Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-VAL-011",
   "title": "Epoch times outside a sane range are refused",
   "setup": {
@@ -50,7 +52,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

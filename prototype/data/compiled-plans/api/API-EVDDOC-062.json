@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "API-EVDDOC-062",
   "title": "A surrogate reference note with an outside-host file leaves a saved bid behind a server error",
-  "compiledAt": "2026-10-15T12:18:39.214Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:11:01.935Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the case reads as “the app answers without a server error”, but the plan checks “it is refused”",
+   "The plan cannot verify that no bid was saved because surrogate_bid does not provide bidUuid and no available operation lists or searches bids.",
    "what the screen shows (an API plan checks the data, not the page)",
    "the part about “pdf” is outside what an API plan on a sourcing event checks"
   ],
-  "warnings": [
-   "error code 472 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /bids/template_input",
@@ -29,13 +27,14 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer enters a bid on a vendor's behalf (surrogate bid) with the remarks set to “QA_Platform_ref_…”, with 1 attachments.",
-    "As the buyer, read the pricing round and check that “bid count” equals 0."
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “bid count” equals 0."
-  }
+   "expected": "The app refuses the step the case is about with “failed to add remark”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.755Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-062",
   "title": "A surrogate reference note with an outside-host file leaves a saved bid behind a server error",
   "setup": {
@@ -69,14 +68,16 @@
      {
       "path": "bid_count",
       "op": "equals",
-      "value": 0
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "reject",
-   "code": "472"
+   "code": "472",
+   "message": "failed to add remark"
   }
  }
 }

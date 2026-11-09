@@ -2,21 +2,24 @@
  "meta": {
   "caseId": "API-EVDCMP-002",
   "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
-  "compiledAt": "2026-10-15T12:35:42.961Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:47:13.741Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "QA vendor 3 is not available in the vocabulary; vendor2 is used instead.",
-   "The available assertions do not expose the submitted bid price or directly verify that the surrogate price is higher than QA vendor 1's price.",
-   "The available assertions do not directly verify that L1 is unchanged beyond checking that QA vendor 1 remains the best bidder.",
-   "it does not read the record back to confirm what was kept or shown"
+   "The available vocabulary supports only vendor and vendor2; it cannot represent QA vendor 3.",
+   "The available read-back fields expose best-bidder status but not the L1 price, so unchanged L1 price is not checked.",
+   "The available tokens cannot express a price relative to QA vendor 1's existing bid; the surrogate price is set explicitly to 101."
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "PATCH /v1/trade/add_audience",
    "POST /bids/template_input",
+   "GET /trade/:id",
    "GET /v1/trade/:id/event_indicators"
   ],
   "llm": {
@@ -28,15 +31,17 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The buyer invites QA vendor 2 to the live round.",
     "The buyer enters a surrogate bid of 101 on the vendor's behalf for a second QA vendor.",
-    "The buyer reads the round's comparison (ranks, best bidder)."
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 2.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals false."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 2; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals false."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.727Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDCMP-002",
   "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
   "setup": {
@@ -45,26 +50,47 @@
   "act": [
    {
     "op": "add_vendor",
-    "as": "buyer",
-    "params": {
-     "round": "pricing"
-    }
+    "as": "buyer"
    },
    {
     "op": "surrogate_bid",
     "as": "buyer",
     "params": {
-     "vendor": "vendor2",
-     "price": 101
+     "price": 101,
+     "vendor": "vendor2"
     },
     "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
    },
    {
     "op": "read_indicators",
-    "as": "buyer"
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": true
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": false
+     }
+    ]
    }
   ],
-  "verify": [],
   "expected": {
    "outcome": "accept"
   }

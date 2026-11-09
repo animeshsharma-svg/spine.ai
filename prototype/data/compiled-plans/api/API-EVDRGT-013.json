@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-013",
+  "title": "Two-round event: a regret-only draft cannot be submitted",
+  "compiledAt": "2026-11-09T19:53:09.080Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no operation or library case for regretting a line in an RFQ draft, so the plan cannot verify that the draft contains a regret-only line or that no price was entered before submission. EDGE-BID-077 is used as the closest ",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Please enter bid for all line items that are not regretted in technical stage.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.811Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-013",
+  "title": "Two-round event: a regret-only draft cannot be submitted",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "params": {
+     "trade_request_uuid": "{{tradeId}}",
+     "company_uuid": "{{vendorUuid}}"
+    }
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-077",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "748",
+   "message": "Please enter bid for all line items that are not regretted in technical stage."
+  }
+ }
+}

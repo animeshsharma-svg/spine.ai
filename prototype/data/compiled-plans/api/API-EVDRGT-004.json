@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-004",
+  "title": "\"Undo\" with nothing to undo is accepted and changes nothing",
+  "compiledAt": "2026-11-09T19:53:03.343Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not provide a readable bid field for verifying that the bid is unchanged or that the response status value is null.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id/line_items/:id/regret_status"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.806Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-004",
+  "title": "\"Undo\" with nothing to undo is accepted and changes nothing",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+     "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "undo_regret"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

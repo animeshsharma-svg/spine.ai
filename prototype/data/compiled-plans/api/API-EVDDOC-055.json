@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-055",
+  "title": "A number inside the attachments list crashes the round-edit endpoint",
+  "compiledAt": "2026-11-09T19:50:08.578Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan checks that the request does not return a 5xx, but cannot assert the expected exact 422 status.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates the round, the request the case itself writes."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.752Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDDOC-055",
+  "title": "A number inside the attachments list crashes the round-edit endpoint",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "attachments": [
+       1
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

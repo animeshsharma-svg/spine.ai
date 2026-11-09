@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-NBIDNEW-008",
+  "title": "Open a bid on the pricing round: broker_company_uuid has the wrong type",
+  "compiledAt": "2026-11-09T19:41:32.308Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round, exactly as the journey does, with the broker company uuid sent as \"yes\".",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.960Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NBIDNEW-008",
+  "title": "Open a bid on the pricing round: broker_company_uuid has the wrong type",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "broker_company_uuid",
+      "set": "yes"
+     }
+    ],
+    "decisive": true,
+    "say": "The invited QA vendor opens a bid on the pricing round, exactly as the journey does, with the broker company uuid sent as \"yes\"."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

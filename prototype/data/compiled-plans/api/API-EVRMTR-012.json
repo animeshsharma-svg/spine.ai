@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-012",
+  "title": "Extending a technical round moves its evaluation window and keeps its length",
+  "compiledAt": "2026-11-09T19:39:28.043Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available tokens cannot express extending the technical round to exactly T + 1 day; the closest supported value is {{rfpEnd+60}}.",
+   "The available read-back fields and assertion operations cannot verify that the evaluation window starts at the new bidding end, ends exactly two days later, or retains a two-day duration.",
+   "The available vocabulary cannot verify that every active, pending, or requested technical response receives the new closing time."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The buyer moves the technical round's bid end time with the increase auction time set to “{{rfpEnd+60}}”.",
+    "As the buyer, read the technical round and check that Schema check: “ending at” is present; Schema check: “extra closing time” is present; Schema check: “extra closing time” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “ending at” is present; Schema check: “extra closing time” is present; Schema check: “extra closing time” is a Unix timestamp in seconds."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.920Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-012",
+  "title": "Extending a technical round moves its evaluation window and keeps its length",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{rfpEnd+60}}"
+     }
+    ],
+    "params": {
+     "round": "technical"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "extra_closing_time",
+      "op": "exists"
+     },
+     {
+      "path": "extra_closing_time",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

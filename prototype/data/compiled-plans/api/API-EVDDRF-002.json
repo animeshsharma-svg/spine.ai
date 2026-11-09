@@ -2,12 +2,12 @@
  "meta": {
   "caseId": "API-EVDDRF-002",
   "title": "Moving a draft technical round's end to before the pricing round's end does not break the server",
-  "compiledAt": "2026-10-15T12:19:15.888Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:11:09.256Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available tokens cannot express the RFQ end minus 60 seconds; the closest expressible value is the pricing round's current end. The vocabulary also has no rfpTradeId token for addressing the technical round directly."
   ],
   "warnings": [],
   "validated": true,
@@ -23,13 +23,14 @@
   "words": {
    "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
    "steps": [
-    "The buyer moves the round's bid end time with the increase auction time moved later, with the remarks set to “move technical end earlier”."
+    "The buyer moves the technical round's bid end time with the increase auction time moved later, with the remarks set to “QA_Platform_…”."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.760Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDRF-002",
   "title": "Moving a draft technical round's end to before the pricing round's end does not break the server",
   "setup": {
@@ -46,15 +47,18 @@
      },
      {
       "path": "remarks",
-      "set": "move technical end earlier"
+      "set": "QA_Platform_{{stamp}}"
      }
     ],
+    "params": {
+     "round": "technical"
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "no-5xx"
   }
  }
 }

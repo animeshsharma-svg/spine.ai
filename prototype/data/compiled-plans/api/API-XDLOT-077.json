@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-077",
+  "title": "Absurd rates are accepted, and an infinite one is stored as empty",
+  "compiledAt": "2026-11-09T22:52:31.470Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ or an auto-fetched USD rate, so the ±50% sanity-bound decision cannot be checked.",
+   "The response field showing the infinite rate was stored as null cannot be verified because the response shape is not provided.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes.",
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Invalid exchange rate: rate_in_base must be a positive number.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.126Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-077",
+  "title": "Absurd rates are accepted, and an infinite one is stored as empty",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "USD": 830000000
+       }
+      ]
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "USD": null
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "878",
+   "message": "Invalid exchange rate: rate_in_base must be a positive number."
+  }
+ }
+}

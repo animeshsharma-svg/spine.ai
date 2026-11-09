@@ -2,13 +2,12 @@
  "meta": {
   "caseId": "EVI-RANK-004",
   "title": "Every tied vendor is marked best bidder",
-  "compiledAt": "2026-10-15T12:41:21.089Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:53:08.728Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup does not explicitly guarantee that the two bids are tied.",
-   "The available read-back fields do not provide a way to assert that no other vendor is best bidder beyond checking the two vendors created by the setup."
+   "The available read_indicators fields do not expose the bid price, so the tie price itself is not checked."
   ],
   "warnings": [
    "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
@@ -16,6 +15,10 @@
   ],
   "validated": true,
   "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
    "GET /v1/trade/:id/event_indicators"
   ],
   "llm": {
@@ -25,25 +28,42 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer reads the round's comparison (ranks, best bidder).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+    "The buyer invites QA vendor 2 to the live round.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "A second QA vendor places a complete bid of 100 (open, price, submit).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.169Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-RANK-004",
   "title": "Every tied vendor is marked best bidder",
   "setup": {
-   "recipe": "rfq_with_2_bids"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "read_indicators",
-    "as": "buyer",
+    "op": "add_vendor",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 100
+    },
     "decisive": true
    }
   ],

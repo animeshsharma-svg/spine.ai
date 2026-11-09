@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-014",
+  "title": "An amended round's bidding window is its configured length, wherever extensions happened",
+  "compiledAt": "2026-11-09T22:50:32.874Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not create an auction configured for a 1-hour bidding window, two 2-minute auto-extensions, or a 1-day evaluation window.",
+   "The plan cannot verify that all amended rows start at now.",
+   "The plan cannot verify that extension rows end at now + 2 minutes, that the evaluation window ends at now + 1 day, or that the auction end uses the maximum of those windows.",
+   "The plan cannot verify that the evaluation window starts with bidding."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /item_versions",
+   "GET /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer issues a new version of the event.",
+    "As the buyer, read the event and check that Data check: “status” equals active; Schema check: “stages › ending at” is present; Schema check: “stages › ending at” is a Unix timestamp in seconds.",
+    "As the buyer, read the pricing round and check that Data check: “rfx mode” equals auction; Schema check: “starting from” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is present; Schema check: “ending at” is a Unix timestamp in seconds; Schema check: “extra closing time” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active; Schema check: “stages › ending at” is present; Schema check: “stages › ending at” is a Unix timestamp in seconds; Data check: “rfx mode” equals auction; Schema check: “starting from” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is present; Schema check: “ending at” is a Unix timestamp in seconds; Schema check: “extra closing time” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.897Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-014",
+  "title": "An amended round's bidding window is its configured length, wherever extensions happened",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     },
+     {
+      "path": "stages[*].ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "stages[*].ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "rfx_mode",
+      "op": "equals",
+      "value": "auction"
+     },
+     {
+      "path": "starting_from",
+      "op": "exists"
+     },
+     {
+      "path": "starting_from",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "extra_closing_time",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

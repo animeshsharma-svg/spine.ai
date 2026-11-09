@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-018",
+  "title": "Blocking one vendor does not block another",
+  "compiledAt": "2026-11-09T20:12:11.742Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not provide an operation for QA vendor 1 to revise its already submitted bid, so acceptance of step 2 and HTTP 200 cannot be checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.833Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-018",
+  "title": "Blocking one vendor does not block another",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bid2Uuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": false
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

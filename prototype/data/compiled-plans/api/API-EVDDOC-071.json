@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-071",
+  "title": "The reports list is returned to an invited vendor",
+  "compiledAt": "2026-11-09T20:20:11.295Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The report-menu contents (RFQ report, RFQ Counter Offer Report, and QCS-Purchase) cannot be asserted because the response shape and report fields are not defined.",
+   "Approval Note-Purch requires a selected proposal, which is not created by the setup recipe.",
+   "Whether each report downloads for a vendor must be checked manually.",
+   "it does not read the record back to confirm what was kept or shown",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “report” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_all_attachments"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor sends the event groups get all attachments request, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.758Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDDOC-071",
+  "title": "The reports list is returned to an invited vendor",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "GET",
+     "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

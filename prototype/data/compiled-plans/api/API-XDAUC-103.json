@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-XDAUC-103",
+  "title": "The buyer cannot accept the auction terms on a vendor's behalf",
+  "compiledAt": "2026-11-09T19:44:12.856Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields do not expose misc.tnc_popup_acceptances, so the unchanged state cannot be verified.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/accept_auction_tnc"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the trade accept auction tnc request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.118Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDAUC-103",
+  "title": "The buyer cannot accept the auction terms on a vendor's behalf",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/accept_auction_tnc",
+     "body": {}
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

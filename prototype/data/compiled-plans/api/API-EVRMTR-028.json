@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-028",
+  "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
+  "compiledAt": "2026-11-09T22:51:09.854Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no super-admin actor, so the super-admin reads cannot be tested.",
+   "the decisive step tests something else than the case's point: The vocabulary cannot create a second live round or set show_placed_bids_stats to false.",
+   "The vocabulary cannot verify the complete masked statistics payload; this plan checks the available bid_count and participants fields only.",
+   "it depends on a company setting this run does not change (show_bidding_stats_in_masked_events) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer reads the pricing round.",
+    "Wait until the round's bid end time has passed.",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that Schema check: “bid count” is present; Schema check: “participants” is absent.",
+    "As the buyer, read the pricing round and check that Schema check: “participants” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “bid count” is present; Schema check: “participants” is absent; Schema check: “participants” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.925Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-028",
+  "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "buyer"
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "exists"
+     },
+     {
+      "path": "participants",
+      "op": "absent"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "participants",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "show_bidding_stats_in_masked_events"
+ }
+}

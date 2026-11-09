@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-009",
+  "title": "A technical round built from PR items asks one question per quality parameter and names an evaluator",
+  "compiledAt": "2026-11-09T22:50:13.824Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup vocabulary cannot create PR items with quality parameters, item text, creators, fund-center planners, or evaluator assignments.",
+   "The available read-back fields cannot inspect technical-round forms, questions, required or optional settings, evaluator names, template identity, or the Technical Stage title.",
+   "The refusal error code for a line with no PR item is not provided."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.893Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-009",
+  "title": "A technical round built from PR items asks one question per quality parameter and names an evaluator",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

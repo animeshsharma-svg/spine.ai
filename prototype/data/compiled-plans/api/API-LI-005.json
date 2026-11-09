@@ -2,19 +2,18 @@
  "meta": {
   "caseId": "API-LI-005",
   "title": "Deleting the last remaining *active* line item is refused",
-  "compiledAt": "2026-10-15T12:58:52.312Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:15:42.904Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The setup recipe does not create three line items with two already deleted; the library case verifies refusal when deleting the only active line item. HTTP 422 is not directly asserted."
+   "The available recipe and library case provide one active line item, not three line items with two already deleted; the plan therefore verifies refusal when deleting the only active line item, rather than the exact three-line-item state."
   ],
-  "warnings": [
-   "error code 711 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,13 +24,15 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the event is still active (nothing changed)."
    ],
-   "expected": "The app refuses the step the case is about with “You cannot delete this line item from the project”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You cannot delete this line item from the project”, and never with a server error. Read back afterwards: the event is still active (nothing changed)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.951Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-LI-005",
   "title": "Deleting the last remaining *active* line item is refused",
   "setup": {
@@ -45,7 +46,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active",
+      "say": "the event is still active (nothing changed)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "711",

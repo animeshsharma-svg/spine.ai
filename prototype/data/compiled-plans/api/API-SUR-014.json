@@ -2,21 +2,19 @@
  "meta": {
   "caseId": "API-SUR-014",
   "title": "A surrogate bid requiring approval enters a requested state",
-  "compiledAt": "2026-10-15T13:02:54.849Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:23.745Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case API-SUR-014 needs a starting state no recipe builds (“gate: surrogate-bid approval configured”)",
-   "The surrogate-bid approval gate cannot be configured with the available setup recipes or operations.",
-   "The bid approval-requested status cannot be read back with the available operations.",
-   "The approval record and its remarks cannot be verified with the available fields or assertion operations.",
-   "library case API-SUR-014 needs a starting state no recipe builds (“gate: surrogate-bid approval configured”)"
+   "The available read-backs do not expose the bid approval state or an approval record's remarks, so the requested state and carried remarks are not directly checked.",
+   "it depends on a company setting this run does not change (surrogate-bid approval configured) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /bids/template_input"
+   "POST /bids/template_input",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,13 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf with the remarks set to “QA_Platform_…”.",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 1."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 1."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.042Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-SUR-014",
   "title": "A surrogate bid requiring approval enters a requested state",
   "setup": {
@@ -41,15 +41,36 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "surrogate_bid",
     "as": "buyer",
-    "caseId": "API-SUR-014",
+    "change": [
+     {
+      "path": "surrogate_remarks.remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "params": {
+     "price": 100
+    },
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "no-5xx"
-  }
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "surrogate-bid approval configured"
  }
 }

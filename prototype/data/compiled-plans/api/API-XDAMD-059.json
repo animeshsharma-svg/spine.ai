@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-XDAMD-059",
+  "title": "A buyer cannot accept the vendor T&C popup",
+  "compiledAt": "2026-11-09T19:43:59.480Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No published auction setup recipe is available; the plan publishes the draft auction before sending the request.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "act 2: the vendor is not invited to this setup — it acts as an outsider"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "PATCH /v1/trade/:id/accept_auction_tnc"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The invited QA vendor sends the trade accept auction tnc request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.114Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDAMD-059",
+  "title": "A buyer cannot accept the vendor T&C popup",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/accept_auction_tnc",
+     "body": {}
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

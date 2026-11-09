@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "UI-SAV-013",
   "title": "A vendor must see the terms before bidding where acceptance is required",
-  "compiledAt": "2026-11-01T19:39:33.123Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:53:42.942Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Accepting terms explicitly via API call before bidding is not yet supported in the vocabulary",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”",
-   "it does not read the record back to confirm what was kept or shown"
+   "the decisive step tests something else than the case's point: The setup recipe cannot configure the terms-acceptance-required gate or guarantee event clauses.",
+   "The plan does not verify that the vendor can see the terms before bidding.",
+   "The plan does not verify that bidding becomes available after terms are accepted.",
+   "The blocking error code is not specified.",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (terms) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /trade/:id",
    "POST /v1/bids",
-   "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id"
   ],
   "llm": {
@@ -28,14 +29,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "Read stage terms and acceptance",
-    "Try to place a bid without accepting terms"
+    "The vendor opens a bid without accepting the required terms.",
+    "The vendor submits the bid without accepting the required terms."
    ],
    "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:56:37.206Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-SAV-013",
   "title": "A vendor must see the terms before bidding where acceptance is required",
   "setup": {
@@ -43,22 +45,24 @@
   },
   "act": [
    {
-    "op": "library",
-    "as": "buyer",
-    "caseId": "EDGE-DAMD-068",
-    "say": "Read stage terms and acceptance"
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "say": "The vendor opens a bid without accepting the required terms."
    },
    {
-    "op": "place_bid",
+    "op": "library",
     "as": "vendor",
+    "caseId": "EDGE-BID-104",
+    "expect": "reject",
     "decisive": true,
-    "ifRefused": "pass",
-    "say": "Try to place a bid without accepting terms"
+    "say": "The vendor submits the bid without accepting the required terms."
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject"
-  }
+  },
+  "dependsOnSetting": "terms"
  }
 }

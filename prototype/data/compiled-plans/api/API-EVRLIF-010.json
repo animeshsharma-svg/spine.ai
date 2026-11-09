@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-010",
+  "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
+  "compiledAt": "2026-11-09T22:54:53.910Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Quick flow is not represented by an operation.",
+   "Company policy settings for bid duration, evaluation duration, and auction strategy cannot be set or asserted.",
+   "The exact bid end of start + 2 days cannot be asserted because no matching time token or assertion is available.",
+   "The evaluation end of start + 4 days is not available in read-back fields.",
+   "Auction strategy rank cannot be asserted.",
+   "Order type from the template cannot be asserted.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "As the buyer, read the pricing round and check that Data check: “title” equals Auction; Schema check: “ending at” is a number."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “title” equals Auction; Schema check: “ending at” is a number."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.894Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-010",
+  "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "Auction"
+     },
+     {
+      "path": "ending_at",
+      "op": "type_is",
+      "value": "number"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

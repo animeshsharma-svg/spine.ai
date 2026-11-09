@@ -2,21 +2,20 @@
  "meta": {
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
-  "compiledAt": "2026-10-15T12:26:42.676Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:49:46.234Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The buyer's status-endpoint rejection cannot be expressed because no matching operation or recipe is available.",
-   "The plan does not verify HTTP 200 explicitly.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The buyer's status-endpoint rejection cannot be expressed because no operation or case-owned request provides its method, path, and body; the re-bid step therefore cannot be verified in the required post-rejection state."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id"
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,13 +26,15 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.835Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
   "setup": {
@@ -46,7 +47,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 2,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   }

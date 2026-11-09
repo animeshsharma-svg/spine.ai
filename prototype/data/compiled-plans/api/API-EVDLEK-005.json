@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-005",
+  "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
+  "compiledAt": "2026-11-09T22:47:34.926Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup does not create a final split award among QA vendors 1, 2, and 3 or QA vendor 4 as a non-bidding vendor.",
+   "The vocabulary has no vendor3 or vendor4 actors; vendor and vendor2 cannot represent all requested vendors.",
+   "The three named views and searching them for other vendors or prices cannot be expressed with the available read operations or known read-back fields.",
+   "the decisive step tests something else than the case's point: The plan only checks that supported vendor reads succeed; it cannot verify the absence of other winners or winning prices."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id",
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As a second QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.765Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDLEK-005",
+  "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor2",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

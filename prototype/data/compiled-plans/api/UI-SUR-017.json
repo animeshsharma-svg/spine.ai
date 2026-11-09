@@ -3,15 +3,11 @@
   "caseId": "UI-SUR-017",
   "title": "Only a valid surrogate bidder may place one",
   "compiledAt": "2026-11-01T19:45:28.994Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "it does not read the record back to confirm what was kept or shown"
-  ],
-  "warnings": [
-   "error code 165 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /bids/template_input"
@@ -25,13 +21,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor."
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Cannot place bid on trade by your own company”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.208Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-SUR-017",
   "title": "Only a valid surrogate bidder may place one",
   "setup": {
@@ -47,10 +45,24 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "165"
+   "code": "165",
+   "message": "Cannot place bid on trade by your own company"
   }
  }
 }

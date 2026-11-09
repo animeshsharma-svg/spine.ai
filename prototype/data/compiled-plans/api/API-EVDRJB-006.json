@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-006",
+  "title": "Leaving out the re-bidding choice allows re-bidding",
+  "compiledAt": "2026-11-09T19:54:17.986Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.827Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-006",
+  "title": "Leaving out the re-bidding choice allows re-bidding",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}"
+     }
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 2,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

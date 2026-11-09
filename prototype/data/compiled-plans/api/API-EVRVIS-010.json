@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-010",
+  "title": "On a price round a vendor never learns its own rank",
+  "compiledAt": "2026-11-09T22:48:04.102Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not specify the bid prices as vendor B 95 and QA vendor 100.",
+   "the decisive step tests something else than the case's point: The setup does not expose or configure whether the lot is sealed."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Schema check: “rank” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “rank” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.933Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-010",
+  "title": "On a price round a vendor never learns its own rank",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "rank",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

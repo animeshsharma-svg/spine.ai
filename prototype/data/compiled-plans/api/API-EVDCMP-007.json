@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-EVDCMP-007",
   "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
-  "compiledAt": "2026-10-04T07:12:49.982Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:47:22.373Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Exact price of the live bid cannot be asserted with the available read‑back fields",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available read-backs cannot verify that the single live bid belongs specifically to QA vendor 3 or that its price is the latest accepted price.",
+   "The case allows either acceptance as a revision or refusal, but the refusal path is planned because the vendor's self-bid follows an existing surrogate bid."
   ],
   "warnings": [],
   "validated": true,
@@ -17,7 +17,8 @@
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id",
-   "GET /trade/:id"
+   "GET /trade/:id",
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,15 +29,17 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
-    "The invited QA vendor places a complete bid (open, price, submit).",
-    "As the invited QA vendor, read the pricing round and check that “bid count” equals 1."
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf.",
+    "The invited QA vendor places a complete bid of 99 (open, price, submit).",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 1.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
-  }
+   "expected": "The app refuses the step the case is about with “A bid has already been placed from your team”, and never with a server error. Read back afterwards: Data check: “bid count” equals 1; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.730Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDCMP-007",
   "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
   "setup": {
@@ -45,18 +48,24 @@
   "act": [
    {
     "op": "surrogate_bid",
-    "as": "buyer"
+    "as": "buyer",
+    "params": {
+     "price": 100
+    }
    },
    {
     "op": "place_bid",
     "as": "vendor",
+    "params": {
+     "price": 99
+    },
     "decisive": true
    }
   ],
   "verify": [
    {
     "op": "read_round",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "path": "bid_count",
@@ -64,10 +73,22 @@
       "value": 1
      }
     ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "34",
+   "message": "A bid has already been placed from your team",
+   "codeInferred": true
   }
  }
 }

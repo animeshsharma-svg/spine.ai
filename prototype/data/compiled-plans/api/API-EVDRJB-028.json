@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-028",
+  "title": "'Remove bid' on a live round answers success but leaves the bid in place",
+  "compiledAt": "2026-11-09T19:33:19.620Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify whether the bid was actually removed; the available vocabulary cannot express the acceptable alternative outcomes of removal or refusal in one case.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id",
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes.",
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.837Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-028",
+  "title": "'Remove bid' on a live round answers success but leaves the bid in place",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}",
+     "body": {
+      "status": "in_active"
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

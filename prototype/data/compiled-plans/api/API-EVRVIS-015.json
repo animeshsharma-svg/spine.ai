@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-015",
+  "title": "Until award notifications are on, a vendor sees \"active\" and \"bid placed\" instead of \"closed\" and \"accepted\"",
+  "compiledAt": "2026-11-09T19:40:51.608Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot toggle award notifications because no operation or field is provided for that setting.",
+   "Cannot read or verify the card status or card stamp.",
+   "Cannot verify the post-toggle values \"closed\", \"bid accepted\", and \"selected\"."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Data check: “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.936Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-015",
+  "title": "Until award notifications are on, a vendor sees \"active\" and \"bid placed\" instead of \"closed\" and \"accepted\"",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

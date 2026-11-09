@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "API-XDBOQ-016",
+  "title": "Read-back of a fresh BOQ project",
+  "compiledAt": "2026-11-09T20:17:08.281Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot use the required API-XDBOQ-006 BOQ draft or set the boq_in_erfx_allowed gate with the available vocabulary.",
+   "Cannot add the BOQ stage using template_input.",
+   "Cannot verify config.boq_based_rfx=true or returned BOQ lines with total_pages >= 1 after the stage is added.",
+   "it depends on a company setting this run does not change (boq_in_erfx_allowed) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "As the buyer, read the event and check that Status check: the reply's status code is 422 — Refused by a rule — the app understood the request, but a product rule said no.",
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is 422 — Refused by a rule — the app understood the request, but a product rule said no."
+   ],
+   "expected": "The app refuses it with “You are not authorized to perform this action”, and never with a server error. Read back afterwards: Status check: the reply's status code is 422 — Refused by a rule — the app understood the request, but a product rule said no; Status check: the reply's status code is 422 — Refused by a rule — the app understood the request, but a product rule said no."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.119Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDBOQ-016",
+  "title": "Read-back of a fresh BOQ project",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status",
+      "value": 422
+     }
+    ]
+   },
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status",
+      "value": 422
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  },
+  "dependsOnSetting": "boq_in_erfx_allowed"
+ }
+}

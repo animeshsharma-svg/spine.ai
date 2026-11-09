@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-012",
+  "title": "Ranks round to the field's precision — including a precision of 0",
+  "compiledAt": "2026-11-09T19:38:20.899Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup creates an RFQ, not an auction.",
+   "No operation or listed field can configure the ranking field precision to 0 or 2 decimals.",
+   "The plan does not verify the displayed rounded values or the precision-0 tie rule.",
+   "The two precision scenarios cannot be repeated in one fresh-record plan.",
+   "The available read_indicators fields expose ranks and best bidder, but not the displayed bid values."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live round.",
+    "The invited QA vendor places a complete bid of 100.4 (open, price, submit).",
+    "A second QA vendor places a complete bid of 100.6 (open, price, submit).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.904Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-012",
+  "title": "Ranks round to the field's precision — including a precision of 0",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100.4
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 100.6
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

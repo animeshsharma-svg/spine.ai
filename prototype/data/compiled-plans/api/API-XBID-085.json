@@ -2,17 +2,14 @@
  "meta": {
   "caseId": "API-XBID-085",
   "title": "A bid cannot be revised after the window closes",
-  "compiledAt": "2026-10-15T12:13:52.467Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:17:08.812Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-BID-085 needs a starting state no recipe builds (“A submitted bid {{bidUuid}} on a stage whose bid_end_time has passed (no counter-offer open)”)",
-   "library case EDGE-BID-085 needs a starting state no recipe builds (“A submitted bid {{bidUuid}} on a stage whose bid_end_time has passed (no counter-offer open)”)"
+   "The available tokens do not expose the bid line-item product identifier, so the revision body includes the new price without product_uuid."
   ],
-  "warnings": [
-   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /bids/revise_bid/:id"
@@ -26,13 +23,14 @@
   "words": {
    "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor sends the bid call, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.107Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-085",
   "title": "A bid cannot be revised after the window closes",
   "setup": {
@@ -40,16 +38,28 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "vendor",
-    "caseId": "EDGE-BID-085",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/revise_bid/{{bidUuid}}",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+       {
+        "price": 95
+       }
+      ]
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "33"
+   "code": "33",
+   "message": "Order not active"
   }
  }
 }

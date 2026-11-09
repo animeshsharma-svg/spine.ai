@@ -3,13 +3,15 @@
   "caseId": "UI-FCAP-001",
   "title": "A price cap added for one vendor caps only that vendor",
   "compiledAt": "2026-11-01T19:50:22.845Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "Testing vendor B's bid above X in the same execution flow requires additional sequential steps or a separate test case"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
   "validated": true,
   "endpoints": [
    "PATCH /trade/:id/update_vendor_validations",
@@ -25,13 +27,15 @@
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
     "Add price cap X for vendor A.",
-    "Vendor A tries to bid above X."
+    "Vendor A tries to bid above X.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.192Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-FCAP-001",
   "title": "A price cap added for one vendor caps only that vendor",
   "setup": {
@@ -57,7 +61,20 @@
     "say": "Vendor A tries to bid above X."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

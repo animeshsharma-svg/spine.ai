@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-042",
+  "title": "Two weights with the same name are accepted",
+  "compiledAt": "2026-11-09T22:54:45.004Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The specific error code for duplicate weight names is not provided.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.874Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-042",
+  "title": "Two weights with the same name are accepted",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "keys": [
+       "qa_freight_adj",
+       "qa_quality_pen"
+      ],
+      "names": [
+       "QA_Platform_Same_{{stamp}}",
+       "QA_Platform_Same_{{stamp}}"
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

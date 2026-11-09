@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-013",
+  "title": "With a cost-breakdown review window, an extension shifts the review window first and the evaluation after it",
+  "compiledAt": "2026-11-09T22:51:03.254Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available recipes do not create a cost-breakdown review window followed by an evaluation window.",
+   "the decisive step tests something else than the case's point: The available time tokens do not express a 30-minute extension; the plan uses the permitted {{roundEnd+240}} extension instead.",
+   "The read-back vocabulary does not identify review and evaluation windows separately or allow verification that each shifted by the required amount.",
+   "Counter-offer task due dates cannot be verified because their response fields are not provided."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id",
+   "GET /event_groups/:id",
+   "GET /reminders/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "As the buyer, read the pricing round and check that Data check: “ending at” equals {{roundEnd+240}}.",
+    "As the buyer, read the event and check that Schema check: “stages › ending at” is not empty.",
+    "As the buyer, read the reminders request and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “ending at” equals {{roundEnd+240}}; Schema check: “stages › ending at” is not empty; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.921Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-013",
+  "title": "With a cost-breakdown review window, an extension shifts the review window first and the evaluation after it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+240}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "equals",
+      "value": "{{roundEnd+240}}"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].ending_at",
+      "op": "non_empty"
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group"
+    },
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

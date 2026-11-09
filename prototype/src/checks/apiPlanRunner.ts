@@ -341,6 +341,7 @@ function bodyArgs(rc: RunCtx, inst: SetupInstance, vendorUuid: string): BodyArgs
     stamp: s("stamp") || String(Date.now()),
     proposalUuid: s("proposalUuid") || undefined,
     roundUuids: rounds.length ? rounds : undefined,
+    useRfqQuotes: typeof cat.useRfqQuotes === "boolean" ? cat.useRfqQuotes : undefined,
     nowSec: nowSec(),
   };
 }
@@ -884,6 +885,11 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
         method = String(c?.method ?? "GET").toUpperCase();
         path = String(c?.path ?? "");
         body = c?.body;
+      } else if (a.op === "request") {
+        // the case's own request, as the plan carries it (validated: sourcing-event route, known placeholders)
+        method = String(a.request?.method ?? "GET").toUpperCase();
+        path = String(a.request?.path ?? "");
+        body = a.request?.body;
       } else if (op.kind === "write") {
         const vendorFor = a.params?.vendor ?? (who === "vendor2" ? "vendor2" : "vendor");
         const vu = String(tc.vals[vendorFor === "vendor2" ? "vendor2Uuid" : "vendorUuid"] ?? "");
@@ -954,6 +960,12 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
       sentBody = body;
     }
     tc.acts.push({ body: sentBody, data: reply.data });
+    if (a.op === "request" && reply.ok && reply.data?.uuid && a.request) {
+      const k = `${a.request.method} ${a.request.path.split("?")[0].replace(/\{\{\w+\}\}/g, ":id")}`;
+      if (k === "POST /v1/bids") tc.vals.bidUuid = String(reply.data.bid_uuid ?? reply.data.uuid);
+      if (k === "POST /proposal") tc.vals.proposalUuid = String(reply.data.uuid);
+      if (k === "POST /template_responses") tc.vals.templateResponseUuid = String(reply.data.uuid);
+    }
     for (const p of op.produces) {
       const id = p === "lineItemUuid" ? reply.data?.event_group_line_item_ids?.[0] : p === "bidUuid" ? reply.data?.bid_uuid ?? reply.data?.uuid : reply.data?.uuid;
       if (reply.ok && id) {
@@ -1072,7 +1084,15 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
         continue;
       }
       const missing: string[] = [];
-      const path = String(fill(op.path, tc, missing));
+      const path = String(fill(v.op === "request" ? String(v.request?.path ?? "") : op.path, tc, missing));
+      if (!path) {
+        emit({ n, phase: "verify", title, actor: actorWord, expected: "The read-back holds.", actual: "Not read: the request step names no path.", verdict: "couldn't tell", ms: 0 });
+        if (verdict !== "failed") {
+          verdict = "couldn't tell";
+          reason = "The read-back names no path.";
+        }
+        continue;
+      }
       if (missing.length) {
         emit({ n, phase: "verify", title, actor: actorWord, expected: "The read-back holds.", actual: `Not read: ${missing.map((m) => `{{${m}}}`).join(", ")} had no value.`, verdict: "couldn't tell", ms: 0 });
         if (verdict !== "failed") {

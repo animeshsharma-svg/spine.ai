@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-001",
+  "title": "The buyer rejects a submitted bid while bidding is open",
+  "compiledAt": "2026-11-09T19:23:51.376Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available bid read-back fields do not identify the bid's rejection status or expose a field for verifying that allow_rebidding was stored.",
+   "The available assertion values cannot compare rejection_remarks with the request body's stamped value."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"rejection_remarks\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: “rejection remarks” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “rejection remarks” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.824Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-001",
+  "title": "The buyer rejects a submitted bid while bidding is open",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_reject_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "rejection_remarks",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

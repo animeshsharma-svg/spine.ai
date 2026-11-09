@@ -3,7 +3,7 @@
   "caseId": "API-VAL-015",
   "title": "Duplicate creation requests do not produce duplicate events",
   "compiledAt": "2026-10-15T13:08:11.228Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -26,13 +26,15 @@
    "preconditions": "A buyer signed in to the client under test (no event is built).",
    "steps": [
     "The buyer creates a draft event.",
-    "The buyer creates a draft event."
+    "The buyer creates a draft event.",
+    "As the buyer, read the event and check that the new event is a draft."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: the new event is a draft."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.056Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-VAL-015",
   "title": "Duplicate creation requests do not produce duplicate events",
   "setup": {
@@ -49,7 +51,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft",
+      "say": "the new event is a draft"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   }

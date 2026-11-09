@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-030",
+  "title": "A vendor's list of auctions it took part in opens even when one of them is a sealed-bid lot auction",
+  "compiledAt": "2026-11-09T22:51:49.719Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup does not create a sealed-bid lot auction; it creates a closed RFQ with a vendor bid.",
+   "The available list operation does not specifically verify the participated-auctions list or that the auction appears in it.",
+   "The available read-back fields cannot verify that the listed auction has no rank."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.941Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-030",
+  "title": "A vendor's list of auctions it took part in opens even when one of them is a sealed-bid lot auction",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

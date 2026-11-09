@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-018",
+  "title": "Weights cannot be cleared back to an unweighted round",
+  "compiledAt": "2026-11-09T19:56:32.586Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The happy-path weight save that should establish the qa_freight_adj weighted state cannot be expressed because no valid request body for that operation is provided.",
+   "The available read_round fields do not expose weight configuration, so the round's continued weighting and qa_freight_adj cannot be verified.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes.",
+    "The buyer reads the pricing round."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.866Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-018",
+  "title": "Weights cannot be cleared back to an unweighted round",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": {
+       "weightage_on": "lot",
+       "values": {}
+      }
+     }
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

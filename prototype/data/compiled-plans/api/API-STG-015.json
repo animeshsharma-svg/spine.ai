@@ -3,7 +3,7 @@
   "caseId": "API-STG-015",
   "title": "A stage created with no bid_end_time fails at creation, not later",
   "compiledAt": "2026-10-03T09:43:31.344Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "full",
   "gaps": [],
@@ -21,13 +21,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer adds a pricing (RFQ) round to the event with the bid end time empty (null)."
+    "The buyer adds a pricing (RFQ) round to the event with the bid end time empty (null).",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.034Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-STG-015",
   "title": "A stage created with no bid_end_time fails at creation, not later",
   "setup": {
@@ -46,7 +48,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

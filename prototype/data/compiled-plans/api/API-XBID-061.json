@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "API-XBID-061",
   "title": "A price below the configured floor is refused",
-  "compiledAt": "2026-10-15T12:13:20.721Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:24.564Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-BID-061 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a floor (min) price”)",
-   "The available setup and body fields do not configure the line item's floor price; EDGE-BID-061 assumes that the floor is already configured.",
-   "library case EDGE-BID-061 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a floor (min) price”)"
+   "the decisive step tests something else than the case's point: The setup recipe does not configure or expose the floor price, so the chosen price must be below the configured floor.",
+   "it depends on a company setting this run does not change (floor price set) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [
-   "error code 41 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
   ],
   "validated": true,
   "endpoints": [
@@ -29,13 +28,15 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor prices the line on the bid at 0.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with “Price cannot be less than the allowed price”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Price cannot be less than the allowed price”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.097Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-061",
   "title": "A price below the configured floor is refused",
   "setup": {
@@ -47,17 +48,33 @@
     "as": "vendor"
    },
    {
-    "op": "library",
+    "op": "price_bid",
     "as": "vendor",
-    "caseId": "EDGE-BID-061",
+    "params": {
+     "price": 0
+    },
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "41",
    "message": "Price cannot be less than the allowed price"
-  }
+  },
+  "dependsOnSetting": "floor price set"
  }
 }

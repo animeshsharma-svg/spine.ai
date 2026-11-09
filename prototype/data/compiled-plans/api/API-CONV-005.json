@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "API-CONV-005",
   "title": "Converting an already-auctioning trade is refused",
-  "compiledAt": "2026-10-15T13:03:13.464Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:19:56.642Z",
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "library case AUC-CONV-002 needs a starting state no recipe builds (“{{tradeId}} is an active TradeRequest that is already auctioning (current_status auctioning) and whose event group is th”)",
-   "The setup recipe does not explicitly create an already-auctioning trade; this precondition is required by the library case.",
-   "library case AUC-CONV-002 needs a starting state no recipe builds (“{{tradeId}} is an active TradeRequest that is already auctioning (current_status auctioning) and whose event group is th”)"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "error code 93 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+   "a read-back was added in code: As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
   ],
   "validated": true,
   "endpoints": [
@@ -25,32 +21,47 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
    "steps": [
-    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it."
+    "The buyer converts the pricing round into a live auction.",
+    "As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Trade is already of auction type”, and never with a server error. Read back afterwards: the event has no new round (the conversion left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.699Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-CONV-005",
   "title": "Converting an already-auctioning trade is refused",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "draft_auction"
   },
   "act": [
    {
-    "op": "library",
+    "op": "convert_to_auction",
     "as": "buyer",
-    "caseId": "AUC-CONV-002",
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 1,
+      "say": "the event has no new round (the conversion left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "93"
+   "code": "93",
+   "message": "Trade is already of auction type"
   }
  }
 }

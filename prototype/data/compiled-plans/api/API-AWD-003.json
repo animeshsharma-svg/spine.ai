@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-AWD-003",
+  "title": "Adding a response with no submitted bid is refused",
+  "compiledAt": "2026-11-09T19:23:13.153Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The application's refusal code and message are not specified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.658Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-AWD-003",
+  "title": "Adding a response with no submitted bid is refused",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+     "body": {
+      "responses": {
+       "{{vendorUuid}}": {
+        "action": "add",
+        "egli_data": {
+         "{{lineItemUuid}}": {
+          "awarded_quantity": 10
+         }
+        }
+       }
+      }
+     }
+    },
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

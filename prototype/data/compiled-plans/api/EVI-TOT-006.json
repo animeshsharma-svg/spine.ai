@@ -2,14 +2,14 @@
  "meta": {
   "caseId": "EVI-TOT-006",
   "title": "A vendor's app that sends wrong totals cannot change the figures",
-  "compiledAt": "2026-10-15T12:40:38.121Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:09:46.625Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available operations cannot send incorrect line totals or bid totals while using real prices and quantities.",
-   "The available read-back fields do not expose line totals or bid totals, so recomputation and the absence of ₹1 cannot be verified.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available operations cannot send intentionally incorrect line totals or bid totals while retaining real prices and quantities.",
+   "The available read-back fields do not expose line-total or bid-total fields, so the plan cannot verify that every total was recomputed or that ₹1 appears nowhere.",
+   "The expected rejection cannot be tied to a known application error code."
   ],
   "warnings": [],
   "validated": true,
@@ -17,7 +17,7 @@
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id",
-   "GET /trade/:id"
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,14 +28,17 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit).",
-    "The buyer reads the pricing round."
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid at 100.",
+    "The invited QA vendor submits the bid.",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.181Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-TOT-006",
   "title": "A vendor's app that sends wrong totals cannot change the figures",
   "setup": {
@@ -43,18 +46,36 @@
   },
   "act": [
    {
-    "op": "place_bid",
+    "op": "open_bid",
     "as": "vendor"
    },
    {
-    "op": "read_round",
-    "as": "buyer",
-    "decisive": true
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "decisive": true,
+    "ifRefused": "pass"
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject"
   }
  }
 }

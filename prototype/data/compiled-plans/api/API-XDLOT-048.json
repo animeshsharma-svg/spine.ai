@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-048",
+  "title": "A lot of a lot is refused, with a misleading message",
+  "compiledAt": "2026-11-09T22:46:07.571Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case does not specify the request body field name; trade_request_uuid is used to pass the lot RFQ uuid."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/create_new_lot"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer sends the trade create new lot request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “A lot for one or more items already exists.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.124Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-048",
+  "title": "A lot of a lot is refused, with a misleading message",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/create_new_lot",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "739",
+   "message": "A lot for one or more items already exists."
+  }
+ }
+}

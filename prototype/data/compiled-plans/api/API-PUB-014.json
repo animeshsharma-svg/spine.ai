@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "API-PUB-014",
   "title": "A Procol-employee CSM can update without the trade permission flag",
-  "compiledAt": "2026-10-15T12:56:59.207Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:15.526Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The vocabulary cannot establish that the buyer is a Procol employee, is a CSM for the company, or lacks the trade:create_record permission."
+   "The vocabulary does not model a Procol employee or CSM identity, the trade:create_record permission flag, or a generic trade update PATCH; the plan uses the available event update operation as the closest expression.",
+   "it depends on a company setting this run does not change (Procol-employee CSM access without trade:create_record) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -21,36 +23,46 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”."
+    "The buyer updates the event.",
+    "As the buyer, read the event and check that the event's title is what step 1 sent."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: the event's title is what step 1 sent."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.023Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-014",
   "title": "A Procol-employee CSM can update without the trade permission flag",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "draft_event"
   },
   "act": [
    {
     "op": "update_event",
     "as": "buyer",
-    "change": [
-     {
-      "path": "title",
-      "set": "QA_Platform_Renamed_{{stamp}}"
-     }
-    ],
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "{{act1.body.title}}",
+      "say": "the event's title is what step 1 sent"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "Procol-employee CSM access without trade:create_record"
  }
 }

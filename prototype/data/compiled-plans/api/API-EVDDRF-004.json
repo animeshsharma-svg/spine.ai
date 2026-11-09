@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "API-EVDDRF-004",
   "title": "An empty update to a draft technical round does not break the server",
-  "compiledAt": "2026-10-15T12:19:30.110Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:49:21.243Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The plan does not distinguish between a clean refusal and a no-op, and cannot assert the exact missing-parameters response.",
-   "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   "Does not distinguish a clean refusal from a successful no-op.",
+   "Does not assert the exact refusal status or missing-parameter error."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -24,13 +24,14 @@
   "words": {
    "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
    "steps": [
-    "The buyer updates the event."
+    "The buyer sends the request that updates the round, the request the case itself writes."
    ],
    "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:56:36.761Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDRF-004",
   "title": "An empty update to a draft technical round does not break the server",
   "setup": {
@@ -38,9 +39,13 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "request",
     "as": "buyer",
-    "change": [],
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{rfpTradeId}}",
+     "body": {}
+    },
     "decisive": true
    }
   ],

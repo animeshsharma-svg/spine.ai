@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "API-EVDAWD-011",
   "title": "With partial awarding off, a second vendor cannot be added to a line already fully awarded",
-  "compiledAt": "2026-10-15T12:35:21.170Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:49:17.746Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup does not explicitly create a second invited vendor with a quoted 30-unit bid or expose the partial-awarding configuration; AWD-PART-004 is the closest available library case."
+   "The available vocabulary does not expose a setting change or assertion for partial awarding being off.",
+   "The available vocabulary does not expose the award response body needed to explicitly omit the quantity; the plan relies on award_vendor using the vendor's quoted quantity."
   ],
-  "warnings": [
-   "error code 561 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
+   "POST /proposal",
    "POST /proposal/:id/add_response"
   ],
   "llm": {
@@ -23,25 +23,41 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
    "steps": [
-    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor."
    ],
    "expected": "The app refuses the step the case is about with “You cannot select bid with more than requested quantity.”, and never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:56:36.725Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDAWD-011",
   "title": "With partial awarding off, a second vendor cannot be added to a line already fully awarded",
   "setup": {
-   "recipe": "awarded_rfq"
+   "recipe": "closed_rfq_with_2_bids"
   },
   "act": [
    {
-    "op": "library",
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
     "as": "buyer",
-    "caseId": "AWD-PART-004",
+    "params": {
+     "vendor": "vendor2"
+    }
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
     "decisive": true
    }
   ],
@@ -49,7 +65,8 @@
   "expected": {
    "outcome": "reject",
    "code": "561",
-   "message": "You cannot select bid with more than requested quantity."
+   "message": "You cannot select bid with more than requested quantity.",
+   "codeInferred": true
   }
  }
 }

@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-057",
+  "title": "The vendor picker for an unknown onboarding response crashes",
+  "compiledAt": "2026-11-09T22:28:22.216Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/chats/get_possible_participants"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the chats get possible participants request, the request the case itself writes.",
+    "As the buyer, read the chats get possible participants request and check that Data check: “status” equals 422."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Data check: “status” equals 422."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.787Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-057",
+  "title": "The vendor picker for an unknown onboarding response crashes",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_possible_participants?module=FxResponse&module_uuid=Z2dnWmdaUWtnZw=="
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_possible_participants?module=FxResponse&module_uuid=Z2dnWmdaUWtnZw=="
+    },
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": 422
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

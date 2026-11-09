@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-009",
+  "title": "A vendor that regretted every line is shown as regretted, not as \"technically not acceptable\"",
+  "compiledAt": "2026-11-09T20:22:02.544Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup recipes provide only one line item and one QA vendor, so the three-line scenario with vendors A, B, and C cannot be created.",
+   "There is no operation for regretting line items or submitting TNA scores.",
+   "The vendor-list TNA status and the L1 price cannot be asserted from the available read-back fields; only the pricing round response and existence of participants can be checked.",
+   "The expected condition that an empty regretted-line list is classified as TNA cannot be verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: “participants” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “participants” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.909Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-009",
+  "title": "A vendor that regretted every line is shown as regretted, not as \"technically not acceptable\"",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "participants",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

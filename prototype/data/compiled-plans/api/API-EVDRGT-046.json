@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-046",
+  "title": "No regret on a withdrawn event",
+  "compiledAt": "2026-11-09T19:32:37.934Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vendor's regret operation is not available in the provided operations, and no request path was supplied for it."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The buyer withdraws the event with the status set to “withdrawn”.",
+    "As the buyer, read the event and check that the event is still active (not withdrawn)."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error. Read back afterwards: the event is still active (not withdrawn)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.819Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-046",
+  "title": "No regret on a withdrawn event",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "set": "withdrawn"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active",
+      "say": "the event is still active (not withdrawn)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found"
+  }
+ }
+}

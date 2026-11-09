@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-047",
+  "title": "weightages sent as text (or a number) is refused, not a crash",
+  "compiledAt": "2026-11-09T22:25:34.906Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot independently assert HTTP 422 apart from the known error code 2."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes.",
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.876Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-047",
+  "title": "weightages sent as text (or a number) is refused, not a crash",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": "QA_Platform_weights_{{stamp}}"
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": 5
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

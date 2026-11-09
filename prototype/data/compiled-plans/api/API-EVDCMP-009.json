@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-009",
+  "title": "A tie at the best price in an auction: both tied vendors are told rank 2",
+  "compiledAt": "2026-11-09T20:20:12.144Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no QA vendor 3 token or setup recipe for three invited vendors, so the higher-priced third bid cannot be created.",
+   "The plan cannot verify that the two tied vendors receive rank 2 and the higher-priced vendor receives rank 3.",
+   "read_indicators cannot be read as vendor2, so QA vendor 2's own rank cannot be read.",
+   "The rank assertion paths require vendor company and line-item UUID interpolation that is not available as a readable assertion value in the vocabulary."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "A second QA vendor places a complete bid of 100 (open, price, submit).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.732Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDCMP-009",
+  "title": "A tie at the best price in an auction: both tied vendors are told rank 2",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer"
+   },
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 100
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

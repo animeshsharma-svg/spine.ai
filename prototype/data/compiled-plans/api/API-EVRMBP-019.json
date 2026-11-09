@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-019",
+  "title": "The event page shows the top four live bids; quote details show the full history",
+  "compiledAt": "2026-11-09T22:55:17.993Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup creates only two bidding vendors, not six.",
+   "No operation creates a revised, rejected, awarded, pending-approval, or approval-requested bid state.",
+   "The event-page bid block cannot be verified to contain exactly four bids, to filter by active/awarded/pending-approval, or to order bids with the best first.",
+   "The available quote-details read has no sampled fields for verifying the requested bid-history categories or confirming that rejected bids are omitted.",
+   "The decisive refusal verifies that a vendor cannot read the second vendor's bid; it does not verify the original buyer-facing event-page and quote-details behavior.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "GET /v1/trade/:id/quote_details/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor reads the second QA vendor's bid.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the trade quote details request and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to view this event.”, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.905Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-019",
+  "title": "The event page shows the top four live bids; quote details show the full history",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_bid2",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/trade/{{tradeId}}/quote_details/{{bidUuid}}"
+    },
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "536",
+   "message": "You are not allowed to view this event.",
+   "codeInferred": true
+  }
+ }
+}

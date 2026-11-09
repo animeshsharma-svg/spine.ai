@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-STG-006",
+  "title": "An RFI stage is created",
+  "compiledAt": "2026-11-09T19:59:53.681Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields do not expose whether the stage uses generic bidding_time schedules rather than RFQ or auction schedules."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event with the rfx mode set to “rfi”.",
+    "As the buyer, read the technical round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.031Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-STG-006",
+  "title": "An RFI stage is created",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.rfx_mode",
+      "set": "rfi"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

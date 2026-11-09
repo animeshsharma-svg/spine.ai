@@ -2,23 +2,18 @@
  "meta": {
   "caseId": "API-EVDWGT-065",
   "title": "Weights can still be added after the bidding window closed with no bids",
-  "compiledAt": "2026-10-15T13:17:24.489Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:21:17.833Z",
+  "planVersion": 2,
   "source": "rules",
-  "coverage": "partial",
-  "gaps": [
-   "compiled by a fixed rule, not read in full — check the steps match the case",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”",
-   "it does not read the record back to confirm what was kept or shown"
-  ],
-  "warnings": [
-   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id"
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -29,13 +24,15 @@
   "words": {
    "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.882Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDWGT-065",
   "title": "Weights can still be added after the bidding window closed with no bids",
   "setup": {
@@ -48,10 +45,24 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "33"
+   "code": "33",
+   "message": "Order not active"
   }
  }
 }

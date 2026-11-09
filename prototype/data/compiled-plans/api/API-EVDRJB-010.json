@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-010",
+  "title": "Rejecting with an id that cannot be decoded",
+  "compiledAt": "2026-11-09T22:28:57.877Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact error message 'No such bid exists' is not asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “No such bid exists”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.829Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-010",
+  "title": "Rejecting with an id that cannot be decoded",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/WrongUuid1=/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebilling": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "250",
+   "message": "No such bid exists"
+  }
+ }
+}

@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "API-EVDRGT-061",
   "title": "A declined vendor can still bid, and the buyer sees both answers at once",
-  "compiledAt": "2026-10-15T12:47:05.434Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:49:38.210Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The vocabulary cannot create the event-level decline from case 057.",
-   "The available library case opens a bid rather than placing a complete bid.",
-   "The audience response shape is not sampled, so the vendor's decline text and bid-placed stage cannot be asserted.",
-   "The alternative outcome in which bidding clears the decline cannot be asserted.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The event-level decline from case 057 cannot be expressed because no decline operation or named request path/body is provided.",
+   "The audience response shape is not sampled, so the plan cannot verify the vendor's decline text or that the stage lists the vendor as bid placed.",
+   "The alternative requirement that the bid be refused or the decline be cleared cannot be asserted with the available read-back fields.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
    "GET /event_groups/:id/get_audience"
   ],
   "llm": {
@@ -28,15 +29,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it.",
-    "The buyer lists the event's invited vendors.",
-    "As the buyer, list the event's invited vendors and check that the read succeeds; the reply is not empty."
+    "QA vendor 1 places a complete bid.",
+    "As the buyer, list the event's invited vendors and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the read succeeds; the reply is not empty."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.822Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRGT-061",
   "title": "A declined vendor can still bid, and the buyer sees both answers at once",
   "setup": {
@@ -44,16 +45,11 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "place_bid",
     "as": "vendor",
-    "caseId": "EDGE-BID-016",
-    "expect": "reject",
-    "ifRefused": "pass"
-   },
-   {
-    "op": "read_audience",
-    "as": "buyer",
-    "decisive": true
+    "expect": "accept",
+    "decisive": true,
+    "say": "QA vendor 1 places a complete bid."
    }
   ],
   "verify": [
@@ -73,7 +69,7 @@
    }
   ],
   "expected": {
-   "outcome": "reject"
+   "outcome": "accept"
   }
  }
 }

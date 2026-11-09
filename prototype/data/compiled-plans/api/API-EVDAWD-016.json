@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-016",
+  "title": "A zero-quantity award does not add the vendor's full quote to the total",
+  "compiledAt": "2026-11-09T20:20:02.944Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available award_vendor fields do not expose a quantity parameter, so the plan cannot encode awarding the whole line to vendor 1 and zero units to vendor 2.",
+   "The available read_proposal read-back fields do not expose vendor award quantities or totals, so the assertion that vendor 2 contributes ₹0 cannot be checked.",
+   "it depends on a company setting this run does not change (is_partial_awarding_enabled) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /proposal/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
+    "As the buyer, read the award proposal and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.726Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDAWD-016",
+  "title": "A zero-quantity award does not add the vendor's full quote to the total",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    }
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "is_partial_awarding_enabled"
+ }
+}

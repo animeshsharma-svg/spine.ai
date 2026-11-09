@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-XBID-086",
   "title": "A locked event refuses any revision after submission",
-  "compiledAt": "2026-10-15T12:13:52.470Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:21.281Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
-   "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
+   "it depends on a company setting this run does not change (`lock_quote_after_submission` must be on for this case's outcome to hold) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -26,11 +26,12 @@
    "steps": [
     "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Revise bid is locked. You cannot edit your quote after submission.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.108Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-086",
   "title": "A locked event refuses any revision after submission",
   "setup": {
@@ -46,7 +47,9 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "875",
+   "message": "Revise bid is locked. You cannot edit your quote after submission."
   },
   "dependsOnSetting": "`lock_quote_after_submission` must be on for this case's outcome to hold"
  }

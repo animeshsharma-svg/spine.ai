@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "API-PERM-012",
   "title": "Surrogate approval-flow reads need approval-flow read permission",
-  "compiledAt": "2026-10-15T12:08:22.149Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:02.661Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available recipes do not guarantee a sandbox stage or configurable approval-flow read permission, so the allowed buyer call cannot be verified reliably.",
-   "The response cannot be asserted as a non-empty array because no read-back fields are defined for library operations."
+   "The available vocabulary cannot grant or revoke approval-flow read permission between calls; the buyer call is used as the permitted case and the vendor call as the unpermitted case.",
+   "The permitted call's successful non-empty response cannot be independently asserted before the refused call.",
+   "it depends on a company setting this run does not change (approval-flow read permission) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [
-   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "GET /bids/approval_workflows_for_surrogate_bid_create"
@@ -26,14 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it.",
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The buyer sends the bid call, the request the case itself writes.",
+    "The invited QA vendor sends the bid call, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.019Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PERM-012",
   "title": "Surrogate approval-flow reads need approval-flow read permission",
   "setup": {
@@ -41,15 +41,20 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "buyer",
-    "caseId": "EDGE-DAPR-044",
-    "ifRefused": "pass"
+    "request": {
+     "method": "GET",
+     "path": "/bids/approval_workflows_for_surrogate_bid_create?trade_request_uuid={{tradeId}}"
+    }
    },
    {
-    "op": "library",
+    "op": "request",
     "as": "vendor",
-    "caseId": "EDGE-DAPR-044",
+    "request": {
+     "method": "GET",
+     "path": "/bids/approval_workflows_for_surrogate_bid_create?trade_request_uuid={{tradeId}}"
+    },
     "decisive": true
    }
   ],
@@ -57,7 +62,9 @@
   "expected": {
    "outcome": "reject",
    "code": "455",
+   "message": "You are not authorized to perform this action",
    "codeInferred": true
-  }
+  },
+  "dependsOnSetting": "approval-flow read permission"
  }
 }

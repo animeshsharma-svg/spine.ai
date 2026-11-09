@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-017",
+  "title": "Leaving a weight out of the next save removes it",
+  "compiledAt": "2026-11-09T22:25:06.322Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has no operation or named request path for saving weight parameters, so the two-weight arrangement and the subsequent save with only qa_freight_adj cannot be performed.",
+   "read_round does not expose a weight-list or row-status read-back field, so qa_freight_adj, weighted_total, and qa_quality_pen cannot be verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.865Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-017",
+  "title": "Leaving a weight out of the next save removes it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

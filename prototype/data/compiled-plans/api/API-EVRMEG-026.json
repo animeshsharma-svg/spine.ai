@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-026",
+  "title": "The amendment reason shown is the latest active one",
+  "compiledAt": "2026-11-09T20:04:10.129Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot set amendment reason R1, edit it to R2, or delete R2 with the available operations and fields.",
+   "Cannot read or assert amendment remarks, attachments, active/inactive state, or amendment time.",
+   "Cannot verify that the latest active reason is R1 or that no reason is returned when none was given."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /item_versions",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “EventGroup”.",
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.913Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-026",
+  "title": "The amendment reason shown is the latest active one",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{eventGroupUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "EventGroup"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -2,21 +2,15 @@
  "meta": {
   "caseId": "API-EVDRJB-012",
   "title": "A bid can be rejected after bidding has closed",
-  "compiledAt": "2026-10-15T12:25:48.252Z",
-  "planVersion": 1,
-  "source": "rules",
-  "coverage": "partial",
-  "gaps": [
-   "compiled by a fixed rule, not read in full — check the steps match the case"
-  ],
-  "warnings": [
-   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "compiledAt": "2026-11-09T22:49:42.537Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /v1/bids",
-   "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id"
+   "PATCH /bids/:id/reject"
   ],
   "llm": {
    "calls": 0,
@@ -25,31 +19,40 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The buyer sends the bid call, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.830Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-012",
   "title": "A bid can be rejected after bidding has closed",
   "setup": {
-   "recipe": "closed_rfq"
+   "recipe": "closed_rfq_with_bid"
   },
   "act": [
    {
-    "op": "place_bid",
-    "as": "vendor",
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "expect": "accept",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "reject",
-   "code": "33"
+   "outcome": "accept"
   }
  }
 }

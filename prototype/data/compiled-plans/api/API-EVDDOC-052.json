@@ -2,20 +2,18 @@
  "meta": {
   "caseId": "API-EVDDOC-052",
   "title": "A T&C attachment with no value makes the round page unreadable",
-  "compiledAt": "2026-10-15T12:17:43.996Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:10:51.733Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "PATCH /trade/{{tradeId}} with attachments field (no value) cannot be expressed with available operations",
+   "The plan does not distinguish whether the attachment is refused or treated as empty.",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
-  "warnings": [
-   "error code 500 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked",
-   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
+   "PATCH /trade/:id",
    "GET /trade/:id"
   ],
   "llm": {
@@ -27,34 +25,51 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "As the buyer, read the pricing round and check that “status” is present."
+    "The buyer sends the request that updates the round, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: “status” is present."
-  }
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.750Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-052",
   "title": "A T&C attachment with no value makes the round page unreadable",
   "setup": {
    "recipe": "published_rfq"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "attachments": [
+       {
+        "type": "t_and_c"
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
   "verify": [
    {
     "op": "read_round",
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "exists"
+      "op": "status_2xx"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "reject",
-   "code": "500"
+   "outcome": "no-5xx"
   }
  }
 }

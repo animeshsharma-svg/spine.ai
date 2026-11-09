@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-005",
+  "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
+  "compiledAt": "2026-11-09T22:50:01.393Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot set or verify company policies for bid duration or evaluation duration.",
+   "Cannot schedule publication for tomorrow at 10:00 or create a second event with a past schedule.",
+   "the decisive step tests something else than the case's point: Cannot build a round specifically from an existing RFQ beyond the RFQ supplied by the setup recipe.",
+   "Cannot verify the round's scheduled start time or the relationship between evaluation end and bid end.",
+   "Cannot verify whether saving the scheduled round itself is refused."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later, with the remarks set to “QA_Platform_…”."
+   ],
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.889Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-005",
+  "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     },
+     {
+      "path": "remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active",
+   "codeInferred": true
+  }
+ }
+}

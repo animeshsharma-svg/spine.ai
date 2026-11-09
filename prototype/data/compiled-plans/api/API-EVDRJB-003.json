@@ -3,7 +3,7 @@
   "caseId": "API-EVDRJB-003",
   "title": "A vendor blocked from re-bidding cannot place a new bid",
   "compiledAt": "2026-10-04T07:08:30.009Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -25,13 +25,15 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.825Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-003",
   "title": "A vendor blocked from re-bidding cannot place a new bid",
   "setup": {
@@ -44,7 +46,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "101",

@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-CONV-008",
+  "title": "A line-item to lot closing-mode switch on a multi-product trade is refused",
+  "compiledAt": "2026-11-09T19:29:44.271Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup recipes create only one line item, so the multi-product starting state is not created.",
+   "The request does not include a multi-product data payload because the required product identifiers are not available as tokens."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/move_to_auction"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates the round, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot award entire lot when RFQ was done for partial lot.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.700Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-CONV-008",
+  "title": "A line-item to lot closing-mode switch on a multi-product trade is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/move_to_auction",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "configurations": {
+       "auction_closing_mode": "lot"
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "503",
+   "message": "You cannot award entire lot when RFQ was done for partial lot."
+  }
+ }
+}

@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-NRFPSTG-002",
+  "title": "Add the technical round (RFP): forms[0].name has the wrong type",
+  "compiledAt": "2026-11-09T19:41:34.260Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the name sent as 12345.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.000Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NRFPSTG-002",
+  "title": "Add the technical round (RFP): forms[0].name has the wrong type",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "forms[0].name",
+      "set": 12345
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the name sent as 12345."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

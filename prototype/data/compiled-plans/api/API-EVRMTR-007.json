@@ -2,21 +2,18 @@
  "meta": {
   "caseId": "API-EVRMTR-007",
   "title": "A price round can be moved to auction only once",
-  "compiledAt": "2026-10-15T13:20:03.069Z",
-  "planVersion": 1,
-  "source": "rules",
+  "compiledAt": "2026-11-09T22:50:58.865Z",
+  "planVersion": 2,
+  "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "compiled by a fixed rule, not read in full — check the steps match the case",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The available read operations cannot verify that no second auction round exists.",
+   "The available vocabulary cannot verify that a new move becomes allowed after the first auction is withdrawn or cancelled."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id",
-   "POST /v1/bids",
-   "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id"
+   "POST /trade/move_to_auction"
   ],
   "llm": {
    "calls": 0,
@@ -27,14 +24,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer withdraws the event.",
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The buyer converts the pricing round to a live auction first.",
+    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “An auction has already been made for this event.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.918Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVRMTR-007",
   "title": "A price round can be moved to auction only once",
   "setup": {
@@ -42,19 +40,23 @@
   },
   "act": [
    {
-    "op": "withdraw_event",
+    "op": "convert_to_auction",
     "as": "buyer",
-    "expect": "accept"
+    "expect": "accept",
+    "say": "The buyer converts the pricing round to a live auction first."
    },
    {
-    "op": "place_bid",
-    "as": "vendor",
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AUC-CONV-003",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "reject"
+   "outcome": "reject",
+   "code": "94",
+   "message": "An auction has already been made for this event."
   }
  }
 }

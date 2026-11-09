@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-056",
+  "title": "HTML in a weight KEY is stored raw",
+  "compiledAt": "2026-11-09T22:45:44.323Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The supplied case expects HTTP 200 with misc.weightage.key_attributes retained verbatim, but also states the key should be refused; this plan follows the stated refusal expectation.",
+   "The complete happy-path request body is not specified, so only key_attributes is included; no kept-value read-back is applicable after refusal.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.880Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-056",
+  "title": "HTML in a weight KEY is stored raw",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "key_attributes": [
+       "qa_<img src=x onerror=alert(1)>"
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters",
+   "codeInferred": true
+  }
+ }
+}

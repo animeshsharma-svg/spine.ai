@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "API-BID-013",
+  "title": "Bidding is refused once the RFQ's auction exists",
+  "compiledAt": "2026-11-09T22:23:12.358Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer converts the RFQ pricing round into an auction.",
+    "The invited vendor tries to open a bid on the original RFQ after its auction exists.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot edit rfq once the auction is created.”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.684Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-BID-013",
+  "title": "Bidding is refused once the RFQ's auction exists",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "expect": "accept",
+    "say": "The buyer converts the RFQ pricing round into an auction."
+   },
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "reject",
+    "decisive": true,
+    "say": "The invited vendor tries to open a bid on the original RFQ after its auction exists."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "769",
+   "message": "You cannot edit rfq once the auction is created."
+  }
+ }
+}
