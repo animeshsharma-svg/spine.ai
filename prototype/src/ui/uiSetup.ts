@@ -16,7 +16,25 @@
  *   closed      the bidding window has ended after the vendor's bid
  *   proposal    closed, and the buyer has a DRAFT award proposal with the line allocated
  *   awarded     closed, and the buyer has awarded it
+ *   converted   a published RFQ with the vendor's bid, converted into a live auction
  * With `technical: true` the event also carries a technical (RFP) round first.
+ *
+ * States added 10 Nov 2026 (the ones the screen cases name and the set-up could not build):
+ *   two_invited live, with a SECOND QA vendor invited (nobody has bid)
+ *   two_bids    live, and TWO QA vendors have each submitted their own bid
+ *   uninvited   live with one QA vendor invited; the context's vendor is a QA vendor the event does NOT have,
+ *               so a vendor-side case can try to open it as that vendor (the invited one is in values.invitedVendorName)
+ *   withdrawn   published, then withdrawn by the buyer with a remark (PATCH status withdrawn)
+ *   amended     live with the vendor's bid, then a NEW VERSION issued and published — the context opens the OLD
+ *               version (v1, no longer the latest); the new one is in made.newVersionEventUuid
+ *   amendment   the same build, but the context opens the NEW published version (the amendment itself)
+ *   dutch       a live DUTCH auction round (buy side: start price below the end price, the price climbs by the tick)
+ *   knockout    a live KNOCKOUT auction round (Procol's name for the Japanese / accept-the-price auction)
+ *   forward     a live FORWARD auction round (order_type "sell": the price climbs, the best bid is the highest)
+ *   masked      live with the vendor's bid and VENDOR MASKING on for the round (is_vendor_masking_enabled on the stage;
+ *               the company's is_vendor_masking_allowed_for_everyone makes it count — read on DEMO 10 Nov: on)
+ *   pr_rfq      a live RFQ made from an open purchase request's material line (the journey's fromPr: the line's own
+ *               product, unit and open quantity, linked by pr_line_item_uuid) — values.prNo names the PR
  *
  * Vendors: the journeys' rule (Aanya, 2026-10-09; for these states 2026-10-20):
  * the event goes to the vendors Procol suggests for its product — each gets
@@ -31,9 +49,15 @@ import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
 import { qaVendorsOnly } from "../checks/eventVendors.js";
+import { qaVendorsFor } from "../checks/matrixVendors.js";
 
-export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted";
-export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted"];
+export type UiState =
+  | "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted"
+  | "two_invited" | "two_bids" | "uninvited" | "withdrawn" | "amended" | "amendment" | "dutch" | "knockout" | "forward" | "masked" | "pr_rfq";
+export const UI_STATES: UiState[] = [
+  "none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted",
+  "two_invited", "two_bids", "uninvited", "withdrawn", "amended", "amendment", "dutch", "knockout", "forward", "masked", "pr_rfq",
+];
 
 /** What the browser (and the screen assertions) get from the build. */
 export interface UiSetupContext {
@@ -51,6 +75,9 @@ export interface UiSetupContext {
   vendorEmail?: string;
   /** the buyer user the API signed in as (the browser signs in as the same user) */
   buyerUserId?: number;
+  /** the OTHER QA vendor on the build: the second bidder (two_bids / two_invited) or the invited one (uninvited) */
+  otherVendorName?: string;
+  otherVendorEmail?: string;
   /** every id the journey produced, by name */
   made: Record<string, string>;
   /** values the API sent, for expect_api_value (key → text as a person would read it) */
@@ -76,7 +103,38 @@ const PREFIX: Record<Exclude<UiState, "none">, string> = {
   awarded: "award_submit",
   // a published RFQ with the vendor's bid, converted into a live auction (the vendor bids in it too)
   converted: "convert_auction",
+  two_invited: "read_back",
+  // the LAST bid_submit of the plan (the second vendor's)
+  two_bids: "bid_submit",
+  uninvited: "read_back",
+  withdrawn: "read_back",
+  amended: "bid_submit",
+  amendment: "bid_submit",
+  dutch: "read_back",
+  knockout: "read_back",
+  forward: "read_back",
+  masked: "bid_submit",
+  pr_rfq: "read_back",
 };
+
+/** The states that are a live AUCTION round of a particular kind (the plan builds an auction, not an RFQ). */
+const AUCTION_VARIANT: Partial<Record<UiState, "dutch" | "knockout" | "forward">> = { dutch: "dutch", knockout: "knockout", forward: "forward" };
+/** The states that invite a second QA vendor besides the one that bids. */
+const WANTS_SECOND_VENDOR = new Set<UiState>(["two_invited", "two_bids", "dutch", "knockout", "forward"]);
+
+/**
+ * The dutch / knockout strategy of a QA_Platform round, on the TOTAL amount (not the base price), as the
+ * backend validates it (trade_controller_helper set_configurations_for_trade, 10 Nov): bulk_price > 0,
+ * time_difference ≥ 30 s and within the round, price_difference ≤ end − start on the buy side, dutch
+ * start (bulk) ≤ end. Sized around the journey's own bid (price × quantity) so a later conversion check
+ * (L1 above the start, 966/968) would hold too.
+ */
+export function strategyFor(kind: "dutch" | "knockout", bidTotal: number): Record<string, unknown> {
+  const start = Math.max(100, Math.round(bidTotal * 0.6));
+  const tick = Math.max(10, Math.round(bidTotal * 0.05));
+  const base = { auction_config: kind, bulk_price: start, price_difference: tick, time_difference: 120, is_auction_on_base_price: false, dynamic_closing_time_strategy: "price_based" };
+  return kind === "dutch" ? { ...base, end_price: Math.max(start + tick, Math.round(bidTotal * 0.9)), closing_mode: "single" } : base;
+}
 
 /** Clients (or a test) can share one opened client context across builds. */
 const clients = new Map<number, Promise<any>>();
@@ -96,6 +154,38 @@ export async function qaVendorOf(companyId: number): Promise<{ name: string; ema
     clients.delete(companyId);
     return null;
   }
+}
+
+/** Another QA test vendor of the client (not the one the client context bids as), with a login; null when there is none. */
+async function secondQaVendor(companyId: number, client: any): Promise<{ companyUuid: string; email: string; name: string } | null> {
+  const first = String(client?.ctx?.vendor?.uuid ?? "");
+  const all = await withWatchdog(qaVendorsFor(companyId, client?.ctx?.buyerApi, 6), 60_000, "listing the client's QA vendors").catch(() => []);
+  const other = all.find((v) => v.vendorCompanyUuid && v.vendorCompanyUuid !== first && /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(v.email ?? ""));
+  return other ? { companyUuid: other.vendorCompanyUuid, email: other.email, name: other.name || other.email } : null;
+}
+
+/**
+ * An open purchase request with a material line that still has quantity to put on an event, as the API plan
+ * runner picks one (apiPlanRunner.ts pickPrLines, 27 Oct): the console's Purchase Cart → Create Project data.
+ */
+async function openPrLine(api: any): Promise<{ prUuid: string; prNo?: string; lines: Array<{ uuid: string; productUuid: string; qualityUuid: string; unit: string; qty: number; hubUuid?: string; name?: string; productCode?: string; itemNo?: string }> } | { why: string }> {
+  const q = encodeURIComponent(JSON.stringify({ status: ["active"] }));
+  const r = await send(api, "GET", `/purchase_requests?page=1&page_size=50&filters=${q}&tab=active`);
+  if (!r.ok) return { why: `the open purchase requests could not be read: ${r.error}` };
+  const prs: any[] = r.data?.purchase_requests ?? (Array.isArray(r.data) ? r.data : []);
+  const usable = (l: any) => l?.uuid && l?.product_uuid && l.status === "active" && l.line_item_type === "material" && Number(l.quantity_open) > 0 && !l.dormant_locked && l?.data?.uom;
+  const pick = prs.map((p) => ({ p, ls: (p?.line_items ?? []).filter(usable) })).find((x) => x.p?.uuid && x.ls.length >= 1);
+  if (!pick) return { why: "no open purchase request on the first page has a material line with quantity left to put on an event" };
+  const l = pick.ls[0];
+  const prod = await send(api, "GET", `/products/${encodeURIComponent(l.product_uuid)}`);
+  const p = prod.data?.product ?? prod.data;
+  const quality = p?.variants?.[0]?.uuid;
+  if (!quality) return { why: `the product of PR ${pick.p?.data?.prNo ?? "?"}'s line has no variant to put on an event` };
+  return {
+    prUuid: String(pick.p.uuid),
+    prNo: pick.p?.data?.prNo ? String(pick.p.data.prNo) : undefined,
+    lines: [{ uuid: String(l.uuid), productUuid: String(l.product_uuid), qualityUuid: String(quality), unit: String(l.data.uom), qty: Number(l.quantity_open), ...(l.buyer_hub_uuid ? { hubUuid: String(l.buyer_hub_uuid) } : {}), name: String(p?.name ?? l?.data?.shortText ?? l.product_uuid), ...(l.product_code ? { productCode: String(l.product_code) } : {}), ...(l?.data?.prLno ? { itemNo: String(l.data.prLno) } : {}) }],
+  };
 }
 
 /** Pull the values a screen should show out of what the journey sent. */
@@ -122,17 +212,117 @@ function valuesFrom(journey: any, client: any, vendorName?: string): Record<stri
       if (bet && ect) v.extraSeconds = String(ect - bet);
       const del = c.delivery_schedules?.[0]?.delivery_by;
       if (del) v.deliveryBy = String(del);
+      // the round's variant, as sent (10 Nov): strategy, prices, tick, side, masking
+      if (c.auction_config) v.strategy = String(c.auction_config);
+      if (c.order_type) v.orderType = String(c.order_type);
+      if (c.bulk_price !== undefined && c.bulk_price !== null) v.startPrice = String(c.bulk_price);
+      if (c.end_price !== undefined && c.end_price !== null && c.auction_config === "dutch") v.endPrice = String(c.end_price);
+      if (c.price_difference !== undefined && c.price_difference !== null) v.tick = String(c.price_difference);
+      if (c.time_difference !== undefined && c.time_difference !== null) v.roundStepSeconds = String(c.time_difference);
+      if (c.closing_mode && c.auction_config === "dutch") v.closingMode = String(c.closing_mode);
+      if (c.is_vendor_masking_enabled === true) v.vendorMasking = "on";
     }
     // the vendor's sheet: sheets.inline_components.data.<company>[0].{price,total_amount}.value
     if (s.kind === "bid_products") {
       const rows = body?.sheets?.inline_components?.data;
       const row = rows && typeof rows === "object" ? (Object.values(rows)[0] as any[])?.[0] : undefined;
-      if (row?.price?.value !== undefined && row.price.value !== null) v.bidPrice = String(row.price.value);
-      if (row?.total_amount?.value !== undefined && row.total_amount.value !== null) v.bidTotal = String(row.total_amount.value);
+      // the first vendor's bid stays bidPrice; a later vendor's becomes bidPrice2 (two_bids)
+      const k = v.bidPrice === undefined ? "" : "2";
+      if (row?.price?.value !== undefined && row.price.value !== null) v[`bidPrice${k}`] = String(row.price.value);
+      if (row?.total_amount?.value !== undefined && row.total_amount.value !== null) v[`bidTotal${k}`] = String(row.total_amount.value);
     }
   }
   for (const k of Object.keys(v)) if (v[k] === undefined) delete v[k];
   return v;
+}
+
+/** One request through the buyer's guarded sender, as the journey fires them. */
+async function send(api: any, method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; data: any; error?: string }> {
+  try {
+    const r = await api.attempt(method, path, body === undefined ? {} : { body });
+    return { ok: !!r?.ok, status: Number(r?.status) || 0, data: r?.data, error: r?.ok ? undefined : String(r?.errorMessage ?? r?.errorCode ?? `HTTP ${r?.status}`) };
+  } catch (e) {
+    return { ok: false, status: 0, data: null, error: (e as Error).message };
+  }
+}
+
+const WITHDRAW_REMARK = "QA_Platform set-up: withdrawn by the API set-up so a screen case can start from a withdrawn event";
+const AMEND_REMARK = (stamp: number) => `QA_Platform_${stamp} amendment issued by the API set-up`;
+
+/**
+ * Withdraw the published event the way the console does (projectDetails › withdrawProjectModal):
+ * PATCH /event_groups/:uuid {status: "withdrawn", withdraw_remark}. Read back to confirm.
+ */
+async function withdrawEvent(api: any, eventGroupUuid: string, onLine?: (l: string) => void): Promise<{ ok: boolean; why?: string; status?: string; details?: unknown }> {
+  const r = await send(api, "PATCH", `/event_groups/${eventGroupUuid}`, { status: "withdrawn", withdraw_remark: { remarks: WITHDRAW_REMARK, attachments: [] } });
+  if (!r.ok) return { ok: false, why: `the withdraw was refused: ${r.error}` };
+  const back = await send(api, "GET", `/event_groups/${eventGroupUuid}`);
+  const status = String(back.data?.status ?? r.data?.status ?? "");
+  const details = back.data?.withdraw_details;
+  onLine?.(`withdrawn: the event reads back as "${status}"${details ? ` with withdraw details (${JSON.stringify(details).slice(0, 120)})` : ""}`);
+  return status === "withdrawn" ? { ok: true, status, details } : { ok: false, why: `after the withdraw the event reads back as "${status || "unknown"}", not withdrawn`, status };
+}
+
+/**
+ * Issue a new version of the event (POST /item_versions — the journey's own "version" call) and publish
+ * the copy (PATCH /event_groups/:new status active with amendment_remarks), so the original is an OLD
+ * version beside a newer, published one. The original stops being the latest the moment the version
+ * exists (versioning/methods.rb latest?); a copy that will not publish still leaves that true, and is said.
+ */
+async function amendEvent(
+  api: any,
+  eventGroupUuid: string,
+  title: string,
+  audience: string[],
+  onLine?: (l: string) => void,
+): Promise<{ ok: boolean; why?: string; newUuid?: string; newTrades?: string[]; newStatus?: string; oldRef?: string; newRef?: string; oldIsLatest?: unknown; versionUuid?: string; published: boolean }> {
+  const v = await send(api, "POST", "/item_versions", { item_uuid: eventGroupUuid, item_type: "EventGroup" });
+  if (!v.ok) return { ok: false, why: `the new version was refused: ${v.error}`, published: false };
+  const newUuid = v.data?.new_item_data?.uuid ? String(v.data.new_item_data.uuid) : undefined;
+  const newTrades: string[] = Array.isArray(v.data?.new_item_data?.trade_uuids) ? v.data.new_item_data.trade_uuids.map(String) : [];
+  if (!newUuid) return { ok: false, why: "the version reply carried no new copy of the event", published: false };
+  onLine?.(`a new version of the event exists (${newTrades.length} round${newTrades.length === 1 ? "" : "s"} copied); publishing it`);
+  const pub = await send(api, "PATCH", `/event_groups/${newUuid}`, {
+    attachments: [],
+    title,
+    status: "active",
+    draft_trade_request_uuids: newTrades,
+    audience_company_uuids: audience,
+    line_items: [],
+    terms_and_conditions: { clauses: [], attachments: [] },
+    show_under_open_events: true,
+    delete_draft_stage_uuids: [],
+    amendment_remarks: { remarks: AMEND_REMARK(Date.now()) },
+  });
+  const oldBack = await send(api, "GET", `/event_groups/${eventGroupUuid}`);
+  const newBack = await send(api, "GET", `/event_groups/${newUuid}`);
+  const newStatus = String(newBack.data?.status ?? pub.data?.status ?? "");
+  // the app labels versions on the rounds: RFQ-24264 on the original, RFQ-24264.1 on the amendment (read 10 Nov)
+  const refOf = (d: any) => (Array.isArray(d?.stages) ? d.stages.map((st: any) => st?.ref_id).filter(Boolean).join(", ") : "") || (d?.ref_id ? String(d.ref_id) : "");
+  const oldRef = refOf(oldBack.data) || undefined;
+  const newRef = refOf(newBack.data) || undefined;
+  const oldIsLatest = oldBack.data?.is_latest_version;
+  if (!pub.ok) {
+    onLine?.(`the new version would not publish (${pub.error}); it stays a draft version — the original is no longer the latest either way`);
+    return { ok: true, newUuid, newTrades, newStatus: newStatus || "draft", oldRef, newRef, oldIsLatest, versionUuid: v.data?.uuid ? String(v.data.uuid) : undefined, published: false, why: pub.error };
+  }
+  onLine?.(`amended: ${oldRef ?? "the original"} is now an old version (is_latest_version ${JSON.stringify(oldIsLatest)}); ${newRef ?? "the new version"} reads back as "${newStatus}"`);
+  return { ok: true, newUuid, newTrades, newStatus, oldRef, newRef, oldIsLatest, versionUuid: v.data?.uuid ? String(v.data.uuid) : undefined, published: newStatus === "active" };
+}
+
+/** What the pricing round reads back as (strategy, side, masking) — for the build's own check. */
+async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?: string; orderType?: string; masking?: boolean; status?: string; rfxMode?: string }> {
+  const r = await send(api, "GET", `/trade/${tradeUuid}`);
+  const d = r.data ?? {};
+  const t = d.trade_request ?? d.trade ?? d;
+  const cfg = t.config ?? d.config ?? {};
+  return {
+    auctionConfig: t.auction_config ?? d.auction_config ?? cfg.auction_config,
+    orderType: t.order_type ?? d.order_type,
+    masking: cfg.is_vendor_masking_enabled ?? t.is_vendor_masking_enabled ?? d.is_vendor_masking_enabled,
+    status: t.status ?? d.status,
+    rfxMode: t.rfx_mode ?? d.rfx_mode,
+  };
 }
 
 export async function buildUiState(
@@ -156,9 +346,31 @@ export async function buildUiState(
   if (!eventVendors && !/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) {
     return { ok: false, why: `client ${companyId} has no QA test vendor to bid with (${client?.ctx?.noQaVendor ?? "none configured"}) — refusing to build with a real supplier` };
   }
+  // A second QA vendor, where the state needs one (invited beside the first; for two_bids it bids too).
+  // Only QA vendors: these states never go to Procol's suggested (real) vendors.
+  let second: { companyUuid: string; email: string; name: string } | null = null;
+  if (WANTS_SECOND_VENDOR.has(state) || state === "uninvited") {
+    second = await secondQaVendor(companyId, client);
+    if (!second && (state === "two_bids" || state === "two_invited" || state === "uninvited"))
+      return { ok: false, why: `client ${companyId} has only one QA test vendor with a login — the ${state} state needs a second one (QA vendors only; a real supplier is never invited)` };
+    if (second) opts.onLine?.(state === "uninvited" ? `${second.name} is the QA vendor the event will NOT be sent to` : `${second.name} is the second QA vendor on the event${state === "two_bids" ? " and bids after the first" : ""}`);
+  }
+  // An RFQ from a purchase request: the PR line is picked first, so a company without an open PR is said plainly.
+  let fromPr: Exclude<Awaited<ReturnType<typeof openPrLine>>, { why: string }> | undefined;
+  if (state === "pr_rfq") {
+    const pr = await withWatchdog(openPrLine(client.ctx.buyerApi), 60_000, "finding an open purchase request").catch((e) => ({ why: (e as Error).message }));
+    if ("why" in pr) return { ok: false, why: `the pr_rfq state needs an open purchase request on client ${companyId}: ${pr.why}` };
+    fromPr = pr;
+    opts.onLine?.(`the event is made from PR ${pr.prNo ?? pr.prUuid.slice(0, 6) + "…"}'s line "${pr.lines[0].name ?? ""}" (${pr.lines[0].qty} ${pr.lines[0].unit} open)`);
+  }
+  const variant = AUCTION_VARIANT[state];
   // an auction case gets a live auction round (behind a technical round when it needs one)
-  const plan = journeyPlan([opts.auction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only", ...(state === "converted" ? ["auction.convert"] : [])]);
-  const stop = plan.steps.indexOf(PREFIX[state] as any);
+  const wantsAuction = !!opts.auction || !!variant;
+  const plan = journeyPlan(
+    [wantsAuction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only", ...(state === "converted" ? ["auction.convert"] : [])],
+    { bidders: state === "two_bids" ? 2 : 1 },
+  );
+  const stop = state === "two_bids" ? plan.steps.lastIndexOf(PREFIX[state] as any) : plan.steps.indexOf(PREFIX[state] as any);
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
   plan.steps = plan.steps.slice(0, stop + 1);
   // A technical event's vendor answers the technical round too before the pricing bid.
@@ -166,6 +378,18 @@ export async function buildUiState(
   // — 3 minutes, not 75 s: on 23 Oct (C04) one vendor GET took 30 s on UAT and the bid arrived after
   // a 75 s round had closed ("Order not active"), so the state was never built.
   const stageSeconds = state === "closed" || state === "proposal" || state === "awarded" ? 180 : 3600;
+  // The round's variant, written into the stage body just before it is sent (JourneyRunOptions.stageBody).
+  const bidTotal = 100 * 50; // the sibling test data's default bid (price × quantity); strategyFor only needs the scale
+  const stageBody =
+    variant || state === "masked"
+      ? (body: Record<string, any>, stage: string) => {
+          if (stage === "rfp") return;
+          body.configurations ??= {};
+          if (variant === "forward") body.configurations.order_type = "sell";
+          if (variant === "dutch" || variant === "knockout") Object.assign(body.configurations, strategyFor(variant, bidTotal));
+          if (state === "masked") body.configurations.is_vendor_masking_enabled = true;
+        }
+      : undefined;
   let r: any;
   try {
     r = await withWatchdog(
@@ -176,6 +400,9 @@ export async function buildUiState(
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
         eventVendors,
+        ...(second && state === "two_bids" ? { extraBidders: [second] } : second && WANTS_SECOND_VENDOR.has(state) ? { alsoInvite: [second.companyUuid] } : {}),
+        ...(stageBody ? { stageBody } : {}),
+        ...(fromPr ? { fromPr } : {}),
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
         onLine: (l: string) => opts.onLine?.(l),
       }),
@@ -192,26 +419,108 @@ export async function buildUiState(
     return { ok: false, why: `the API build of the ${state} state stopped: ${j?.outcome ?? "no outcome"}${failed ? ` (at ${failed.kind}: ${String(failed.actual ?? failed.why ?? "").slice(0, 160)})` : ""}` };
   }
   // On a converted event the screens are about the NEW auction round: its trade uuid is the stage.
-  const stageUuid = state === "converted" && made.auctionTradeUuid ? made.auctionTradeUuid : made.pricingTradeUuid;
+  let stageUuid: string | undefined = state === "converted" && made.auctionTradeUuid ? made.auctionTradeUuid : made.pricingTradeUuid;
   // Who the screen should find on the event: the vendor that bid (or, before a bid, the one that would).
   const bidder = eventVendors ? r?.bidder : undefined;
   if (bidder) opts.onLine?.(`the event went to ${r?.invited ?? "the"} vendor(s) Procol suggests; ${bidder.name} is the one that ${["live", "upcoming", "draft"].includes(state) ? "can bid" : "bid"}`);
-  const vendorName = bidder?.name ?? client?.ctx?.vendor?.name;
+  let vendorName = bidder?.name ?? client?.ctx?.vendor?.name;
+  let vendorEmail: string | undefined = bidder ? bidder.email : email;
+  const values = valuesFrom(j, client, vendorName);
+  const api = client.ctx.buyerApi;
+  let eventGroupUuid: string = made.eventGroupUuid;
+  let technicalStageUuid: string | undefined = made.technicalTradeUuid;
+  let otherVendorName: string | undefined;
+  let otherVendorEmail: string | undefined;
+
+  // ── the states built on top of the journey (10 Nov) ──
+  if (second && WANTS_SECOND_VENDOR.has(state)) {
+    otherVendorName = second.name;
+    otherVendorEmail = second.email;
+    values.secondVendorName = second.name;
+    if (state === "two_bids") values.bidders = "2";
+  }
+  if (state === "uninvited" && second) {
+    // the context's vendor is the one the event was NOT sent to; the invited one stays in values
+    values.invitedVendorName = String(vendorName ?? "");
+    values.uninvitedVendorName = second.name;
+    otherVendorName = vendorName ? String(vendorName) : undefined;
+    otherVendorEmail = vendorEmail;
+    vendorName = second.name;
+    vendorEmail = second.email;
+  }
+  if (state === "pr_rfq" && fromPr) {
+    values.prNo = fromPr.prNo ?? "";
+    values.prLineProduct = fromPr.lines[0].name ?? "";
+    values.prLineOpenQuantity = `${fromPr.lines[0].qty} ${fromPr.lines[0].unit}`;
+    if (made.prUuid) values.linkedToPr = "yes";
+  }
+  if (state === "withdrawn") {
+    const w = await withWatchdog(withdrawEvent(api, eventGroupUuid, opts.onLine), 90_000, "withdrawing the event").catch((e) => ({ ok: false, why: (e as Error).message } as Awaited<ReturnType<typeof withdrawEvent>>));
+    if (!w.ok) return { ok: false, why: `the API build of the withdrawn state stopped: ${w.why}` };
+    values.eventStatus = "withdrawn";
+    values.withdrawRemark = WITHDRAW_REMARK;
+    if (w.details) values.withdrawDetails = JSON.stringify(w.details).slice(0, 300);
+  }
+  if (state === "amended" || state === "amendment") {
+    const audience = [client?.ctx?.vendor?.uuid, second?.companyUuid].filter(Boolean) as string[];
+    const a = await withWatchdog(amendEvent(api, eventGroupUuid, String(j.title), audience, opts.onLine), 120_000, "issuing the new version").catch((e) => ({ ok: false, why: (e as Error).message, published: false } as Awaited<ReturnType<typeof amendEvent>>));
+    if (!a.ok || !a.newUuid) return { ok: false, why: `the API build of the ${state} state stopped: ${a.why}` };
+    made.oldVersionEventUuid = eventGroupUuid;
+    made.newVersionEventUuid = a.newUuid;
+    if (a.versionUuid) made.versionUuid = a.versionUuid;
+    if (a.newTrades?.length) made.newVersionTradeUuids = a.newTrades.join(",");
+    if (a.oldRef) values.oldVersionRef = a.oldRef;
+    if (a.newRef) values.newVersionRef = a.newRef;
+    if (a.oldIsLatest !== undefined) values.oldVersionIsLatest = String(a.oldIsLatest);
+    values.newVersionStatus = a.newStatus ?? "";
+    values.amendmentRemark = a.published ? "QA_Platform amendment issued by the API set-up" : "";
+    if (state === "amendment") {
+      if (!a.published) return { ok: false, why: `the new version of the event was issued but would not publish (${a.why ?? "no reason given"}) — the amendment state needs the published copy` };
+      eventGroupUuid = a.newUuid;
+      // the copy's rounds, in the original's order (technical first when there is one)
+      const nt = a.newTrades ?? [];
+      technicalStageUuid = technical && nt.length > 1 ? nt[0] : undefined;
+      stageUuid = nt.length ? nt[nt.length - 1] : undefined;
+    }
+  }
+  if (variant || state === "masked") {
+    // the round as Procol holds it — the strategy / side / masking the screen should show
+    const round = stageUuid ? await withWatchdog(readRound(api, stageUuid), 60_000, "reading the round back").catch(() => ({} as Awaited<ReturnType<typeof readRound>>)) : {};
+    if (round.auctionConfig) values.strategyReadBack = String(round.auctionConfig);
+    if (round.orderType) values.orderTypeReadBack = String(round.orderType);
+    if (round.masking !== undefined) values.vendorMaskingReadBack = round.masking ? "on" : "off";
+    const expect = variant === "forward" ? round.orderType === "sell" : variant ? round.auctionConfig === variant : round.masking === true;
+    const what = variant === "forward" ? `order type "${round.orderType ?? "?"}"` : variant ? `strategy "${round.auctionConfig ?? "?"}"` : `vendor masking ${round.masking === undefined ? "not readable on the round" : round.masking ? "on" : "off"}`;
+    opts.onLine?.(`the round reads back with ${what}`);
+    if (!expect && (variant || round.masking !== undefined))
+      return { ok: false, why: `the API build of the ${state} state stopped: the round was created but reads back with ${what} (the app did not keep the ${variant ?? "masking"} setting)` };
+  }
+
+  // The name Procol shows: the API client tags a generated title as it sends it (spine-API-automation-<n>,
+  // procol test tagAutomationTitle), so the journey's own title is not the one on screen. Read once (10 Nov).
+  const shown = await withWatchdog(send(api, "GET", `/event_groups/${eventGroupUuid}`), 30_000, "reading the event's title").catch(() => ({ ok: false, data: null } as any));
+  const title = shown?.ok && shown.data?.title ? String(shown.data.title) : String(j.title);
+  if (title !== j.title) {
+    values.requestedTitle = String(j.title);
+    values.title = title;
+  }
   return {
     ok: true,
     context: {
       state,
       technical,
       companyId,
-      eventGroupUuid: made.eventGroupUuid,
+      eventGroupUuid,
       stageUuid,
-      technicalStageUuid: made.technicalTradeUuid,
-      title: j.title,
+      technicalStageUuid,
+      title,
       vendorName,
-      vendorEmail: bidder ? bidder.email : email,
+      vendorEmail,
       buyerUserId: Number(client?.ctx?.buyerUserId) || undefined,
+      ...(otherVendorName ? { otherVendorName } : {}),
+      ...(otherVendorEmail ? { otherVendorEmail } : {}),
       made,
-      values: valuesFrom(j, client, vendorName),
+      values,
       builtInMs: Date.now() - t0,
     },
   };
