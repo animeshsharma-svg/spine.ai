@@ -94,6 +94,8 @@
   };
   /** Words that read as a FEATURE / PRD / FLOW to derive the permutations from, not one case and not a journey. */
   const looksLikeDerivation = (text) => {
+    // a bare case id (RCA-AWD-019, SRC-RJB-003, UI-PUB-004): show the case, never run the id as a journey
+    if (/^[A-Z]{2,5}-[A-Z0-9]{1,8}-\d{1,4}[A-Z]?$/i.test(String(text).trim())) return true;
     const t = String(text || "").trim();
     if (/\b(prd|acceptance criteria|user stor(y|ies)|requirements?|feature:|scope:|overview:)\b/i.test(t)) return true;
     if (t.length > 900 || t.split(/\n\s*\n/).length >= 3) return true;
@@ -146,7 +148,7 @@
     const shown = r.groups.reduce((n, g) => n + g.cases.length, 0);
     return `<div class="sht-uc sht-search"><div class="sht-cchead"><b>${r.groups.length} section${r.groups.length === 1 ? "" : "s"} about this — ${shown} cases shown</b><span class="pill idle">read as: ${esc(r.canonical || r.query)}</span><span class="sht-hint" style="flex-basis:auto">${r.total.toLocaleString()} cases mention it · ${esc(r.via)} · ${r.ms} ms</span></div>
       ${r.groups.map(group).join("")}
-      <div class="sht-filters"><button type="button" class="btn primary" id="sht-found-run" disabled>Run the ticked cases</button><button type="button" class="btn" id="sht-found-all">Tick all shown</button><button type="button" class="btn" id="sht-found-derive">Derive more cases for this</button><span class="sht-hint" id="sht-found-count" style="flex-basis:auto">Execution of ticked cases comes next; tick to see the count.</span></div></div>`;
+      <div class="sht-filters"><button type="button" class="btn primary" id="sht-found-run" disabled>Run the ticked cases</button><button type="button" class="btn" id="sht-found-all">Tick all shown</button><button type="button" class="btn" id="sht-found-derive">Derive more cases for this</button><span class="sht-hint" id="sht-found-count" style="flex-basis:auto">Tick the cases to run.</span></div></div>`;
   }
   window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive, searchCases, searchCard };
 })();

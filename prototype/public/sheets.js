@@ -27,7 +27,7 @@
     // a sheet Home just imported opens here with every row ticked
     let opened = null;
     try { opened = JSON.parse(sessionStorage.getItem("sht-open") || "null"); sessionStorage.removeItem("sht-open"); } catch { opened = null; }
-    if (opened?.sheet && S.sheets.some((s) => s.id === opened.sheet)) { S.sheet = opened.sheet; S.picked.clear(); S.tickAll = !!opened.tickAll; }
+    if (opened?.sheet && S.sheets.some((s) => s.id === opened.sheet)) { S.sheet = opened.sheet; S.picked.clear(); S.tickAll = !!opened.tickAll; S.tickIds = Array.isArray(opened.ids) ? opened.ids : null; }
     if (!S.sheet || !S.sheets.some((s) => s.id === S.sheet)) S.sheet = S.sheets[0]?.id || "";
     S.camp = await fetch("/api/sheets/campaign", { cache: "no-store" }).then((x) => x.json()).catch(() => null);
     const runs = await fetch("/api/sheets/runs", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ runs: [] }));
@@ -36,6 +36,8 @@
       const c = await fetch(`/api/sheets/cases?sheet=${encodeURIComponent(S.sheet)}`, { cache: "no-store" }).then((x) => x.json()).catch(() => ({ cases: [] }));
       S.cases = c.cases || [];
       if (S.tickAll) { S.cases.forEach((x) => S.picked.add(x.id)); S.tickAll = false; }
+      // Home's "Run the ticked cases": exactly those rows ticked here, ready for Understand / Run
+      if (S.tickIds) { const want = new Set(S.tickIds.map((x) => String(x).toUpperCase())); S.cases.forEach((x) => { if (want.has(x.id.toUpperCase())) S.picked.add(x.id); }); S.tickIds = null; }
     } else S.cases = [];
     paint();
   }

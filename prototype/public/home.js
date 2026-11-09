@@ -887,13 +887,20 @@
     }
     q$("#home-plus")?.addEventListener("click", () => q$("#home-sheet")?.click());
     q$("#home-sheet")?.addEventListener("change", uploadSheet);
-    const go = () => {
+    const go = async () => {
       const text = box.value.trim();
       const runBox = q$("#request");
       if (!text || busy() || !runBox || typeof runInstruction !== "function") return;
       // Whatever was typed: first the cases the catalog already has about it, grouped by section. A feature /
       // PRD / flow stops there (derive on request); a test case and a journey go on to run below it.
-      if (!looksLikeQuestion(text) && window.spineSingle?.searchCases) showFound(text, asMode === "derive");
+      const found = !looksLikeQuestion(text) && window.spineSingle?.searchCases ? await showFound(text, asMode === "derive") : null;
+      // The exact title of a written case was typed: that case is the answer — show it ticked, never run the title as a journey.
+      const exact = found?.groups?.some((g) => (g.cases || []).some((c) => String(c.title || "").trim().toLowerCase() === text.toLowerCase()));
+      if (exact && asMode === "journey") {
+        box.value = "";
+        syncAsk();
+        return;
+      }
       if (asMode === "derive" && !looksLikeQuestion(text)) {
         box.value = "";
         syncAsk();
@@ -973,15 +980,35 @@
     }
     panel.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases about this</h2><span class="pill warn">searching the catalog</span></div>`;
     const r = await window.spineSingle.searchCases(text);
+    // which test sheet each shown case lives in (source "sheet:<id>"); a catalog case has none
+    found.sheetOf = {};
+    for (const g of r.groups || []) for (const c of g.cases || []) if (/^sheet:/.test(c.source || "")) found.sheetOf[c.id] = c.source.slice(6);
     panel.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases about this</h2>${only ? `<button type="button" class="btn" id="home-found-close">Close</button>` : ""}</div>${window.spineSingle.searchCard(r, found)}`;
-    const count = () => { const n = found.picked.size; const b = q$("#sht-found-run"); const c = q$("#sht-found-count"); if (b) { b.disabled = !n; b.textContent = n ? `Run the ${n} ticked case${n === 1 ? "" : "s"}` : "Run the ticked cases"; } if (c) c.textContent = n ? `${n} ticked — execution comes next.` : "Tick the cases to run; execution comes next."; };
+    const where = () => { const ids = [...found.picked]; const sheets = new Set(ids.map((id) => found.sheetOf[id]).filter(Boolean)); return { ids, sheets, allSheet: ids.length && ids.every((id) => found.sheetOf[id]) }; };
+    const count = () => {
+      const { ids, sheets, allSheet } = where(); const n = ids.length; const b = q$("#sht-found-run"); const c = q$("#sht-found-count");
+      if (b) { b.disabled = !n; b.textContent = n ? `Run the ${n} ticked case${n === 1 ? "" : "s"}` : "Run the ticked cases"; }
+      if (c) c.textContent = !n ? "Tick the cases to run." : allSheet && sheets.size === 1 ? `${n} ticked — opens the Test sheets page with them ticked; press Run there.` : allSheet ? `${n} ticked from ${sheets.size} sheets — opens the Test sheets page on the first sheet.` : `${n} ticked — opens Run tests with them selected.`;
+    };
     panel.querySelectorAll(".sht-found-pick").forEach((cb) => cb.addEventListener("change", () => { cb.checked ? found.picked.add(cb.value) : found.picked.delete(cb.value); count(); }));
     q$("#home-found-all")?.addEventListener("click", () => {});
     q$("#sht-found-all")?.addEventListener("click", () => { panel.querySelectorAll(".sht-found-pick").forEach((cb) => { cb.checked = true; found.picked.add(cb.value); }); count(); });
-    q$("#sht-found-run")?.addEventListener("click", () => { const ids = [...found.picked]; if (!ids.length) return; location.hash = `#/run-tests?ids=${encodeURIComponent(ids.join(","))}`; });
+    q$("#sht-found-run")?.addEventListener("click", () => {
+      const { ids, sheets, allSheet } = where();
+      if (!ids.length) return;
+      if (allSheet) {
+        // sheet cases run from the Test sheets page: open it on their sheet with exactly these ticked
+        const sheet = [...sheets][0];
+        try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet, ids: ids.filter((id) => found.sheetOf[id] === sheet) })); } catch { /* ignore */ }
+        location.hash = "#/sheets";
+        return;
+      }
+      location.hash = `#/run-tests?ids=${encodeURIComponent(ids.join(","))}`;
+    });
     q$("#sht-found-derive")?.addEventListener("click", () => runDerivation(found.text));
     q$("#home-found-close")?.addEventListener("click", () => { panel.remove(); if (!mount.children.length) mount.hidden = true; });
     panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    return r;
   }
   let deriveRun = null;
   function runDerivation(text) {
