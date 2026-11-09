@@ -32,6 +32,10 @@ const EXTRA = join(here, "..", "..", "data", "case-index-extra.json");
 // ── 1 · words → Procol's canonical words ───────────────────────────────────
 /** Phrases first (longest first), then single words. Both sides — the query and every case — go through this. */
 const PHRASES: Array<[RegExp, string]> = [
+  // Hindi / Hinglish function words a typed line carries ("bid reject karna hai", "vendor ko bid dena hai")
+  [/\b(?:karn[aei]|karo|kar(?:na|ne|ni)?|kiya|kiye|kare|karega|hai|hain|ho|hoga|hogi|ko|ka|ki|ke|se|mein?|pe|par|wala|wali|wale|chahiye|dena|dene|lena|lene|kya|kaise|kab|kahan)\b/g, " "],
+  [/\bun-?invited\b|\bnot invited\b|\bwithout (?:an )?invit\w*\b|\boutside the audience\b/g, " uninvited "],
+  [/\bmov(?:e|es|ed|ing)\b(?=[^.]*\bauction\b)/g, " convert "],
   [/\breverse auctions?\b|\bforward auctions?\b|\be-?auctions?\b|\b(?:r\.?a\.?)\b(?=\s|$)/g, " auction "],
   [/\bon (?:the )?behalf(?: of)?\b|\bbehalf\b/g, " surrogate "],
   [/\bcounter[- ]?offers?\b|\bnegotiat\w*\b|\bcounter[- ]?bids?\b/g, " counteroffer "],
@@ -234,10 +238,14 @@ export async function searchCases(query: string, opts: { k?: number; groups?: nu
     let hit = 0;
     for (const t of q) if (d.sectionTerms.has(t)) hit++;
     if (q.length && hit) score += 0.15 * (hit / q.length);
+    // surrogate bidding is its own topic: when the words do not ask for it, its sections step back behind the vendor's own bidding
+    if (!q.includes("surrog") && /surrogate|behalf/i.test(`${d.c.section} ${d.c.title}`)) score *= 0.85;
     // a roadmap specification is not in the product; a catch-all product-sheet section says little about the topic
     if (/roadmap/i.test(d.c.section)) score *= 0.4;
     else if (/^(core|optional) features$/i.test(d.c.section)) score *= 0.75;
-    if (score < (qv ? 0.18 : 0.12)) continue;
+    // "about it": the words name it clearly, or the meaning is close, or both are fair — not any stray word
+    const about = wn >= 0.45 || mn >= 0.5 || (wn >= 0.25 && mn >= 0.35);
+    if (!about) continue;
     scored.push({ id: d.id, title: d.c.title, layer: d.c.layer, section: d.c.section, group: d.c.group, priority: d.c.priority, score, words: wn, meaning: m ?? null, sheet: d.c.sheet?.sheet });
   }
   scored.sort((a, b) => b.score - a.score);
