@@ -471,6 +471,23 @@ let cache: Chunk[] | undefined;
  *  recorded is assumed local, because local is all that existed then. */
 let storeEmbedder = "";
 let warnedMismatch = false;
+/**
+ * The catalog cases' own vectors from the store (chunk id "catalog:<case id>"), by case id, with the store's
+ * embedder — so a search over the catalog need not embed 7,000 cases again. Empty when the store is absent.
+ */
+export function catalogCaseVectors(): { embedder: string; vectors: Map<string, number[]> } {
+  const vectors = new Map<string, number[]>();
+  let embedder = "";
+  try {
+    const all = load();
+    embedder = storeEmbedder;
+    for (const c of all) if (c.kind === "test-case" && c.id.startsWith("catalog:") && c.embedding) vectors.set(c.id.slice("catalog:".length), c.embedding);
+  } catch {
+    /* no store */
+  }
+  return { embedder, vectors };
+}
+
 function load(): Chunk[] {
   if (cache) return cache;
   if (!existsSync(STORE_PATH)) {

@@ -132,5 +132,20 @@
     es.onerror = () => { if (g.live) { g.live = false; g.error = g.error || "The live connection dropped. The derivation goes on on the server; its sheet appears under Test sheets."; es.close(); tell(); } };
     return { stop: () => es.close() };
   }
-  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive };
+  /** The cases the catalog already has about what was typed, grouped by section (GET /api/cases/search). */
+  async function searchCases(text, opts = {}) {
+    const r = await fetch(`/api/cases/search?q=${encodeURIComponent(text)}&groups=${opts.groups || 8}&perGroup=${opts.perGroup || 6}&k=${opts.k || 40}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null);
+    return r && !r.why ? r : null;
+  }
+  function searchCard(r, state = {}) {
+    if (!r) return `<div class="sht-uc"><p class="sht-hint">The catalog could not be searched right now.</p></div>`;
+    if (!r.total) return `<div class="sht-uc"><div class="sht-cchead"><b>No written case is about this yet</b></div><p class="sht-hint">Read as: ${esc(r.canonical || r.query)}. Derive the cases for it below, or type it as a test case with an expected result.</p></div>`;
+    const group = (g, i) => `<details class="sht-group" ${i < 3 ? "open" : ""}><summary><span class="pill idle">${esc(g.layer)}</span> <b>${esc(g.section)}</b> <small>${g.total} case${g.total === 1 ? "" : "s"}${g.shown < g.total ? ` · ${g.shown} shown` : ""}</small></summary>
+      <ol class="sht-found">${g.cases.map((c) => `<li><label><input type="checkbox" class="sht-found-pick" value="${esc(c.id)}" ${state.picked?.has(c.id) ? "checked" : ""}> <span class="sht-id">${esc(c.id)}</span> <span>${esc(c.title)}</span> <span class="pill ${c.priority === "P0" || c.priority === "Critical" ? "bad" : "idle"}">${esc(c.priority)}</span></label>
+        <details class="sht-foundbody"><summary>steps and expected result</summary>${c.setup ? `<p><b>Before you start:</b> ${esc(c.setup)}</p>` : ""}<p><b>Steps:</b> ${esc(c.steps || "")}</p><p class="sht-exp"><b>Expected:</b> ${esc(c.expected || "")}</p>${c.why ? `<p class="sht-hint">${esc(c.why)}</p>` : ""}</details></li>`).join("")}</ol></details>`;
+    return `<div class="sht-uc sht-search"><div class="sht-cchead"><b>${r.total} test case${r.total === 1 ? "" : "s"} about this</b><span class="pill idle">read as: ${esc(r.canonical || r.query)}</span><span class="sht-hint" style="flex-basis:auto">${esc(r.via)} · ${r.ms} ms</span></div>
+      ${r.groups.map(group).join("")}
+      <div class="sht-filters"><button type="button" class="btn primary" id="sht-found-run" disabled>Run the ticked cases</button><button type="button" class="btn" id="sht-found-all">Tick all shown</button><button type="button" class="btn" id="sht-found-derive">Derive more cases for this</button><span class="sht-hint" id="sht-found-count" style="flex-basis:auto">Execution of ticked cases comes next; tick to see the count.</span></div></div>`;
+  }
+  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive, searchCases, searchCard };
 })();
