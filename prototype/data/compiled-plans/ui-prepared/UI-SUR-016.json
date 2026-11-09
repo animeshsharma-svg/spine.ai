@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-SUR-016",
   "title": "Surrogate bidding is refused when the company forbids it",
-  "compiledAt": "2026-10-04T11:41:24.884Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:16:26.297Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "An event whose config forbids buyer surrogate bids (company config setting cannot be changed via UI steps)"
+   "Set or establish is_buyer_not_allowed_to_add_surrogate_bid on the prepared event; no catalog step changes company settings.",
+   "Assert the refusal's backend business error code 10."
   ],
   "warnings": [
-   "can only test part of this — no step for: An event whose config forbids buyer surrogate bids (company config setting cannot be changed via UI steps)"
+   "can only test part of this — no step for: Set or establish is_buyer_not_allowed_to_add_surrogate_bid on the prepared event; no catalog step changes company settings.; Assert the refusal's backend business error code 10."
   ],
   "state": "live",
   "screen": "participants",
@@ -21,25 +22,37 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SUR-016 Surrogate bidding refused when company forbids it",
+  "title": "Company restriction on surrogate bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
-    }
+    },
+    "note": "Open the prepared live RFQ's Participants tab."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Add Bid"
-     },
-     "because": "You are not allowed to use this functionality",
-     "expect": "refused"
-    }
+     "step": "place_surrogate_bid",
+     "args": {},
+     "because": "You are not allowed to use this functionality"
+    },
+    "note": "Require positive evidence that the buyer's surrogate bid is refused; default settings may not enforce the required restriction."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Inspect the round's bids after the refused attempt."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No bids received yet."
+    },
+    "note": "Assert that the attempt did not create a bid."
    }
   ]
  }

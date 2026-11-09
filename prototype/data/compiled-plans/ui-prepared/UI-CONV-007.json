@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "UI-CONV-007",
+  "title": "Converting the same RFQ twice is refused",
+  "compiledAt": "2026-11-09T19:17:37.380Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the RFQ still has exactly one auction child."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify that the RFQ still has exactly one auction child."
+  ],
+  "state": "converted",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject duplicate RFQ conversion",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared event that has already been converted."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event actions so the conversion action can be retried."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Convert to Auction"
+    },
+    "note": "Attempt the second RFQ-to-auction conversion."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "An auction has already been made for this trade."
+    },
+    "note": "Assert that Procol refuses the duplicate conversion with the expected message."
+   }
+  ]
+ }
+}

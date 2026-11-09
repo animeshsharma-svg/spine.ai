@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-018",
+  "title": "Reverse auction: Quantity Requested = -5",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:54:50.479Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_sheet_cell"
+  ],
+  "ms": 195468
+ },
+ "plan": {
+  "title": "Reverse auction negative quantity validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open single stage create screen"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Set event type to Auction"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide event title"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select auction template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "-5"
+    },
+    "note": "Add line item with negative quantity -5"
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Quantity Requested",
+     "row": 1,
+     "refused": true
+    },
+    "note": "Assert that the negative quantity is refused"
+   }
+  ]
+ }
+}

@@ -1,0 +1,143 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-016",
+  "title": "An unvisited stage is flagged and blocks the publish confirmation",
+  "compiledAt": "2026-10-05T13:26:18.830Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The eye-off icon has no confirmed accessible name or target in the catalog, so its presence and attached 'Stage is not reviewed' tooltip cannot be reliably asserted.",
+   "unconfirmed label \"OK\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"OK\" (expect_enabled) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"OK\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"OK\" (expect_enabled) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The eye-off icon has no confirmed accessible name or target in the catalog, so its presence and attached 'Stage is not reviewed' tooltip cannot be reliably asserted."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-CRE-007"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Unvisited stage blocks publish confirmation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the stage-based project composer."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Establish the technical stage as the first and only stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Explicitly visit the first tab before adding the second."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Add another stage without navigating to its tab."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "RFQ"
+    },
+    "note": "Add RFQ through the stage menu rather than composing and visiting both tabs."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Verify that the two-stage setup exists."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "unvisited-rfq-stage-indicator"
+    },
+    "note": "Record the stage indicator for manual inspection; this does not assert the icon."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "switch_stage",
+     "reason": "Deliberately leave the newly added RFQ tab unvisited."
+    },
+    "note": "Preserve the review precondition under test."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish"
+    },
+    "note": "Open the publish confirmation without visiting RFQ."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "OK"
+    },
+    "note": "Assert the confirmation cannot proceed while RFQ is unvisited."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Dismiss the confirmation to access the stage tabs."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Visit the previously unreviewed stage."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish"
+    },
+    "note": "Reopen confirmation after both stages have been visited."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "OK"
+    },
+    "note": "Assert visiting the second tab releases the review gate without submitting the project."
+   }
+  ]
+ }
+}

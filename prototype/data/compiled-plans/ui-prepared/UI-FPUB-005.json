@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "UI-FPUB-005",
+  "title": "A single product with \"multiple vendor\" closing is refused with its message",
+  "compiledAt": "2026-11-09T19:24:31.962Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-FPUB-005 Single Product Multiple-Vendor Closing",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "line_item"
+    },
+    "note": "Configure multiple-vendor, line-item awarding, which represents the multiple-vendor closing mode."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create exactly one line item as required by the case."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event has valid line-item data."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "In case of single product, please choose multiple vendor closing."
+    },
+    "note": "Attempt publication and assert the exact application refusal for the incompatible single-product multiple-vendor closing mode."
+   }
+  ]
+ }
+}

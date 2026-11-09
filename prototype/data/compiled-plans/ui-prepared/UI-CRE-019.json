@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-019",
+  "title": "A long title is accepted or refused, but never silently truncated",
+  "compiledAt": "2026-10-05T13:27:39.327Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Conditionally pass either successful publication with the complete title or refusal with a stated title-length limit; publish and refusal assertions require separate predetermined outcomes.",
+   "Compare the published title against the entered title character for character; the available text assertion checks presence rather than exact equality."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Conditionally pass either successful publication with the complete title or refusal with a stated title-length limit; publish and refusal assertions require separate predetermined outcomes.; Compare the published title against the entered title character for character; the available text assertion checks presence rather than exact equality."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "255-character title is not silently truncated",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a valid project using the default Auction stage."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxX"
+    },
+    "note": "Enter exactly 255 characters: five 50-character blocks, four spaces, and a final X."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Supply the required pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply a line item so an unrelated missing-item validation does not block publication."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the required pricing-sheet fields."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply a participant to satisfy publication prerequisites."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Exercise publication with the long title; this plan supports the acceptance branch only."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication reached a real project detail page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxX"
+    },
+    "note": "Require the complete entered title on the published page, rather than merely proving that publication succeeded."
+   }
+  ]
+ }
+}

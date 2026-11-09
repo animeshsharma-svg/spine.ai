@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-053",
+  "title": "Submit the proposal with \"Procurement Type\" empty",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:22:52.191Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event has one line item and one invited vendor, so allocating all 10 units to Vendor B from the named closed RFQ cannot be reproduced exactly.",
+   "The prepared-state rule requires opening Master QCS directly, so navigating from Events, searching the RFQ title, and verifying the Events list tabs are not exercised."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared event has one line item and one invited vendor, so allocating all 10 units to Vendor B from the named closed RFQ cannot be reproduced exactly.; The prepared-state rule requires opening Master QCS directly, so navigating from Events, searching the RFQ title, and verifying the Events list tabs are not exercised."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "do_on_screen"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 11136
+ },
+ "plan": {
+  "title": "Submit proposal with Procurement Type empty",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS as required for this state."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen to allocate the available line item before creating the proposal."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Allocate the available line item to the vendor named in the case."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Verify the prepared event's single line item and vendor are allocated before proposal creation."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's awarding screen, click Create Proposal, fill every required proposal field except Procurement Type, leave Procurement Type empty, click Submit Proposal, and stop when the proposal remains unsubmitted and Procurement Type is highlighted with a required-field message containing \"is a required field\"."
+    },
+    "note": "Perform the proposal-form validation that no catalog step can express field-by-field, including leaving Procurement Type empty and verifying submission is refused."
+   }
+  ]
+ }
+}

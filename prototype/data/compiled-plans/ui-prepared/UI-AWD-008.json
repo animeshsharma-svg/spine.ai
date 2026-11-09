@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "UI-AWD-008",
   "title": "Allocating a line item to a vendor moves the item counter",
-  "compiledAt": "2026-10-04T10:34:11.914Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T04:48:00.903Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Setup requires two line items, but the prepared state provides only one line item"
+   "The prepared event has only one line item; the two-line-item setup and expected selected-item counter of 1/2 cannot be tested."
   ],
   "warnings": [
-   "can only test part of this — no step for: Setup requires two line items, but the prepared state provides only one line item"
+   "can only test part of this — no step for: The prepared event has only one line item; the two-line-item setup and expected selected-item counter of 1/2 cannot be tested."
   ],
   "state": "closed",
   "screen": "master_qcs",
@@ -22,34 +22,45 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Allocating a line item to a vendor moves the item counter",
+  "title": "Allocation updates selected-item counter",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared closed event"
+    "note": "Open the prepared closed RFQ with its vendor bid."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Start Awarding"
-    },
-    "note": "Enter the awarding flow"
-   },
-   {
-    "step": "allocate_award",
+    "step": "start_awarding",
     "args": {},
-    "note": "Allocate the line item to a vendor"
+    "note": "Enter the awarding grid."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "path": "/awarding/"
+    },
+    "note": "Verify navigation to the awarding screen."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "1/2"
+     "items": "0/1"
     },
-    "note": "Assert the selected line items counter reads 1/2"
+    "note": "Check the initial selected-item counter before allocation."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available line item to the vendor."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1"
+    },
+    "note": "Read the app's own counter to verify allocation increased the selected-item count."
    }
   ]
  }

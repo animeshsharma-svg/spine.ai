@@ -1,0 +1,151 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-011",
+  "title": "Shortening a live window below the current time closes the event cleanly",
+  "compiledAt": "2026-10-06T05:03:59.732Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Change an already-live event's end time to exactly one minute from now: no catalog domain step supports this edit, and the extension dialog's field labels are not supplied.",
+   "Wait specifically for the shortened deadline to pass without force-ending the event; close_event may force-end it instead."
+  ],
+  "warnings": [
+   "named AMD on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain",
+   "can only test part of this — no step for: Change an already-live event's end time to exactly one minute from now: no catalog domain step supports this edit, and the extension dialog's field labels are not supplied.; Wait specifically for the shortened deadline to pass without force-ending the event; close_event may force-end it instead."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-001",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Live-window shortening preserves an awardable bid",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Build the live-event prerequisite."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use a single RFQ stage for bidding and allocation."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the event a unique searchable title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Enable line-item configuration."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Provide one item whose bid can later be allocated."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the required buyer fields."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a short initial window; this is not the requested live-window shortening."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "AMD"
+     ]
+    },
+    "note": "Supply a participant without inventing a vendor name."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish before submitting a bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that a real project was created."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit one bid through the configured vendor account."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the prerequisite bid was accepted."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to the buyer's event page."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Fallback only: close normally or await the original window, rather than claiming to shorten the live deadline."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Assert the closed-state portion of the oracle."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen the closed event after checking its list status."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Assert the comparison grid still contains line items and bidding vendors."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter allocation on the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Demonstrate that the retained bid can actually be allocated."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Verify the sole item is selected for the sole bidding vendor without submitting an unnecessary award proposal."
+   }
+  ]
+ }
+}

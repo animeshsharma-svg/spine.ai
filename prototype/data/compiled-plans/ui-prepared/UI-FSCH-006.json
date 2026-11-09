@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "UI-FSCH-006",
+  "title": "Evaluation time is added after the end",
+  "compiledAt": "2026-11-09T19:14:16.638Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "API read-back of the schedule's evaluation end time",
+   "Assertion that the evaluation end equals the bidding end plus 30 minutes, including any cost-breakdown window",
+   "the plan has no assertion step — nothing the case checks can be observed",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-001",
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Evaluation Window Ends After Bidding",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Configure the event as an RFP technical event."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the technical-stage template required before publishing."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the required technical questionnaire fields."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for the technical stage."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open the Schedule Event controls, set the evaluation time to 30 minutes after the event end, save the schedule, and stop on the screen showing the committed evaluation schedule"
+    },
+    "note": "The catalog has no dedicated argument for configuring the evaluation duration, so use the on-screen schedule controls to apply the missing setup."
+   }
+  ]
+ }
+}

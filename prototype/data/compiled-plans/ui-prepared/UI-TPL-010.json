@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-010",
+  "title": "Sweeping the rendered grid is required, not just the creator-marked fields",
+  "compiledAt": "2026-10-04T12:59:52.604Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Distinguishing programmatically between schema-marked creator columns and unselected rendered cells within a single fill step"
+  ],
+  "warnings": [
+   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
+   "dropped expect_published — expect_publish_blocked presses Publish itself and judges the refusal",
+   "moved invite_vendor after the line items — the vendor suggestions come from the products on the event",
+   "can only test part of this — no step for: Distinguishing programmatically between schema-marked creator columns and unselected rendered cells within a single fill step"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-001",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-TPL-010 Sweeping the rendered grid is required, not just creator-marked fields",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating an eRFX event"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Set event title"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select pricing template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item to enable sheet filling"
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "fill_sheet",
+     "reason": "Intentionally fill only partial schema columns instead of sweeping the rendered grid"
+    },
+    "note": "Omit full sheet filling to test partial sheet enforcement"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 60
+    },
+    "note": "Set event schedule"
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled"
+    },
+    "note": "Assert publishing is refused due to incomplete sheet filling"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Now sweep and fill the entire rendered grid correctly"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a vendor required for publish"
+   }
+  ]
+ }
+}

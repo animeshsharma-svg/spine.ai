@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-004",
+  "title": "A BOQ project hides the line-item controls an ordinary project has",
+  "compiledAt": "2026-10-06T06:21:30.296Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or verify the boq_in_erfx_allowed tenant gate; it must already be ON.",
+   "Establish a saved BOQ draft through a BOQ-sheet upload; the catalog provides no BOQ-sheet fixture or dedicated upload flow.",
+   "Open the BOQ technical stage configuration: no domain step or confirmed configuration control label is supplied.",
+   "Verify evaluation offers only \"I'll do vendor wise evaluation\" and excludes line-item-wise evaluation; configuration navigation and the alternative option's exact label are unavailable.",
+   "Verify absence of the AI RFP generator and fast-bidding option; their exact control labels are not supplied."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or verify the boq_in_erfx_allowed tenant gate; it must already be ON.; Establish a saved BOQ draft through a BOQ-sheet upload; the catalog provides no BOQ-sheet fixture or dedicated upload flow.; Open the BOQ technical stage configuration: no domain step or confirmed configuration control label is supplied.; Verify evaluation offers only \"I'll do vendor wise evaluation\" and excludes line-item-wise evaluation; configuration navigation and the alternative option's exact label are unavailable.; Verify absence of the AI RFP generator and fast-bidding option; their exact control labels are not supplied."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": true,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-TECH-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ hides ordinary line-item controls",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Open the BOQ creation screen with the tenant gate already enabled."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Expose the technical stage form rather than inspecting the default auction."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Name the new BOQ project."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Items",
+     "visible": false
+    },
+    "note": "Assert the ordinary line-item toolbar control is absent."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Items 0",
+     "present": false
+    },
+    "note": "Assert the new project's ordinary zero-item count is not rendered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Line Items",
+     "present": false
+    },
+    "note": "Assert the technical form does not render the ordinary Line Items section."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "boq-technical-form"
+    },
+    "note": "Record the header and technical form for the unsupported configuration checks; this capture is not an assertion."
+   }
+  ]
+ }
+}

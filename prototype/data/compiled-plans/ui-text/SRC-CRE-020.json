@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-020",
+  "title": "Reverse auction: Quantity Requested = a decimal 2.5",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:53:16.237Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting and verifying a specifically reverse/buy auction template when its name is not provided",
+   "Recording the alternative whole-number-unit behavior if the application rounds or refuses 2.5 rather than retaining it",
+   "Selecting Plant Name LOC-0001 specifically"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting and verifying a specifically reverse/buy auction template when its name is not provided; Recording the alternative whole-number-unit behavior if the application rounds or refuses 2.5 rather than retaining it; Selecting Plant Name LOC-0001 specifically"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_sheet_cell"
+  ],
+  "ms": 20687
+ },
+ "plan": {
+  "title": "Reverse auction decimal quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage creation screen required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to an auction with the available reverse-auction-compatible rank strategy and lot awarding."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Decimal Quantity Reverse Auction"
+    },
+    "note": "Provide the mandatory event title for a create test."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template; the case does not provide a template name."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "2.5"
+    },
+    "note": "Add the named product and enter the test quantity exactly as 2.5."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "2.5"
+    },
+    "note": "Read the first-row quantity cell and assert that the decimal was retained as entered."
+   }
+  ]
+ }
+}

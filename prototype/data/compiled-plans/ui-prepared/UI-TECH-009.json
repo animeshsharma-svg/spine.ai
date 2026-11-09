@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "UI-TECH-009",
+  "title": "On a lot-mode tenant there is one section-level evaluator control",
+  "compiledAt": "2026-10-06T05:19:11.195Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Establish the rfpEvaluationOn = lot tenant setting: no step changes this setting, and no configured tenant ID is supplied."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Establish the rfpEvaluationOn = lot tenant setting: no step changes this setting, and no configured tenant ID is supplied."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": true,
+  "exemplars": [
+   "UI-TECH-008",
+   "UI-SS-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Lot-mode technical evaluator control",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the technical-stage creation flow on the externally configured lot-mode tenant."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Replace the default auction with a technical stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required unique project title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Enable line-item setup for the technical stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Make an incorrect per-line-item evaluator layout distinguishable from one overall control."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Initialize Vendor Assessment and item questionnaires without assigning evaluators."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Add Evaluator",
+     "count": 1
+    },
+    "note": "Read the DOM and assert exactly one evaluator-add control across the stage."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Add Evaluator",
+     "within": "Vendor Assessment",
+     "count": 1
+    },
+    "note": "Assert that the sole evaluator-add control belongs to Vendor Assessment."
+   }
+  ]
+ }
+}

@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-007",
+  "title": "Send Counter Offer is disabled until a row is ticked",
+  "compiledAt": "2026-10-06T06:29:21.020Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Select all\" (toggle) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Select all\" (toggle) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Counter offer requires a selected row",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ's Responses tab with its existing vendor bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer"
+    },
+    "note": "Open the vendor's counter-offer drawer without submitting an offer."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Select all",
+     "on": false
+    },
+    "note": "Clear row selection; this checkbox label needs confirmation."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Send Counter Offer"
+    },
+    "note": "Assert the primary action is disabled when no rows are selected."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Select all",
+     "on": true
+    },
+    "note": "Select the prepared event's sole line-item row."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "Send Counter Offer"
+    },
+    "note": "Assert selecting one row enables the primary action."
+   }
+  ]
+ }
+}

@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-017",
+  "title": "RFQ bid: Save the bid as a draft and submit later",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:36:44.812Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "A prepared live RFQ with no bids; the available prepared state already has one submitted bid.",
+   "Saving a vendor quote as a draft without submitting, checking the buyer Responses while it is a draft, and later submitting that saved draft."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: A prepared live RFQ with no bids; the available prepared state already has one submitted bid.; Saving a vendor quote as a draft without submitting, checking the buyer Responses while it is a draft, and later submitting that saved draft."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "switch_portal",
+   "go_to",
+   "expect_responses"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 16806
+ },
+ "plan": {
+  "title": "RFQ vendor bid draft then submit",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ's buyer Responses screen first, as required for prepared-state cases."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared live RFQ's pricing bid form as the vendor."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enter a quote of 100, save it as a draft without submitting, verify the buyer's Responses shows no bid while it is a draft, then submit the saved draft"
+    },
+    "note": "No catalog step can perform the vendor draft-save flow or its intermediate buyer-side visibility check."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console after the vendor submits the saved draft."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the RFQ Responses screen to inspect the final buyer-side result."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify that the submitted vendor bid is now visible as the buyer's single direct response."
+   }
+  ]
+ }
+}

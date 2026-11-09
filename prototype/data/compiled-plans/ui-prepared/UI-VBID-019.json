@@ -1,0 +1,135 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-019",
+  "title": "Bidding after the window closes is refused",
+  "compiledAt": "2026-11-09T19:11:52.686Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "note: place_bid cannot run on a closed event (it needs published or bid) — left as written",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "note: place_bid cannot run on a closed event (it needs published or bid) — left as written",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-002",
+   "UI-SCH-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Bidding After Window Closes",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an RFQ event for the closed-window scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-019 Closed Bid Refusal"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the vendor can submit a pricing bid."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product so the bid sheet has a line to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Set and commit the bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor so the vendor portal can access the event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event before closing its bidding window."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is published and available for closure."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true,
+     "maxWaitMinutes": 36
+    },
+    "note": "Wait for the bidding window to lapse naturally, creating the required closed state."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Act from the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the closed event's pricing bid sheet."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify the event's response count."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "stage": "rfq",
+     "count": 0
+    },
+    "note": "Verify no bid was created and the invited vendor remains unresponded."
+   }
+  ]
+ }
+}

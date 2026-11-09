@@ -1,0 +1,133 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-012",
+  "title": "A recurring schedule creates the series, not just one event",
+  "compiledAt": "2026-10-06T05:06:42.596Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Enable or verify the scheduled_events_enabled tenant setting; it must be supplied as a precondition.",
+   "Set an occurrence count: no domain step or confirmed field label is supplied for this control.",
+   "Assert that a scheduled template exists with the saved cadence and matching occurrence count.",
+   "Identify and assert the next generated occurrence and its relationship to the scheduled template."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Enable or verify the scheduled_events_enabled tenant setting; it must be supplied as a precondition.; Set an occurrence count: no domain step or confirmed field label is supplied for this control.; Assert that a scheduled template exists with the saved cadence and matching occurrence count.; Identify and assert the next generated occurrence and its relationship to the scheduled template."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Recurring schedule creates a series",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation screen with the recurring feature enabled externally."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the event a unique title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Supply the pricing template required for line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Enable schedule configuration with one line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid base bidding window before adding recurrence."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Schedule"
+    },
+    "note": "Reopen the schedule drawer to access recurring settings."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Mark as Recurring Event",
+     "on": true
+    },
+    "note": "Enable recurrence and confirm the toggle state."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Repeats",
+     "option": "Daily"
+    },
+    "note": "Use a daily cadence and confirm the displayed selection."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "recurring-schedule-count-controls"
+    },
+    "note": "Record recurrence settings for inspection; occurrence-count configuration is not expressible with confirmed controls."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Attempt to save the available recurrence configuration."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check for a save error without claiming recurrence persistence."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply participants required for publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Exercise publication of the configured recurring event."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check for publication errors; this does not establish that a series was created."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "recurring-publication-result"
+    },
+    "note": "Record the outcome for manual verification of the unsupported series oracle."
+   }
+  ]
+ }
+}

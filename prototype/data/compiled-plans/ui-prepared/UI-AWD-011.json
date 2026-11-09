@@ -2,64 +2,92 @@
  "meta": {
   "caseId": "UI-AWD-011",
   "title": "Create Proposal produces a draft proposal",
-  "compiledAt": "2026-10-04T10:37:56.451Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-05T13:10:09.348Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Bid Selection Proposal\" (click) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Submit Proposal\" (expect_visible) — not among the labels known from the app nor in the case"
+   "The fixed prepared state already contains a draft proposal, so the Allocate → award → Create Proposal transition and its creation outcome cannot be tested from the required starting state."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Bid Selection Proposal\" (click) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Submit Proposal\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: The fixed prepared state already contains a draft proposal, so the Allocate → award → Create Proposal transition and its creation outcome cannot be tested from the required starting state."
   ],
   "state": "proposal",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
-   "UI-AWD-004",
+   "UI-AWD-005",
    "UI-AWD-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-AWD-011 — Create Proposal produces a draft proposal",
+  "title": "UI-AWD-011 — Draft proposal retains allocation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
-    }
+    },
+    "note": "Open the prepared event with its existing draft award proposal."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Bid Selection Proposal"
-    }
+     "text": "Bid Selection Proposal"
+    },
+    "note": "Open the existing proposal from Master QCS."
    },
    {
-    "step": "expect_url_contains",
+    "step": "expect_navigated",
     "args": {
-     "text": "/award"
-    }
+     "screen": "proposal"
+    },
+    "note": "Verify that a real proposal page opens."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Draft"
+    },
+    "note": "Require visible evidence that the proposal remains a draft rather than a submitted award."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Submit Proposal",
-     "visible": true
-    }
+     "name": "Submit Proposal"
+    },
+    "note": "Explicitly fail if the submit control is missing; its absence must not count as success."
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "Draft",
-     "present": true
-    }
+     "role": "button",
+     "name": "Allocation Summary"
+    },
+    "note": "Inspect the allocation retained on the draft proposal."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the allocation identifies the prepared event's expected vendor."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify the allocated line displays the expected quantity."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify the allocated line displays the expected unit."
    }
   ]
  }

@@ -2,80 +2,102 @@
  "meta": {
   "caseId": "UI-TPL-009",
   "title": "Leaving a creator column blank is refused as a partially filled sheet",
-  "compiledAt": "2026-10-04T11:01:39.615Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:26:53.383Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Fill every pricing-sheet cell except delivery location: fill_sheet fills the whole sheet, and no catalog step reliably targets an individual grid cell for clearing.",
+   "Assert that no publish request received any 5xx response: expect_request matches a specified status or successful response, rather than excluding the entire 5xx range."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Fill every pricing-sheet cell except delivery location: fill_sheet fills the whole sheet, and no catalog step reliably targets an individual grid cell for clearing.; Assert that no publish request received any 5xx response: expect_request matches a specified status or successful response, rather than excluding the entire 5xx range."
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-TPL-001",
-   "UI-SCH-003"
+   "UI-TPL-008",
+   "UI-TPL-015"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-TPL-009 — Leaving a creator column blank is refused as a partially filled sheet",
+  "title": "Blank delivery location publish validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start event creation via eRFX path"
+    "note": "Open the pricing-stage creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "UI-TPL-009 Test Event"
-    },
-    "note": "Provide mandatory event title"
+    "args": {},
+    "note": "Satisfy the unrelated title requirement."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Pick the stage pricing template"
+    "note": "Apply an available pricing template."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "buyer_hub"
+     ]
+    },
+    "note": "Require the delivery-location column rather than silently testing a template without it."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to populate the sheet"
+    "note": "Provide a pricing row."
    },
    {
-    "step": "fill_sheet",
+    "step": "set_schedule",
     "args": {},
-    "note": "Fill sheet cells, leaving creator columns blank as required by test setup"
+    "note": "Satisfy the scheduling prerequisite."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participant so publish is not blocked by missing participants"
+    "note": "Avoid a missing-participants refusal."
    },
    {
-    "step": "set_schedule",
+    "step": "skip",
     "args": {
-     "minutes": 5
+     "step": "fill_sheet",
+     "reason": "Keep buyer cells blank for the closest expressible negative check; this does not isolate delivery location."
     },
-    "note": "Set schedule so event has valid duration"
+    "note": "Prevent automatic completion from removing the negative condition."
    },
    {
-    "step": "publish",
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled, please check again."
+    },
+    "note": "Require the specific validation refusal, not merely an unsuccessful publish."
+   },
+   {
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Attempt to publish with incomplete pricing sheet"
-   },
-   {
-    "step": "expect_error",
-    "args": {
-     "contains": "Sheet partially filled, please check again."
-    },
-    "note": "Assert the app refuses publish with the exact validation message"
+    "note": "Check for a visible server error or crash; this does not replace the missing network-status assertion."
    }
   ]
  }

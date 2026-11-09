@@ -1,0 +1,117 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-007",
+  "title": "Every price cell on a multi-line sheet is filled",
+  "compiledAt": "2026-11-09T19:10:00.972Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Count the vendor portal's three filled price cells before submission.",
+   "Assert directly that exactly three price values are present in the submitted bid comparison."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Count the vendor portal's three filled price cells before submission.; Assert directly that exactly three price values are present in the submitted bid comparison."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SS-007",
+   "UI-TPL-014"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VBID-007 — Three-line vendor bid",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage event create flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-007 Three Line Bid"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 3
+    },
+    "note": "Create the required three-line event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the buyer pricing sheet so the event can be scheduled and published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor to submit the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Have the vendor submit a quote; the domain step handles the vendor-side bid submission across the event's line items."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal accepted the submitted bid."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid to inspect the submitted bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Confirm the responding vendor appears as a real vendor column."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Check the comparison grid's per-line amounts and total across all line items, providing the closest available verification that the bid populated every line."
+   }
+  ]
+ }
+}

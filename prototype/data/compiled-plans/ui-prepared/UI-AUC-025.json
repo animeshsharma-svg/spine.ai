@@ -2,78 +2,129 @@
  "meta": {
   "caseId": "UI-AUC-025",
   "title": "Awarding mode: partial award across multiple vendors",
-  "compiledAt": "2026-10-04T11:46:35.750Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T04:47:16.667Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Assert that the published event's awarding mode is line_item.",
+   "Assert that the award grid offers per-line allocation across multiple vendors; allocation counters alone do not establish this."
+  ],
   "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule"
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Assert that the published event's awarding mode is line_item.; Assert that the award grid offers per-line allocation across multiple vendors; allocation counters alone do not establish this."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-CRE-002",
-   "UI-LI-003"
+   "UI-AUC-024",
+   "UI-SS-006"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Single-stage partial awarding configuration",
+  "title": "Partial-award mode and downstream allocation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single-stage creation screen"
+    "note": "Use the supported configuration path for choosing awarding mode."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Give the event a title"
+    "note": "Give the event a unique title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select stage pricing template"
+    "note": "Apply a pricing template before adding items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Add 2+ line items as required by setup"
+    "note": "Meet the two-or-more-line-items setup."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify both line items were added."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill pricing sheet"
+    "note": "Complete the sheet required for publication."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Set event schedule"
+    "note": "Commit a short bidding window so awarding can be reached."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "count": 2
     },
-    "note": "Invite participants"
+    "note": "Provide an audience with multiple eligible vendors."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event"
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert event published successfully"
+    "note": "Verify publication, without treating it as proof of awarding mode."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Add a bid from the buyer console to make the downstream awarding screen reachable."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the prerequisite bid landed."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "End bidding before entering awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Verify the comparison grid rendered with items and a bidding vendor."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Reach the award grid for inspection."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "partial-award-allocation-grid"
+    },
+    "note": "Record downstream controls for manual inspection; this is not an assertion of per-line allocation support."
    }
   ]
  }

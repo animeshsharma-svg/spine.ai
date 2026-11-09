@@ -1,0 +1,158 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-041",
+  "title": "Submit a bid on an eRFX RFQ project",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:47:36.674Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "That Vendor A explicitly accepted any required Terms & Conditions, because no catalog assertion exposes that acceptance separately"
+  ],
+  "warnings": [
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "can only test part of this — no step for: That Vendor A explicitly accepted any required Terms & Conditions, because no catalog assertion exposes that acceptance separately"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell"
+  ],
+  "ms": 192847
+ },
+ "plan": {
+  "title": "Submit bid on eRFX RFQ project",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an eRFX project create flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project as RFQ-only rather than the default Auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product so the vendor has an item to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor corresponding to Vendor A."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ project so the vendor can access it."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the project reached a real published event page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Use the vendor portal to open the event, handle the vendor bid flow, quote 100, and submit."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal accepted the submitted bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Verify the buyer sees one direct vendor response on the RFQ stage."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS for the submitted bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify Master QCS contains one real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 100
+    },
+    "note": "Verify the submitted quote of 100 appears in Master QCS."
+   }
+  ]
+ }
+}

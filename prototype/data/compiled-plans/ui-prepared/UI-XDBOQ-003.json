@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-003",
+  "title": "An ordinary eRFX project never offers BOQ templates",
+  "compiledAt": "2026-10-06T06:20:52.182Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or verify the boq_in_erfx_allowed tenant gate and provision the BOQ and ordinary template fixtures.",
+   "Read the GET /templates?type_identifier=trade response and compare its template identities and BOQ classifications with the complete picker contents."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or verify the boq_in_erfx_allowed tenant gate and provision the BOQ and ordinary template fixtures.; Read the GET /templates?type_identifier=trade response and compare its template identities and BOQ classifications with the complete picker contents."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Ordinary eRFX excludes BOQ templates",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open an ordinary eRFX project, not the BOQ creation path; its default Auction stage is a pricing stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required unique title for this create-screen test."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Select Templates"
+    },
+    "note": "Open the pricing-stage template picker without selecting a template."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Templates"
+    },
+    "note": "Confirm the picker is visible before checking for excluded labels."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "BOQ",
+     "present": false,
+     "within": "Templates"
+    },
+    "note": "Assert no BOQ label is visible in the open picker."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/templates",
+     "method": "GET",
+     "query": "type_identifier=trade"
+    },
+    "note": "Verify the picker requested trade templates successfully; this does not compare the response contents with the picker."
+   }
+  ]
+ }
+}

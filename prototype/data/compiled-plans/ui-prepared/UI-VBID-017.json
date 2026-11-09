@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-017",
+  "title": "A discount above 100% is refused",
+  "compiledAt": "2026-11-09T19:26:55.610Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "trade credit / discount column present in the standard catalog step (the catalog template does not include a trade credit/discount column by default)"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: trade credit / discount column present in the standard catalog step (the catalog template does not include a trade credit/discount column by default)"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "A discount above 100% is refused",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating a multi-stage event"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the project a title"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Set up an RFQ stage"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select a pricing template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill the pricing sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Set the schedule duration"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a vendor for bidding"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event to make it live"
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert the event published successfully"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the vendor portal"
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event bidding sheet as the vendor"
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "fill",
+     "args": {
+      "label": "Discount",
+      "value": "150"
+     },
+     "expect": "refused",
+     "because": "Please enter a valid discount"
+    },
+    "note": "Attempt to enter a discount above 100% and assert it is refused"
+   }
+  ]
+ }
+}

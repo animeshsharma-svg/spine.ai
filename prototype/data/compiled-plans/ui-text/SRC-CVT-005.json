@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "SRC-CVT-005",
+  "title": "Starting price above the L1 sum total",
+  "group": "SRC-CVT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:11:42.595Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Guarantee that the prepared closed RFQ contains exactly the two bids A=100 and B=90 with an L1 sum total of 900; the prepared state supplies only one bid.",
+   "Assert the conversion pop-up specifically offers reuse options for RFQ quotes, participants, and weights."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Guarantee that the prepared closed RFQ contains exactly the two bids A=100 and B=90 with an L1 sum total of 900; the prepared state supplies only one bid.; Assert the conversion pop-up specifically offers reuse options for RFQ quotes, participants, and weights."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "convert_to_auction",
+   "do_on_screen",
+   "expect_error"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 15378
+ },
+ "plan": {
+  "title": "Reject Auction Starting Price Above RFQ L1",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared closed RFQ without searching the events list."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the closed RFQ and continue to the auction create screen."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "set the auction starting price above 900, publish the converted auction, and stop when the screen shows the refusal message"
+    },
+    "note": "No catalog step directly sets the converted auction starting price and publishes it, so perform the buyer-side UI interaction and capture the refusal."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Starting price cannot be more than the lowest RFQ (L1) Sum Total"
+    },
+    "note": "Verify the application refuses publication with the expected validation message."
+   }
+  ]
+ }
+}

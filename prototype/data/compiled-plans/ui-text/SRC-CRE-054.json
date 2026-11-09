@@ -1,0 +1,136 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-054",
+  "title": "Delivery date earlier than the bidding end",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:08:07.098Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Distinguish whether the publish outcome is specifically a warning or a refusal when both are possible."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "can only test part of this — no step for: Distinguish whether the publish outcome is specifically a warning or a refusal when both are possible."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "open_events_list",
+   "expect_events_list",
+   "expect_create_options",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "do_on_screen",
+   "invite_vendor",
+   "publish",
+   "expect_message"
+  ],
+  "ms": 76180
+ },
+ "plan": {
+  "title": "Single-stage RFQ delivery date before bidding end",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage create screen."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the buyer's Events list."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the Events list and Create Event control rendered."
+   },
+   {
+    "step": "expect_create_options",
+    "args": {
+     "options": [
+      "Single Stage"
+     ]
+    },
+    "note": "Verify the Create Event menu offers the Single Stage path."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Change the initial event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the RFQ template so the pricing sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the CYLINDER product with the requested quantity."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate required pricing-sheet fields for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 1440
+    },
+    "note": "Set the bidding window to end approximately tomorrow."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the single-stage RFQ create screen, set the first line item's Delivery location to Plant Name (LOC-0001), set the delivery date to today while the bidding end remains tomorrow, and stop with the configured date visible."
+    },
+    "note": "Configure the delivery location and the delivery date, which are not fully parameterized by catalog schedule steps."
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Attempt to publish the event with delivery before bidding end."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any",
+     "text": "delivery"
+    },
+    "note": "Verify the application produces a delivery-date-related warning or refusal rather than accepting the conflict silently."
+   }
+  ]
+ }
+}

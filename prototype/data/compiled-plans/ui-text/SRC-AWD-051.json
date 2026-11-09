@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-051",
+  "title": "Submit the proposal with \"Requirement - Purpose of this item / Service\" empty",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:22:54.789Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Reproduce the named closed RFQ with bids from Vendor A at 100 and Vendor B at 90, then allocate all 10 units specifically to Vendor B; the prepared state provides only one vendor, one line item, and one bid."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Reproduce the named closed RFQ with bids from Vendor A at 100 and Vendor B at 90, then allocate all 10 units specifically to Vendor B; the prepared state provides only one vendor, one line item, and one bid."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "click",
+   "expect_navigated",
+   "do_on_screen",
+   "click",
+   "expect_field_error",
+   "expect_visible"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 74481
+ },
+ "plan": {
+  "title": "Proposal submission requires purpose field",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen as required before creating a proposal."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available line item to the available vendor; the prepared state does not expose the named Vendor B or quantity-10 setup."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the draft proposal from the awarding screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the proposal page, fill every required proposal field except “Requirement - Purpose of this item / Service”, leaving that field empty; stop before submitting"
+    },
+    "note": "Prepare the proposal form with only the named required field omitted."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt to submit the incomplete proposal."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Requirement - Purpose of this item / Service",
+     "message": "is a required field"
+    },
+    "note": "Assert the omitted field is highlighted with the expected required-field refusal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal",
+     "visible": true
+    },
+    "note": "Confirm the proposal remains unsubmitted and the submission action is still present."
+   }
+  ]
+ }
+}

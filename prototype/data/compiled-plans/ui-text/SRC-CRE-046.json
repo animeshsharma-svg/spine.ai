@@ -1,0 +1,106 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-046",
+  "title": "Upload Sheet with a bad row",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:05:32.092Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "A file fixture containing exactly 2 good rows and 1 row with an unknown product code"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: A file fixture containing exactly 2 good rows and 1 row with an unknown product code"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "expect_template_selected",
+   "expect_sheet_columns",
+   "upload",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 11475
+ },
+ "plan": {
+  "title": "Single-stage RFQ upload with bad row",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage create screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template so the product sheet and upload controls are available."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that an RFQ template was applied."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price"
+     ]
+    },
+    "note": "Verify that the expected RFQ product-sheet columns rendered."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Upload the available CSV fixture as the closest catalog-supported representation of the product sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Failed to upload 1 entries."
+    },
+    "note": "Assert that the application reports exactly one failed upload entry."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "View failed entries"
+    },
+    "note": "Assert that the failed-row inspection control is offered."
+   }
+  ]
+ }
+}

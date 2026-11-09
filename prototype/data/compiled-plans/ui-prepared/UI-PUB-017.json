@@ -2,104 +2,108 @@
  "meta": {
   "caseId": "UI-PUB-017",
   "title": "Withdrawing a live event requires a remark and closes it to vendors",
-  "compiledAt": "2026-10-04T11:23:34.890Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T04:54:44.389Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Verify vendor bidding is refused with 'Order not active' after withdrawal",
-   "Entering a withdrawal remark in the withdrawal modal"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added place_bid — the test is about bidding and no bid step was planned",
-   "named AMD on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain",
-   "can only test part of this — no step for: Verify vendor bidding is refused with 'Order not active' after withdrawal; Entering a withdrawal remark in the withdrawal modal"
+   "the model was unsure of 2 label(s) that are known from the app — coverage full"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-SCH-003",
-   "UI-CRE-002"
+   "UI-PUB-023",
+   "UI-PUB-009"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-PUB-017 Withdrawing a live event requires a remark and closes it to vendors",
+  "title": "Withdrawal remark validation and vendor bid lockout",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start creating an event"
+    "step": "open_event",
+    "args": {},
+    "note": "Open the setup's existing live event with an invited vendor."
    },
    {
-    "step": "set_title",
-    "note": "Give the event a title"
-   },
-   {
-    "step": "select_template",
-    "note": "Pick a template for the stage"
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item"
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Fill pricing sheet"
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 3
-    },
-    "note": "Set schedule for publish"
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1,
-     "vendors": [
-      "AMD"
-     ]
-    },
-    "note": "Invite a vendor"
-   },
-   {
-    "step": "publish",
-    "note": "Publish the event to make it live"
-   },
-   {
-    "step": "expect_published",
-    "note": "Confirm event is published"
-   },
-   {
-    "step": "place_bid"
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Expose the published event's lifecycle actions."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Settings"
+     "role": "menuitem",
+     "name": "Withdraw"
     },
-    "note": "Open Settings menu on the project page"
+    "note": "Open the withdrawal dialog."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": ""
+    },
+    "note": "Explicitly leave the remark empty; this field label needs confirmation on the withdrawal dialog."
    },
    {
     "step": "attempt",
     "args": {
      "step": "click",
      "args": {
-      "role": "menuitem",
-      "name": "Withdraw Project"
+      "role": "button",
+      "name": "Withdraw",
+      "within": "dialog"
      },
      "expect": "refused"
     },
-    "note": "Attempt withdrawal with an empty remark and expect refusal"
+    "note": "Require visible evidence that blank-remark withdrawal is refused; the confirmation button label needs confirmation."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": "QA withdrawal"
+    },
+    "note": "Supply a real audit remark after the refusal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Withdraw",
+     "within": "dialog"
+    },
+    "note": "Confirm withdrawal with the populated remark."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the event-status assertion's screen."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Withdrawn"
+    },
+    "note": "Verify that the successful withdrawal persisted as Withdrawn."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to the same event for the vendor-side bid attempt."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_bid",
+     "args": {},
+     "because": "Order not active",
+     "expect": "refused"
+    },
+    "note": "Use the configured invited vendor's supplier portal and require the specified inactive-event refusal, rather than treating a failed navigation as proof."
    }
   ]
  }

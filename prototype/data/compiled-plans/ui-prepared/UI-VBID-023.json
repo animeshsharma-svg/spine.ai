@@ -1,0 +1,115 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-023",
+  "title": "Another user from the same vendor company cannot bid twice",
+  "compiledAt": "2026-11-09T19:20:03.386Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the second user from the same vendor company and attempt a second bid without revising the existing bid."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as the second user from the same vendor company and attempt a second bid without revising the existing bid."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Same Vendor Company Cannot Bid Twice",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "A title is mandatory for a publishable event."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ pricing stage for the vendor bid."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one item for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor company to the RFQ."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event before bidding."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is live and usable."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the first user from the invited vendor company submit the initial bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the initial vendor bid was accepted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the second user from the same vendor company and try to submit a second bid without revising the existing bid"
+    },
+    "note": "A second user identity from the same vendor company is required to test the company-level duplicate-bid refusal."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify the buyer still sees exactly one vendor response after the second-user attempt."
+   }
+  ]
+ }
+}

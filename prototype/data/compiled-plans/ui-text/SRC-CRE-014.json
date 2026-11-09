@@ -1,0 +1,132 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-014",
+  "title": "RFQ: Quantity Requested = a very large number 99999999",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:50:10.393Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the quantity is displayed specifically with thousands separators.",
+   "Verify that calculated totals do not break or overflow."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Verify that the quantity is displayed specifically with thousands separators.; Verify that calculated totals do not break or overflow."
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "expect_sheet_cell",
+   "select",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_screen_clean"
+  ],
+  "ms": 15814
+ },
+ "plan": {
+  "title": "Single-stage RFQ large quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Switch the event type from the default RFP to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the available RFQ template so the pricing sheet is created."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "99999999"
+    },
+    "note": "Add the requested product and enter the large quantity value."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete remaining required pricing-sheet fields."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Quantity Requested",
+     "row": 1,
+     "kept": true,
+     "equals": "99999999"
+    },
+    "note": "Verify the first line item's quantity remains the requested large value."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Delivery location",
+     "option": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location if the sheet exposes it as a selectable field."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one available QA vendor participant."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed RFQ as required by the scenario."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publishing reached a real project page."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that no overflow indicators, NaN values, raw IDs, or application errors are visible."
+   }
+  ]
+ }
+}

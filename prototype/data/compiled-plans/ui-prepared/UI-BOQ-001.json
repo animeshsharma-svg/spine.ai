@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "UI-BOQ-001",
+  "title": "A BOQ project creates its draft event group exactly once on mount",
+  "compiledAt": "2026-10-05T13:15:36.693Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Enable boq_in_erfx_allowed if it is not already enabled; no catalog step changes tenant settings.",
+   "Assert exactly one draft-creation request across mount and subsequent re-renders; expect_request checks existence, not request count.",
+   "Trigger browser resizing or browser-tab switching with catalog steps.",
+   "Assert exactly one draft event group resulted from this mount, including any duplicate draft left behind before the title was entered."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Enable boq_in_erfx_allowed if it is not already enabled; no catalog step changes tenant settings.; Assert exactly one draft-creation request across mount and subsequent re-renders; expect_request checks existence, not request count.; Trigger browser resizing or browser-tab switching with catalog steps.; Assert exactly one draft event group resulted from this mount, including any duplicate draft left behind before the title was entered."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-LI-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ mount creates exactly one draft",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Mount BOQ creation, assuming the required tenant gate is already enabled."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/event_groups",
+     "method": "POST"
+    },
+    "note": "Check that a successful creation request occurred; this does not check uniqueness."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Name the project and exercise a title-driven state update without explicitly saving another draft."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "boq-after-title-update"
+    },
+    "note": "Record the resulting screen for inspection; this is not evidence of exactly-once creation."
+   }
+  ]
+ }
+}

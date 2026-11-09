@@ -2,8 +2,8 @@
  "meta": {
   "caseId": "UI-TPL-002",
   "title": "The `Items` button is inert until a template exists",
-  "compiledAt": "2026-10-04T10:59:26.807Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:24:03.707Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
@@ -13,24 +13,32 @@
   "technical": false,
   "exemplars": [
    "UI-TPL-001",
-   "UI-CRE-002"
+   "UI-TPL-011"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Items button inert until template exists",
+  "title": "Items requires a template",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open create screen for an eRFX project"
+    "note": "Start on a fresh stage without a template."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Set a unique event title"
+    "note": "Supply the required unique test title."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "select_template",
+     "reason": "The first Items click must occur without a template."
+    },
+    "note": "Preserve the missing-template precondition."
    },
    {
     "step": "attempt",
@@ -40,10 +48,37 @@
       "role": "button",
       "name": "Items 0"
      },
-     "because": "Please select template for",
      "expect": "nothing_opens"
     },
-    "note": "Attempt to click Items 0 button before selecting a template and verify nothing opens or tooltip shows"
+    "note": "Verify clicking Items without a template opens no drawer or dialog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "placeholder": "Search and add line items using product name",
+     "visible": false
+    },
+    "note": "Explicitly verify the line-item search combobox is absent."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Satisfy the prerequisite without adding any items."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items 0"
+    },
+    "note": "Repeat the identical toolbar click after choosing a template."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "placeholder": "Search and add line items using product name"
+    },
+    "note": "Verify the Manage Line Items drawer now exposes its search combobox."
    }
   ]
  }

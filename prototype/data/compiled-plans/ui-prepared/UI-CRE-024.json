@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-024",
+  "title": "Leaving the create screen mid-way warns, and abandons nothing published",
+  "compiledAt": "2026-10-05T13:29:24.076Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Reliably observe and confirm the navigation-away warning: no confirmation control has a known label, and the catalog has no native browser-dialog handling step.",
+   "Complete the post-confirmation oracle: verify zero Live rows for the title and that any remaining event exists strictly as a draft; the required confirmed-leaving transition cannot be expressed."
+  ],
+  "warnings": [
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "cannot test this case yet — no step can observe: Reliably observe and confirm the navigation-away warning: no confirmation control has a known label, and the catalog has no native browser-dialog handling step.; Complete the post-confirmation oracle: verify zero Live rows for the title and that any remaining event exists strictly as a draft; the required confirmed-leaving transition cannot be expressed."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-CRE-018"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Leaving an unfinished event safely",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start on the create screen, where the behavior under test originates."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Generate a unique title and leave the event partially configured without saving or publishing."
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "save_draft"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Attempt to navigate away; this does not express acceptance of any leave confirmation."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "unfinished-event-navigation-away"
+    },
+    "note": "Record the resulting screen for inspection without treating it as proof that a warning appeared or leaving was confirmed."
+   }
+  ]
+ }
+}

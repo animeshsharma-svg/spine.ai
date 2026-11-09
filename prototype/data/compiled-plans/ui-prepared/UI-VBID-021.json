@@ -1,0 +1,135 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-021",
+  "title": "Revising a bid inside the window replaces the value",
+  "compiledAt": "2026-11-09T19:12:10.894Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The buyer-side bid history showing the prior quote of 100"
+  ],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: The buyer-side bid history showing the prior quote of 100"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Revise vendor bid inside bidding window",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Create a live single-stage RFQ for the revision scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Bid Revision 100 to 90"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for bidding."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor to submit and revise a bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is live and published."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submit the vendor's initial bid of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the initial bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 90
+    },
+    "note": "Submit a revision from the same vendor at 90 while the window remains open."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the revised bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid to inspect the current bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 90
+    },
+    "note": "Assert that the buyer sees 90 as the vendor's current price."
+   }
+  ]
+ }
+}

@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-058",
+  "title": "Repeat order needs the old PO reference",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:23:32.409Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Allocate exactly 10 units to Vendor B; allocate_award can select the vendor but cannot specify an allocation quantity, and the prepared state has one line item."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Allocate exactly 10 units to Vendor B; allocate_award can select the vendor but cannot specify an allocation quantity, and the prepared state has one line item."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "click",
+   "expect_navigated",
+   "select",
+   "fill",
+   "click",
+   "expect_field_error"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 13361
+ },
+ "plan": {
+  "title": "Repeat order requires old PO reference",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly in Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow for the closed RFQ."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Allocate the available line item to the named vendor before creating the proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create and open the award proposal form."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify the proposal page opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Repeat Order / Old PO ref.If yes (Mention the PO number in running pages)",
+     "option": "Yes"
+    },
+    "note": "Mark the proposal as a repeat order so the old PO reference becomes required."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Old PO reference Number",
+     "value": ""
+    },
+    "note": "Leave the required old PO reference field empty."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt to submit the proposal with the required reference missing."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Old PO reference Number"
+    },
+    "note": "Assert submission is refused with an error associated with the empty old PO reference field."
+   }
+  ]
+ }
+}

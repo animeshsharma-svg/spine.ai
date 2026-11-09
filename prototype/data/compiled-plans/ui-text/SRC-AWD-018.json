@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-018",
+  "title": "Two bids: award only 6 of the 10 units to B (partial award); approver approves with a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:19:26.248Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Set up or guarantee exactly two bids at prices A=100 and B=90 on the existing closed RFQ.",
+   "Log in as a separate approver, open the proposal from Approvals, enter the remark \"OK — QA\", and approve it.",
+   "Verify the proposal's approval-in-progress state before approval and the event's move to History after approval.",
+   "Verify that the awarded amount is specifically Vendor B's 6 × 90 = 540 in the proposal; the catalog has no proposal-allocation value assertion."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Set up or guarantee exactly two bids at prices A=100 and B=90 on the existing closed RFQ.; Log in as a separate approver, open the proposal from Approvals, enter the remark \"OK — QA\", and approve it.; Verify the proposal's approval-in-progress state before approval and the event's move to History after approval.; Verify that the awarded amount is specifically Vendor B's 6 × 90 = 540 in the proposal; the catalog has no proposal-allocation value assertion."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "open_master_qcs",
+   "start_awarding",
+   "do_on_screen",
+   "click",
+   "expect_navigated",
+   "do_on_screen",
+   "ask_tester",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 31518
+ },
+ "plan": {
+  "title": "Partial Award Approval Flow",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to inspect the vendors' bids before awarding."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the awarding screen, allocate exactly 6 of the 10 requested units to Vendor B, leave 4 units unawarded, and stop when the screen shows Awarded Vendors 1/2."
+    },
+    "note": "The catalog's allocate_award step cannot enter a partial quantity, so perform and verify the exact allocation on screen."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the proposal from the completed partial allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the proposal page opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the proposal page, fill all required proposal fields and submit the proposal; stop when the proposal shows it was submitted or approval is in progress."
+    },
+    "note": "No catalog step fills and submits the proposal form's required fields."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the separate approver, open this proposal from Approvals, enter the remark \"OK — QA\", and approve it"
+    },
+    "note": "Approval by another user requires credentials and a portal session unavailable to the catalog."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "After approval, complete PO creation and read the resulting purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 6
+    },
+    "note": "Verify that the resulting PO contains one awarded line with the six-unit awarded quantity."
+   }
+  ]
+ }
+}

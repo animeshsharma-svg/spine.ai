@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "UI-XDAMD-002",
+  "title": "The confirmation explains the consequences and Cancel creates nothing",
+  "compiledAt": "2026-10-06T06:09:01.678Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The expected title \"Are you sure you want to create a new version?\" has no known rendered label.",
+   "The three expected consequence bullets (archive, bids read-only, collect fresh bids) have no known rendered labels, so their wording and three-bullet structure cannot be verified.",
+   "The expected warning \"This action cannot be undone.\" has no known rendered label.",
+   "No catalog step can query persisted item_versions to assert that the collection remains empty."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The expected title \"Are you sure you want to create a new version?\" has no known rendered label.; The three expected consequence bullets (archive, bids read-only, collect fresh bids) have no known rendered labels, so their wording and three-bullet structure cannot be verified.; The expected warning \"This action cannot be undone.\" has no known rendered label.; No catalog step can query persisted item_versions to assert that the collection remains empty."
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Cancel new-version confirmation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared RFQ with its existing bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create New Version"
+    },
+    "note": "Open the version confirmation without issuing a version."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog"
+    },
+    "note": "Assert that a confirmation dialog opens without guessing its title."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "new-version-confirmation"
+    },
+    "note": "Record the actual confirmation contents for review; this does not assert the missing warning text."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel rather than confirm version creation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Assert that Cancel dismisses the confirmation."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Control+r"
+    },
+    "note": "Reload after cancellation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Assert that the original summary screen is ready after reload."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/item_versions",
+     "method": "POST",
+     "absent": true
+    },
+    "note": "Assert that no version-creation POST was sent during opening, cancellation, or reload."
+   }
+  ]
+ }
+}

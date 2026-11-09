@@ -1,0 +1,244 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-001",
+  "title": "Material PR → single stage RFQ → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:12:15.181Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the PR itself transitions from Open to In Progress to ordered and inspect the PR after PO creation",
+   "Add exactly one Required T&C clause unless the on-screen action is successfully completed by do_on_screen"
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Verify the PR itself transitions from Open to In Progress to ordered and inspect the PR after PO creation; Add exactly one Required T&C clause unless the on-screen action is successfully completed by do_on_screen"
+  ],
+  "source": "llm",
+  "steps": 31,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "do_on_screen",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status"
+  ],
+  "ms": 16132
+ },
+ "plan": {
+  "title": "Material PR to RFQ Award and PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Set and commit the 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two QA vendors without inventing real supplier names."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "add exactly one Required T&C clause on the buyer's RFQ create screen, save it, and stop when the screen shows the clause has been added"
+    },
+    "note": "Perform the required T&C configuration, which has no dedicated catalog step."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Have Vendor A submit a quote of 100 through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's quote was submitted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 90
+    },
+    "note": "Have Vendor B submit a quote of 90 through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor B's quote was submitted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the bidding window to end rather than force-closing it."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid after bidding ends."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lower bid ranks better, establishing Vendor B as Rank 1."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 2,
+     "number": 1
+    },
+    "note": "Directly assert Vendor B's column is Rank 1."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the entire available lot to the lowest vendor, Vendor B."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for the lowest evaluated bid."
+    },
+    "note": "Approve the submitted proposal with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete approval and create the purchase order(s)."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify one PO contains exactly the awarded PR line."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to inspect the event's final history placement."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab after the completed award flow."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify this plan's event appears in event history."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Assert the event has left Live and has a completed history status."
+   }
+  ]
+ }
+}

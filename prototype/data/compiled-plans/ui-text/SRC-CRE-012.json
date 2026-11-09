@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-012",
+  "title": "RFQ: Quantity Requested = letters \"abc\"",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:51:35.010Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select the CYLINDER WITH KEY & KNOB product variant and verify that Product Variant auto-fills as Default Variant.",
+   "Pick Plant Name (LOC-0001) from the Delivery location picker.",
+   "Add the specifically named Vendor A, because the case does not provide the vendor's exact catalog-recognized name."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Select the CYLINDER WITH KEY & KNOB product variant and verify that Product Variant auto-fills as Default Variant.; Pick Plant Name (LOC-0001) from the Delivery location picker.; Add the specifically named Vendor A, because the case does not provide the vendor's exact catalog-recognized name."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "expect_template_selected",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_field_error"
+  ],
+  "ms": 136421
+ },
+ "plan": {
+  "title": "SRC-CRE-012 — RFQ rejects letters in Quantity Requested",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the Single Stage create screen specified by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Changes the default event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-012 RFQ Quantity Letters"
+    },
+    "note": "Provides the required event title for a create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the first available RFQ template so the pricing sheet can be populated."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirms that an RFQ template is applied before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Adds a CYLINDER line item to create the first pricing-sheet row."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Renders and initializes the pricing sheet for the added line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "abc"
+    },
+    "note": "Types the invalid letters into the exact numeric cell and tabs out as the case requires."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "refused": true
+    },
+    "note": "Asserts that the Quantity Requested cell does not retain the non-numeric value."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Quantity Requested"
+    },
+    "note": "Confirms the app reports validation for the Quantity Requested field."
+   }
+  ]
+ }
+}

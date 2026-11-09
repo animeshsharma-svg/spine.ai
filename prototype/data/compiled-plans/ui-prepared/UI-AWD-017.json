@@ -2,55 +2,56 @@
  "meta": {
   "caseId": "UI-AWD-017",
   "title": "Awarding more than the requested quantity is refused",
-  "compiledAt": "2026-10-04T11:16:50.568Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-05T13:15:09.446Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "specifying exact custom quantities like 60 + 60 through the domain step allocate_award"
+   "Ensure the fixed prepared line has a requested quantity of 100.",
+   "Enter successive award allocations of 60 and 60; allocate_award does not accept quantities.",
+   "Trigger and assert the readable over-awarding refusal.",
+   "Verify that no proposal contains a total awarded quantity of 120."
   ],
   "warnings": [
-   "can only test part of this — no step for: specifying exact custom quantities like 60 + 60 through the domain step allocate_award"
+   "cannot test this case yet — no step can observe: Ensure the fixed prepared line has a requested quantity of 100.; Enter successive award allocations of 60 and 60; allocate_award does not accept quantities.; Trigger and assert the readable over-awarding refusal.; Verify that no proposal contains a total awarded quantity of 120."
   ],
   "state": "closed",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
-   "UI-AWD-003",
-   "UI-AWD-009"
+   "UI-AWD-005",
+   "UI-AWD-003"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-AWD-017 Awarding more than requested quantity is refused",
+  "title": "Refuse awarding 120 against 100 requested",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared closed event"
+    "note": "Open the prepared closed RFQ with its existing bid."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Start Awarding"
-    },
-    "note": "Enter the awarding flow"
-   },
-   {
-    "step": "allocate_award",
+    "step": "start_awarding",
     "args": {},
-    "note": "Allocate award to trigger allocation UI"
+    "note": "Reach the allocation flow without submitting a proposal."
    },
    {
-    "step": "expect_message",
+    "step": "expect_navigated",
     "args": {
-     "kind": "any",
-     "text": "requested quantity"
+     "path": "/awarding/"
     },
-    "note": "Assert that the over-allocation is refused with a readable message"
+    "note": "Verify entry to awarding, not the unsupported over-awarding refusal."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "over-awarding-quantity-controls"
+    },
+    "note": "Record the allocation controls for inspection; this is evidence only, not a refusal assertion."
    }
   ]
  }

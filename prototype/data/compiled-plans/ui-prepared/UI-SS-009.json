@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "UI-SS-009",
+  "title": "Publishing with an incomplete row is refused",
+  "compiledAt": "2026-10-05T16:42:03.976Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Selectively clear or leave blank the Delivery location grid cell while filling every other required cell; fill_sheet fills the whole sheet.",
+   "Assert that no request returns HTTP 500; screen cleanliness checks visible server errors, not every network response."
+  ],
+  "warnings": [
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Selectively clear or leave blank the Delivery location grid cell while filling every other required cell; fill_sheet fills the whole sheet.; Assert that no request returns HTTP 500; screen cleanliness checks visible server errors, not every network response."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SS-003",
+   "UI-SS-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Block single-stage publishing with an incomplete row",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Use the classic single-stage creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Satisfy the title requirement."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Enable the pricing sheet and line-item controls."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create one row without filling its creator-entered cells."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit the schedule to avoid an unrelated publishing block."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Satisfy the participant requirement."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "fill_sheet",
+     "reason": "Keep the row incomplete; this cannot isolate Delivery location from other blank creator cells."
+    },
+    "note": "Prevent automatic completion of the incomplete sheet."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled, please check again."
+    },
+    "note": "Require publishing to be refused with the readable sheet-validation message."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check for visible server errors or a page crash, without claiming network-wide absence of HTTP 500."
+   }
+  ]
+ }
+}

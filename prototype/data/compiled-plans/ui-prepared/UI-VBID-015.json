@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-015",
+  "title": "Offering in a different unit is refused",
+  "compiledAt": "2026-11-09T19:19:42.244Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The exact vendor-side unit control and valid alternative unit option are not defined in the catalog.",
+   "The submitted bid's persisted unit cannot be compared with the requested unit through a dedicated assertion."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The exact vendor-side unit control and valid alternative unit option are not defined in the catalog.; The submitted bid's persisted unit cannot be compared with the requested unit through a dedicated assertion."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VBID-015 Different Offer Unit Refused",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage project create flow suitable for an RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-015 Different Unit Test"
+    },
+    "note": "Give the event the required title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage for the vendor offer."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product so the vendor has an offer row."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the buyer pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor to submit the offer."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor portal can access it."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing offer form in the vendor portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "fill",
+     "args": {
+      "label": "Unit",
+      "value": "different unit"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to change the offer unit; this uses the unconfirmed generic Unit label because no domain step exposes the vendor unit control."
+   }
+  ]
+ }
+}

@@ -1,0 +1,119 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-013",
+  "title": "A negative quantity in the vendor's quantity column is refused",
+  "compiledAt": "2026-11-09T19:19:17.196Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Negative vendor quantity is refused",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the RFQ event used to reach the vendor bidding sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage for the vendor quantity test."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one requested product for the vendor to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the buyer-side pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor whose portal will be tested."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its bid sheet."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's vendor pricing sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity",
+     "value": "-1"
+    },
+    "note": "Enter the invalid negative offered quantity specified by the case."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity",
+     "refused": true
+    },
+    "note": "Verify the vendor sheet refuses -1 rather than keeping or accepting it."
+   }
+  ]
+ }
+}

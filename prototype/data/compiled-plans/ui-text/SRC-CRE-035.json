@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-035",
+  "title": "Forward auction: delivery location must come from the list",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:01:28.210Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select and verify the specific forward (sell) auction template and auction direction."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Select and verify the specific forward (sell) auction template and auction direction."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell"
+  ],
+  "ms": 12131
+ },
+ "plan": {
+  "title": "Forward auction delivery location validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Change the initial event type to Auction; the catalog has no explicit forward/sell direction control."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Forward Auction Delivery Location Validation"
+    },
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the first available auction template; the exact forward template cannot be identified from the case."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Render and populate the auction pricing sheet before editing the delivery location."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Mars"
+    },
+    "note": "Enter the invalid non-plant location in the delivery-location cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "refused": true
+    },
+    "note": "Verify that the invalid free-text location is not retained or is marked as refused."
+   }
+  ]
+ }
+}

@@ -2,71 +2,84 @@
  "meta": {
   "caseId": "UI-SCH-007",
   "title": "End before start is refused",
-  "compiledAt": "2026-10-04T11:23:49.869Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:01:11.896Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Explicitly fill start and end times in the schedule drawer with custom values (the current schedule step commits whatever default or drawer state opens without separate date inputs)."
+   "Set an end timestamp earlier than the start: set_schedule only accepts duration, and the actual timestamp input labels and formats are not established.",
+   "Assert that saving the inverted window produces a readable refusal; the invalid-window action cannot be reliably expressed.",
+   "Reopen after the refusal and compare the saved start and end timestamps with the previous values; the timestamp controls are not identified."
   ],
   "warnings": [
-   "can only test part of this — no step for: Explicitly fill start and end times in the schedule drawer with custom values (the current schedule step commits whatever default or drawer state opens without separate date inputs)."
+   "cannot test this case yet — no step can observe: Set an end timestamp earlier than the start: set_schedule only accepts duration, and the actual timestamp input labels and formats are not established.; Assert that saving the inverted window produces a readable refusal; the invalid-window action cannot be reliably expressed.; Reopen after the refusal and compare the saved start and end timestamps with the previous values; the timestamp controls are not identified."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
    "UI-SCH-003",
-   "UI-SCH-002"
+   "UI-SCH-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SCH-007 — End before start is refused",
+  "title": "End-before-start schedule refusal",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Open create screen for a single stage event to reach the schedule control"
+    "note": "Open the create screen containing the scheduling flow."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Give the event a title so it has valid basic state"
+    "note": "Supply the required event title."
    },
    {
     "step": "select_template",
-    "note": "Select a template so schedule is accessible"
+    "args": {},
+    "note": "Enable adding the line item required for scheduling."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add line item so schedule is enabled"
+    "note": "Meet the schedule control's line-item prerequisite."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid baseline window for the requested preservation check."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check baseline setup only; this does not prove inverted-window refusal."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Schedule"
+     "text": "Schedule"
     },
-    "note": "Open the schedule drawer"
+    "note": "Reopen the schedule drawer."
    },
    {
-    "step": "attempt",
+    "step": "expect_visible",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Save Schedule"
-     },
-     "because": "Start time should be less than end time",
-     "expect": "refused"
+     "text": "Schedule Event"
     },
-    "note": "Attempt to save an invalid schedule and verify it is refused"
+    "note": "Confirm the requested starting screen is open."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "schedule-timestamp-controls"
+    },
+    "note": "Record the drawer and its controls for implementing the missing invalid-window action and timestamp assertions."
    }
   ]
  }

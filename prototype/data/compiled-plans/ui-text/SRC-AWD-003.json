@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-003",
+  "title": "One bid: award all 10 units to Vendor A; approver approves without a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:10:56.600Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver, approve the submitted proposal with the remark empty, and verify the exact refusal \"Remark is necessary for approval\" while the proposal remains pending."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as the separate approver, approve the submitted proposal with the remark empty, and verify the exact refusal \"Remark is necessary for approval\" while the proposal remains pending."
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
+   "ask_tester"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 5660
+ },
+ "plan": {
+  "title": "SRC-AWD-003 — Award and approval remark validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "realNames": true
+    },
+    "note": "Verify the single real vendor column is Vendor A."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": "Vendor A",
+     "key": "quantity"
+    },
+    "note": "Verify Vendor A's offered quantity from the prepared event."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "key": "bidPrice"
+    },
+    "note": "Verify Vendor A's bid rate from the prepared event."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the displayed line amount and total use rate multiplied by quantity."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen for the closed bid."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Allocate the line to Vendor A; the prepared event has one line and one vendor, so this allocates the complete line."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Assert that all line items and one vendor are selected."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal after allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Complete mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the completed award proposal for approval."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the assigned approver and approve the submitted proposal with the approval remark left empty, then verify the refusal and that the proposal remains pending"
+    },
+    "note": "The catalog cannot switch to the separate approver identity or perform this negative approval check."
+   }
+  ]
+ }
+}

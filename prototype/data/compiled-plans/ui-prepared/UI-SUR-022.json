@@ -2,15 +2,17 @@
  "meta": {
   "caseId": "UI-SUR-022",
   "title": "A surrogate bid is visibly marked as buyer-entered",
-  "compiledAt": "2026-10-04T11:42:40.113Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:18:21.996Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "An event with specifically one vendor bid and one surrogate bid concurrently in the prepared fixture state"
+   "The prepared event lacks the second vendor and surrogate bid required to compare both bid origins; its fixed setup cannot supply that comparison.",
+   "Verify that the surrogate bid carries a buyer-entered label and the vendor's own bid does not: no dedicated attribution assertion or confirmed visible label is available.",
+   "Assert that the attribution label appears on exactly one of two bids."
   ],
   "warnings": [
-   "can only test part of this — no step for: An event with specifically one vendor bid and one surrogate bid concurrently in the prepared fixture state"
+   "cannot test this case yet — no step can observe: The prepared event lacks the second vendor and surrogate bid required to compare both bid origins; its fixed setup cannot supply that comparison.; Verify that the surrogate bid carries a buyer-entered label and the vendor's own bid does not: no dedicated attribution assertion or confirmed visible label is available.; Assert that the attribution label appears on exactly one of two bids."
   ],
   "state": "bid",
   "screen": "responses",
@@ -19,21 +21,28 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "surrogate bid is visibly marked as buyer-entered",
+  "title": "Surrogate bid attribution in buyer comparison",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the responses comparison grid on the prepared event"
+    "note": "Open the prepared event's buyer comparison."
    },
    {
-    "step": "expect_text",
+    "step": "expect_api_value",
     "args": {
-     "text": "Buyer-entered"
+     "key": "vendorName"
     },
-    "note": "Assert the surrogate bid is visibly marked as buyer-entered"
+    "note": "Confirm the existing vendor appears; this does not verify bid-origin labelling."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "buyer-comparison-bid-attribution"
+    },
+    "note": "Record the comparison and accessibility tree for inspection of attribution controls and wording."
    }
   ]
  }

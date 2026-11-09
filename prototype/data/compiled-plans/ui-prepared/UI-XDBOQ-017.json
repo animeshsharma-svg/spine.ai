@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-017",
+  "title": "The buyer's surrogate bid upload for BOQ",
+  "compiledAt": "2026-10-06T06:24:00.778Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "The prepared event is not a live BOQ stage, and the catalog cannot change it into the required BOQ starting state.",
+   "Neither required company setting is established, and no second QA company ID is supplied; the ON and OFF Upload Excel expectations cannot be tested reliably.",
+   "The template-download control's exact label is unavailable, so the download cannot be triggered reliably to assert GET /v1/trade/<stage>/download_event_details with company_uuid.",
+   "Upload fixtures contain no .xlsx or .xls file and cannot supply a filled BOQ template; accepted file types, POST /v1/trade/<stage>/upload_bid_excel, and the Excel Uploaded Successfully toast cannot be verified.",
+   "Without the Excel upload, the plan cannot verify populated prices, unchanged bid count before Place bid, or the subsequent bid-count increase and vendor-specific placement confirmation."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: The prepared event is not a live BOQ stage, and the catalog cannot change it into the required BOQ starting state.; Neither required company setting is established, and no second QA company ID is supplied; the ON and OFF Upload Excel expectations cannot be tested reliably.; The template-download control's exact label is unavailable, so the download cannot be triggered reliably to assert GET /v1/trade/<stage>/download_event_details with company_uuid.; Upload fixtures contain no .xlsx or .xls file and cannot supply a filled BOQ template; accepted file types, POST /v1/trade/<stage>/upload_bid_excel, and the Excel Uploaded Successfully toast cannot be verified.; Without the Excel upload, the plan cannot verify populated prices, unchanged bid count before Place bid, or the subsequent bid-count increase and vendor-specific placement confirmation."
+  ],
+  "state": "live",
+  "screen": "participants",
+  "technical": false,
+  "exemplars": [
+   "UI-SUR-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ surrogate bid Excel upload",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the fixed live RFQ's Participants tab; this is not the required BOQ setup."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Bid"
+    },
+    "note": "Open the surrogate-bid drawer for the sole invited QA vendor without submitting a bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Add Bid for"
+    },
+    "note": "Assert only that the nearby surrogate-bid drawer opened, not that BOQ Excel upload works."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "surrogate-bid-upload-controls"
+    },
+    "note": "Record the available drawer controls for inspection; this is evidence capture, not an assertion of upload availability or behavior."
+   }
+  ]
+ }
+}

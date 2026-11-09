@@ -1,0 +1,81 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-006",
+  "title": "A window that has already closed at publish time",
+  "compiledAt": "2026-11-09T19:10:57.262Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "If publishing succeeds in a Closed state, conditionally attempt a vendor bid and assert it is refused with \"Order not active\"."
+  ],
+  "warnings": [
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "removed invite_vendor — the case is about publishing without participants, so including it would defeat the test",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "removed invite_vendor — the case is about publishing without participants, so including it would defeat the test",
+   "can only test part of this — no step for: If publishing succeeds in a Closed state, conditionally attempt a vendor bid and assert it is refused with \"Order not active\"."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Past End Time Publish",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a valid event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create a valid event with one line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit an initially valid schedule so the event is otherwise publishable."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the create screen, change the event End time to a time already in the past, save the schedule, and stop on the create screen showing the saved past end time"
+    },
+    "note": "No catalog domain step can set a past end time during creation, so perform this schedule edit directly on screen."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {},
+    "note": "Verify the publish action is refused for the past closing time."
+   }
+  ]
+ }
+}

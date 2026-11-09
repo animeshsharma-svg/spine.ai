@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "UI-LI-014",
+  "title": "A basket auction is exempt from the line-item cap",
+  "compiledAt": "2026-10-05T13:43:47.719Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Enable or verify the required isBasketAuction=true gate: no catalog step or confirmed basket-mode control label is available.",
+   "Check that publishing more than 65 line items succeeds without a max-line-items error specifically on a basket auction, because the required basket state cannot be established."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Enable or verify the required isBasketAuction=true gate: no catalog step or confirmed basket-mode control label is available.; Check that publishing more than 65 line items succeeds without a max-line-items error specifically on a basket auction, because the required basket state cannot be established."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-LI-002",
+   "UI-LI-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Basket auction line-item cap exemption",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the create screen with its default Auction stage; this does not establish basket mode."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the preparation a unique event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 50
+    },
+    "note": "Add the first batch within the catalog's per-step limit."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 16
+    },
+    "note": "Bring the intended total above the normal 65-item cap."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 66
+    },
+    "note": "Verify the over-cap preparation only, not the basket-specific publishing exemption."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "over-cap-auction-basket-mode-unverified"
+    },
+    "note": "Record the screen for identifying the unsupported basket configuration."
+   }
+  ]
+ }
+}

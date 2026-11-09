@@ -1,0 +1,113 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-002",
+  "title": "One bid: award all 10 units to Vendor A; approver approves with a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:10:58.009Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it",
+   "Verify the submitted allocation itself is exactly 10 units at 100 for a total of 1,000 on the awarding/proposal screen",
+   "Verify this specific prepared event moves to History after approval because its title is not available to the plan"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it; Verify the submitted allocation itself is exactly 10 units at 100 for a total of 1,000 on the awarding/proposal screen; Verify this specific prepared event moves to History after approval because its title is not available to the plan"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "award_event",
+   "expect_awarded",
+   "ask_tester",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 7072
+ },
+ "plan": {
+  "title": "SRC-AWD-002 — Award and approve one bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state cases."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Confirm the comparison grid has exactly one real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "key": "quantity",
+     "vendor": 1
+    },
+    "note": "Verify the sole bid covers the API-held quantity of 10 units."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "key": "bidPrice",
+     "vendor": 1
+    },
+    "note": "Verify the sole bid rate matches the API-held bid price of 100."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Verify the bid arithmetic, including 100 × 10 = 1,000 and the matching total."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Allocate the only bid and submit the award proposal in the complete awarding flow."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the assigned approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it"
+    },
+    "note": "The approval requires a separate approver identity unavailable to the catalog."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete PO creation after the award has been approved."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Confirm one PO carries the awarded line with quantity 10."
+   }
+  ]
+ }
+}

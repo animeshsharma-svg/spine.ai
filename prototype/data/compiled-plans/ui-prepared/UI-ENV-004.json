@@ -1,0 +1,128 @@
+{
+ "meta": {
+  "caseId": "UI-ENV-004",
+  "title": "One browser window per run, and the session survives the whole journey",
+  "compiledAt": "2026-11-09T19:12:20.997Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that the vendor browser context is closed at the end of the journey"
+  ],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Directly verify that the vendor browser context is closed at the end of the journey"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-SS-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Buyer session survives vendor bid and award journey",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start the full buyer-side event journey."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ suitable for vendor bidding and awarding."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor to participate."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event before bidding."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the buyer reached the authenticated project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit the vendor's bid through the separate supplier portal context; the buyer page remains available."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Confirm the buyer console can read the vendor response after the portal journey."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the bidding window so the event can be awarded."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "portal"
+    },
+    "note": "Complete the buyer-side award using the vendor's portal bid, further exercising the returned buyer session."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the authenticated buyer session completed the award."
+   }
+  ]
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-029",
+  "title": "Forward auction: the same price as another vendor",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:39:22.384Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Automatically determine Vendor A's existing bid price and enter that same hidden price as Vendor B."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Automatically determine Vendor A's existing bid price and enter that same hidden price as Vendor B."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_toast"
+  ],
+  "unbuilt": "A live forward auction. the API set-up does not build forward auctions yet",
+  "ms": 14642
+ },
+ "plan": {
+  "title": "Forward auction rejects duplicate vendor price",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "vendor"
+    },
+    "note": "Open the prepared live forward-auction vendor screen without creating or changing the event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor B"
+    },
+    "note": "Sign in as Vendor B in the separate supplier portal while preserving the buyer session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live auction's pricing round for Vendor B."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enter Vendor A's exact existing bid price in Vendor B's bid form and submit the bid"
+    },
+    "note": "The vendor portal must not expose Vendor A's price, and the catalog cannot transfer that hidden value into the bid form."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "A bid at this price already exists, please quote a different price."
+    },
+    "note": "Verify that the duplicate-price submission is refused with the expected message."
+   }
+  ]
+ }
+}

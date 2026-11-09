@@ -1,0 +1,134 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-027",
+  "title": "Best price is shown on a price-based auction, per configuration",
+  "compiledAt": "2026-11-09T19:20:31.621Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Prove that the displayed 100 is specifically the best-price indicator rather than another occurrence of the same number.",
+   "Verify that no vendor name accompanies the best-price indicator without inventing or knowing the configured vendor names.",
+   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Prove that the displayed 100 is specifically the best-price indicator rather than another occurrence of the same number.; Verify that no vendor name accompanies the best-price indicator without inventing or knowing the configured vendor names."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-TPL-015"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Price Auction Best Price Visibility",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage create screen required for selecting a price-based auction."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a price-based auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Price Auction Best Price Visibility"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the competing bids."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Populate the pricing sheet so the auction can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the auction has two bidding participants."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the configured price-based auction."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the auction reached a real published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the first vendor's bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the trailing vendor's bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 2
+    },
+    "note": "View the auction as the trailing vendor."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live auction pricing view in the supplier portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Price"
+    },
+    "note": "Confirm the vendor-facing best-price indicator is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100",
+     "within": "Best Price"
+    },
+    "note": "Check that the displayed best price matches the leading bid."
+   }
+  ]
+ }
+}

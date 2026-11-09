@@ -1,0 +1,190 @@
+{
+ "meta": {
+  "caseId": "SRC-ACT-009",
+  "title": "Order Activity records the award proposal submitted and approved",
+  "group": "SRC-ACT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:08:42.722Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the exact user identity and date/time attached to each award-proposal activity entry.",
+   "Verify that no earlier activity entries are missing from the complete history.",
+   "Use a dedicated assertion for the exact activity-entry wording; the catalog only provides generic text/order checks."
+  ],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Verify the exact user identity and date/time attached to each award-proposal activity entry.; Verify that no earlier activity entries are missing from the complete history.; Use a dedicated assertion for the exact activity-entry wording; the catalog only provides generic text/order checks."
+  ],
+  "source": "llm",
+  "steps": 21,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "event_menu",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_order"
+  ],
+  "ms": 22297
+ },
+ "plan": {
+  "title": "Order Activity Award Approval",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage event so the plan controls the event history."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-ACT-009 Order Activity Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create the RFQ stage needed for bidding and awarding."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the vendor bid and award."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor so the event can be published and bid on."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event before bidding."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real project page."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Create a bid for the invited vendor from the buyer console."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close bidding so the event can be awarded."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "surrogate"
+    },
+    "note": "Submit the award proposal for the vendor whose bid was entered by the buyer."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {},
+    "note": "Approve the submitted award proposal as the buyer."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage's Order Activity drawer, the subject under test."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "award",
+     "present": true
+    },
+    "note": "Check that the activity drawer contains an award-related entry."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "approved",
+     "present": true
+    },
+    "note": "Check that approval is represented in the activity history."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "submitted",
+     "present": true
+    },
+    "note": "Check that proposal submission is represented in the activity history."
+   },
+   {
+    "step": "expect_order",
+    "args": {
+     "items": [
+      "submitted",
+      "approved"
+     ]
+    },
+    "note": "Check that submission appears before approval in the visible activity sequence."
+   }
+  ]
+ }
+}

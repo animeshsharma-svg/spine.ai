@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-013",
+  "title": "Auto-routing to the auction team leaves the stage in Draft",
+  "compiledAt": "2026-10-06T04:51:57.934Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or verify routeAuctionsToAuctionTeam and ensure the publisher is outside the auction team.",
+   "Verify the auction-team assignment after publishing; no catalog step or known assignment label exposes it.",
+   "Verify the auction stage's status independently of the event-list status label."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or verify routeAuctionsToAuctionTeam and ensure the publisher is outside the auction team.; Verify the auction-team assignment after publishing; no catalog step or known assignment label exposes it.; Verify the auction stage's status independently of the event-list status label."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-009",
+   "UI-PUB-023"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Auction-team routing retains Draft status",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start with the default Auction stage under the required preconfigured routing gate."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the auction a unique title for the post-publish lookup."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the required pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Provide a line item so missing content cannot explain a Draft outcome."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit the required auction schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Satisfy the participant requirement."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Trigger auction-team routing through Publish, not Save as draft."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check that publishing did not report an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Inspect the publisher's resulting event status."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Look for the routed auction among drafts."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Draft"
+    },
+    "note": "Assert the created event is present and labelled Draft; this does not prove auction-team assignment."
+   }
+  ]
+ }
+}

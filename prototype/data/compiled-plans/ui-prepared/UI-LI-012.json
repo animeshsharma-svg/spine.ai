@@ -1,0 +1,115 @@
+{
+ "meta": {
+  "caseId": "UI-LI-012",
+  "title": "Non-BOQ line items are capped at 65",
+  "compiledAt": "2026-10-05T13:39:24.799Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Try adding the 66th item after publishing: no catalog step opens a published event's line-item editor; this plan tests the refusal on the create screen instead."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Try adding the 66th item after publishing: no catalog step opens a published event's line-item editor; this plan tests the refusal on the create screen instead."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-LI-003",
+   "UI-LI-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Non-BOQ 65-item boundary",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Use a non-BOQ project."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required unique project title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Enable line-item addition."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 50
+    },
+    "note": "Add the first batch within the catalog's per-step maximum."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 15
+    },
+    "note": "Add the remaining items to reach 65."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 65
+    },
+    "note": "Verify the exact boundary count before attempting another item."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "add_line_items",
+     "args": {
+      "count": 1
+     },
+     "because": "Maximum no of product addition reached"
+    },
+    "note": "Require positive evidence that the 66th item is refused with the specified message."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 65
+    },
+    "note": "Verify the refused addition did not increase the line-item count."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the accepted 65 items."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit the schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Supply the required participant audience."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the project at exactly 65 items."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication succeeded at the limit."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify publication did not show an application error."
+   }
+  ]
+ }
+}

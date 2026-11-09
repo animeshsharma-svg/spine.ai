@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-004",
+  "title": "A stage with no template fails publish on savings, not on the template",
+  "compiledAt": "2026-10-06T05:25:25.990Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Establish an otherwise-valid stage without a template: the catalog requires template selection before adding line items, and downstream configuration is gated on a template and line item.",
+   "Assert the template control's error styling; no catalog assertion reads its visual error state, and an inline error-message assertion is not equivalent."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Establish an otherwise-valid stage without a template: the catalog requires template selection before adding line items, and downstream configuration is gated on a template and line item.; Assert the template control's error styling; no catalog assertion reads its visual error state, and an inline error-message assertion is not equivalent."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-TPL-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Publish blocked without a template",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the create screen with its default auction stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Avoid a missing-title refusal."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "select_template",
+     "reason": "The stage must have no template."
+    },
+    "note": "Preserve the missing-template condition."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {},
+    "note": "Assert refusal without requiring the misleading savings wording; other unmet prerequisites prevent this from isolating the intended cause."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "missing-template-publish-refusal"
+    },
+    "note": "Record the template control for manual inspection of error styling; this is evidence, not an assertion."
+   }
+  ]
+ }
+}

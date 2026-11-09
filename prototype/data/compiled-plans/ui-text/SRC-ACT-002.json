@@ -1,0 +1,160 @@
+{
+ "meta": {
+  "caseId": "SRC-ACT-002",
+  "title": "Order Activity records a vendor submitting a bid",
+  "group": "SRC-ACT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:07:30.294Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert the exact submitting vendor identity in the activity entry when the vendor is selected generically",
+   "Assert the entry's exact date and time",
+   "Prove that no earlier activity lines are missing",
+   "unconfirmed label \"submitted\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"submitted\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Assert the exact submitting vendor identity in the activity entry when the vendor is selected generically; Assert the entry's exact date and time; Prove that no earlier activity lines are missing"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "event_menu",
+   "expect_text",
+   "expect_text",
+   "expect_order"
+  ],
+  "ms": 32572
+ },
+ "plan": {
+  "title": "Order Activity records vendor bid",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create a test event for the activity scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-ACT-002 Order Activity Bid"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage because the scenario requires a vendor quote submission."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the vendor to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA test vendor to submit a bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the test event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the invited vendor submit a bid through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal accepted the submission."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity"
+    },
+    "note": "Open the buyer-side Activity drawer from the stage settings menu."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity"
+    },
+    "note": "Confirm the Order Activity drawer is open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "submitted"
+    },
+    "note": "Assert that the activity history contains a vendor submission entry."
+   },
+   {
+    "step": "expect_order",
+    "args": {
+     "items": [
+      "You created the event",
+      "submitted"
+     ]
+    },
+    "note": "Assert the bid submission appears after the event-creation activity."
+   }
+  ]
+ }
+}

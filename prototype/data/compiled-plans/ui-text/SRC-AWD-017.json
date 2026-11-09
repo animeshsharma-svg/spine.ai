@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-017",
+  "title": "Two bids: award only 6 of the 10 units to B (partial award); no approval flow",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:12:53.933Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "A closed RFQ with two vendors and two bids priced A 100 and B 90; the prepared state contains exactly one vendor and one bid.",
+   "Entering a partial allocation of 6 units to Vendor B and leaving 4 units un-awarded; no catalog step accepts per-vendor allocation quantities.",
+   "Verifying Awarded Vendors reads 1/2.",
+   "Verifying Vendor B's exact calculation of 6 × 90 = 540 and the remaining 4 un-awarded units.",
+   "Verifying that no approval flow occurs and that the split award creates the requested vendor-specific PO and History result."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: A closed RFQ with two vendors and two bids priced A 100 and B 90; the prepared state contains exactly one vendor and one bid.; Entering a partial allocation of 6 units to Vendor B and leaving 4 units un-awarded; no catalog step accepts per-vendor allocation quantities.; Verifying Awarded Vendors reads 1/2.; Verifying Vendor B's exact calculation of 6 × 90 = 540 and the remaining 4 un-awarded units.; Verifying that no approval flow occurs and that the split award creates the requested vendor-specific PO and History result."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "award_event",
+   "expect_awarded",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 17822
+ },
+ "plan": {
+  "title": "Partial Award Across Two Vendors",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state tests."
+   },
+   {
+    "step": "award_event",
+    "args": {},
+    "note": "Exercise the supported closed-event award flow with the single available bid; this submits the award proposal but cannot perform the requested partial allocation."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Exercise the closest supported downstream PO creation flow after the award."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {},
+    "note": "Assert that the created purchase order carries the awarded event line item and quantity."
+   }
+  ]
+ }
+}

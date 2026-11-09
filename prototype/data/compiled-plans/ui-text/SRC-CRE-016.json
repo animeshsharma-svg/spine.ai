@@ -1,0 +1,125 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-016",
+  "title": "Reverse auction: Quantity Requested = blank",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:52:44.913Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Visually assert that the blank Quantity Requested cell is marked with the required indicator after pressing Tab"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Visually assert that the blank Quantity Requested cell is marked with the required indicator after pressing Tab"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_error",
+   "invite_vendor",
+   "set_schedule",
+   "expect_publish_blocked"
+  ],
+  "ms": 138852
+ },
+ "plan": {
+  "title": "Reverse Auction Blank Quantity Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Switch the event type from the default RFP to an auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-016 Reverse Auction Blank Quantity"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Choose a reverse/buy auction template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product line item to the auction sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": ""
+    },
+    "note": "Clear the first row's quantity to reproduce the blank-quantity case."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "refused": true
+    },
+    "note": "Verify the sheet does not retain the blank quantity as a valid cell value."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "quantity"
+    },
+    "note": "Verify the app reports the quantity validation error immediately after the blank value is entered."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required QA vendor participant before attempting publication."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "quantity"
+    },
+    "note": "Press Publish Event and verify publishing is refused because the line-item quantity is invalid or missing."
+   }
+  ]
+ }
+}

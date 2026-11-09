@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "UI-FPUB-004",
+  "title": "An end time already in the past is refused at publish",
+  "compiledAt": "2026-11-09T19:18:17.661Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The exact backend oracle trade_controller_helper.rb:331 cannot be inspected directly.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The exact backend oracle trade_controller_helper.rb:331 cannot be inspected directly."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002",
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Past end time is refused at publish",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "edit the event's absolute end time to a time earlier than now, save the schedule, and stop on the create screen showing the past end time"
+    },
+    "note": "The catalog has no direct argument for setting a past absolute end time, so perform that setup on the schedule screen."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {},
+    "note": "Assert that publishing is refused because the end time is already in the past and the schedule must be fixed."
+   }
+  ]
+ }
+}

@@ -1,0 +1,185 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-031",
+  "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver approves without a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:19:35.468Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver, open the submitted proposal, leave the remark empty, attempt approval, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Sign in as the separate approver, open the submitted proposal, leave the remark empty, attempt approval, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending."
+  ],
+  "source": "llm",
+  "steps": 21,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "start_awarding",
+   "do_on_screen",
+   "expect_navigated",
+   "ask_tester",
+   "expect_text"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 19022
+ },
+ "plan": {
+  "title": "Three-way split award approval refusal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Create the single 10-unit line required for the 4/3/3 split."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Populate the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding window before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invite three distinct vendors for the three bids."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the 100 bid for the first vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the first vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the 90 bid for the second vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the second vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Submit the 95 bid for the third vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the third vendor's bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "note": "Close the bidding round so awarding is available."
+   },
+   {
+    "step": "open_master_qcs",
+    "note": "Open the comparison grid containing the three bids."
+   },
+   {
+    "step": "start_awarding",
+    "note": "Enter the awarding screen where quantities can be allocated."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the awarding screen, allocate 4 units to the vendor bidding 90, 3 units to the vendor bidding 95, and 3 units to the vendor bidding 100; verify Awarded Vendors reads 3/3, create the proposal, fill its required fields, submit it, and stop on the submitted proposal showing amounts 360, 285, 300 and total 945."
+    },
+    "note": "The catalog has no structured step for entering split quantities or completing the proposal fields, so perform and verify those buyer-side actions directly on screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the submitted award proposal page is open."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the separate approver, open the submitted proposal, leave the approval remark empty, attempt approval, and verify \"Remark is necessary for approval\" while the proposal remains pending"
+    },
+    "note": "Approval by a separate approver and the no-remark refusal require another login that the catalog does not hold."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Remark is necessary for approval"
+    },
+    "note": "Check the expected refusal after the approver attempt."
+   }
+  ]
+ }
+}

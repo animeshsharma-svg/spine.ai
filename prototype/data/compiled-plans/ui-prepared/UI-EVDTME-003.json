@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "UI-EVDTME-003",
+  "title": "Changing only the delivery date in the Reschedule dialog does not reschedule",
+  "compiledAt": "2026-10-05T13:33:45.202Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot assert that the request body contains exactly delivery_schedules: [{delivery_by, uuid}] and no other fields.",
+   "No catalog step compares persisted round times before and after a delivery-only edit; reschedule_event's length check does not prove that the start and end stayed unchanged.",
+   "No catalog step observes reschedule pushes or notifications sent to vendors.",
+   "The prepared state's delivery date is unspecified, so the plan cannot guarantee that the chosen delivery date differs from its original value."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog cannot assert that the request body contains exactly delivery_schedules: [{delivery_by, uuid}] and no other fields.; No catalog step compares persisted round times before and after a delivery-only edit; reschedule_event's length check does not prove that the start and end stayed unchanged.; No catalog step observes reschedule pushes or notifications sent to vendors.; The prepared state's delivery date is unspecified, so the plan cannot guarantee that the chosen delivery date differs from its original value."
+  ],
+  "state": "upcoming",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Delivery-only edit does not reschedule",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared upcoming RFQ without creating or publishing another event."
+   },
+   {
+    "step": "reschedule_event",
+    "args": {
+     "delivery": "+3d",
+     "expect": "saved",
+     "keepsLength": false
+    },
+    "note": "Open Reschedule, edit only the delivery date, and press Ok; omit start to leave it untouched and disable the check intended for an actual reschedule."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/",
+     "bodyContains": "delivery_schedules"
+    },
+    "note": "Check that a successful request carries delivery schedules, using a broad path fragment because the endpoint is unspecified; this does not prove the exact body or absence of bid times."
+   }
+  ]
+ }
+}

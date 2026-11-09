@@ -1,0 +1,119 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-024",
+  "title": "Convert to auction and new version keep the BOQ context",
+  "compiledAt": "2026-10-06T06:26:11.173Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Provide the required closed BOQ RFQ: the fixed prepared event is a live RFQ with a bid and does not establish BOQ configuration.",
+   "Enable or verify the boq_in_erfx_allowed tenant gate.",
+   "Assert that both destination screens contain the BOQ-specific tabbed grid: no BOQ-tab assertion or confirmed tab labels are supplied.",
+   "Reproduce browser Back from the conversion's new tab; reopening the prepared summary is the available substitute."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Provide the required closed BOQ RFQ: the fixed prepared event is a live RFQ with a bid and does not establish BOQ configuration.; Enable or verify the boq_in_erfx_allowed tenant gate.; Assert that both destination screens contain the BOQ-specific tabbed grid: no BOQ-tab assertion or confirmed tab labels are supplied.; Reproduce browser Back from the conversion's new tab; reopening the prepared summary is the available substitute."
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ context across conversion and new version",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the fixed prepared RFQ."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the RFQ and follow the newly opened creation screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Assert that conversion reaches a ready creation screen."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "boqProject=true"
+    },
+    "note": "Check the required BOQ URL contract; the supplied non-BOQ-confirmed fixture may fail this prerequisite-dependent assertion."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Items",
+     "visible": false
+    },
+    "note": "Check that the ordinary line-item management control is absent; this alone does not prove a BOQ grid exists."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "converted-boq-grid"
+    },
+    "note": "Record the destination grid for manual BOQ-tab verification."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Return to the original prepared event rather than act on the converted event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create New Version"
+    },
+    "note": "Start the original RFQ's new-version flow."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Assert that new-version creation reaches a ready creation screen."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "boqProject=true"
+    },
+    "note": "Check that the new-version destination retains the required BOQ URL parameter."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Items",
+     "visible": false
+    },
+    "note": "Check that ordinary line-item management is not offered on the new-version screen."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "new-version-boq-grid"
+    },
+    "note": "Record the second destination for manual verification of BOQ grid tabs."
+   }
+  ]
+ }
+}

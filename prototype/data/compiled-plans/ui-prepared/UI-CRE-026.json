@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-026",
+  "title": "A stage added to an already-live event goes through the same gates",
+  "compiledAt": "2026-10-05T13:32:19.325Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Exercise the add_new_stage_config-gated flow for adding and filling a stage on an already-published event; create-screen stage composition is not that flow.",
+   "Publish the additional stage in the fixed prepared state.",
+   "Assert that the added stage appears and the live event's stage count increases by exactly one.",
+   "Compare the pre-existing stages and their bid counts before and after the addition to prove they are untouched."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Exercise the add_new_stage_config-gated flow for adding and filling a stage on an already-published event; create-screen stage composition is not that flow.; Publish the additional stage in the fixed prepared state.; Assert that the added stage appears and the live event's stage count increases by exactly one.; Compare the pre-existing stages and their bid counts before and after the addition to prove they are untouched."
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-001",
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Add a stage to a live event without disturbing bids",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with its existing vendor bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "RFQ"
+    },
+    "note": "Establish that the pre-existing RFQ appears on the summary; this does not verify an added stage."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "existing-stage-baseline"
+    },
+    "note": "Record the stage summary before any addition can be exercised."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Inspect the pre-existing RFQ's bid baseline."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify that the prepared bidding vendor is displayed."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the existing bid price against the API baseline, not preservation after an addition."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "existing-bid-baseline"
+    },
+    "note": "Record existing responses for the unsupported before-and-after test."
+   }
+  ]
+ }
+}

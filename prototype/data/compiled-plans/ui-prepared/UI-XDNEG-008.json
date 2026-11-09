@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-008",
+  "title": "The drawer refuses a counter offer with no change or a zero total",
+  "compiledAt": "2026-10-06T06:30:39.602Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Edit a counter-offer row and then untick all rows: no catalog step or confirmed grid-row selector supports that selection change, so the resulting 'Please select atleast one product to send counter offer' refusal cannot be verified."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Edit a counter-offer row and then untick all rows: no catalog step or confirmed grid-row selector supports that selection change, so the resulting 'Please select atleast one product to send counter offer' refusal cannot be verified."
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": [
+   "bidTotal"
+  ]
+ },
+ "plan": {
+  "title": "Counter-offer drawer validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ with its submitted vendor bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer"
+    },
+    "note": "Open the counter-offer drawer without changing any values."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Send"
+     },
+     "because": "You must change atleast one column to send counter offer"
+    },
+    "note": "Require visible refusal when sending an unchanged offer."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "any",
+     "text": "You must change atleast one column to send counter offer"
+    },
+    "note": "Verify the exact unchanged-offer validation message."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_additional_request",
+     "absent": true
+    },
+    "note": "Verify the unchanged submission did not reach the counter-offer endpoint."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Dismiss the unchanged-offer drawer before testing a zero price."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reach the comparison grid required by the domain counter-offer action."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_counter_offer",
+     "args": {
+      "price": 0
+     },
+     "because": "Gross total can't be 0, please check your entries."
+    },
+    "note": "Use the domain action to enter zero for the prepared event's sole line and require refusal."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "any",
+     "text": "Gross total can't be 0, please check your entries."
+    },
+    "note": "Verify the exact zero-total validation message."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_additional_request",
+     "absent": true
+    },
+    "note": "Verify neither tested invalid submission sent a counter-offer request."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   }
+  ]
+ }
+}

@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-005",
+  "title": "Event Type RFQ lists only price-sheet templates",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:48:47.043Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "expect_template_menu"
+  ],
+  "ms": 8189
+ },
+ "plan": {
+  "title": "Single-stage RFQ price-sheet templates",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Change the event type from the default RFP to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required title for a create-screen flow without affecting template selection."
+   },
+   {
+    "step": "expect_template_menu",
+    "args": {
+     "eventType": "rfq",
+     "min": 1,
+     "contains": [
+      "Buy",
+      "Sell"
+     ],
+     "absent": [
+      "Questionnaire"
+     ],
+     "distinctFrom": [
+      "rfp"
+     ]
+    },
+    "note": "Verify RFQ offers price-sheet templates, excludes questionnaire templates, and does not retain RFP templates."
+   }
+  ]
+ }
+}

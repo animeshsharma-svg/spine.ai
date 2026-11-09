@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-033",
+  "title": "Start Awarding while bidding is on",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:19:46.068Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Reproduce and verify the named RFQ with two bids from A at 100 and B at 90.",
+   "Navigate from the events list by searching for that specific RFQ before opening Master QCS."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Reproduce and verify the named RFQ with two bids from A at 100 and B at 90.; Navigate from the events list by searching for that specific RFQ before opening Master QCS."
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_prepared",
+   "expect_disabled",
+   "attempt"
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "ms": 10599
+ },
+ "plan": {
+  "title": "Start Awarding Blocked During Bidding",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS for the prepared bidding-time RFQ; prepared-state execution must start here."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Start Awarding"
+    },
+    "note": "Assert that Start Awarding is disabled while bidding is in progress."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Start Awarding"
+     },
+     "because": "You are not allowed to award in bidding time",
+     "expect": "refused"
+    },
+    "note": "Try the prohibited action and require Procol's refusal message."
+   }
+  ]
+ }
+}

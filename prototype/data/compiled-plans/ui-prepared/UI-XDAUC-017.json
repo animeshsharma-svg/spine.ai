@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "UI-XDAUC-017",
+  "title": "The bidding-summary rank filter only offers sensible limits",
+  "compiledAt": "2026-10-06T06:17:45.832Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the menu contains only the three expected options: the catalog cannot enumerate menu contents, and the required named-element selectors cannot count all unspecified options.",
+   "Assert that the All Vendors request URL omits rank_limit: expect_request supports matching a query fragment but not asserting a query parameter is absent.",
+   "Measure and assert that the bidding-summary panel refreshes every 30 seconds."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that the menu contains only the three expected options: the catalog cannot enumerate menu contents, and the required named-element selectors cannot count all unspecified options.; Assert that the All Vendors request URL omits rank_limit: expect_request supports matching a query fragment but not asserting a query parameter is absent.; Measure and assert that the bidding-summary panel refreshes every 30 seconds."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Bidding-summary rank filter limits",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the setup auction with three active participants rather than creating another event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "overview"
+    },
+    "note": "Reach Event Details and its Bidding Summary section."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "All Vendors"
+    },
+    "note": "Open the bidding-summary rank filter."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Top 1",
+     "within": "menu"
+    },
+    "note": "Assert the top-one rank limit is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Top 2 Vendors",
+     "within": "menu"
+    },
+    "note": "Assert the top-two rank limit is offered."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "All Vendors",
+     "within": "menu"
+    },
+    "note": "Assert the unrestricted option is offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "All Vendors",
+     "within": "menu"
+    },
+    "note": "Choose the unrestricted bidding summary."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/event_summary",
+     "method": "GET"
+    },
+    "note": "Check that a successful summary read occurred during the run; this does not establish parameter omission, click causality, or the refresh interval."
+   }
+  ]
+ }
+}

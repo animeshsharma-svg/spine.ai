@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-040",
+  "title": "Product that is not in the catalogue",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:02:50.919Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Assert that no product option is offered for \"no-such-product-xyz\" in the Product autocomplete.",
+   "Confirm that the Product row remains empty after entering the uncatalogued product.",
+   "Verify that publishing is blocked specifically because the product row is empty rather than for another unmet prerequisite."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "cannot test this case yet — no step can observe: Assert that no product option is offered for \"no-such-product-xyz\" in the Product autocomplete.; Confirm that the Product row remains empty after entering the uncatalogued product.; Verify that publishing is blocked specifically because the product row is empty rather than for another unmet prerequisite."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "fill",
+   "select",
+   "expect_value",
+   "fill",
+   "select",
+   "fill",
+   "add_line_items",
+   "set_schedule",
+   "invite_vendor",
+   "expect_publish_blocked"
+  ],
+  "ms": 20121
+ },
+ "plan": {
+  "title": "SRC-CRE-040 — Uncatalogued product in single-stage RFQ",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage create screen requested by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Switch the single-stage event type from the default RFP to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so publishing is not blocked by a missing title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template so the product sheet is available."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Product",
+     "value": "CYLINDER"
+    },
+    "note": "Enter the catalogue product named in the setup flow."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Product",
+     "option": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Choose the requested catalogue product option."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Product Variant",
+     "value": "Default Variant"
+    },
+    "note": "Verify the product selection fills the default variant."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Delivery location",
+     "option": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Product",
+     "value": "no-such-product-xyz"
+    },
+    "note": "Attempt to replace the catalogue product with the nonexistent product from the case."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule so missing scheduling does not obscure the publish attempt."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product-provided QA vendor audience required for a publish attempt."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {},
+    "note": "Assert that the event cannot be published after the invalid product entry."
+   }
+  ]
+ }
+}

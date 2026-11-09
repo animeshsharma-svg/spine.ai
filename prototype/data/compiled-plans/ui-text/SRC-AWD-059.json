@@ -1,0 +1,96 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-059",
+  "title": "Invalid supplier e-mail",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:23:41.601Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Log in as the buyer and navigate through the Events list to search for the named closed RFQ",
+   "Guarantee that exactly 10 units are allocated to Vendor B because the prepared state has one line item and one invited vendor with fixed API data"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Log in as the buyer and navigate through the Events list to search for the named closed RFQ; Guarantee that exactly 10 units are allocated to Vendor B because the prepared state has one line item and one invited vendor with fixed API data"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "click",
+   "expect_navigated",
+   "fill",
+   "click",
+   "expect_field_error"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 9191
+ },
+ "plan": {
+  "title": "Invalid supplier email on proposal submission",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen to allocate the available line item."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Allocate the line item to the named Vendor B before creating the proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the awarding screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the proposal page opened."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Recommended Supplier 1 Email",
+     "value": "abc"
+    },
+    "note": "Enter the invalid supplier email specified by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt to submit the proposal with the invalid email."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Recommended Supplier 1 Email",
+     "message": "Please enter a valid email"
+    },
+    "note": "Verify that submission is refused with the expected email validation message."
+   }
+  ]
+ }
+}

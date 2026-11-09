@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-011",
+  "title": "Bulk Counter Offer is offered only in live or evaluation time with at least two bids",
+  "compiledAt": "2026-10-06T06:32:37.424Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot verify the enabled action with at least two bids: the fixed event has only one vendor and one bid.",
+   "Cannot verify availability during evaluation time or absence on closed rounds: the prepared pricing round remains live.",
+   "Cannot verify disabled behavior in view-only mode, on an old version, or on a held project: these states are not provided and cannot be established with the available steps.",
+   "Cannot verify that clicking with a pending bid justification shows the justification-pending prompt: the prepared state does not supply a pending justification."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Cannot verify the enabled action with at least two bids: the fixed event has only one vendor and one bid.; Cannot verify availability during evaluation time or absence on closed rounds: the prepared pricing round remains live.; Cannot verify disabled behavior in view-only mode, on an old version, or on a held project: these states are not provided and cannot be established with the available steps.; Cannot verify that clicking with a pending bid justification shows the justification-pending prompt: the prepared state does not supply a pending justification."
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": true,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Bulk Counter Offer menu gating",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ with exactly one bid."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Expose the pricing round's action menu."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Send Bulk Counter Offer"
+    },
+    "note": "Assert the action is present but disabled with one bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate to the existing technical round to check the stage-type restriction."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Expose the technical round's action menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "Send Bulk Counter Offer",
+     "visible": false
+    },
+    "note": "Assert Bulk Counter Offer is absent on the RFP round."
+   }
+  ]
+ }
+}

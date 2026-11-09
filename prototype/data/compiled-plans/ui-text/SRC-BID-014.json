@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-014",
+  "title": "RFQ bid: Quote only one of two products",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:36:26.105Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated step to identify the unnamed first product and quote only that product using the vendor portal's product-specific control; the generic fill relies on an unconfirmed first-product region.",
+   "The catalog cannot assert either of the two alternative refusal messages as an OR condition; the refusal attempt can record the actual message instead."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog has no dedicated step to identify the unnamed first product and quote only that product using the vendor portal's product-specific control; the generic fill relies on an unconfirmed first-product region.; The catalog cannot assert either of the two alternative refusal messages as an OR condition; the refusal attempt can record the actual message instead."
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "fill",
+   "attempt"
+  ],
+  "ms": 15503
+ },
+ "plan": {
+  "title": "SRC-BID-014 — RFQ partial quote refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a fresh multi-stage event create flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-BID-014 Partial Quote Refusal"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Apply RFQ-specific template and sheet configuration."
+   },
+   {
+    "step": "select_template",
+    "note": "Choose an RFQ pricing template before adding products."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two products required by the scenario."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will attempt the partial quote."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the RFQ so it is available in the vendor portal."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live RFQ's pricing bid sheet from the vendor event list."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "100",
+     "within": "first product"
+    },
+    "note": "Enter a price only in the first product's pricing field; the second product is intentionally left blank."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit"
+     },
+     "expect": "refused"
+    },
+    "note": "Submit the partial quote and record the product's actual refusal message, including which supported wording applies."
+   }
+  ]
+ }
+}

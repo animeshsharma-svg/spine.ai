@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-043",
+  "title": "Submit a bid on a Tech+RFQ, commercial stage after the technical response",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:45:11.842Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog can verify the commercial price in Master QCS, but cannot directly assert that the technical result is displayed adjacent to that price.",
+   "The exact vendor-portal control text for accepting required T&Cs is not confirmed; the plan uses the known Terms and Conditions label."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog can verify the commercial price in Master QCS, but cannot directly assert that the technical result is displayed adjacent to that price.; The exact vendor-portal control text for accepting required T&Cs is not confirmed; the plan uses the known Terms and Conditions label."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "toggle",
+   "fill",
+   "click",
+   "expect_bid_submitted",
+   "switch_portal",
+   "go_to",
+   "expect_qcs_cell"
+  ],
+  "state": "live",
+  "screen": "technical",
+  "ms": 20333
+ },
+ "plan": {
+  "title": "Vendor submits commercial bid after technical response",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "technical"
+    },
+    "note": "Open the prepared Tech+RFQ event on its technical round, satisfying the required prepared-state starting point."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in Vendor A's supplier portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's commercial RFQ bid sheet after the technical response has been completed."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Terms and Conditions",
+     "on": true
+    },
+    "note": "Accept the required commercial-stage terms before submitting the quote."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "100"
+    },
+    "note": "Enter the requested commercial quote of 100."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit"
+    },
+    "note": "Submit the vendor's commercial RFQ response."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the vendor portal marks the commercial bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to inspect the resulting comparison data."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS for the prepared event."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "number": 100
+    },
+    "note": "Verify that Master QCS shows the submitted commercial price of 100."
+   }
+  ]
+ }
+}

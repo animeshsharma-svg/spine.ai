@@ -1,0 +1,133 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-006",
+  "title": "Cancelling the confirm modal publishes nothing",
+  "compiledAt": "2026-10-05T13:49:30.180Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Exact URL unchanged: the catalog can assert the create route but cannot capture and compare the browser URL."
+  ],
+  "warnings": [
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "can only test part of this — no step for: Exact URL unchanged: the catalog can assert the create route but cannot capture and compare the browser URL."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-PUB-009"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Cancel publish confirmation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Prepare a valid event on the eRFX create screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-PUB-006 Cancel publish confirmation"
+    },
+    "note": "Use an explicit title for the later absence check."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the default Auction stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply participants so Publish can reach confirmation."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish"
+    },
+    "note": "Open confirmation without using publish, which would complete publication."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel confirmation; this modal's exact Cancel label needs confirmation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Assert cancellation leaves the browser on the create screen."
+   },
+   {
+    "step": "save_draft"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Inspect the list for an unintended published event."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Ensure the list rendered before trusting an absence check."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Limit the publication check to Live events."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Title",
+     "value": "UI-PUB-006 Cancel publish confirmation"
+    },
+    "note": "Search for the title used by this plan."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "UI-PUB-006 Cancel publish confirmation",
+     "count": 0
+    },
+    "note": "Assert no matching title is rendered in the Live results."
+   }
+  ]
+ }
+}

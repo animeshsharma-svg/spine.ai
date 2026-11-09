@@ -1,0 +1,162 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-044",
+  "title": "Add Columns — Price Cap",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:05:25.306Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Picking a specific product variant 'CYLINDER WITH KEY & KNOB' from search via domain step",
+   "Selecting Plant Name (LOC-0001) via domain step"
+  ],
+  "warnings": [
+   "dropped \"set_ title\" — no such step exists",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
+   "added set_title — publishing without a title is refused",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
+   "added set_title — publishing without a title is refused",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Picking a specific product variant 'CYLINDER WITH KEY & KNOB' from search via domain step; Selecting Plant Name (LOC-0001) via domain step"
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "click",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "click",
+   "click",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell"
+  ],
+  "ms": 58983
+ },
+ "plan": {
+  "title": "Add Columns — Price Cap",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open single stage create screen as required by the case"
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "RFQ"
+    },
+    "note": "Switch event type to RFQ"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the RFQ template to load the product sheet"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add a product line item"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Columns"
+    },
+    "note": "Open Add Columns menu"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "name": "Price Cap"
+    },
+    "note": "Tick Price Cap column"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "row": 1,
+     "value": "100"
+    },
+    "note": "Type a valid price cap of 100"
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "equals": "100",
+     "kept": true,
+     "row": 1
+    },
+    "note": "Assert 100 is kept"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "row": 1,
+     "value": "abc"
+    },
+    "note": "Type letters into Price Cap"
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "refused": true,
+     "row": 1
+    },
+    "note": "Assert letters are refused"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "row": 1,
+     "value": "-1"
+    },
+    "note": "Type a negative value into Price Cap"
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Price Cap",
+     "refused": true,
+     "row": 1
+    },
+    "note": "Assert negative cap is refused"
+   }
+  ]
+ }
+}

@@ -1,0 +1,162 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-025",
+  "title": "Reopening a saved draft restores every field",
+  "compiledAt": "2026-10-05T13:29:54.795Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Compare each restored sheet cell with its originally entered value; fill_sheet does not expose its values and the catalog has no sheet-value snapshot assertion.",
+   "Compare the exact selected template, line-item identities, committed schedule and participant identities against their original values when the setup steps use executor-selected defaults.",
+   "Compare the restored title against an independently captured original input value; expect_api_value checks the saved API title rather than a pre-save input snapshot."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Compare each restored sheet cell with its originally entered value; fill_sheet does not expose its values and the catalog has no sheet-value snapshot assertion.; Compare the exact selected template, line-item identities, committed schedule and participant identities against their original values when the setup steps use executor-selected defaults.; Compare the restored title against an independently captured original input value; expect_api_value checks the saved API title rather than a pre-save input snapshot."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Saved draft restoration",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the draft whose saved state will be reopened."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Assign a unique title for saving and locating the draft."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template to the default Auction stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Establish the required two-item draft."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify the baseline line-item count."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate sheet values before saving."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid schedule as part of the saved state."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Include participants in the draft."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Verify the baseline stage set."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "draft-before-save"
+    },
+    "note": "Record visible baseline evidence without treating it as a value-comparison assertion."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Persist the configured event without publishing."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Leave the creation screen."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Find the saved event in the draft listing."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert the saved draft is listed under its generated title."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Search for this plan's title and reopen its draft through the events list."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "draft"
+    },
+    "note": "Verify reopening reached a ready draft screen."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Verify the reopened title agrees with the saved event title."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Assert the original stage set was restored."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert a template remains applied, without claiming exact template identity."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Assert the restored toolbar badge matches the original two line items."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "draft-after-reopen"
+    },
+    "note": "Record reopened-screen evidence for the comparisons not automated by this catalog."
+   }
+  ]
+ }
+}

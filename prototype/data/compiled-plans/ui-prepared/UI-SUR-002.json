@@ -2,12 +2,18 @@
  "meta": {
   "caseId": "UI-SUR-002",
   "title": "A named vendor is found by searching the participant list",
-  "compiledAt": "2026-10-20T02:37:29.280Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:11:32.618Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "none",
+  "gaps": [
+   "Type the prepared vendor's name into participant search: no concrete name is supplied, and no catalog step transfers an API-read value into fill.",
+   "Verify that the list narrows before locating Add Bid.",
+   "Assert the chosen Add Bid control belongs to the rowItem ancestor containing the searched vendor's name, rather than matching a button wrapper."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Type the prepared vendor's name into participant search: no concrete name is supplied, and no catalog step transfers an API-read value into fill.; Verify that the list narrows before locating Add Bid.; Assert the chosen Add Bid control belongs to the rowItem ancestor containing the searched vendor's name, rather than matching a button wrapper."
+  ],
   "state": "live",
   "screen": "participants",
   "technical": false,
@@ -17,26 +23,29 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Search participant by vendor name",
+  "title": "Find a named vendor in Participants",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live event directly on its Participants tab."
+    "note": "Open the prepared live RFQ's Participants list."
    },
    {
-    "step": "search_participants",
-    "args": {},
-    "note": "Search for the case's known vendor so the list is narrowed before inspecting controls."
-   },
-   {
-    "step": "expect_participant",
+    "step": "expect_api_value",
     "args": {
-     "addBid": true
+     "key": "vendorName"
     },
-    "note": "Assert the searched vendor's own row is visible and offers Add Bid."
+    "note": "Check that the invited vendor's name is displayed; this does not prove search filtering or row association."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Add Bid"
+    },
+    "note": "Check that Add Bid is visible on the one-vendor list; this does not prove selection of a searched vendor's row."
    }
   ]
  }

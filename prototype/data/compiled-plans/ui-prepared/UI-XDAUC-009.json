@@ -1,0 +1,136 @@
+{
+ "meta": {
+  "caseId": "UI-XDAUC-009",
+  "title": "Dynamic extension fields are required once the box is ticked",
+  "compiledAt": "2026-10-06T06:15:45.710Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Confirm that clicking 'Rank on lot' reopens the auction configuration drawer.",
+   "Explicitly clear both extension selects if they have defaults; the catalog has no select-clearing operation.",
+   "Select knockout and Dutch strategies after RFQ-to-Auction conversion to assert that the Dynamic Event Extension block is absent."
+  ],
+  "warnings": [
+   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
+   "can only test part of this — no step for: Confirm that clicking 'Rank on lot' reopens the auction configuration drawer.; Explicitly clear both extension selects if they have defaults; the catalog has no select-clearing operation.; Select knockout and Dutch strategies after RFQ-to-Auction conversion to assert that the Dynamic Event Extension block is absent."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-XDBOQ-020"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Dynamic extension required-field validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Use the screen that supports rank-auction configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank"
+    },
+    "note": "Establish the requested rank-auction setup."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required create-test title."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Rank on lot"
+    },
+    "note": "Attempt to reopen configuration; this navigation requires confirmation."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Dynamic Event Extension",
+     "on": true
+    },
+    "note": "Enable the block using the label supplied by the case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Trigger time extension on last",
+     "value": ""
+    },
+    "note": "Leave the trigger empty; retain the two selects' initial empty state."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Save",
+      "within": "dialog"
+     },
+     "expect": "refused"
+    },
+    "note": "Require positive evidence that saving is refused; the drawer's Save label is unconfirmed."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Extend time by",
+     "message": "Select one of the options"
+    },
+    "note": "Check the required extension-length error at its select."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Time extension on change in",
+     "message": "Select one of the options"
+    },
+    "note": "Check the required change-condition error at its select."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Trigger time extension on last",
+     "message": "Trigger time extension cannot be less than 1 min"
+    },
+    "note": "Check the specified inline error for an empty trigger."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Trigger time extension on last",
+     "value": "0.5"
+    },
+    "note": "Enter a trigger below the one-minute minimum."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Tab"
+    },
+    "note": "Commit the edit and trigger blur validation."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Trigger time extension on last",
+     "message": "Trigger time extension cannot be less than 1 min"
+    },
+    "note": "Assert the quoted inline error also applies to 0.5."
+   }
+  ]
+ }
+}

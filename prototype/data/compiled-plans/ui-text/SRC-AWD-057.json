@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-057",
+  "title": "CAPEX procurement needs the IP number",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:23:19.047Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Find the specifically named closed RFQ through the Events list search in the prepared-state flow; the prepared-state rules require opening Master QCS directly.",
+   "Allocate all 10 units to the specifically named Vendor B; the prepared state contains exactly one line item and one vendor.",
+   "Verify or fill the exact Investment Proposal (IP) Number and cost benefit analysis (CBA) fields by their individual labels, because those labels are not confirmed in the catalog."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Find the specifically named closed RFQ through the Events list search in the prepared-state flow; the prepared-state rules require opening Master QCS directly.; Allocate all 10 units to the specifically named Vendor B; the prepared state contains exactly one line item and one vendor.; Verify or fill the exact Investment Proposal (IP) Number and cost benefit analysis (CBA) fields by their individual labels, because those labels are not confirmed in the catalog."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "click",
+   "expect_navigated",
+   "select",
+   "attempt"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 12632
+ },
+ "plan": {
+  "title": "CAPEX proposal requires IP/CBA",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow for the closed RFQ."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Open the proposal form after the prepared allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm that the proposal page opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Procurement Type",
+     "option": "CAPEX"
+    },
+    "note": "Set the proposal procurement type to CAPEX."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit Proposal"
+     },
+     "expect": "refused"
+    },
+    "note": "Submit with the CAPEX IP number and CBA left empty and require visible refusal evidence."
+   }
+  ]
+ }
+}

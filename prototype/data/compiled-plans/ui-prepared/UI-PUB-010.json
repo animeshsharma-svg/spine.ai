@@ -2,54 +2,77 @@
  "meta": {
   "caseId": "UI-PUB-010",
   "title": "Publish is refused for a user without trade create permission",
-  "compiledAt": "2026-10-04T11:22:30.536Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T04:49:54.682Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Switching or simulating a user lacking 'trade: create_record' permission in the test context"
+   "Sign in as, configure, or verify a user whose teams lack trade: create_record.",
+   "Branch between the acceptable outcomes of an absent entry point, denied create-screen access, and refused publishing.",
+   "Independently verify that no event was created or persisted."
   ],
   "warnings": [
-   "can only test part of this — no step for: Switching or simulating a user lacking 'trade: create_record' permission in the test context"
+   "can only test part of this — no step for: Sign in as, configure, or verify a user whose teams lack trade: create_record.; Branch between the acceptable outcomes of an absent entry point, denied create-screen access, and refused publishing.; Independently verify that no event was created or persisted."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-SCH-003",
-   "UI-CRE-002"
+   "UI-PUB-023",
+   "UI-PUB-009"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Publish refused without trade create permission",
+  "title": "Publish refused without trade-create permission",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen to attempt project creation"
+    "note": "Attempt direct create-screen access using the externally supplied restricted user."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Set a title to proceed with the draft/publish attempt"
+    "note": "Avoid a missing-title refusal masking the permission check."
    },
    {
-    "step": "skip",
+    "step": "select_template",
+    "args": {},
+    "note": "Provide the default auction stage's required template."
+   },
+   {
+    "step": "add_line_items",
     "args": {
-     "step": "select_template",
-     "reason": "Simulating permission block"
+     "count": 1
     },
-    "note": "Deliberately testing blocked state"
+    "note": "Provide a line item so empty content does not cause refusal."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the required pricing-sheet inputs."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit a valid schedule to isolate the permission gate."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Supply a participant so missing participants cannot explain refusal."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "You are not allowed to perform this action"
     },
-    "note": "Assert that publishing or creation is refused due to lack of permissions"
+    "note": "Attempt publishing and require the specified readable permission refusal, rather than an unrelated validation error."
    }
   ]
  }

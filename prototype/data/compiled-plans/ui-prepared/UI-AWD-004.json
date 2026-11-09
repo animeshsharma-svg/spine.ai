@@ -2,16 +2,19 @@
  "meta": {
   "caseId": "UI-AWD-004",
   "title": "Bid Selection Proposal re-enters the flow once a draft proposal exists",
-  "compiledAt": "2026-10-15T12:52:24.885Z",
+  "compiledAt": "2026-11-09T19:08:31.995Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "state": "proposal",
-  "screen": "proposal",
+  "screen": "master_qcs",
   "technical": false,
-  "exemplars": [],
+  "exemplars": [
+   "UI-AWD-001",
+   "UI-AWD-005"
+  ],
   "crossCheckAdded": []
  },
  "plan": {
@@ -20,33 +23,9 @@
    {
     "step": "open_prepared",
     "args": {
-     "screen": "proposal"
-    },
-    "note": "Open the API-prepared event's draft proposal as required by the prepared state."
-   },
-   {
-    "step": "go_to",
-    "args": {
      "screen": "master_qcs"
     },
-    "note": "Return to Master QCS, the screen whose awarding entry control is under test."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Bid Selection Proposal",
-     "visible": true
-    },
-    "note": "Assert the re-entry control exists."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Draft",
-     "present": true
-    },
-    "note": "Assert the proposal entry is marked Draft."
+    "note": "Open the prepared event directly on Master QCS, which already has a draft award proposal."
    },
    {
     "step": "expect_visible",
@@ -55,7 +34,24 @@
      "name": "Start Awarding",
      "visible": false
     },
-    "note": "Assert the initial Start Awarding control is absent once a draft proposal exists."
+    "note": "Verify the initial awarding entry is absent once a draft proposal exists."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Bid Selection Proposal",
+     "visible": true
+    },
+    "note": "Verify the replacement entry control is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Draft",
+     "present": true
+    },
+    "note": "Confirm the proposal entry is marked as Draft."
    },
    {
     "step": "click",
@@ -63,14 +59,14 @@
      "role": "button",
      "name": "Bid Selection Proposal"
     },
-    "note": "Activate the draft proposal entry to re-enter the awarding flow."
+    "note": "Re-enter the awarding flow through the draft proposal control."
    },
    {
-    "step": "expect_url_contains",
+    "step": "expect_navigated",
     "args": {
-     "text": "/awarding/"
+     "screen": "proposal"
     },
-    "note": "Assert that activating the control navigates into the awarding flow."
+    "note": "Verify the control navigates to the proposal/awarding flow."
    }
   ]
  }

@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-028",
+  "title": "Forward auction: Quantity Requested = a very large number 99999999",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:00:59.567Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published"
+  ],
+  "ms": 193125
+ },
+ "plan": {
+  "title": "Forward auction quantity requested very large number 99999999",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open single stage create screen"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure as auction"
+   },
+   {
+    "step": "set_title",
+    "note": "Set event title"
+   },
+   {
+    "step": "select_template",
+    "note": "Select template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "99999999"
+    },
+    "note": "Add item with very large quantity"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "column": "Quantity Requested",
+     "row": 1,
+     "value": "99999999"
+    },
+    "note": "Type large quantity into cell"
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "column": "Quantity Requested",
+     "equals": "99999999",
+     "kept": true,
+     "row": 1
+    },
+    "note": "Assert quantity is kept and shown correctly"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Set event schedule"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite vendor"
+   },
+   {
+    "step": "publish",
+    "note": "Publish event"
+   },
+   {
+    "step": "expect_published",
+    "note": "Assert event published successfully"
+   }
+  ]
+ }
+}

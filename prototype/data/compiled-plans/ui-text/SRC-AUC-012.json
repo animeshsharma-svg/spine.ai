@@ -1,0 +1,125 @@
+{
+ "meta": {
+  "caseId": "SRC-AUC-012",
+  "title": "Auction with dynamic time extension under 1 minute",
+  "group": "SRC-AUC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:09:20.201Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "There is no dedicated catalog step for enabling dynamic time extension and setting its trigger; do_on_screen must perform and observe that configuration on the screen."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: There is no dedicated catalog step for enabling dynamic time extension and setting its trigger; do_on_screen must perform and observe that configuration on the screen."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "do_on_screen",
+   "invite_vendor",
+   "set_schedule",
+   "expect_publish_blocked"
+  ],
+  "ms": 11608
+ },
+ "plan": {
+  "title": "Auction Dynamic Extension Trigger Below One Minute",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a buy auction; rank is the supported reverse-auction strategy."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title so the later publish refusal is caused by the invalid trigger, not a missing title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product with quantity 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first line item."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the delivery location was entered before continuing."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the single-stage auction configuration screen, enable dynamic time extension, set the trigger time to 0.5 minute, and stop with the configured 0.5-minute trigger visibly shown"
+    },
+    "note": "Configure and observe the dynamic-extension trigger, which has no dedicated catalog step."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Add the two QA vendors needed for the auction."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule with the event starting now."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Trigger time extension cannot be less than 1 min"
+    },
+    "note": "Attempt publication and assert the product refuses it with the expected validation message."
+   }
+  ]
+ }
+}

@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-SUR-011",
   "title": "After expiry, Add Bid depends on the company's post-expiry setting",
-  "compiledAt": "2026-10-04T11:40:25.564Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T05:15:43.522Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Two separate tenants with opposing post-expiry surrogate bidding settings in a single automated test flow",
-   "Switching tenant settings on the fly"
+   "Inspect Add Bid on closed events: the prepared event is live and its state cannot be changed.",
+   "Compare post-expiry surrogate bidding enabled and disabled tenants: no tenant identities or configured closed events are supplied, and catalog steps cannot change company settings.",
+   "Make a crafted surrogate-bid attempt when Add Bid is absent and assert refusal with \"Order not active\": no catalog step sends such a crafted request."
   ],
   "warnings": [
-   "can only test part of this — no step for: Two separate tenants with opposing post-expiry surrogate bidding settings in a single automated test flow; Switching tenant settings on the fly"
+   "cannot test this case yet — no step can observe: Inspect Add Bid on closed events: the prepared event is live and its state cannot be changed.; Compare post-expiry surrogate bidding enabled and disabled tenants: no tenant identities or configured closed events are supplied, and catalog steps cannot change company settings.; Make a crafted surrogate-bid attempt when Add Bid is absent and assert refusal with \"Order not active\": no catalog step sends such a crafted request."
   ],
   "state": "live",
   "screen": "participants",
@@ -22,25 +23,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SUR-011 Post-expiry Add Bid depends on tenant setting",
+  "title": "Post-expiry Add Bid setting gate",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
-    }
+    },
+    "note": "Open the required prepared Participants screen; this event is live, not expired."
    },
    {
-    "step": "open_participants",
-    "args": {}
-   },
-   {
-    "step": "expect_count",
+    "step": "capture_screen",
     "args": {
-     "role": "button",
-     "name": "Add Bid",
-     "max": 0
-    }
+     "label": "live-participants-post-expiry-test-blocked"
+    },
+    "note": "Record the available controls for inspection, without treating live-state evidence as verification of the post-expiry expectations."
    }
   ]
  }

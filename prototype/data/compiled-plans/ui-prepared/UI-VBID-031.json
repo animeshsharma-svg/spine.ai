@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-031",
+  "title": "A bid survives a portal reload before submission",
+  "compiledAt": "2026-11-09T19:21:19.765Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Vendor bid draft survives reload",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open a single-stage create screen for the RFQ used by the vendor test."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Vendor Bid Reload Draft Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the bid sheet can be created."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for the vendor's bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the buyer-side pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor to the event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its bid sheet."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event is available on its project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's vendor pricing sheet without submitting a bid."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "100"
+    },
+    "note": "Enter a partial bid value and leave the bid unsubmitted."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "reload the vendor portal and reopen this event's pricing sheet; verify that the partially entered Price value 100 is restored, or that Procol shows a warning before leaving, and stop on the screen proving one of those outcomes"
+    },
+    "note": "Perform and verify the reload-and-reopen behavior, including either draft restoration or a leave warning."
+   }
+  ]
+ }
+}

@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "UI-SAV-002",
+  "title": "Savings-mandatory tenants block publish without a savings entry",
+  "compiledAt": "2026-10-06T04:55:28.353Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or independently verify the tenant setting isSavingsConfigurationMandatory; no configured tenant ID is supplied."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or independently verify the tenant setting isSavingsConfigurationMandatory; no configured tenant ID is supplied."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TECH-008",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Savings-required publish validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Use a fresh, non-converted event so the conversion exemption does not apply."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Satisfy the title requirement."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template to the default Auction stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Satisfy the line-item requirement."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete required sheet values without configuring savings."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit the schedule to avoid an unrelated scheduling refusal."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Satisfy the participant requirement."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "click",
+     "reason": "Deliberately omit opening Savings and adding savings values; the event must have no savings configured."
+    },
+    "note": "Preserve the missing savings entry as the negative-test premise."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Savings configuration is mandatory"
+    },
+    "note": "Require both blocked publication and the specific savings validation message; an unrelated refusal is insufficient."
+   }
+  ]
+ }
+}

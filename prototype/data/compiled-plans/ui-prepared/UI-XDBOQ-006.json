@@ -2,59 +2,60 @@
  "meta": {
   "caseId": "UI-XDBOQ-006",
   "title": "A good BOQ upload builds the tabbed grid and saves the lines to the project",
-  "compiledAt": "2026-10-04T11:09:53.594Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-06T06:22:47.008Z",
+  "tier": "reason",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Verify specific network call sequence (POST /templates/product_sheet_params followed by PATCH /event_groups)",
-   "Verify line numbers like A.1 and file icon for note rows explicitly"
+   "Enable or verify the boq_in_erfx_allowed tenant gate; it must be supplied as a precondition.",
+   "Upload the valid two-tab BOQ workbook: upload supports only the listed PDF, PNG, CSV and TXT fixtures, and no domain step supplies this workbook.",
+   "Assert that POST /templates/product_sheet_params precedes PATCH /event_groups/<id>; expect_request can check individual requests but not their relative order.",
+   "Compare uploaded tabs, section numbers, section widgets, descriptions, A.1-style line numbers and note-row file icons against the required workbook; the fixture contents and supported icon targets are unavailable.",
+   "Call get_line_items after a stage exists and compare persisted project lines with the workbook; no catalog step performs this oracle."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify specific network call sequence (POST /templates/product_sheet_params followed by PATCH /event_groups); Verify line numbers like A.1 and file icon for note rows explicitly"
+   "cannot test this case yet — no step can observe: Enable or verify the boq_in_erfx_allowed tenant gate; it must be supplied as a precondition.; Upload the valid two-tab BOQ workbook: upload supports only the listed PDF, PNG, CSV and TXT fixtures, and no domain step supplies this workbook.; Assert that POST /templates/product_sheet_params precedes PATCH /event_groups/<id>; expect_request can check individual requests but not their relative order.; Compare uploaded tabs, section numbers, section widgets, descriptions, A.1-style line numbers and note-row file icons against the required workbook; the fixture contents and supported icon targets are unavailable.; Call get_line_items after a stage exists and compare persisted project lines with the workbook; no catalog step performs this oracle."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-LI-002",
-   "UI-CRE-002"
+   "UI-XDBOQ-020",
+   "UI-LI-002"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ upload builds tabbed grid and saves lines",
+  "title": "BOQ upload grid and persisted lines",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Start the BOQ project creation flow"
+    "note": "Reach BOQ creation, assuming the required tenant gate is already enabled."
    },
    {
     "step": "set_title",
-    "note": "Provide a title for the BOQ project"
+    "args": {},
+    "note": "Supply the mandatory project title."
    },
    {
     "step": "select_template",
-    "note": "Pick the pricing template required before uploading or adding items"
+    "args": {},
+    "note": "Prepare the template required before BOQ lines can be supplied."
    },
    {
-    "step": "upload",
-    "args": {
-     "label": "Upload",
-     "file": "sample.csv"
-    },
-    "note": "Upload the sample sheet"
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify preparation only; this does not prove any upload or persistence."
    },
    {
-    "step": "expect_toast",
+    "step": "capture_screen",
     "args": {
-     "kind": "success",
-     "text": "Product sheet updated"
+     "label": "boq-before-two-tab-upload"
     },
-    "note": "Assert that the product sheet updated toast appears"
+    "note": "Record the upload-ready screen for completing the unsupported workbook upload and its network, toast, grid and persistence checks."
    }
   ]
  }

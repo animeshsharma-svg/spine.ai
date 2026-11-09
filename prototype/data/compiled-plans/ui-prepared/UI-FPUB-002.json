@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "UI-FPUB-002",
+  "title": "Missing participants is reported before a missing template",
+  "compiledAt": "2026-11-09T19:13:06.081Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "needs a different starting state than live (asked for invite_vendor)"
+  ],
+  "warnings": [
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "technical": false,
+  "exemplars": [
+   "UI-SUR-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Missing participants precedes missing template",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "select_template",
+     "reason": "The setup requires no template."
+    },
+    "note": "Deliberately keep the project without a template."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "invite_vendor",
+     "reason": "The first publish attempt requires no participants."
+    },
+    "note": "Deliberately keep the audience empty for the first validation."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please add participants to proceed!"
+    },
+    "note": "Press Publish and assert that the missing-participant message is reported first."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Savings"
+    },
+    "note": "Press Publish again and assert that the template-related savings refusal now follows the participant check."
+   }
+  ]
+ }
+}

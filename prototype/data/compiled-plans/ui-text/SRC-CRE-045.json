@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-045",
+  "title": "Upload Sheet with good rows",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:05:20.616Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Download the product-sheet template from the screen and fill it with three valid rows.",
+   "Upload the specifically populated template file with the requested CYLINDER products, variants, quantities, and Plant Name (LOC-0001) location.",
+   "Assert that the three uploaded rows exactly match the file contents, including Product Variant, Quantity Requested, and Delivery location values."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Download the product-sheet template from the screen and fill it with three valid rows.; Upload the specifically populated template file with the requested CYLINDER products, variants, quantities, and Plant Name (LOC-0001) location.; Assert that the three uploaded rows exactly match the file contents, including Product Variant, Quantity Requested, and Delivery location values."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "upload",
+   "expect_line_items",
+   "expect_no_error"
+  ],
+  "ms": 11110
+ },
+ "plan": {
+  "title": "SRC-CRE-045 Upload Sheet with Good Rows",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage create screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Change the default event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-045 Upload Sheet with Good Rows"
+    },
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply an RFQ template so the product sheet and Upload Sheet control are available."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Exercise the available sheet upload control with the closest catalog fixture; the fixture cannot be populated with the case's exact rows."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 3
+    },
+    "note": "Verify that the upload resulted in three line items on the sheet."
+   },
+   {
+    "step": "expect_no_error",
+    "note": "Confirm the upload did not leave an application error visible."
+   }
+  ]
+ }
+}

@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "UI-FTNC-002",
+  "title": "A product's own clauses are merged into the default group without duplicates",
+  "compiledAt": "2026-11-09T19:22:41.005Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event does not guarantee that its product carries terms and conditions, and no catalog assertion can identify or verify the product's source clauses independently of the on-screen inspection.",
+   "needs a different starting state than live (asked for set_schedule)"
+  ],
+  "warnings": [
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The prepared event does not guarantee that its product carries terms and conditions, and no catalog assertion can identify or verify the product's source clauses independently of the on-screen inspection."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Product terms merge without duplicates",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared event as required before inspecting or modifying its configuration."
+   },
+   {
+    "step": "create_new_version",
+    "args": {},
+    "note": "Open a create screen based on the existing published event so the product can be added again without creating a separate event."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the new-version create screen, add the same product a second time (or add a product sharing a terms clause), open Terms and Conditions, and verify that every product clause appears exactly once under the default group"
+    },
+    "note": "No catalog assertion can enumerate or count arbitrary product terms clauses, so this performs the duplicate addition and directly inspects the terms group."
+   }
+  ]
+ }
+}

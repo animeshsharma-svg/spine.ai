@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-004",
+  "title": "The stage tab exposes the bid sheet",
+  "compiledAt": "2026-11-09T19:09:30.613Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that at least one price cell is non-disabled and editable on the vendor bid sheet"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that at least one price cell is non-disabled and editable on the vendor bid sheet"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SS-007",
+   "UI-LI-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Vendor bid sheet exposes editable price cells",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage event create flow with a pricing stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Every publishable event needs a title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the event exposes a vendor pricing bid sheet."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the pricing stage before selecting its template."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a buyer line item that should appear on the vendor's bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the buyer-side pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor whose portal will expose the bid sheet."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its pricing stage."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor portal, which is the subject of this test."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round and verify the vendor pricing bid sheet is rendered."
+   }
+  ]
+ }
+}

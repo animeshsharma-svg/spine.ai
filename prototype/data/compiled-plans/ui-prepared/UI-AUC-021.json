@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "UI-AUC-021",
+  "title": "Basket auction fixes savings to line-item with an explanation",
+  "compiledAt": "2026-10-06T04:45:02.239Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or establish isBasketAuction=true; no catalog step or confirmed basket-auction control label is provided."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or establish isBasketAuction=true; no catalog step or confirmed basket-auction control label is provided."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-AUC-024",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Basket auction savings restriction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the create screen with its default Auction stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required unique event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template before adding products."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Provide multiple products and unlock Savings; this does not itself enable basket auction."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Savings"
+    },
+    "note": "Open the savings strategy drawer."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Gross Total"
+    },
+    "note": "Assert the gross-total strategy is disabled."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Gross Total",
+     "text": "For basket auction, savings can only be on line item."
+    },
+    "note": "Verify the explanation for the disabled strategy."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "How do you want to measure savings?",
+     "value": "Line Item"
+    },
+    "note": "Assert Line Item is selected, rather than merely offered."
+   }
+  ]
+ }
+}

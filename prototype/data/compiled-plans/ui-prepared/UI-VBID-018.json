@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-018",
+  "title": "Bidding before the window opens is refused",
+  "compiledAt": "2026-11-09T19:11:36.423Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Provision and identify a published Upcoming event with an invited QA vendor for this run."
+  ],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Provision and identify a published Upcoming event with an invited QA vendor for this run."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-001",
+   "UI-XDBOQ-020"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Refuse vendor bid before window opens",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the provided existing event on the buyer side."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide a published Upcoming event with an invited QA vendor and leave it available for this run"
+    },
+    "note": "The catalog has no reliable create step for scheduling an event to start in the future, so the required Upcoming setup must be provided."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Act as the invited vendor whose early bid must be refused."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing bid sheet before its window starts."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit"
+     },
+     "because": "Kindly wait for the auction to start",
+     "expect": "refused"
+    },
+    "note": "Verify that the vendor cannot submit a bid before the bidding window opens."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify that no response was created."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the event's Responses view for the no-bid assertion."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Assert that the refused early submission created no vendor response."
+   }
+  ]
+ }
+}

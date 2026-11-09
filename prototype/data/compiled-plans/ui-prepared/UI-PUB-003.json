@@ -2,54 +2,54 @@
  "meta": {
   "caseId": "UI-PUB-003",
   "title": "Save as draft writes a draft and nothing more",
-  "compiledAt": "2026-10-15T12:44:46.186Z",
-  "tier": "fast",
+  "compiledAt": "2026-10-05T13:47:54.926Z",
+  "tier": "reason",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that the saved draft is absent from the invited vendor's portal or otherwise invisible to vendors.",
-   "Verify that exactly one matching row exists in the events list."
+   "Sign in as an invited-vendor-to-be and assert that the saved draft is absent from their portal; no catalog step supports vendor-side event-list inspection."
   ],
   "warnings": [
-   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
-   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "can only test part of this — no step for: Verify that the saved draft is absent from the invited vendor's portal or otherwise invisible to vendors.; Verify that exactly one matching row exists in the events list."
+   "can only test part of this — no step for: Sign in as an invited-vendor-to-be and assert that the saved draft is absent from their portal; no catalog step supports vendor-side event-list inspection."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-CRE-002",
-   "UI-LI-002"
+   "UI-PUB-023",
+   "UI-PUB-009"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Save event as draft",
+  "title": "Save as draft without publishing",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event creation flow."
+    "note": "Begin a partially configured project."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "QA Save Draft Event"
+     "title": "UI-PUB-003 Draft-only visibility"
     },
-    "note": "Provide the title used to find the saved draft."
+    "note": "Give the draft a known title for searching and counting."
    },
    {
-    "step": "select_template"
+    "step": "select_template",
+    "args": {},
+    "note": "Meet the create screen's template prerequisite for saving a draft."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    }
+    },
+    "note": "Enable draft saving while leaving schedule and participants unconfigured."
    },
    {
     "step": "fill_sheet"
@@ -57,34 +57,40 @@
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the partially configured event without publishing it."
+    "note": "Save the incomplete project without publishing."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list to search for the saved event."
+    "note": "Locate the saved project in the buyer's events list."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Limit the list to draft events."
+    "note": "Inspect saved drafts rather than live events."
    },
    {
     "step": "expect_event_in_list",
+    "args": {},
+    "note": "Search for this plan's title and assert that its row exists."
+   },
+   {
+    "step": "expect_count",
     "args": {
-     "title": "QA Save Draft Event"
+     "role": "row",
+     "text": "UI-PUB-003 Draft-only visibility",
+     "count": 1
     },
-    "note": "Verify the saved event appears in the Drafts list."
+    "note": "Assert exactly one matching event row."
    },
    {
     "step": "expect_event_status",
     "args": {
-     "title": "QA Save Draft Event",
      "status": "Draft"
     },
-    "note": "Verify the event row has Draft status."
+    "note": "Check the explicit Draft status; presence under Drafts alone does not establish it."
    }
   ]
  }

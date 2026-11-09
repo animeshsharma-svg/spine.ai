@@ -1,0 +1,131 @@
+{
+ "meta": {
+  "caseId": "UI-VAL-003",
+  "title": "HTML in a title is escaped, not rendered",
+  "compiledAt": "2026-11-09T19:11:07.954Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the DOM contains escaped text rather than an actual HTML element.",
+   "Verify that no script executes or no console error is produced.",
+   "Verify browser-level dialogs are absent if script execution triggers one."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify the DOM contains escaped text rather than an actual HTML element.; Verify that no script executes or no console error is produced.; Verify browser-level dialogs are absent if script execution triggers one."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-VAL-009",
+   "UI-SS-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "HTML Title Escaping Across Views",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a valid event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "<img src=x onerror=alert(1)>"
+    },
+    "note": "Set the potentially unsafe title payload under test."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the event with a pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for publishing."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event is publishable."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the vendor needed to publish and inspect the portal view."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event containing the HTML payload."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm publication succeeded and the detail page is reached."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "<img src=x onerror=alert(1)>"
+    },
+    "note": "Verify the detail page visibly renders the title literally."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list for the list-view check."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered without an application error."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "<img src=x onerror=alert(1)>"
+    },
+    "note": "Verify the published title appears literally in the events list."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open this event in the vendor portal overview."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "<img src=x onerror=alert(1)>"
+    },
+    "note": "Verify the vendor portal displays the title literally."
+   }
+  ]
+ }
+}

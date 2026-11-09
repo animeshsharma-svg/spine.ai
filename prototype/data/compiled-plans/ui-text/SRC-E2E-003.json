@@ -1,0 +1,247 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-003",
+  "title": "Material PR → single stage reverse auction → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:12:40.806Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the purchase requisition transitions from Open to In Progress to ordered",
+   "Navigate to and inspect the Purchase Orders screen and reopen the originating purchase requisition after award"
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Assert that the purchase requisition transitions from Open to In Progress to ordered; Navigate to and inspect the Purchase Orders screen and reopen the originating purchase requisition after award"
+  ],
+  "source": "llm",
+  "steps": 31,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "do_on_screen",
+   "do_on_screen",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 25625
+ },
+ "plan": {
+  "title": "Material PR to Reverse Auction PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title while allowing the runner to generate a unique value."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute bidding schedule."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "set the auction evaluation duration to 30 minutes and save the schedule; stop when the saved schedule shows the 30-minute evaluation time"
+    },
+    "note": "Set and verify the evaluation duration, which has no dedicated schedule argument in the catalog."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "add one Required T&C clause to the event and save it; stop when the create screen shows the clause as added"
+    },
+    "note": "Add the required terms-and-conditions clause using the buyer-side screen."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite the vendors mapped to the product without inventing supplier names."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Have Vendor A submit the 100 quote through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's portal bid was submitted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 90
+    },
+    "note": "Have Vendor B submit the lower 90 quote through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor B's portal bid was submitted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the auction bidding window to end before comparing and awarding bids."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid after bidding closes."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lowest bid ranks first among the two vendors."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 2,
+     "number": 1
+    },
+    "note": "Verify the second bidder, Vendor B in this plan, is shown as Rank 1."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the entire event to the lowest bidder, Vendor B."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for the lowest vendor."
+    },
+    "note": "Approve the proposal with the required approver remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete PO creation from the approved award and read the resulting purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify one PO line carries the full PR quantity of 10."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the event moved to history."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab for completed events."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert this plan's auction appears in event history."
+   }
+  ]
+ }
+}

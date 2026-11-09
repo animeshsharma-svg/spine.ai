@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-007",
+  "title": "Submitting an award picks the only flow automatically and asks for approvers where needed",
+  "compiledAt": "2026-10-06T06:13:10.587Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Configure or select companies with exactly one and exactly two applicable award flows; no company IDs or approval-flow fixtures are provided.",
+   "Establish a flow with an approver-select step and verify automatic selection, Submit versus Next, and the multiple-flow summary under the required conditions.",
+   "Reliably trigger and assert \"Please select at least one approver to proceed.\" because the prepared state does not guarantee a required approver-select step.",
+   "Verify that approval_flow_uuid and step_uuid_vs_user_uuid carry the correct selected flow and approver mappings without the required flow fixture, identifiers, and completed approval selection."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Configure or select companies with exactly one and exactly two applicable award flows; no company IDs or approval-flow fixtures are provided.; Establish a flow with an approver-select step and verify automatic selection, Submit versus Next, and the multiple-flow summary under the required conditions.; Reliably trigger and assert \"Please select at least one approver to proceed.\" because the prepared state does not guarantee a required approver-select step.; Verify that approval_flow_uuid and step_uuid_vs_user_uuid carry the correct selected flow and approver mappings without the required flow fixture, identifiers, and completed approval selection."
+  ],
+  "state": "proposal",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [
+   "UI-XDNEG-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Award approval flow selection and required approvers",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the required prepared event with its draft award proposal."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the existing draft proposal's awarding flow."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "path": "/awarding/"
+    },
+    "note": "Check that the awarding screen was reached."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Continue from the prepared allocation to the proposal."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Assert that the proposal screen opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Invoke submission under the available default settings, which may not offer approval selection."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "award-submission-default-approval-state"
+    },
+    "note": "Record the actual submission outcome for inspection; this is not an assertion of automatic flow selection or required-approver validation."
+   }
+  ]
+ }
+}

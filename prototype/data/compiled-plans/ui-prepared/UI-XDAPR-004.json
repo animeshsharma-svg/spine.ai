@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-004",
+  "title": "The approval card shows Approve/Reject only to the person whose action is pending",
+  "compiledAt": "2026-10-06T07:07:30.071Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Open the proposal separately as the requester and step-2 approver to assert the buttons are absent for those roles",
+   "Verify that clicking Approve with an empty remark sends no network request because no request endpoint is specified"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the proposal separately as the requester and step-2 approver to assert the buttons are absent for those roles; Verify that clicking Approve with an empty remark sends no network request because no request endpoint is specified"
+  ],
+  "state": "awarded",
+  "screen": "proposal",
+  "technical": false,
+  "exemplars": [
+   "UI-AWD-004"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Approval actions require pending approver",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the already prepared award proposal, as required for this case."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Approve",
+     "visible": true
+    },
+    "note": "Assert the current session, intended to represent the pending approver, sees Approve."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "visible": true
+    },
+    "note": "Assert the pending approver also sees Reject."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Approve"
+    },
+    "note": "Attempt approval with the remark field empty."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Enter remarks"
+    },
+    "note": "Assert the empty remark is rejected inline at the remarks field."
+   }
+  ]
+ }
+}

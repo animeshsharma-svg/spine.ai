@@ -1,0 +1,213 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-006",
+  "title": "Two bids: award all 10 units to the L1 vendor (B); approver approves with a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:10:58.957Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it as that user."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it as that user."
+  ],
+  "source": "llm",
+  "steps": 23,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "award_event",
+   "expect_awarded",
+   "ask_tester",
+   "create_po",
+   "expect_po_items",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 1675
+ },
+ "plan": {
+  "title": "Two-Bid Lowest-Vendor Award and Approval",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage rather than the default auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template and items."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Create one line item with the requested quantity of 10 units."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite exactly two vendors so the event can receive two competing bids."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid, representing the higher bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the second vendor bid, representing the L1 vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close bidding so awarding is available."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid to inspect both vendor bids before awarding."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Assert that both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "atLeast": 2,
+     "by": "RFQ Amount",
+     "order": "lowest"
+    },
+    "note": "Assert that the lower bid ranks ahead of the higher bid."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Allocate the entire line to the L1 vendor and submit the award proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve the proposal"
+    },
+    "note": "The separate approver login and approval action are not available as an automated catalog flow."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approved award flow and create the purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Verify that one PO line carries the full awarded quantity of 10 units."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where the completed event should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's event is present in History after completion."
+   }
+  ]
+ }
+}

@@ -1,0 +1,173 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-023",
+  "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; approver approves without a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T19:13:42.475Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Creating the exact bid matrix with line 1 priced A 100/B 90 and line 2 priced A 50/B 60, because place_bid accepts one price per vendor rather than per-line prices.",
+   "Verifying the exact line-wise allocation and totals of Vendor B 10 × 90 = 900 and Vendor A 5 × 50 = 250, because no catalog assertion reads or allocates individual quantities by vendor and line.",
+   "Signing in as the approver, leaving the approval remark empty, attempting approval, and verifying the refusal message \"Remark is necessary for approval\"."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Creating the exact bid matrix with line 1 priced A 100/B 90 and line 2 priced A 50/B 60, because place_bid accepts one price per vendor rather than per-line prices.; Verifying the exact line-wise allocation and totals of Vendor B 10 × 90 = 900 and Vendor A 5 × 50 = 250, because no catalog assertion reads or allocates individual quantities by vendor and line.; Signing in as the approver, leaving the approval remark empty, attempting approval, and verifying the refusal message \"Remark is necessary for approval\"."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "start_awarding",
+   "do_on_screen",
+   "expect_navigated",
+   "ask_tester"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 23594
+ },
+ "plan": {
+  "title": "Line-wise award and empty-remark approval",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default Auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two line items needed to approximate the scenario."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet so the event can be scheduled and published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding window before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors to approximate vendors A and B."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a bid from the first vendor; the catalog cannot assign different prices per line."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit a bid from the second vendor; this approximates the competing bid but cannot reproduce the requested per-line values."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the RFQ before opening Master QCS and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid used for awarding."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Assert that both responding vendor columns rendered with real names."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen where the line-wise allocation would be performed."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "allocate line 1 to the vendor with the lower line-1 bid and line 2 to the other vendor using the requested quantities, create the proposal, fill required proposal fields, submit it, and stop on the submitted proposal page"
+    },
+    "note": "No catalog step can allocate quantities separately by vendor and line or submit the resulting proposal, so perform that buyer-side interaction on screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the submitted award proposal page opened."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the approver, open the submitted proposal, leave the approval remark empty, attempt approval, and verify the refusal says \"Remark is necessary for approval\" while the proposal remains pending"
+    },
+    "note": "Approval requires a separate approver session and an intentionally empty remark, which the catalog cannot perform."
+   }
+  ]
+ }
+}

@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "UI-FUPL-004",
+  "title": "A partially filled sheet is refused",
+  "compiledAt": "2026-11-09T19:18:35.312Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Upload a specifically prepared pricing-sheet fixture with a filled template row missing exactly one mandatory cell.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Upload a specifically prepared pricing-sheet fixture with a filled template row missing exactly one mandatory cell."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Partially Filled Sheet Refusal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Configure the single-stage event as an RFQ pricing event."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before uploading the sheet."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Upload the closest available CSV fixture; the catalog cannot ensure it has the requested missing mandatory cell."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled, please check again."
+    },
+    "note": "Assert that publishing is refused with the exact partial-sheet validation message."
+   }
+  ]
+ }
+}
