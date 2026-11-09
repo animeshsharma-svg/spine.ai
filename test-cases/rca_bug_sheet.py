@@ -45,7 +45,12 @@ def shot_path(file):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--") and not a.endswith(".json")]
+    # run ids = every argument that is not an option or an option's value
+    skip = set()
+    for i, a in enumerate(sys.argv[1:], 1):
+        if a in ("--out", "--review") and i + 1 < len(sys.argv):
+            skip.add(i + 1)
+    args = [a for i, a in enumerate(sys.argv[1:], 1) if not a.startswith("--") and i not in skip]
     out = HERE / "RCA_Real_Bugs_Run_Report.xlsx"
     if "--out" in sys.argv:
         out = Path(sys.argv[sys.argv.index("--out") + 1])
