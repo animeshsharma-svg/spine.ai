@@ -1075,6 +1075,67 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
   return `on the supplier portal, signed in as ${email} (with ${how})`;
 }
 
+/**
+ * vendor_bid (10 Nov 2026, not yet exercised live): the vendor's own bid on the portal that is ALREADY open — type a
+ * price into the sheet's price cells (place_bid's own fillBid, which types whatever it is given) and press Submit
+ * Quote. The outcome is read, never assumed: the stage's "Submitted" mark = a bid; a refusal toast / a Submit that
+ * stays disabled = "blocked: …" (the words `attempt` takes as the refusal); neither = "could not tell".
+ */
+async function vendorBid(s: RunState, a: Record<string, unknown>): Promise<string> {
+  if (!s.portal || s.portal.on !== "vendor") throw new Error('vendor_bid needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event (or open_prepared{screen:"vendor"}) first');
+  const page = s.portal.page;
+  const portal = new VendorPortalPage(page);
+  const typed = a.price === undefined || a.price === null || a.price === "" ? "100" : String(a.price).trim();
+  const title = s.context.title ?? s.title;
+  // The sheet: open the round when the page is still on the event's overview.
+  const sheetOpen = async () => (await page.locator("[role='columnheader']").filter({ hasText: /price/i }).count().catch(() => 0)) > 0;
+  if (!(await sheetOpen())) {
+    await portal.startBidding(title).catch((e) => {
+      throw new Error(`the bid sheet could not be opened on the supplier portal: ${(e as Error).message.split("\n")[0].slice(0, 160)}`);
+    });
+  }
+  if (portal.stage === "technical") throw new Error("vendor_bid types a PRICE; the round open for this vendor is the Technical Stage (its questionnaire) — automation needs update for a typed technical answer");
+  const mark = await toastMark(page);
+  // fillBid types String(price) into each price cell; a non-number is typed as written (the sheet decides what it keeps).
+  const cells = await portal.fillBid(typed as unknown as number);
+  if (!cells) throw new Error(`the vendor's quote sheet had no Price cell to fill (on ${new URL(page.url()).pathname}) — nothing was typed`);
+  // What the sheet shows in the price column now — the product's answer to what was typed.
+  const kept = await page
+    .evaluate(() => {
+      const headers = [...document.querySelectorAll("[role='columnheader']")];
+      const h = headers.find((x) => /price/i.test((x.textContent || "").replace(/\s+/g, " ")));
+      const col = h?.getAttribute("aria-colindex");
+      const cellsNow = col ? [...document.querySelectorAll(`[role='row'] [aria-colindex="${col}"]`)].filter((c) => !c.closest("[role='row']")?.querySelector("[role='columnheader']")) : [];
+      return cellsNow.map((c) => ((c as HTMLElement).innerText || (c.querySelector("input") as HTMLInputElement | null)?.value || "").replace(/\s+/g, " ").trim()).slice(0, 10);
+    })
+    .catch(() => [] as string[]);
+  const keptWords = kept.length ? kept.map((k) => k || "(empty)").join(", ") : "(not read)";
+  if (a.submit === false) return `typed ${typed} into ${cells} price cell(s) on the supplier portal; the sheet now shows ${keptWords}; not submitted`;
+  // A refusal the sheet gave at once (an inline message under the cell, a toast) — before any Submit.
+  const inline = await appMessagesSince(page, mark).catch(() => []);
+  const refusal = inline.find((m) => m.kind === "error" || m.kind === "inline" || m.kind === "warning");
+  const submit = page.getByRole("button", { name: /submit quote|submit bid|^submit$/i }).first();
+  const submitDisabled = (await submit.count().catch(() => 0)) > 0 && (await submit.isDisabled().catch(() => false));
+  try {
+    await portal.submitBid();
+  } catch (e) {
+    const why = (e as Error).message.split("\n")[0];
+    if (/stays disabled/i.test(why)) return `blocked: "Submit Quote" stays disabled after typing ${typed} (the sheet shows ${keptWords})${refusal ? ` — the sheet says: ${refusal.text}` : ""}`;
+    throw new Error(`could not tell: pressing Submit failed (${why.slice(0, 160)}) after typing ${typed} — the sheet shows ${keptWords}`);
+  }
+  const ok = await portal.bidSubmitted();
+  if (ok) {
+    s.bidSubmitted = true;
+    const n = Number(typed);
+    (s.portalBids ??= []).push({ email: s.portal.email, price: Number.isFinite(n) ? n : NaN, at: Date.now() });
+    return `bid submitted from the supplier portal as ${s.portal.email}: typed ${typed} into ${cells} price cell(s) (the sheet shows ${keptWords})${submitDisabled ? "; Submit was disabled until the terms were ticked" : ""}`;
+  }
+  const after = await appMessagesSince(page, mark).catch(() => []);
+  const said = after.find((m) => m.kind === "error" || m.kind === "inline" || m.kind === "warning") ?? refusal;
+  if (said) return `blocked: ${said.text} (after typing ${typed}; the sheet shows ${keptWords})`;
+  throw new Error(`could not tell: the portal neither marked the quote submitted nor refused it after typing ${typed} (the sheet shows ${keptWords}; messages: ${after.map((m) => `[${m.kind}] ${m.text}`).join(" | ") || "none"})`);
+}
+
 /** vendor_open_event: this plan's event in the supplier portal, on its round (or its overview). */
 async function vendorOpenEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
   if (!s.portal || s.portal.on !== "vendor") throw new Error("vendor_open_event needs switch_portal{to:\"vendor\"} first — the supplier portal is not open");
@@ -1116,6 +1177,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   // The supplier portal (vendorPortalCatalog.ts): a second browser the generic steps then act on.
   if (step.step === "switch_portal") return switchPortal(s, String(a.to ?? "vendor").toLowerCase() === "buyer" ? "buyer" : "vendor", a.vendor);
   if (step.step === "vendor_open_event") return vendorOpenEvent(s, a);
+  if (step.step === "vendor_bid") return vendorBid(s, a);
   // open_prepared{screen:"vendor"}: the vendor side of an API-built event — sign in and open it there.
   if (step.step === "open_prepared" && /^vendor/i.test(String(a.screen ?? ""))) {
     const state = s.context.state ?? "none";

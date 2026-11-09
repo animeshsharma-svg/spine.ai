@@ -15,7 +15,7 @@ import { BasePage } from "../../pages/BasePage.js";
 import { heal, healerEnabled } from "../../ai/healer.js";
 import type { PlanStep } from "../steps.js";
 import { GENERIC_NAMES } from "./catalog.js";
-import { countVisible, describe, esc, findVisible, isDisabled, norm, pattern, Target, targetFromArgs, targetWords, visibleMatches, visibleText } from "./find.js";
+import { countVisible, describe, esc, findVisible, isDisabled, norm, pattern, scopeFor, Target, targetFromArgs, targetWords, visibleMatches, visibleText, type Found } from "./find.js";
 import { interactive, screenReady, trackRequests } from "./ready.js";
 import { MessageKind, toastMark, waitForMessage } from "./messages.js";
 import { isKnownLabel, noteSeen } from "./labels.js";
@@ -2102,18 +2102,47 @@ async function execute(
     }
 
     case "expect_remembered": {
+      // 10 Nov: compare with ANOTHER element (this screen, another tab, the other portal), as numbers, by a
+      // delta, or by containment — "the count rises by one", "the vendor's total equals the buyer's grid".
+      // Not yet exercised live beyond the same-element form.
       const key = String(a.key ?? "").trim();
       const kept = ctx.memory[key];
       if (!kept) throw new Error(`nothing was remembered as "${key}" earlier in this plan`);
       await screenReady(page, 30_000);
-      const found = await findVisible(page, kept.target, timeoutMs);
-      if (!found) throw new Error(`${describe(kept.target)} is no longer on screen to compare with "${key}"`);
+      const other = targetOf(a);
+      const useOther = targetWords(other).length > 0;
+      const target = useOther ? other : kept.target;
+      const found = await findVisible(page, target, timeoutMs);
+      if (!found) throw new Error(`${describe(target)} is ${useOther ? "not" : "no longer"} on screen to compare with "${key}"`);
       const now = ((await found.locator.innerText().catch(() => "")) || (await fieldValue(found.locator))).replace(/\s+/g, " ").trim();
-      const same = norm(now) === norm(kept.text);
+      const asNumber = String(a.as ?? "").toLowerCase() === "number" || a.delta !== undefined;
+      const where = useOther ? ` (${describe(target)})` : "";
+      if (asNumber) {
+        const before = numberOf(kept.text);
+        const after = numberOf(now);
+        if (before === null || after === null) throw new Error(`"${key}" cannot be compared as numbers — before: "${kept.text.slice(0, 80)}", now${where}: "${now.slice(0, 80)}"`);
+        if (a.delta !== undefined) {
+          const d = Number(String(a.delta).replace(/\s+/g, ""));
+          if (!Number.isFinite(d)) throw new Error(`expect_remembered: delta "${a.delta}" is not a number`);
+          if (Math.abs(after - (before + d)) > 1e-6) throw new Error(`"${key}" was ${before} and is now ${after}${where} — the case expects ${before} ${d >= 0 ? "+" : "-"} ${Math.abs(d)} = ${before + d}`);
+          return { detail: `"${key}": ${before} → ${after}${where}, a change of ${d >= 0 ? "+" : ""}${d} as expected`, strategy: found.strategy };
+        }
+        const wantSame = bool(a.same, true);
+        const same = Math.abs(after - before) < 1e-6;
+        if (same !== wantSame) throw new Error(`"${key}" ${same ? "is unchanged" : "differs"} as a number — before: ${before}, now${where}: ${after}; the case expects ${wantSame ? "the same" : "a change"}`);
+        return { detail: `"${key}" is ${same ? `the same number (${after})` : `${before} before and ${after} now`}${where}, as expected`, strategy: found.strategy };
+      }
       const wantSame = bool(a.same, true);
-      if (same !== wantSame) throw new Error(`"${key}" ${same ? "is unchanged" : "changed"} — the case expects it ${wantSame ? "unchanged" : "changed"}. Before: ${kept.text.slice(0, 120)} · now: ${now.slice(0, 120)}`);
-      return { detail: `"${key}" is ${same ? "unchanged" : "changed"}, as expected`, strategy: found.strategy };
+      const same = bool(a.contains, false) ? norm(now).includes(norm(kept.text)) || norm(kept.text).includes(norm(now)) : norm(now) === norm(kept.text);
+      if (same !== wantSame) throw new Error(`"${key}" ${same ? "is unchanged" : useOther ? "differs" : "changed"}${where} — the case expects it ${wantSame ? "the same" : "changed"}. Before: ${kept.text.slice(0, 120)} · now: ${now.slice(0, 120)}`);
+      return { detail: `"${key}" is ${same ? "the same" : "different"}${where}, as expected${useOther ? ` (${kept.text.slice(0, 60)})` : ""}`, strategy: found.strategy };
     }
+
+    case "expect_options":
+      return expectOptions(ctx, a, timeoutMs);
+
+    case "expect_table":
+      return expectTable(ctx, a, timeoutMs, readyMs);
 
     case "switch_company": {
       const id = Number(a.companyId ?? a.company);
@@ -2287,3 +2316,266 @@ async function attempt(
   if (innerErr) throw new Error(`could not tell: ${innerName} failed (${innerErr.message.split("\n")[0].slice(0, 200)}) and the app showed no refusal — that may be our own failure, so it is not counted as blocked`);
   throw new Error(`the app allowed it: ${innerName} ran${innerDetail ? ` (${innerDetail})` : ""} with no refusal message and no disabled control`);
 }
+
+// ── 10 Nov 2026: option lists, tables, numbers (not yet exercised live) ──────────────────────────────
+
+/** The first number in a text as a person reads it: ₹, commas (Indian grouping too), spaces and units ignored. */
+export function numberOf(text: string): number | null {
+  const m = text.replace(/[,\u00A0\s]/g, "").replace(/₹|rs\.?|inr|\$|€|£/gi, "").match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v === undefined || v === null || v === "" ? [] : String(v).split(/\s*[|;]\s*|\s*,\s*(?![^()]*\))/)).map((x) => x.trim()).filter(Boolean);
+
+/** Everything a dropdown / menu / listbox shows while open, with its disabled state. */
+const OPTION_SEL = "[role='option'], [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='treeitem'], .ant-select-dropdown-menu-item, .ant-select-item-option, .ant-dropdown-menu-item, .ant-cascader-menu-item, [role='listbox'] li, [role='menu'] li";
+async function readOptions(page: Page, root?: Locator): Promise<Array<{ text: string; disabled: boolean }>> {
+  const scope = root ?? page.locator("body");
+  const els = scope.locator(OPTION_SEL).filter({ visible: true });
+  const n = Math.min(await els.count().catch(() => 0), 80);
+  const out: Array<{ text: string; disabled: boolean }> = [];
+  for (let i = 0; i < n; i++) {
+    const el = els.nth(i);
+    const text = visibleText((await el.innerText().catch(() => "")) || "");
+    if (!text) continue;
+    out.push({ text, disabled: await isDisabled(el) });
+  }
+  return out;
+}
+
+/**
+ * expect_options — what a dropdown, select, menu, radio group or tab strip OFFERS. Opens the control named
+ * (unless a list is already open), reads the options and their greyed-out state, judges, and closes it again.
+ * It never chooses anything.
+ */
+async function expectOptions(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number): Promise<GenericOutcome> {
+  const { page } = ctx;
+  const want = list(a.options);
+  const absent = list(a.absent);
+  const disabledWant = list(a.disabled);
+  const enabledWant = list(a.enabled);
+  const exact = num(a.count);
+  const only = bool(a.only, false);
+  if (!want.length && !absent.length && !disabledWant.length && !enabledWant.length && exact === undefined) throw new Error("expect_options needs options, absent, disabled, enabled or count");
+  const t = targetOf({ ...a, label: a.label ?? a.name ?? a.target, text: a.text });
+  const named = targetWords(t).length > 0;
+  let opened = false;
+  let strategy = "the open list";
+  let offered: Array<{ text: string; disabled: boolean }> = [];
+  let found: Found | null = null;
+  if (named) {
+    found =
+      (await findVisible(page, { ...t, role: "combobox", strict: true }, 3_000)) ??
+      (await findVisible(page, { ...t, role: "button", strict: true }, 1_000)) ??
+      (await findVisible(page, t, timeoutMs));
+    if (!found) throw new Error(`no control ${describe(t)} on screen within ${Math.round(timeoutMs / 1000)}s to read its options`);
+    strategy = found.strategy;
+    noteSeen(targetWords(t)[0], page.url(), found.strategy);
+    const field = await fieldFor(found.locator);
+    const tag = await field.evaluate((n) => (n as HTMLElement).tagName.toLowerCase(), undefined, Q).catch(() => "");
+    if (tag === "select") {
+      // A native select: its options are read without opening it.
+      offered = await field.evaluate((n) => Array.from((n as HTMLSelectElement).options).map((o) => ({ text: o.text.trim(), disabled: o.disabled }))).catch(() => []);
+    } else {
+      // A tab strip or radio group: the options are the siblings in it, nothing opens.
+      const groupRoot = found.locator.locator("xpath=ancestor-or-self::*[@role='tablist' or @role='radiogroup' or contains(@class,'ant-radio-group') or contains(@class,'ant-tabs-nav') or contains(@class,'ant-segmented')][1]");
+      if (await groupRoot.count().catch(() => 0)) {
+        const items = groupRoot.first().locator("[role='tab'], [role='radio'], .ant-radio-button-wrapper, .ant-segmented-item").filter({ visible: true });
+        const n = Math.min(await items.count().catch(() => 0), 40);
+        for (let i = 0; i < n; i++) {
+          const el = items.nth(i);
+          const text = visibleText((await el.innerText().catch(() => "")) || (await accessibleName(el)));
+          if (text) offered.push({ text, disabled: await isDisabled(el) });
+        }
+      }
+      if (!offered.length) {
+        const already = await readOptions(page);
+        if (!already.length) {
+          const opener = field.locator(".ant-select-selection, .ant-select-selector").first();
+          const trigger = (await opener.count().catch(() => 0)) ? opener : found.locator;
+          await interactive(page, trigger);
+          await trigger.click({ timeout: 8_000 });
+          opened = true;
+          await page.locator(OPTION_SEL).filter({ visible: true }).first().waitFor({ state: "visible", timeout: 6_000 }).catch(() => {});
+          // A menu that opens on hover rather than click (antd Dropdown).
+          if (!(await page.locator(OPTION_SEL).filter({ visible: true }).count().catch(() => 0))) {
+            await hoverEl(page, found.locator);
+            await page.locator(OPTION_SEL).filter({ visible: true }).first().waitFor({ state: "visible", timeout: 3_000 }).catch(() => {});
+          }
+        }
+        offered = await readOptions(page);
+      }
+    }
+  } else {
+    const ready = await screenReady(page, 20_000);
+    if (!ready.ready) throw new Error(`could not tell: ${ready.notes.join("; ")} — no list to read on an unready screen`);
+    offered = await readOptions(page);
+    if (!offered.length) throw new Error("expect_options: no dropdown or menu is open on screen, and no control was named to open one");
+  }
+  const close = async () => {
+    if (opened) await page.keyboard.press("Escape").catch(() => {});
+  };
+  const texts = offered.map((o) => o.text);
+  const offer = (want_: string) => offered.filter((o) => pattern(want_).test(o.text));
+  const problems: string[] = [];
+  for (const w of want) if (!offer(w).length) problems.push(`"${w}" is not offered`);
+  for (const w of absent) if (offer(w).length) problems.push(`"${w}" IS offered (${offer(w).map((o) => o.text).join(", ")})`);
+  for (const w of disabledWant) {
+    const hit = offer(w);
+    if (!hit.length) problems.push(`"${w}" is not offered at all (the case expects it offered but greyed out)`);
+    else if (!hit.every((o) => o.disabled)) problems.push(`"${w}" is offered and ENABLED — the case expects it greyed out`);
+  }
+  for (const w of enabledWant) {
+    const hit = offer(w);
+    if (!hit.length) problems.push(`"${w}" is not offered`);
+    else if (hit.every((o) => o.disabled)) problems.push(`"${w}" is greyed out — the case expects it available`);
+  }
+  if (exact !== undefined && offered.length !== exact) problems.push(`${offered.length} option(s) offered, the case expects ${exact}`);
+  if (only) {
+    const extra = offered.filter((o) => !want.some((w) => pattern(w).test(o.text)));
+    if (extra.length) problems.push(`also offered: ${extra.map((o) => o.text).join(", ")} — the case expects only ${want.join(", ")}`);
+  }
+  const shown = `it offers: ${texts.map((x, i) => (offered[i].disabled ? `${x} (greyed out)` : x)).join(" · ") || "(nothing)"}`;
+  await close();
+  if (problems.length) throw new Error(`${named ? describe(t) : "the open list"}: ${problems.join("; ")} — ${shown}`);
+  for (const w of [...want, ...disabledWant, ...enabledWant]) noteSeen(w, page.url(), "option");
+  return { detail: `${named ? describe(t) : "the open list"} — ${shown}`, strategy };
+}
+
+interface TableRead {
+  headers: string[];
+  rows: string[][];
+  note: string;
+}
+
+/** The headers and data rows of the table or grid the step is about. */
+async function readTable(page: Page, within?: string): Promise<TableRead | null> {
+  const TABLES = ".ant-table-container, table:not(.ant-table-container table), [role='table'], [role='grid'], [role='treegrid']";
+  let tables = page.locator(TABLES).filter({ visible: true });
+  let note = "";
+  if (within) {
+    if (/^(dialog|drawer|modal)$/i.test(within)) {
+      const { root } = await scopeFor(page, within);
+      tables = (root as Locator).locator(TABLES).filter({ visible: true });
+      note = " (inside the open dialog/drawer)";
+    } else {
+      const re = pattern(within);
+      const byText = tables.filter({ hasText: re });
+      // …or the table whose heading / caption / nearby block names it.
+      const byBlock = tables.filter({ has: page.locator("caption").filter({ hasText: re }) }).or(page.locator("section, article, div").filter({ visible: true }).filter({ has: page.getByRole("heading", { name: re }) }).locator(TABLES).filter({ visible: true }));
+      if (await byBlock.count().catch(() => 0)) {
+        tables = byBlock;
+        note = ` (the table under “${within}”)`;
+      } else if (await byText.count().catch(() => 0)) {
+        tables = byText;
+        note = ` (the table mentioning “${within}”)`;
+      } else return null;
+    }
+  }
+  const n = await tables.count().catch(() => 0);
+  if (!n) return null;
+  // The smallest fitting table (an antd container holds a header table and a body table: the container reads both).
+  const tbl = tables.first();
+  const data = await tbl
+    .evaluate((root) => {
+      const txt = (e: Element) => ((e as HTMLElement).innerText || e.textContent || "").replace(/\s+/g, " ").trim();
+      const headers = Array.from(root.querySelectorAll("th, [role='columnheader']")).map(txt);
+      const rowEls = Array.from(root.querySelectorAll("tbody tr, [role='row']")).filter((r) => !r.querySelector("th, [role='columnheader']") && !(r as HTMLElement).classList.contains("ant-table-measure-row") && !(r as HTMLElement).classList.contains("ant-table-placeholder"));
+      // antd fixed columns duplicate rows in side tables: keep one row per row key / text.
+      const seen = new Set<string>();
+      const rows: string[][] = [];
+      for (const r of rowEls) {
+        const cells = Array.from(r.querySelectorAll("td, [role='cell'], [role='gridcell']")).map(txt);
+        if (!cells.length) continue;
+        const key = (r.getAttribute("data-row-key") ?? "") + "|" + cells.join("|");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push(cells);
+      }
+      return { headers: [...new Set(headers.filter(Boolean))], rows };
+    }, undefined, { timeout: 5_000 })
+    .catch(() => null);
+  if (!data) return null;
+  return { ...data, note: note || (n > 1 ? ` (the first of ${n} tables)` : "") };
+}
+
+/**
+ * expect_table — rows and cells of a table or grid, read as a person would. Counts settle (two equal reads),
+ * an absent row is judged on a ready screen, a cell is compared as text or, when both sides are numbers, as numbers.
+ */
+async function expectTable(ctx: GenericCtx, a: Record<string, unknown>, timeoutMs: number, readyMs: number): Promise<GenericOutcome> {
+  const { page } = ctx;
+  const within = a.within ? String(a.within) : undefined;
+  const exact = num(a.rows ?? a.count);
+  const min = num(a.min);
+  const max = num(a.max);
+  const rowWords = a.row ? String(a.row).trim() : "";
+  const present = bool(a.present, true);
+  const cells = a.cells && typeof a.cells === "object" ? (a.cells as Record<string, unknown>) : null;
+  const eachRow = a.eachRow && typeof a.eachRow === "object" ? (a.eachRow as Record<string, unknown>) : null;
+  if (exact === undefined && min === undefined && max === undefined && !rowWords && !eachRow) throw new Error("expect_table needs rows / min / max, a row, cells or eachRow");
+  const ready = await screenReady(page, readyMs);
+  if (!ready.ready) throw new Error(`could not tell: ${ready.notes.join("; ")} — a table on an unready screen proves nothing`);
+  const cellMatches = (got: string, want: string) => {
+    const gn = numberOf(got);
+    const wn = numberOf(want);
+    if (gn !== null && wn !== null && /^[\s₹$€£,.\d-]+$/.test(want.replace(/rs\.?|inr/gi, ""))) return Math.abs(gn - wn) < 1e-6;
+    return norm(got).includes(norm(want));
+  };
+  const headerIndex = (headers: string[], h: string) => headers.findIndex((x) => pattern(h).test(x));
+  const judge = (t: TableRead): { problems: string[]; said: string } => {
+    const problems: string[] = [];
+    const n = t.rows.length;
+    if (exact !== undefined && n !== exact) problems.push(`${n} data row(s), the case expects exactly ${exact}`);
+    if (min !== undefined && n < min) problems.push(`${n} data row(s), the case expects at least ${min}`);
+    if (max !== undefined && n > max) problems.push(`${n} data row(s), the case expects at most ${max}`);
+    let hit: string[] | undefined;
+    if (rowWords) {
+      const re = pattern(rowWords);
+      const hits = t.rows.filter((r) => re.test(r.join(" ")));
+      if (present && !hits.length) problems.push(`no row holds “${rowWords}”`);
+      if (!present && hits.length) problems.push(`${hits.length} row(s) hold “${rowWords}” — the case expects none`);
+      hit = hits[0];
+    }
+    const checkCells = (row: string[], spec: Record<string, unknown>, who: string) => {
+      for (const [h, v] of Object.entries(spec)) {
+        const i = headerIndex(t.headers, h);
+        if (i < 0) {
+          problems.push(`no column headed “${h}” (headers: ${t.headers.join(" · ") || "none read"})`);
+          continue;
+        }
+        const got = row[i] ?? "";
+        if (!cellMatches(got, String(v))) problems.push(`${who} shows “${got || "(empty)"}” under “${t.headers[i]}” — the case expects “${v}”`);
+      }
+    };
+    if (cells && hit) checkCells(hit, cells, `the row “${rowWords}”`);
+    if (cells && !rowWords) checkCells(t.rows[0] ?? [], cells, "the first row");
+    if (eachRow) t.rows.forEach((r, k) => checkCells(r, eachRow, `row ${k + 1}`));
+    const said = `${n} data row(s)${t.headers.length ? `, columns ${t.headers.slice(0, 8).join(" · ")}${t.headers.length > 8 ? " …" : ""}` : ""}${t.note}`;
+    return { problems, said };
+  };
+  const deadline = Date.now() + timeoutMs;
+  let last: { problems: string[]; said: string } | null = null;
+  let prevCount = -1;
+  let stable = false;
+  do {
+    const t = await readTable(page, within);
+    if (!t) {
+      last = { problems: [within ? `no table under or mentioning “${within}” is on screen` : "no table or grid is on screen"], said: "" };
+    } else {
+      last = judge(t);
+      // Counts and absences must hold on two reads ~800 ms apart (a list still filling in cannot pass).
+      stable = t.rows.length === prevCount;
+      prevCount = t.rows.length;
+      if (!last.problems.length && (stable || (!exact && min === undefined && max === undefined && present))) {
+        if (rowWords) noteSeen(rowWords, page.url(), "table row");
+        return { detail: `the table shows ${last.said}${rowWords ? `; the row “${rowWords}” ${present ? "is there" : "is absent"}` : ""}${cells ? "; its cells read as expected" : ""}`, strategy: "table read" };
+      }
+    }
+    await page.waitForTimeout(800);
+  } while (Date.now() < deadline);
+  throw new Error(`${last!.problems.join("; ")}${last!.said ? ` — the table shows ${last!.said}` : ""}`);
+}
+
