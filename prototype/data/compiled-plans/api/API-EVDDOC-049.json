@@ -2,21 +2,21 @@
  "meta": {
   "caseId": "API-EVDDOC-049",
   "title": "A round T&C file from another company's folder is accepted",
-  "compiledAt": "2026-10-15T12:17:26.037Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:10:50.551Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the case reads as “it is accepted”, but the plan checks “it is refused”",
+   "Does not verify that saving terms notifies the invited vendor.",
+   "Does not verify that the attachment is stored or signed for the vendor.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
    "it does not read the record back to confirm what was kept or shown",
    "the part about “pdf” is outside what an API plan on a sourcing event checks"
   ],
-  "warnings": [
-   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,13 +27,14 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+    "The buyer sends the request that updates the round, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.881Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-049",
   "title": "A round T&C file from another company's folder is accepted",
   "setup": {
@@ -41,17 +42,28 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "buyer",
-    "caseId": "EDGE-PUB-024",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "terms_and_conditions": [
+       "QA_Platform_tnc_{{stamp}}"
+      ],
+      "t_and_c": [
+       {
+        "private_url": "https://procol.s3.amazonaws.com/trade_files/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf"
+       }
+      ]
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "reject",
-   "code": "101",
-   "message": "You are not allowed to perform this action"
+   "outcome": "accept"
   }
  }
 }

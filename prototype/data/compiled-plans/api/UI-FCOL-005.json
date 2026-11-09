@@ -2,23 +2,17 @@
  "meta": {
   "caseId": "UI-FCOL-005",
   "title": "In an English auction a revised bid must improve by at least the tick size",
-  "compiledAt": "2026-11-01T19:49:30.646Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:18:51.626Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer",
-   "The setup recipe does not explicitly configure a custom English auction tick size parameter in the vocabulary, relying on the library case EDGE-BID-084 for the tick size validation logic.",
-   "library case EDGE-BID-084 is written for a vendor's session, but the plan sends it as the buyer"
+   "The setup is a published RFQ rather than an English auction.",
+   "Acceptance of a revision equal to or greater than the tick size is not checked."
   ],
-  "warnings": [
-   "error code 214 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /v1/bids",
-   "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id",
    "PATCH /bids/revise_bid/:id"
   ],
   "llm": {
@@ -28,40 +22,34 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "QA vendor places the initial bid to obtain a bidUuid.",
-    "The vendor attempts to revise the bid by less than the tick size."
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Quoted price difference must be greater than the tick size”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.372Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-FCOL-005",
   "title": "In an English auction a revised bid must improve by at least the tick size",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "rfq_with_bid"
   },
   "act": [
    {
-    "op": "place_bid",
-    "as": "vendor",
-    "decisive": false,
-    "say": "QA vendor places the initial bid to obtain a bidUuid."
-   },
-   {
     "op": "library",
-    "as": "buyer",
+    "as": "vendor",
     "caseId": "EDGE-BID-084",
-    "decisive": true,
-    "say": "The vendor attempts to revise the bid by less than the tick size."
+    "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "214"
+   "code": "214",
+   "message": "Quoted price difference must be greater than the tick size"
   }
  }
 }

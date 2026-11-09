@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-046",
+  "title": "A line with no status and no PR reference slips in as a plain catalog line",
+  "compiledAt": "2026-11-09T20:02:07.222Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not expose a PR reference field, so the request cannot explicitly set or verify that it is absent.",
+   "The available vocabulary does not expose a read-back field path for confirming the line's product and quantity or the absence of a twin line."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft event without the status.",
+    "As the buyer, read the event and check that the new event is a draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the new event is a draft."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.300Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-046",
+  "title": "A line with no status and no PR reference slips in as a plain catalog line",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "remove": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft",
+      "say": "the new event is a draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-020",
+  "title": "The project page keeps the buyer's notes and history away from vendors",
+  "compiledAt": "2026-11-09T20:15:28.437Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create the required prior amendment with a remark.",
+   "the decisive step tests something else than the case's point: The setup cannot transfer ownership.",
+   "the decisive step tests something else than the case's point: The setup cannot refresh last-PO data.",
+   "The available read-back fields cannot assert that buyer notes or history are absent from the vendor view.",
+   "The available read-back fields cannot assert that the stage owner name is visible only to the buyer.",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “po” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /event_groups/:id/history"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor reads the event.",
+    "The invited QA vendor reads the event's history.",
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the event's history and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.097Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-020",
+  "title": "The project page keeps the buyer's notes and history away from vendors",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "vendor"
+   },
+   {
+    "op": "read_history",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_history",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

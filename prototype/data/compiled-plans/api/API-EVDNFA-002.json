@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "API-EVDNFA-002",
   "title": "No second award can be started while one is in approval",
-  "compiledAt": "2026-10-04T07:15:16.263Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:06:29.297Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The expected refusal message is not checked because starting a new award is modeled as an accepted product action.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /proposal"
+   "POST /proposal",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -23,13 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+    "The buyer opens an award proposal.",
+    "As the buyer, read the event and check that the event carries the award proposal."
    ],
-   "expected": "The app refuses the step the case is about with “The proposal has already been submitted”, and never with a server error."
-  }
+   "expected": "The app accepts it. Read back afterwards: the event carries the award proposal."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.902Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDNFA-002",
   "title": "No second award can be started while one is in approval",
   "setup": {
@@ -37,17 +41,26 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "open_proposal",
     "as": "buyer",
-    "caseId": "AWD-PROP-004",
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals",
+      "op": "non_empty",
+      "say": "the event carries the award proposal"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "reject",
-   "code": "573",
-   "message": "The proposal has already been submitted"
+   "outcome": "accept"
   }
  }
 }

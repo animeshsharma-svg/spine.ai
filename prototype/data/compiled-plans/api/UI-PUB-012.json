@@ -2,20 +2,19 @@
  "meta": {
   "caseId": "UI-PUB-012",
   "title": "An approval-required event goes to Requested, not Live",
-  "compiledAt": "2026-11-01T19:40:35.980Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:19:06.448Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)",
-   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)"
+   "it depends on a company setting this run does not change (publish approval configured) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /trade/template_input",
    "PATCH /event_groups/:id",
-   "GET /event_groups/:id"
+   "GET /event_groups/:id",
+   "GET /reminders/:id"
   ],
   "llm": {
    "calls": 0,
@@ -24,37 +23,27 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer adds a pricing (RFQ) round to the event with the title set to “QA_Platform_Round_…”.",
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
-    "As the buyer, read the event and check that Data check: “stages[0] › status” equals requested."
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that Data check: “stages › status” equals Requested.",
+    "As the buyer, read the reminders request and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “stages[0] › status” equals requested."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “stages › status” equals Requested; Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.382Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-PUB-012",
   "title": "An approval-required event goes to Requested, not Live",
   "setup": {
-   "recipe": "draft_event"
+   "recipe": "draft_rfq"
   },
   "act": [
    {
-    "op": "add_rfq_round",
+    "op": "publish_event",
     "as": "buyer",
-    "change": [
-     {
-      "path": "configurations.title",
-      "set": "QA_Platform_Round_{{stamp}}"
-     }
-    ]
-   },
-   {
-    "op": "library",
-    "as": "buyer",
-    "caseId": "EDGE-PUB-015",
     "decisive": true
    }
   ],
@@ -64,15 +53,33 @@
     "as": "buyer",
     "assert": [
      {
-      "path": "stages[0].status",
+      "path": "stages[*].status",
       "op": "equals",
-      "value": "requested"
+      "value": "Requested"
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group"
+    },
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "publish approval configured"
  }
 }

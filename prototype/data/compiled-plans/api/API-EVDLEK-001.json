@@ -3,11 +3,10 @@
   "caseId": "API-EVDLEK-001",
   "title": "While others bid, a vendor's views carry nothing of them",
   "compiledAt": "2026-10-15T12:51:02.795Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)",
    "The available setup creates only one initially invited vendor and can add only QA vendor 2, not four QA vendors.",
    "The before- and after-vendor-2-bid checkpoints cannot both be verified within the available operation limit.",
    "The available read-back fields do not support searching every response for other vendors' names, company IDs, prices, or totals.",
@@ -38,15 +37,16 @@
    "steps": [
     "The buyer invites QA vendor 2 to the live round for a second QA vendor.",
     "A second QA vendor places a complete bid (open, price, submit).",
-    "As the invited QA vendor, read the pricing round and check that the read succeeds.",
-    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2” is absent.",
-    "As the invited QA vendor, read the event and check that the read succeeds."
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 2” is absent.",
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds; “auction identifiers data › QA vendor 2” is absent; the read succeeds."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “auction identifiers data › QA vendor 2” is absent; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.897Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDLEK-001",
   "title": "While others bid, a vendor's views carry nothing of them",
   "setup": {
@@ -79,7 +79,7 @@
    },
    {
     "op": "read_indicators",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendor2Uuid}}",

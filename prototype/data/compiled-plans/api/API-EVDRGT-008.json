@@ -2,21 +2,25 @@
  "meta": {
   "caseId": "API-EVDRGT-008",
   "title": "Regretting every line on a new draft withdraws an already-submitted bid",
-  "compiledAt": "2026-10-15T12:22:39.767Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:11:34.833Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Opening a new draft from the live bid is not available as an operation.",
-   "Regretting a line is not available as an operation or field.",
-   "Re-pricing and submitting the revised bid cannot be arranged without a draft bid or regret operation.",
-   "The available read-backs do not expose bid status, revised bids, live-bid absence, or line regret state.",
-   "The setup does not expose or configure lock_quote_after_submission or price-change approval."
+   "The vocabulary has no operation or allowed request path for regretting every line, so the regret step is omitted.",
+   "The vocabulary cannot verify that the old bid became revised, that the new bid was activated before becoming revised, or that the vendor ended with no live bid.",
+   "The vocabulary does not expose an assertion for the HTTP 200 response of the submit act.",
+   "it depends on a company setting this run does not change (lock_quote_after_submission is off and no price-change approval applies) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"status\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
-   "GET /trade/:id"
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,32 +31,56 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "As the buyer, read the pricing round and check that the read succeeds."
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid at 95.",
+    "The invited QA vendor submits the bid.",
+    "As the buyer, read the bid and check that Data check: “status” equals revised."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals revised."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.948Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRGT-008",
   "title": "Regretting every line on a new draft withdraws an already-submitted bid",
   "setup": {
    "recipe": "rfq_with_bid"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 95
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
   "verify": [
    {
-    "op": "read_round",
+    "op": "read_bid",
     "as": "buyer",
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "status",
+      "op": "equals",
+      "value": "revised"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "lock_quote_after_submission is off and no price-change approval applies"
  }
 }

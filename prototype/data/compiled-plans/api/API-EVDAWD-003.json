@@ -2,18 +2,21 @@
  "meta": {
   "caseId": "API-EVDAWD-003",
   "title": "The award's total value is the sum of what each vendor was awarded",
-  "compiledAt": "2026-10-15T12:34:03.965Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:05:56.059Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup does not create the specified awards for three vendors with quantities 15, 10, and 5 or the specified tied and vendor-specific prices.",
-   "No available read operation or field exposes the award's total value, so the expected calculation cannot be checked."
+   "The available setup provides only one awarded vendor, so the multi-vendor calculation involving tied best prices and QA vendor 3 cannot be created or asserted.",
+   "The exact total-value arithmetic cannot be checked with the available assertion operations."
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_proposal's reply shape has not been sampled; \"total_value\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
-   "POST /proposal"
+   "POST /proposal",
+   "GET /proposal/:id"
   ],
   "llm": {
    "calls": 0,
@@ -24,13 +27,15 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer opens an award proposal."
+    "The buyer opens an award proposal.",
+    "As the buyer, read the award proposal and check that Schema check: “total value” is present."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “total value” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.845Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDAWD-003",
   "title": "The award's total value is the sum of what each vendor was awarded",
   "setup": {
@@ -43,7 +48,18 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "total_value",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   }

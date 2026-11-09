@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-XDQCS-084",
+  "title": "Master QCS regeneration of more than ten events is refused for clients as 'not authorized'",
+  "compiledAt": "2026-11-09T20:02:30.495Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The library case sends one event_group_uuid, so this plan does not verify the more-than-ten-event input or distinguish authorization code 455 from maximum-limit code 843."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/regenerate_master_qcs"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the event groups regenerate master qcs request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.306Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDQCS-084",
+  "title": "Master QCS regeneration of more than ten events is refused for clients as 'not authorized'",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-050",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

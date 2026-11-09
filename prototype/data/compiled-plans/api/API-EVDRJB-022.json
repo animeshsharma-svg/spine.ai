@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
-  "compiledAt": "2026-10-15T12:26:42.676Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:12:21.058Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The buyer's status-endpoint rejection cannot be expressed because no matching operation or recipe is available.",
-   "The plan does not verify HTTP 200 explicitly.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The buyer's rejection through the status endpoint cannot be expressed because its METHOD, path, and body are not provided and no operation covers it.",
+   "The plan cannot verify that a status rejection never blocks re-bidding while the RFQ remains open.",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
-   "PATCH /v1/bids/:id"
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,19 +26,21 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.978Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "closed_rfq_with_bid"
   },
   "act": [
    {
@@ -46,9 +49,25 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active",
+   "codeInferred": true
   }
  }
 }

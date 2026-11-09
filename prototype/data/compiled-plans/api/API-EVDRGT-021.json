@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-021",
+  "title": "The action is checked before the line",
+  "compiledAt": "2026-11-09T19:53:15.390Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id/line_items/:id/regret_status"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Invalid action type”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.953Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-021",
+  "title": "The action is checked before the line",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-099",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "805",
+   "message": "Invalid action type"
+  }
+ }
+}

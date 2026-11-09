@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-030",
+  "title": "The company is checked before the bid",
+  "compiledAt": "2026-11-09T19:53:41.773Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.957Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-030",
+  "title": "The company is checked before the bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "POST",
+     "path": "/v1/bids",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": false
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

@@ -2,17 +2,20 @@
  "meta": {
   "caseId": "API-PUB-014",
   "title": "A Procol-employee CSM can update without the trade permission flag",
-  "compiledAt": "2026-10-15T12:56:59.207Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:06.145Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The vocabulary cannot establish that the buyer is a Procol employee, is a CSM for the company, or lacks the trade:create_record permission."
+   "the decisive step tests something else than the case's point: The setup vocabulary cannot create or identify a Procol employee, CSM relationship, or the absence of the trade:create_record permission flag.",
+   "The available update operation is update_event, so the specific PATCH update intended by the case is not otherwise specified.",
+   "it depends on a company setting this run does not change (Procol-employee CSM status without trade:create_record) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -23,13 +26,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”."
+    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”.",
+    "As the invited QA vendor, read the pricing round and check that Data check: “event group › title” equals the title sent in step 1."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “event group › title” equals the title sent in step 1."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.176Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-014",
   "title": "A Procol-employee CSM can update without the trade permission flag",
   "setup": {
@@ -48,9 +53,22 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "event_group.title",
+      "op": "equals",
+      "value": "{{act1.body.title}}"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "Procol-employee CSM status without trade:create_record"
  }
 }

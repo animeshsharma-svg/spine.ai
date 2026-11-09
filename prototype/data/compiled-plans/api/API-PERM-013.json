@@ -3,17 +3,14 @@
   "caseId": "API-PERM-013",
   "title": "Proposal endpoints all sit behind `add_response?`",
   "compiledAt": "2026-10-15T13:06:49.825Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the plan has the vendor send GET /proposal/{{proposalUuid}}, but the supplier app may not call GET /proposal/:id (it is not on agribid_website's list in config/app_auth_config.yml)",
    "The vocabulary provides only one proposal-endpoint case, so the other three endpoints are not checked.",
    "The available case covers a vendor reader rather than all callers outside the allowed companies."
   ],
-  "warnings": [
-   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "GET /proposal/:id"
@@ -27,13 +24,14 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The invited QA vendor sends the award proposal call, exactly as the matching library case writes it."
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.171Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PERM-013",
   "title": "Proposal endpoints all sit behind `add_response?`",
   "setup": {
@@ -42,7 +40,7 @@
   "act": [
    {
     "op": "library",
-    "as": "vendor",
+    "as": "buyer",
     "caseId": "EDGE-AWD-051",
     "decisive": true
    }
@@ -50,7 +48,8 @@
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "455"
+   "code": "455",
+   "message": "You are not authorized to perform this action"
   }
  }
 }

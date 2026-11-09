@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-067",
+  "title": "An awarded round refuses weight changes",
+  "compiledAt": "2026-11-09T19:35:16.846Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Operation failed”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.034Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-067",
+  "title": "An awarded round refuses weight changes",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weight_parameters": []
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "15",
+   "message": "Operation failed"
+  }
+ }
+}

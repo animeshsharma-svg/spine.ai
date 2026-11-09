@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-LI-011",
+  "title": "`update_egli` is refused outside evaluation time",
+  "compiledAt": "2026-11-09T19:41:24.451Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [
+   "act 1: PATCH /event_groups/update_egli is sent with no body — a request step carries the body the case writes (or a library/operation step has a working one)"
+  ],
+  "warnings": [],
+  "validated": false,
+  "endpoints": [
+   "PATCH /event_groups/update_egli"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event where the invited QA vendor submitted its technical response, and both windows are over (evaluation time).",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You can update evaluators only in evaluation time.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-LI-011",
+  "title": "`update_egli` is refused outside evaluation time",
+  "setup": {
+   "recipe": "closed_rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/event_groups/update_egli",
+     "body": {}
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "741",
+   "message": "You can update evaluators only in evaluation time."
+  }
+ }
+}

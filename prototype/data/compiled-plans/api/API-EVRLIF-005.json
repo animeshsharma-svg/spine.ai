@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-005",
+  "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
+  "compiledAt": "2026-11-09T20:13:02.174Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot configure company policies for bid duration or evaluation duration.",
+   "Cannot schedule publication for tomorrow at 10:00.",
+   "the decisive step tests something else than the case's point: Cannot create or inspect a second event with a past schedule.",
+   "Cannot add a round from an existing RFQ.",
+   "Cannot verify that the round starts at the scheduled publish time.",
+   "Cannot verify that evaluation ends exactly four days after start or one day before bid end."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer moves the round's bid end time."
+   ],
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.043Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-005",
+  "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active",
+   "codeInferred": true
+  }
+ }
+}

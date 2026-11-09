@@ -2,13 +2,12 @@
  "meta": {
   "caseId": "API-XBID-069",
   "title": "A vendor cannot price a bid belonging to another company",
-  "compiledAt": "2026-10-03T09:49:55.863Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:32.130Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
-   "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
   ],
   "warnings": [],
   "validated": true,
@@ -24,13 +23,14 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.263Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-069",
   "title": "A vendor cannot price a bid belonging to another company",
   "setup": {
@@ -39,14 +39,16 @@
   "act": [
    {
     "op": "library",
-    "as": "buyer",
+    "as": "vendor",
     "caseId": "EDGE-BID-069",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "32",
+   "message": "Bid not found"
   }
  }
 }

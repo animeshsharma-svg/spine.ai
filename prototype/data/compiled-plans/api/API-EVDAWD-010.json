@@ -2,20 +2,27 @@
  "meta": {
   "caseId": "API-EVDAWD-010",
   "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
-  "compiledAt": "2026-10-15T12:35:10.219Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:10:42.941Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available read-back fields do not expose the awarded amount, total awarded quantity, or vendor 2's bid price, so the equality of 30 × vendor 2's price cannot be checked.",
-   "The recipe does not explicitly expose or assert that partial awarding is disabled."
+   "The available assertion operations cannot calculate or compare the awarded amount and total to 30 multiplied by QA vendor 2's price.",
+   "the decisive step tests something else than the case's point: The available setup recipe does not expose or guarantee the line quantity is 30.",
+   "The available read-backs do not define the proposal amount, total, or bid price field paths.",
+   "it depends on a company setting this run does not change (partial awarding off) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_proposal's reply shape has not been sampled; \"amount\" is unverified",
+   "verify 1: read_proposal's reply shape has not been sampled; \"total\" is unverified",
+   "verify 2: read_bid2's reply shape has not been sampled; \"price\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "POST /proposal",
    "POST /proposal/:id/add_response",
-   "GET /event_groups/:id"
+   "GET /proposal/:id",
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,13 +35,15 @@
    "steps": [
     "The buyer opens an award proposal.",
     "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
-    "As the buyer, read the event and check that “proposals” is not empty."
+    "As the buyer, read the award proposal and check that Schema check: “amount” is present; Schema check: “total” is present.",
+    "As the buyer, read the second QA vendor's bid and check that Schema check: “price” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: “proposals” is not empty."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “amount” is present; Schema check: “total” is present; Schema check: “price” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.850Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDAWD-010",
   "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
   "setup": {
@@ -56,18 +65,33 @@
   ],
   "verify": [
    {
-    "op": "read_event",
+    "op": "read_proposal",
     "as": "buyer",
     "assert": [
      {
-      "path": "proposals",
-      "op": "non_empty"
+      "path": "amount",
+      "op": "exists"
+     },
+     {
+      "path": "total",
+      "op": "exists"
+     }
+    ]
+   },
+   {
+    "op": "read_bid2",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "price",
+      "op": "exists"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "partial awarding off"
  }
 }

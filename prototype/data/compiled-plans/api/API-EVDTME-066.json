@@ -3,13 +3,11 @@
   "caseId": "API-EVDTME-066",
   "title": "After the end is pulled in, a vendor cannot bid",
   "compiledAt": "2026-10-04T07:09:20.757Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast (read-back removed after a false live failure)",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "2026-10-04: the model's read-back (round status equals closed) was removed — the case does not state it, and the round reads 'active' during its extra closing time; it made a live run fail falsely on two fresh events."
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /trade/:id",
@@ -30,13 +28,14 @@
     "The buyer pulls the end in to 90 seconds from now.",
     "Wait until the pulled-in bid end passes.",
     "QA vendor tries to place a bid after the pulled-in end.",
-    "As the invited QA vendor, read the pricing round and check that “status” equals closed."
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: “status” equals closed."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.005Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDTME-066",
   "title": "After the end is pulled in, a vendor cannot bid",
   "setup": {
@@ -74,7 +73,20 @@
     "say": "QA vendor tries to place a bid after the pulled-in end."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "33",

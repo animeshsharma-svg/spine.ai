@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-XBID-064",
   "title": "A quantity not equal to the auction quantity is refused when fixed-quantity bidding is on",
-  "compiledAt": "2026-10-15T12:13:20.730Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:58.795Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
-   "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
+   "it depends on a company setting this run does not change (`allow_fixed_quantity_for_bidding` must be on for this case's outcome to hold) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -26,11 +26,12 @@
    "steps": [
     "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Bid Quantity should be equal to the Auction Quantity”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.262Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-064",
   "title": "A quantity not equal to the auction quantity is refused when fixed-quantity bidding is on",
   "setup": {
@@ -46,7 +47,9 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "207",
+   "message": "Bid Quantity should be equal to the Auction Quantity"
   },
   "dependsOnSetting": "`allow_fixed_quantity_for_bidding` must be on for this case's outcome to hold"
  }

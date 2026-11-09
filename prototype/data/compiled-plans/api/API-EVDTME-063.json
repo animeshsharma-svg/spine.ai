@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-063",
+  "title": "Reopen on a draft round",
+  "compiledAt": "2026-11-09T22:44:43.350Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The HTTP 422 response and error code 4 are not checked.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/:id/reopen_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the trade reopen line items request, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.003Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-063",
+  "title": "Reopen on a draft round",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/{{tradeId}}/reopen_line_items",
+     "body": {
+      "trade_product_uuids": [
+       "Z2dnWmdaUWtnZw=="
+      ],
+      "reopen_time_extension": 600
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

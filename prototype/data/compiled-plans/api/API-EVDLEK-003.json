@@ -2,18 +2,20 @@
  "meta": {
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
-  "compiledAt": "2026-10-04T07:14:06.015Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:06:30.830Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The recipe does not include a third QA vendor (vendor 3) to test its invisibility",
+   "the decisive step tests something else than the case's point: The available setup recipes cannot create a third QA vendor or a buyer-placed surrogate bid specifically for that vendor.",
+   "The available read-back fields and assertion vocabulary cannot search round or event responses for QA vendor 3 or assert that the vendor's data is absent.",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /trade/:id"
+   "GET /trade/:id",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -22,37 +24,39 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "The invited QA vendor reads the pricing round.",
-    "As the invited QA vendor, read the pricing round and check that “participants” has exactly 1 entries."
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: “participants” has exactly 1 entries."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.899Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "rfq_with_2_bids"
   },
-  "act": [
-   {
-    "op": "read_round",
-    "as": "vendor",
-    "decisive": true
-   }
-  ],
+  "act": [],
   "verify": [
    {
     "op": "read_round",
     "as": "vendor",
     "assert": [
      {
-      "path": "participants",
-      "op": "count",
-      "value": 1
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
      }
     ]
    }

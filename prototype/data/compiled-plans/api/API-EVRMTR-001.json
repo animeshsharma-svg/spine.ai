@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-001",
+  "title": "Every new round gets a reference number whose prefix tells its type",
+  "compiledAt": "2026-11-09T20:22:26.393Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The RFQ title/reference before conversion is not checked because the available verification steps run after the acts and the conversion changes the pricing round.",
+   "The numeric running count and proof that the auction receives a fresh number are not exposed as readable fields.",
+   "The second event and its higher reference number cannot be created because no available token supplies the productUuid and productQualityUuid required by create_draft.",
+   "The forward-auction FA-n reference cannot be created or checked because no setup or operation creates a forward auction.",
+   "The show_reference_id gate cannot be set with the available operation fields, so title behavior with display on versus off is not checked.",
+   "it depends on a company setting this run does not change (show_reference_id) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /trade/move_to_auction",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer converts the pricing round into a live auction.",
+    "As the buyer, read the technical round and check that Data check: “title” contains RFP-.",
+    "As the buyer, read the pricing round and check that Data check: “title” contains RA-."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “title” contains RFP-; Data check: “title” contains RA-."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.075Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-001",
+  "title": "Every new round gets a reference number whose prefix tells its type",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "contains",
+      "value": "RFP-"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "contains",
+      "value": "RA-"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "show_reference_id"
+ }
+}

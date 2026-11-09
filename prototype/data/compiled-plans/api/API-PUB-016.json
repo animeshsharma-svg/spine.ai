@@ -3,15 +3,13 @@
   "caseId": "API-PUB-016",
   "title": "A `purchase_request_id` must resolve to an active BOQ PR in the workspace",
   "compiledAt": "2026-10-15T12:57:02.550Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "The inactive purchase request id attempt is not covered because no available operation or library case expresses it."
   ],
-  "warnings": [
-   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id"
@@ -25,13 +23,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the event's title is not the one step 1 sent (nothing changed)."
    ],
-   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error. Read back afterwards: the event's title is not the one step 1 sent (nothing changed)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.176Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-016",
   "title": "A `purchase_request_id` must resolve to an active BOQ PR in the workspace",
   "setup": {
@@ -45,7 +45,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "not_equals",
+      "value": "{{act1.body.title}}",
+      "say": "the event's title is not the one step 1 sent (nothing changed)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "101",

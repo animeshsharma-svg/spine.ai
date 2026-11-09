@@ -2,13 +2,14 @@
  "meta": {
   "caseId": "API-PERM-003",
   "title": "`POST /api/event_groups` requires trade create permission",
-  "compiledAt": "2026-10-15T12:08:01.000Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:02.257Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available vocabulary cannot change or revoke trade create permission, so the refused creation without permission is not checked.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The vocabulary has no operation to grant or revoke trade create permission between steps, so the allowed-then-refused permission transition cannot be automated.",
+   "The exact valid POST /event_groups request body for creating an event is not provided.",
+   "The expected error code for refusal due to missing trade create permission is not provided."
   ],
   "warnings": [],
   "validated": true,
@@ -24,13 +25,15 @@
   "words": {
    "preconditions": "A buyer signed in to the client under test (no event is built).",
    "steps": [
-    "The buyer creates a draft event."
+    "The buyer sends the request that creates the event, the request the case itself writes.",
+    "The buyer sends the request that creates the event, the request the case itself writes."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.167Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PERM-003",
   "title": "`POST /api/event_groups` requires trade create permission",
   "setup": {
@@ -38,14 +41,37 @@
   },
   "act": [
    {
-    "op": "create_draft",
+    "op": "request",
     "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/event_groups",
+     "body": {
+      "status": "draft",
+      "title": "QA_Platform_TradeCreate_{{stamp}}",
+      "line_items": []
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/event_groups",
+     "body": {
+      "status": "draft",
+      "title": "QA_Platform_TradeCreate_{{stamp}}",
+      "line_items": []
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject"
   }
  }
 }

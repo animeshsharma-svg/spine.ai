@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-009",
+  "title": "Lots of a draft (never published) event are refused, not a crash",
+  "compiledAt": "2026-11-09T22:45:57.431Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept",
+   "verify 1: the request's reply shape has not been sampled; \"status\" is unverified",
+   "verify 1: the request's reply shape has not been sampled; \"error.code\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_lots"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "As the buyer, read the event groups get lots request and check that Data check: “status” equals 422; Data check: “error › code” equals 2."
+   ],
+   "expected": "The app refuses it with “Insufficient parameters”, and never with a server error. Read back afterwards: Data check: “status” equals 422; Data check: “error › code” equals 2."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.283Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-009",
+  "title": "Lots of a draft (never published) event are refused, not a crash",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{tradeId}}"
+    },
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": 422
+     },
+     {
+      "path": "error.code",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

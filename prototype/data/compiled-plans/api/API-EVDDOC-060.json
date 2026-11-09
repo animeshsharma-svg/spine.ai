@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-060",
+  "title": "Withdrawal-notice files sent as text must not crash",
+  "compiledAt": "2026-11-09T19:50:06.855Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not check whether the request is refused with HTTP 422 or error code 472.",
+   "the part about “pdf” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event with the attachments set to “QA_Platform_….pdf”."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.887Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDDOC-060",
+  "title": "Withdrawal-notice files sent as text must not crash",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "withdraw_remark.attachments",
+      "set": "QA_Platform_{{stamp}}.pdf"
+     }
+    ],
+    "expect": "no-5xx",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

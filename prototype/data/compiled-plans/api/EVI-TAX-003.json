@@ -2,23 +2,24 @@
  "meta": {
   "caseId": "EVI-TAX-003",
   "title": "Tax charged on the bid total after discount and charges",
-  "compiledAt": "2026-10-04T07:16:50.574Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:09:42.649Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "cannot set or verify discount, freight, other charges, or tax formulas via the available vocabulary",
-   "cannot create a third vendor to have three distinct bids",
-   "cannot read back calculated discount/sub-total/tax/total values; only rank indicators are readable"
+   "The vocabulary supports only two QA vendors, not three.",
+   "Bid operations expose only the price; discount, freight, other charges, tax percentage, and bid-level formula configuration cannot be set.",
+   "The plan cannot verify calculator values for discount, sub total, tax, or total.",
+   "The second bid cannot be read back because bid2Uuid is not available in the token list."
   ],
-  "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
+   "PATCH /v1/trade/add_audience",
    "POST /v1/bids",
-   "GET /v1/trade/:id/event_indicators"
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,57 +28,60 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”.",
-    "A second QA vendor opens a bid on the pricing round with the trade request uuid set to “…”.",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+    "The buyer invites QA vendor 2 to the live round with 1 audience to add uuids.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "A second QA vendor places a complete bid of 200 (open, price, submit).",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.355Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-TAX-003",
   "title": "Tax charged on the bid total after discount and charges",
   "setup": {
-   "recipe": "rfq_with_2_bids"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "open_bid",
-    "as": "vendor",
+    "op": "add_vendor",
+    "as": "buyer",
     "change": [
      {
-      "path": "trade_request_uuid",
-      "set": "{{tradeId}}"
+      "path": "audience_to_add_uuids",
+      "set": [
+       "{{vendor2Uuid}}"
+      ]
      }
     ]
    },
    {
-    "op": "open_bid",
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "place_bid",
     "as": "vendor2",
-    "change": [
-     {
-      "path": "trade_request_uuid",
-      "set": "{{tradeId}}"
-     }
-    ],
+    "params": {
+     "price": 200
+    },
     "decisive": true
    }
   ],
   "verify": [
    {
-    "op": "read_indicators",
+    "op": "read_bid",
     "as": "buyer",
     "assert": [
      {
-      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
-      "op": "exists"
-     },
-     {
-      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
-      "op": "exists"
+      "op": "status_2xx"
      }
     ]
    }

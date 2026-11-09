@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-006",
+  "title": "Regretting the only line and submitting leaves the vendor with no live bid",
+  "compiledAt": "2026-11-09T22:24:48.241Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case's regret-line request cannot be expressed because no supported operation or complete request method and body are provided.",
+   "the decisive step tests something else than the case's point: The setup cannot create a vendor draft with its only line already regretted; no setup recipe provides that state.",
+   "The exact revised bid status and removal of the priced line cannot be checked from the available read-back fields.",
+   "The participants list can only be checked for a successful response; its sampled field shape does not expose the bid-placed category.",
+   "The case does not specify the numeric price; the plan uses 1."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id",
+   "GET /event_groups/:id/get_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid at 1.",
+    "The invited QA vendor submits the bid.",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked); Data check: “bid count” equals 0.",
+    "As the buyer, list the event's invited vendors and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Data check: “bid count” equals 0; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.946Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-006",
+  "title": "Regretting the only line and submitting leaves the vendor with no live bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 1
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   },
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

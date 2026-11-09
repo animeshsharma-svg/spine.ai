@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-001",
+  "title": "Only active, awarded or pending-approval bids are ranked; a rejected bid drops out and the others move up",
+  "compiledAt": "2026-11-09T19:36:03.909Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Because the rejection request is refused after the round closes, the plan cannot verify the requested post-rejection ranking change.",
+   "The available read_indicators field vocabulary does not expose numeric rank values or a separate best-price contribution field."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators",
+   "PATCH /bids/{{act2.data.uuid}}/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live round with 1 audience to add uuids.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "A second QA vendor places a complete bid of 110 (open, price, submit).",
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "The buyer sends the bid call, the request the case itself writes.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.036Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-001",
+  "title": "Only active, awarded or pending-approval bids are ranked; a rejected bid drops out and the others move up",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_add_uuids",
+      "set": [
+       "{{vendor2Uuid}}"
+      ]
+     }
+    ]
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 110
+    }
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer"
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{act2.data.uuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found",
+   "codeInferred": true
+  }
+ }
+}

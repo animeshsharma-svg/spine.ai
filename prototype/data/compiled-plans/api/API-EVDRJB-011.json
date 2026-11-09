@@ -2,19 +2,16 @@
  "meta": {
   "caseId": "API-EVDRJB-011",
   "title": "A draft bid the vendor has not sent cannot be rejected",
-  "compiledAt": "2026-10-15T12:25:45.163Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:11:49.444Z",
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "No operation is available to reject a draft bid as the buyer, so the decisive step and its HTTP 422 response cannot be executed."
-  ],
-  "warnings": [
-   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /v1/bids"
+   "POST /v1/bids",
+   "PATCH /bids/:id/reject"
   ],
   "llm": {
    "calls": 0,
@@ -25,13 +22,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round."
+    "QA vendor 1 opens a bid while bidding is live.",
+    "The buyer sends the bid call, the request the case itself writes."
    ],
    "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:46:32.972Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-011",
   "title": "A draft bid the vendor has not sent cannot be rejected",
   "setup": {
@@ -42,6 +41,19 @@
     "op": "open_bid",
     "as": "vendor",
     "expect": "accept",
+    "say": "QA vendor 1 opens a bid while bidding is live."
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
     "decisive": true
    }
   ],

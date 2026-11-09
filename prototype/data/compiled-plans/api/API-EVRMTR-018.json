@@ -3,16 +3,13 @@
   "caseId": "API-EVRMTR-018",
   "title": "\"Send to evaluation\" is offered only after bidding ended and before any evaluation window exists",
   "compiledAt": "2026-10-15T13:20:03.288Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "rules",
   "coverage": "partial",
   "gaps": [
-   "compiled by a fixed rule, not read in full — check the steps match the case",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
-  "warnings": [
-   "error code 33 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
@@ -28,13 +25,15 @@
   "words": {
    "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
    "steps": [
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.081Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVRMTR-018",
   "title": "\"Send to evaluation\" is offered only after bidding ended and before any evaluation window exists",
   "setup": {
@@ -47,10 +46,24 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "33"
+   "code": "33",
+   "message": "Order not active"
   }
  }
 }

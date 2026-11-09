@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-PERM-007",
   "title": "Event-group update accepts either policy branch and refuses outside both",
-  "compiledAt": "2026-10-15T13:06:24.788Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:10.141Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The CSM Procol employee policy branch cannot be tested because the available actors do not include a Procol employee.",
-   "The user in neither category and the expected refusal cannot be tested because the available actors do not include an outside user category.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The CSM Procol employee branch cannot be represented because no CSM Procol employee actor is available.",
+   "the decisive step tests something else than the case's point: The user in neither category is approximated by the available vendor actor; the available vocabulary does not provide an explicit unauthorized-user actor."
   ],
   "warnings": [],
   "validated": true,
@@ -24,20 +23,22 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer updates the event with the title set to “QA_Platform_Renamed_…”.",
-    "As the buyer, read the event and check that “title” equals the title sent in step 1."
+    "The buyer updates the event with the title set to “QA_Platform_Vendor_Update_…”.",
+    "As the buyer, read the event and check that Data check: “title” equals the title sent in step 1."
    ],
-   "expected": "The app accepts it. Read back afterwards: “title” equals the title sent in step 1."
-  }
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error. Read back afterwards: Data check: “title” equals the title sent in step 1."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.168Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PERM-007",
   "title": "Event-group update accepts either policy branch and refuses outside both",
   "setup": {
-   "recipe": "draft_event"
+   "recipe": "published_rfq"
   },
   "act": [
    {
@@ -47,6 +48,16 @@
      {
       "path": "title",
       "set": "QA_Platform_Renamed_{{stamp}}"
+     }
+    ]
+   },
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_Vendor_Update_{{stamp}}"
      }
     ],
     "decisive": true
@@ -66,7 +77,10 @@
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action",
+   "codeInferred": true
   }
  }
 }

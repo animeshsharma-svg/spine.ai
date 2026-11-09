@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-BID-032",
+  "title": "Bid feedback is restricted to the order's team or a super admin",
+  "compiledAt": "2026-11-09T20:19:52.031Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "the decisive step tests something else than the case's point: The setup recipes do not guarantee that the buyer is not on the order's team or is not a super admin."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids/:id/feedback"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.815Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-BID-032",
+  "title": "Bid feedback is restricted to the order's team or a super admin",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/bids/{{bidUuid}}/feedback",
+     "body": {
+      "feedback": "QA_Platform_{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

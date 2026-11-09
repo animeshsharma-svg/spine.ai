@@ -2,17 +2,18 @@
  "meta": {
   "caseId": "API-XBID-060",
   "title": "A price above the configured ceiling is refused",
-  "compiledAt": "2026-10-04T07:05:51.516Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:39.485Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-BID-060 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a ceiling (max) price”)",
-   "library case EDGE-BID-060 needs a starting state no recipe builds (a line item with a ceiling price)"
+   "it depends on a company setting this run does not change (ceiling) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
+   "POST /v1/bids",
+   "PATCH /trade/:id/update_vendor_validations",
    "POST /v1/bids/:id/create_bid_products"
   ],
   "llm": {
@@ -22,26 +23,44 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The buyer sets the invited vendor's price cap on the round to 100 (a bid must be strictly below it) for the invited QA vendor.",
+    "The invited QA vendor prices the line on the bid at 1000."
    ],
    "expected": "The app refuses the step the case is about with “Price cannot be more than the allowed price”, and never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:46:33.260Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-060",
   "title": "A price above the configured ceiling is refused",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "library",
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_cap",
+    "as": "buyer",
+    "params": {
+     "price": 100,
+     "vendor": "vendor"
+    }
+   },
+   {
+    "op": "price_bid",
     "as": "vendor",
-    "caseId": "EDGE-BID-060",
-    "decisive": true
+    "params": {
+     "price": 1000
+    },
+    "decisive": true,
+    "ifRefused": "pass"
    }
   ],
   "verify": [],
@@ -49,6 +68,7 @@
    "outcome": "reject",
    "code": "38",
    "message": "Price cannot be more than the allowed price"
-  }
+  },
+  "dependsOnSetting": "ceiling"
  }
 }

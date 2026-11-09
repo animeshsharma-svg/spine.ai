@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-070",
+  "title": "The buyer reads per-vendor unresolved counts on a round with a bid",
+  "compiledAt": "2026-11-09T19:31:54.033Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The response body being exactly {} is not asserted because no response field for the root object is defined."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/chats/get_unresolved_queries_count"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the chats get unresolved queries count request and check that Status check: the reply's status code is 200 — OK — the request worked."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.929Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-070",
+  "title": "The buyer reads per-vendor unresolved counts on a round with a bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_unresolved_queries_count?event_uuid={{tradeId}}"
+    },
+    "assert": [
+     {
+      "op": "status",
+      "value": 200
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

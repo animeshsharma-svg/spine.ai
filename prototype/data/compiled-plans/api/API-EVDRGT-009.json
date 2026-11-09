@@ -2,20 +2,17 @@
  "meta": {
   "caseId": "API-EVDRGT-009",
   "title": "Undo after submitting is refused because the bid is no longer a draft",
-  "compiledAt": "2026-10-15T12:46:44.038Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:11:39.256Z",
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact undo_regret request is not available; EDGE-BID-099 is the closest available regret-status request but uses action_type delete, so the requested code 32 behavior is not directly checked.",
-   "The setup does not create a bid with the line already regretted."
-  ],
-  "warnings": [
-   "error code 32 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /v1/bids/:id/line_items/:id/regret_status"
+   "PATCH /v1/bids/:id/line_items/:id/regret_status",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -26,13 +23,17 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor sends the bid call, the request the case itself writes.",
+    "The invited QA vendor prices the line on the bid at 1000.",
+    "The invited QA vendor submits the bid.",
+    "The invited QA vendor sends the bid call, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.949Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRGT-009",
   "title": "Undo after submitting is refused because the bid is no longer a draft",
   "setup": {
@@ -40,16 +41,49 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "vendor",
-    "caseId": "EDGE-BID-099",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+     "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+     }
+    }
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 1000
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+     "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "undo_regret"
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "32"
+   "code": "32",
+   "message": "Bid not found"
   }
  }
 }

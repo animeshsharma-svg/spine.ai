@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-012",
+  "title": "In the last five minutes a vendor cannot raise its price on a single-line round",
+  "compiledAt": "2026-11-09T19:30:39.507Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The existing bid price is not available as a token or read-back field, so the plan cannot guarantee that 101 is higher than the existing bid and 99 is lower.",
+   "The exact refusal text \"You cannot increase the price\" cannot be asserted with the available assertion operations."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "The invited QA vendor places a complete bid of 101 (open, price, submit).",
+    "The invited QA vendor places a complete bid of 99 (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.861Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDCMP-012",
+  "title": "In the last five minutes a vendor cannot raise its price on a single-line round",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+240}}"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 101
+    },
+    "expect": "reject"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 99
+    },
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

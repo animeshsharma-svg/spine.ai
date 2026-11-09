@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-LI-003",
+  "title": "Deleting a line item on an active event sets it deleted and voids associations",
+  "compiledAt": "2026-11-09T22:26:04.008Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup has exactly one active line item, so the deletion is refused rather than setting the line item to deleted.",
+   "No available operation or read-back field verifies association void/inactive status.",
+   "No available read-back field verifies PR quantity reconciliation."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the event remains active."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot delete this line item from the project”, and never with a server error. Read back afterwards: the event remains active."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.105Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-LI-003",
+  "title": "Deleting a line item on an active event sets it deleted and voids associations",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DBOQ-027",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active",
+      "say": "the event remains active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "711",
+   "message": "You cannot delete this line item from the project"
+  }
+ }
+}

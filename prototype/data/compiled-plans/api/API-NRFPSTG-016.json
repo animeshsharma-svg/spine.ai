@@ -2,22 +2,16 @@
  "meta": {
   "caseId": "API-NRFPSTG-016",
   "title": "Add the technical round (RFP): configurations.vendor_assessment_template_uuid has the wrong type",
-  "compiledAt": "2026-10-16T05:45:18.917Z",
-  "planVersion": 1,
-  "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "library case EDGE-STG-006 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
-   "The plan cannot set configurations.vendor_assessment_template_uuid to the invalid numeric value 12345.",
-   "The library case does not verify the expected HTTP 4xx refusal, error message, or that nothing was created or changed.",
-   "library case EDGE-STG-006 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
-   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”",
-   "it does not read the record back to confirm what was kept or shown"
-  ],
+  "compiledAt": "2026-11-09T20:15:41.903Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /trade/template_input"
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,13 +22,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it."
+    "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the vendor assessment template uuid sent as 12345.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.155Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-NRFPSTG-016",
   "title": "Add the technical round (RFP): configurations.vendor_assessment_template_uuid has the wrong type",
   "setup": {
@@ -42,15 +38,34 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "add_rfp_round",
     "as": "buyer",
-    "caseId": "EDGE-STG-006",
-    "decisive": true
+    "change": [
+     {
+      "path": "configurations.vendor_assessment_template_uuid",
+      "set": 12345
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the vendor assessment template uuid sent as 12345."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject"
   }
  }
 }

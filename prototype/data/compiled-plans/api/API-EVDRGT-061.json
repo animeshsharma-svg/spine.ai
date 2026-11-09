@@ -2,21 +2,23 @@
  "meta": {
   "caseId": "API-EVDRGT-061",
   "title": "A declined vendor can still bid, and the buyer sees both answers at once",
-  "compiledAt": "2026-10-15T12:47:05.434Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:12:03.630Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The vocabulary cannot create the event-level decline from case 057.",
-   "The available library case opens a bid rather than placing a complete bid.",
-   "The audience response shape is not sampled, so the vendor's decline text and bid-placed stage cannot be asserted.",
-   "The alternative outcome in which bidding clears the decline cannot be asserted.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The vocabulary has no operation for the event-level decline described as 'in 057'.",
+   "EDGE-BID-017 covers submitting a priced bid after a decline, but does not create the decline state from this setup or perform a complete full-bid flow.",
+   "The read_audience shape has no sampled fields, so the plan cannot assert that the vendor row retains the decline text or that the stage lists the vendor as bid placed.",
+   "The alternative requirement—either refusing the bid or clearing the decline—is not expressible as an assertion alternative.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "it does not read the record back to confirm what was kept or shown"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
+   "PATCH /v1/bids/:id",
    "GET /event_groups/:id/get_audience"
   ],
   "llm": {
@@ -28,15 +30,16 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
     "The invited QA vendor sends the bid call, exactly as the matching library case writes it.",
-    "The buyer lists the event's invited vendors.",
-    "As the buyer, list the event's invited vendors and check that the read succeeds; the reply is not empty."
+    "The buyer lists the event's invited vendors."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the read succeeds; the reply is not empty."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.964Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRGT-061",
   "title": "A declined vendor can still bid, and the buyer sees both answers at once",
   "setup": {
@@ -44,10 +47,15 @@
   },
   "act": [
    {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "ifRefused": "pass"
+   },
+   {
     "op": "library",
     "as": "vendor",
-    "caseId": "EDGE-BID-016",
-    "expect": "reject",
+    "caseId": "EDGE-BID-017",
     "ifRefused": "pass"
    },
    {
@@ -56,24 +64,9 @@
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_audience",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "",
-      "op": "status_2xx"
-     },
-     {
-      "path": "",
-      "op": "non_empty"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
-   "outcome": "reject"
+   "outcome": "accept"
   }
  }
 }

@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-028",
+  "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
+  "compiledAt": "2026-11-09T20:14:43.414Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not configure a masked event or the show_bidding_stats_in_masked_events gate.",
+   "A second live round with show_placed_bids_stats=false cannot be created or configured with the available recipes and fields.",
+   "A super admin actor is not available, so the super-admin read is not covered.",
+   "The available read-back fields cannot assert that the live response contains only placed-bid counts, that the stored false value is returned to normal buyers, or that full data is returned after the round ends.",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (show_bidding_stats_in_masked_events) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "The buyer reads the round's comparison (ranks, best bidder)."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.083Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-028",
+  "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer"
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "show_bidding_stats_in_masked_events"
+ }
+}

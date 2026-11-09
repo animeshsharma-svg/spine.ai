@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-052",
+  "title": "Sending with a garbled event id crashes",
+  "compiledAt": "2026-11-09T22:28:37.135Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /reminders/:id/send_reminder"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the reminders wrong uuid1= request, the request the case itself writes."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.938Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDREM-052",
+  "title": "Sending with a garbled event id crashes",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/reminders/WrongUuid1=/send_reminder",
+     "body": {
+      "resource_type": "event_group",
+      "reminder_type": "offer_submissions",
+      "reminders": {
+       "WrongUuid1=": [
+        "WrongUuid1="
+       ]
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

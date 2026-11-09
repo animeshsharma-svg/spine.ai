@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-AUD-012",
+  "title": "Self-participation on a non-active event is refused",
+  "compiledAt": "2026-11-09T19:29:15.971Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [
+   "act 1: POST /event_groups/{{eventGroupUuid}}/participants is sent with no body — a request step carries the body the case writes (or a library/operation step has a working one)"
+  ],
+  "warnings": [],
+  "validated": false,
+  "endpoints": [
+   "POST /event_groups/:id/participants"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer sends the event groups participants request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Project does not exist.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-AUD-012",
+  "title": "Self-participation on a non-active event is refused",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/event_groups/{{eventGroupUuid}}/participants",
+     "body": {}
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "533",
+   "message": "Project does not exist."
+  }
+ }
+}

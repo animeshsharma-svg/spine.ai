@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-064",
+  "title": "Discarding the draft releases its reservation",
+  "compiledAt": "2026-11-09T20:17:58.587Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Reservation removal cannot be checked because no reservation read-back field or operation is available.",
+   "PR mapping status in_active cannot be checked because no PR mapping read-back field is available.",
+   "The line returning to quantity 100 and status active cannot be checked because the available line-item read-back shape does not expose named fields for quantity or status."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer withdraws the event.",
+    "As the buyer, read the event and check that Data check: “status” equals withdrawn."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals withdrawn."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.303Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-064",
+  "title": "Discarding the draft releases its reservation",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "withdrawn"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

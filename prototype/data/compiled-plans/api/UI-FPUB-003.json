@@ -3,15 +3,13 @@
   "caseId": "UI-FPUB-003",
   "title": "Publish on an old version is refused",
   "compiledAt": "2026-11-01T19:50:14.489Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "what the screen shows (an API plan checks the data, not the page)"
   ],
-  "warnings": [
-   "error code 101 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id"
@@ -25,13 +23,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the event's title is not the one step 1 sent (nothing changed)."
    ],
-   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error. Read back afterwards: the event's title is not the one step 1 sent (nothing changed)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.372Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-FPUB-003",
   "title": "Publish on an old version is refused",
   "setup": {
@@ -45,7 +45,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "not_equals",
+      "value": "{{act1.body.title}}",
+      "say": "the event's title is not the one step 1 sent (nothing changed)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "101",

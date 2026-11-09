@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-028",
+  "title": "The vendor company is required",
+  "compiledAt": "2026-11-09T19:32:25.736Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The references “As 018” and “001 body” are not defined in the provided vocabulary; the plan uses the published_rfq setup and open_bid operation as the closest expressible case."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round without the company uuid."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.956Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-028",
+  "title": "The vendor company is required",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "company_uuid",
+      "remove": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

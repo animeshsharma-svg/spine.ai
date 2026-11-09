@@ -3,15 +3,13 @@
   "caseId": "API-EVDWGT-007",
   "title": "A withdrawn event's round cannot be weighted",
   "compiledAt": "2026-10-15T12:30:10.218Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "The PATCH /trade/{{tradeId}}/edit_weight_parameters operation and its valid lot weight body cannot be expressed with the available operations, fields, or library cases."
   ],
-  "warnings": [
-   "error code 2 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
@@ -27,13 +25,14 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer withdraws the event with the remarks set to “QA_Platform_withdraw_…”.",
-    "As the buyer, read the event and check that “status” equals withdrawn."
+    "As the buyer, read the event and check that Data check: “status” equals withdrawn."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals withdrawn."
-  }
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error. Read back afterwards: Data check: “status” equals withdrawn."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.009Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDWGT-007",
   "title": "A withdrawn event's round cannot be weighted",
   "setup": {
@@ -68,7 +67,8 @@
   ],
   "expected": {
    "outcome": "reject",
-   "code": "2"
+   "code": "2",
+   "message": "Insufficient parameters"
   }
  }
 }

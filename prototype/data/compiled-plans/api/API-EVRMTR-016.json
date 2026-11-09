@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-016",
+  "title": "Savings are recalculated after the extended end, not at the original end",
+  "compiledAt": "2026-11-09T20:22:37.339Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vendor's improved bid cannot be expressed because the case provides no numeric params.price for price_bid.",
+   "the decisive step tests something else than the case's point: The setup vocabulary does not guarantee a reference price.",
+   "No operation or permitted request path exposes standard or custom savings values, so recalculation after the new end cannot be verified.",
+   "the decisive step tests something else than the case's point: The required approximately 2-second custom-savings and 5-second standard-savings timing cannot be represented; wait only waits for the round end.",
+   "it depends on a company setting this run does not change (show_custom_savings) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer moves the pricing round's bid end time.",
+    "Wait until the round's bid end time has passed.",
+    "The buyer reads the pricing round."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.080Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-016",
+  "title": "Savings are recalculated after the extended end, not at the original end",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "show_custom_savings"
+ }
+}

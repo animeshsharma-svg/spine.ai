@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-005",
+  "title": "A line regretted in the draft can still be priced",
+  "compiledAt": "2026-11-09T20:20:32.812Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available operations cannot create a draft bid with its line regretted; the plan prices an ordinary draft bid instead.",
+   "The expected HTTP 200 response is not asserted because no response-status assertion is available for an act.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid at 100."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.946Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-005",
+  "title": "A line regretted in the draft can still be priced",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "UI-AUC-012",
+  "title": "A Dutch auction on a buy order needs end price above base",
+  "compiledAt": "2026-11-09T22:26:41.561Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The Dutch auction selection, base price, and end price above the base cannot be expressed with the available fields or tokens.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The buyer publishes the event.",
+    "As the buyer, read the pricing round and check that Data check: “status” equals active; Data check: “rfx mode” equals auction."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active; Data check: “rfx mode” equals auction."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.362Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-AUC-012",
+  "title": "A Dutch auction on a buy order needs end price above base",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer"
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     },
+     {
+      "path": "rfx_mode",
+      "op": "equals",
+      "value": "auction"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

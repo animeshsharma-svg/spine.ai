@@ -3,11 +3,10 @@
   "caseId": "API-EVDCMP-008",
   "title": "In a rank auction every vendor sees its own current rank after each move",
   "compiledAt": "2026-10-15T12:50:34.159Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)",
    "The available setup supports only two QA vendors, not vendors 1–3.",
    "No available operation can create late rebids after the initial bids or verify ranks again after those rebids.",
    "The available fields and assertions cannot verify that returned ranks numerically match the ordering of the latest prices or that the best price is hidden.",
@@ -30,13 +29,14 @@
   "words": {
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank” is not empty."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is not empty."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank” is not empty."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.858Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDCMP-008",
   "title": "In a rank auction every vendor sees its own current rank after each move",
   "setup": {
@@ -46,7 +46,7 @@
   "verify": [
    {
     "op": "read_indicators",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",

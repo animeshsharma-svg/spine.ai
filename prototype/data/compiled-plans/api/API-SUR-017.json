@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-SUR-017",
+  "title": "A surrogate bid validates prices exactly like a vendor's",
+  "compiledAt": "2026-11-09T19:25:28.210Z",
+  "planVersion": 2,
+  "source": "library-case",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.197Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-SUR-017",
+  "title": "A surrogate bid validates prices exactly like a vendor's",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

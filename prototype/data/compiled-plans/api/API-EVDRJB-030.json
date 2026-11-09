@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-030",
+  "title": "A rejected bid can be put back to active while bidding is open",
+  "compiledAt": "2026-11-09T19:33:28.610Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The status endpoint used to reject the bid and set its status to active is not specified by an available operation or an allowed request path, so steps 1 and 2 cannot be expressed."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.983Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-030",
+  "title": "A rejected bid can be put back to active while bidding is open",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-046",
+  "title": "A draft can still be discarded after the round closed",
+  "compiledAt": "2026-11-09T19:55:12.436Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Discarding a draft bid cannot be expressed because no discard operation or case-specific request method/path is provided. HTTP 200 cannot be asserted without a discard request.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "Wait until the round's bid end time has passed."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.988Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-046",
+  "title": "A draft can still be discarded after the round closed",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "decisive": true
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    },
+    "expect": "accept"
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

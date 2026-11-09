@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-020",
+  "title": "A vendor's draft bid is visible only to the user who started it",
+  "compiledAt": "2026-11-09T20:13:50.080Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not explicitly guarantee that vendor user 2 is a distinct user from the same vendor company.",
+   "The available read_bid operation does not expose a documented draft-visibility field, so the plan uses HTTP 404 as the invisibility assertion."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "As the buyer, read the bid and check that Status check: the reply's status code is 404 — Not found — the record does not exist, or this user cannot see it.",
+    "As a second QA vendor, read the bid and check that Status check: the reply's status code is 404 — Not found — the record does not exist, or this user cannot see it.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 404 — Not found — the record does not exist, or this user cannot see it; Status check: the reply's status code is 404 — Not found — the record does not exist, or this user cannot see it; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.064Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-020",
+  "title": "A vendor's draft bid is visible only to the user who started it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status",
+      "value": 404
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor2",
+    "assert": [
+     {
+      "op": "status",
+      "value": 404
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

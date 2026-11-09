@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-005",
+  "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
+  "compiledAt": "2026-11-09T20:06:23.793Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup does not create a final split award between QA vendors 1, 2, and 3 or an uninvited/non-bidding QA vendor 4.",
+   "Only vendor and vendor2 actors are available; QA vendor 3 and QA vendor 4 cannot be represented.",
+   "The three views and searchable vendor/price fields are not defined by the available vocabulary, so the plan cannot verify that other winners or their prices are absent."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.900Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDLEK-005",
+  "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

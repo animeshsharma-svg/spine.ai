@@ -1,0 +1,122 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-067",
+  "title": "Withdrawing logs which PR lines reopened and by how much",
+  "compiledAt": "2026-11-09T20:23:35.495Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The published_rfq setup does not guarantee that the line starts with quantity 40; the plan checks the returned quantity but cannot configure the setup quantity.",
+   "The available history read-back vocabulary does not identify the exact event-reference field or the association between the activity entry and the reopened line."
+  ],
+  "warnings": [
+   "verify 2: read_line_items's reply shape has not been sampled; \"status\" is unverified",
+   "verify 2: read_line_items's reply shape has not been sampled; \"quantity\" is unverified",
+   "verify 3: read_history's reply shape has not been sampled; \"event_withdrawn_reopened\" is unverified",
+   "verify 3: read_history's reply shape has not been sampled; \"event_ref\" is unverified",
+   "verify 3: read_history's reply shape has not been sampled; \"quantity\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id",
+   "GET /event_groups/:id/get_line_items",
+   "GET /event_groups/:id/history"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer withdraws the event with the status set to “withdrawn”, with the remarks set to “QA_Platform_…”.",
+    "As the buyer, read the event and check that Data check: “status” equals withdrawn.",
+    "As the buyer, list the event's line items and check that Data check: “status” equals open; Data check: “quantity” equals 40.",
+    "As the buyer, read the event's history and check that Data check: “event withdrawn reopened” has exactly 1 entries; Schema check: “event ref” is present; Data check: “quantity” equals 40."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals withdrawn; Data check: “status” equals open; Data check: “quantity” equals 40; Data check: “event withdrawn reopened” has exactly 1 entries; Schema check: “event ref” is present; Data check: “quantity” equals 40."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.303Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-067",
+  "title": "Withdrawing logs which PR lines reopened and by how much",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "set": "withdrawn"
+     },
+     {
+      "path": "withdraw_remark.remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "withdrawn"
+     }
+    ]
+   },
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "open"
+     },
+     {
+      "path": "quantity",
+      "op": "equals",
+      "value": 40
+     }
+    ]
+   },
+   {
+    "op": "read_history",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "event_withdrawn_reopened",
+      "op": "count",
+      "value": 1
+     },
+     {
+      "path": "event_ref",
+      "op": "exists"
+     },
+     {
+      "path": "quantity",
+      "op": "equals",
+      "value": 40
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

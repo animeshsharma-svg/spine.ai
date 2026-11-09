@@ -2,20 +2,17 @@
  "meta": {
   "caseId": "API-STG-013",
   "title": "A dutch auction combined with a basket auction is refused",
-  "compiledAt": "2026-10-15T12:56:34.810Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:22:52.326Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-STG-049 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
-   "library case EDGE-STG-049 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)"
+   "The available vocabulary does not expose fields or parameters to configure the conversion as both dutch and basket auction, so the decisive request cannot be guaranteed to contain that combination."
   ],
-  "warnings": [
-   "error code 474 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /trade/template_input"
+   "POST /trade/move_to_auction"
   ],
   "llm": {
    "calls": 0,
@@ -24,32 +21,33 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it."
+    "The buyer converts the pricing round into a live auction."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Sorry, trade with this configuration is not allowed”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.186Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-STG-013",
   "title": "A dutch auction combined with a basket auction is refused",
   "setup": {
-   "recipe": "draft_event"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "library",
+    "op": "convert_to_auction",
     "as": "buyer",
-    "caseId": "EDGE-STG-049",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "474"
+   "code": "474",
+   "message": "Sorry, trade with this configuration is not allowed"
   }
  }
 }

@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-014",
+  "title": "The bid count shown to a vendor follows the stage setting and the \"more than three\" rule",
+  "compiledAt": "2026-11-09T20:15:11.015Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No operation or setup recipe exposes the stage setting for vendors to see the bid count.",
+   "The available setups provide at most two QA vendor bids, so the 3-bid, 4-bid, and 5-bid states cannot be created.",
+   "No available setup creates a published auction with the required bid-count states.",
+   "The expected visible value of 4 cannot be verified.",
+   "The knockout state cannot be created or verified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the invited QA vendor, read the pricing round and check that Schema check: “bid count” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “bid count” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.094Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-014",
+  "title": "The bid count shown to a vendor follows the stage setting and the \"more than three\" rule",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

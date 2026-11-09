@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-011",
+  "title": "Draft bids that were never sent are discarded when bidding ends",
+  "compiledAt": "2026-11-09T19:39:16.196Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available operations cannot verify that the inactive draft bid is absent from the buyer's bid list."
+  ],
+  "warnings": [
+   "verify 3: read_bid's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /trade/:id",
+   "GET /event_groups/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "As the buyer, read the pricing round and check that Data check: “status” equals closed.",
+    "As the buyer, read the event and check that Data check: “status” equals in_active.",
+    "As the invited QA vendor, read the bid and check that Data check: “status” equals inactive."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals closed; Data check: “status” equals in_active; Data check: “status” equals inactive."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.078Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-011",
+  "title": "Draft bids that were never sent are discarded when bidding ends",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "decisive": true
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "closed"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "in_active"
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "inactive"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

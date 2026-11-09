@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-048",
+  "title": "Regret on an event that has been superseded by a new version",
+  "compiledAt": "2026-11-09T20:20:45.428Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The regret action and its request path are not available in the operations or library cases, so the decisive 422/code 101 request and no-5xx check cannot be executed."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /item_versions"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “EventGroup”."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.961Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-048",
+  "title": "Regret on an event that has been superseded by a new version",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{eventGroupUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "EventGroup"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

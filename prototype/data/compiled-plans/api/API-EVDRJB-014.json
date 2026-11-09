@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-014",
+  "title": "A bid on a submitted award cannot be rejected",
+  "compiledAt": "2026-11-09T20:11:54.629Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The alternate rejection code 101 is not represented in the expected result."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Can not reject a bid which is selected for proposal”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.973Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-014",
+  "title": "A bid on a submitted award cannot be rejected",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "785",
+   "message": "Can not reject a bid which is selected for proposal"
+  }
+ }
+}

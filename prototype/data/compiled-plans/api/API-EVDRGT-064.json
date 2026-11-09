@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-064",
+  "title": "Joining through \"participate\" after declining records an acceptance the buyer never sees",
+  "compiledAt": "2026-11-09T20:20:59.574Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create an event-level vendor decline (H02) before the participate request.",
+   "The vendor read-back cannot assert user_intent.intent_type equals trade_accept because that field is not available in the read_event vocabulary.",
+   "The buyer audience read-back cannot verify that the decline text remains or that the new row has no company_id because the audience response shape is not sampled.",
+   "The request response cannot be asserted as HTTP 200 because act-step response assertions are not expressible.",
+   "it depends on a company setting this run does not change (enable_open_tender_events) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/:id/participants",
+   "GET /event_groups/:id",
+   "GET /event_groups/:id/get_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor sends the event groups participants request, the request the case itself writes.",
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, list the event's invited vendors and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.965Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-064",
+  "title": "Joining through \"participate\" after declining records an acceptance the buyer never sees",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "POST",
+     "path": "/event_groups/{{eventGroupUuid}}/participants",
+     "body": {
+      "company_uuid": "{{vendorUuid}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "enable_open_tender_events"
+ }
+}

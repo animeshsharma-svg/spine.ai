@@ -1,0 +1,128 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-014",
+  "title": "An amended round's bidding window is its configured length, wherever extensions happened",
+  "compiledAt": "2026-11-09T20:13:32.121Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup recipes do not create an auction configured for a 1-hour bidding window followed by a 1-day evaluation window.",
+   "No operation models two-minute automatic extensions; extend_round only exposes an explicit extension target of {{roundEnd+60}}.",
+   "The available read-backs do not expose a window start time or an assertion that the amended auction end equals the maximum of now + 1 hour and the evaluation-window end.",
+   "The evaluation window starting with bidding is not verifiable with the available fields and assertion operations."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "PATCH /trade/:id",
+   "POST /item_versions",
+   "GET /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “line_item”.",
+    "As the buyer, read the event and check that Schema check: “stages › ending at” is not empty; Schema check: “stages › ending at” is a Unix timestamp in seconds.",
+    "As the buyer, read the pricing round and check that Schema check: “ending at” is not empty; Schema check: “ending at” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “stages › ending at” is not empty; Schema check: “stages › ending at” is a Unix timestamp in seconds; Schema check: “ending at” is not empty; Schema check: “ending at” is a Unix timestamp in seconds."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.049Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-014",
+  "title": "An amended round's bidding window is its configured length, wherever extensions happened",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     }
+    ]
+   },
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     }
+    ]
+   },
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{lineItemUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "line_item"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].ending_at",
+      "op": "non_empty"
+     },
+     {
+      "path": "stages[*].ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "non_empty"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

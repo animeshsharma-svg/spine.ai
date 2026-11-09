@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-001",
+  "title": "The event's start, end and current round follow its live rounds",
+  "compiledAt": "2026-11-09T20:13:46.629Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: Cannot create a cancelled round with the available recipes or operations, so exclusion of the cancelled round is not checked.",
+   "Cannot read the event at Sun, Mon 12:00, Tue 12:00, Wed 12:00, and Fri because no clock-travel operation is available.",
+   "The read_event read-back fields do not expose the event start, event end, current round, or Total Duration, so those values cannot be asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.065Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-001",
+  "title": "The event's start, end and current round follow its live rounds",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-029",
+  "title": "A line's quantity, unit and closed quantity read from what the buyer entered",
+  "compiledAt": "2026-11-09T20:22:13.566Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup recipes cannot create three lines, including a second line whose quantity exists only on its pricing-round line and a third line with no data.",
+   "No available operation can award 30 and then 20 more of line 1.",
+   "The available read_line_items assertions cannot check line quantity, unit symbol, or closed quantity values, including 100 KG, 80, 0, and closed quantities 30 then 50.",
+   "The no-unit assertion for line 3 cannot be expressed because the line-item response shape is not sampled.",
+   "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is 200 — OK — the request worked."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.072Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-029",
+  "title": "A line's quantity, unit and closed quantity read from what the buyer entered",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status",
+      "value": 200
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

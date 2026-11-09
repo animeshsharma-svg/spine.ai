@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-019",
+  "title": "The default savings reference is the best FIRST quote, priced at the buyer's quantity",
+  "compiledAt": "2026-11-09T20:06:56.954Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not create two lines with buyer quantities 10 and 5.",
+   "the decisive step tests something else than the case's point: The setup does not create first quotes followed by revisions for either vendor.",
+   "the decisive step tests something else than the case's point: The setup does not create vendor A's quantity-8 quote on L1.",
+   "The available read_indicators operation does not expose the savings reference, final best total, saving amount, or saving percentage.",
+   "The available vocabulary does not expose or configure the default lot-based savings strategy."
+  ],
+  "warnings": [
+   "act 1: the setup's round is open for about 20 minutes; the wait is capped at 6 minutes and the step after it may still run while bidding is open — use a *_short or closed_* setup"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.038Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-019",
+  "title": "The default savings reference is the best FIRST quote, priced at the buyer's quantity",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

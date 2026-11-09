@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-010",
+  "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
+  "compiledAt": "2026-11-09T20:21:37.256Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Quick-flow auction creation is not exposed as an operation.",
+   "Company policy values and their being ignored cannot be set or verified.",
+   "Auction strategy rank is not available as a read-back field.",
+   "Exact bid end of start + 2 days cannot be asserted.",
+   "Exact evaluation end of start + 4 days cannot be asserted.",
+   "Order type from the template is not available as a read-back field.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "As the buyer, read the event and check that Data check: “status” equals draft; Data check: “stages › rfx mode” equals auction."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft; Data check: “stages › rfx mode” equals auction."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.047Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-010",
+  "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     },
+     {
+      "path": "stages[*].rfx_mode",
+      "op": "equals",
+      "value": "auction"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

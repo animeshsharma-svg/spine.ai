@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-029",
+  "title": "A failed store is reported as a failure here (unlike the event upload)",
+  "compiledAt": "2026-11-09T22:27:31.577Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /templates/upload_attachment"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the templates upload attachment request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Only active or paused jobs can be cancelled”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.877Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDDOC-029",
+  "title": "A failed store is reported as a failure here (unlike the event upload)",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/templates/upload_attachment",
+     "body": {
+      "name": "QA_Platform_{{stamp}}.png",
+      "data": "12345"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "902",
+   "message": "Only active or paused jobs can be cancelled"
+  }
+ }
+}

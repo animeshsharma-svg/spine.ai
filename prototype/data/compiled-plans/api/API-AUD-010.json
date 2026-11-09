@@ -2,19 +2,15 @@
  "meta": {
   "caseId": "API-AUD-010",
   "title": "Live-auction audience addition requires view access",
-  "compiledAt": "2026-10-15T12:59:43.813Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:10:01.037Z",
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "the plan has the vendor send PATCH /v1/trade/add_audience, but the vendor's session may not call PATCH /v1/trade/add_audience (trade#add_audience_live_auction is not on that app's list in config/app_auth_config.yml)",
-   "The available setup does not create a user without view access; EDGE-PUB-041 uses an invited vendor, so the no-view-access precondition is not directly established."
-  ],
-  "warnings": [
-   "error code 455 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "validated": true,
   "endpoints": [
+   "PATCH /v1/trade/remove_audience",
    "PATCH /v1/trade/add_audience"
   ],
   "llm": {
@@ -26,13 +22,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor sends the request that invites vendors to a round, exactly as the matching library case writes it."
+    "The buyer removes the invited vendor from the live round with 1 audience to remove uuids.",
+    "The buyer sends the request that invites vendors to a round, the request the case itself writes."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.767Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-AUD-010",
   "title": "Live-auction audience addition requires view access",
   "setup": {
@@ -40,16 +38,39 @@
   },
   "act": [
    {
-    "op": "library",
-    "as": "vendor",
-    "caseId": "EDGE-PUB-041",
+    "op": "remove_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_remove_uuids",
+      "set": [
+       "{{vendorUuid}}"
+      ]
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/add_audience?id={{tradeId}}",
+     "body": {
+      "audience_to_add_uuids": [
+       "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "455"
+   "code": "455",
+   "message": "You are not authorized to perform this action",
+   "codeInferred": true
   }
  }
 }

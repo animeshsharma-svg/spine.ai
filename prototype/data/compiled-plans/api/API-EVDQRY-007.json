@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-007",
+  "title": "A draft event has no Messages list",
+  "compiledAt": "2026-11-09T19:50:24.833Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/chats"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the chats request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Project does not exist.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.908Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-007",
+  "title": "A draft event has no Messages list",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "533",
+   "message": "Project does not exist."
+  }
+ }
+}

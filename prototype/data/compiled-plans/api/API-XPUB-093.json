@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-093",
+  "title": "A buyer who is not the owner cannot change ownership",
+  "compiledAt": "2026-11-09T20:17:59.493Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "the decisive step tests something else than the case's point: The available setup recipes do not create an event owned by a different buyer while signing in as another buyer of the same company who is not a super admin."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/:id/change_ownership"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the event groups change ownership request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.326Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XPUB-093",
+  "title": "A buyer who is not the owner cannot change ownership",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+     "body": {
+      "new_owner_uuid": null
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

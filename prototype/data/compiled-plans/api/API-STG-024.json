@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-STG-024",
+  "title": "Adding a stage to a live event uses its own endpoint and policy",
+  "compiledAt": "2026-11-09T19:42:56.397Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot represent a distinct non-owner buyer with create access.",
+   "Cannot verify that a non-owner buyer with create access is allowed.",
+   "Cannot represent or verify a user with neither permission.",
+   "The refusal branch is checked using a closed event; the allowed branches are not checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/:id/add_new_stage_in_live_event"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer sends the trade add new stage in live event request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.190Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-STG-024",
+  "title": "Adding a stage to a live event uses its own endpoint and policy",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/{{tradeId}}/add_new_stage_in_live_event",
+     "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found",
+   "codeInferred": true
+  }
+ }
+}

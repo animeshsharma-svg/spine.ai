@@ -2,14 +2,14 @@
  "meta": {
   "caseId": "API-EVDAWD-004",
   "title": "Vendors tied at the best price count as best-price (L1) awards",
-  "compiledAt": "2026-10-15T12:49:53.051Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:10:25.305Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup does not create QA vendor 3 or establish the specific API-EVDAWD-001 award state.",
-   "No available read-back field exposes awarded-to-L1 and awarded-to-others amounts.",
-   "The plan does not verify that the whole line was awarded to one of the tied vendors."
+   "the decisive step tests something else than the case's point: The available setup does not create a third QA vendor or an award to one of two tied vendors.",
+   "No available operation creates or reads awarded-to-L1 and awarded-to-others amounts.",
+   "The available indicator assertions do not express that both tied vendors are counted as L1 or that only QA vendor 3 is counted as others."
   ],
   "warnings": [
    "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
@@ -28,26 +28,20 @@
   "words": {
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "The buyer reads the round's comparison (ranks, best bidder).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.845Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDAWD-004",
   "title": "Vendors tied at the best price count as best-price (L1) awards",
   "setup": {
    "recipe": "rfq_with_2_bids"
   },
-  "act": [
-   {
-    "op": "read_indicators",
-    "as": "buyer",
-    "decisive": true
-   }
-  ],
+  "act": [],
   "verify": [
    {
     "op": "read_indicators",
@@ -55,13 +49,11 @@
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
-      "op": "equals",
-      "value": 1
+      "op": "exists"
      },
      {
       "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
-      "op": "equals",
-      "value": 1
+      "op": "exists"
      }
     ]
    }

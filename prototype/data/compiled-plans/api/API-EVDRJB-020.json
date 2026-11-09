@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-020",
+  "title": "Rejecting during bidding is refused where the round disables it",
+  "compiledAt": "2026-11-09T19:32:55.007Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The client setting disable_reject_bid_in_bidding_time cannot be set or verified with the available vocabulary."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Bid rejection is disabled while bidding is in progress”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.977Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-020",
+  "title": "Rejecting during bidding is refused where the round disables it",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "686",
+   "message": "Bid rejection is disabled while bidding is in progress"
+  }
+ }
+}

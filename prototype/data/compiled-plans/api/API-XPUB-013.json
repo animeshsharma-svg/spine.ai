@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-XPUB-013",
   "title": "Publishing an RFP that ends after its RFQ is refused with 712",
-  "compiledAt": "2026-10-03T09:49:59.791Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:09:07.098Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-PUB-013 needs a starting state no recipe builds (“A draft event with an RFP stage (technical) and an RFQ stage, where the RFP bid_end_time is later than the RFQ bid_end_t”)",
-   "The plan does not verify that no stage was modified before the rejection."
+   "the decisive step tests something else than the case's point: The setup recipe does not specify that the technical RFP ends after the pricing RFQ.",
+   "The publish_event operation does not expose a listed token for the technical round UUID, so the request cannot explicitly set both stage UUIDs in draft_trade_request_uuids."
   ],
   "warnings": [],
   "validated": true,
@@ -25,14 +25,15 @@
   "words": {
    "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
-    "As the buyer, read the event and check that “status” equals draft."
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that Data check: “status” equals draft."
    ],
-   "expected": "The app refuses the step the case is about with “RFP duration exceeds RFQ end time. Please adjust.”, and never with a server error. Read back afterwards: “status” equals draft."
-  }
+   "expected": "The app refuses the step the case is about with “RFP duration exceeds RFQ end time. Please adjust.”, and never with a server error. Read back afterwards: Data check: “status” equals draft."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.309Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XPUB-013",
   "title": "Publishing an RFP that ends after its RFQ is refused with 712",
   "setup": {
@@ -40,9 +41,8 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "publish_event",
     "as": "buyer",
-    "caseId": "EDGE-PUB-013",
     "decisive": true
    }
   ],

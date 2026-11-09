@@ -1,0 +1,81 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-029",
+  "title": "A vendor never receives savings data in its own quote or sheet",
+  "compiledAt": "2026-11-09T20:07:01.157Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not establish that savings are configured with a budget reference or that savings have been computed.",
+   "The available read-back fields do not expose named savings fields, so the absence of savings figures anywhere in the vendor's quote or event response cannot be asserted.",
+   "Opening a quote or sheet is represented only by read_bid; no operation exposes a separate vendor quote or sheet response.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The invited QA vendor reads the bid.",
+    "The invited QA vendor reads the event.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.041Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-029",
+  "title": "A vendor never receives savings data in its own quote or sheet",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "read_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

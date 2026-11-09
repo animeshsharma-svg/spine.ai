@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-059",
+  "title": "Creating the draft alone reserves nothing on the PR",
+  "compiledAt": "2026-11-09T19:45:49.529Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Creating a draft from an existing PR line is not expressible because no PR token or operation is available.",
+   "Reading the PR before and after building the RFQ stage is not expressible.",
+   "Verifying that the PR remains open at 100 before the stage and becomes in progress by the line quantity afterward is not expressible."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event.",
+    "As the buyer, read the event and check that Schema check: “stages” is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “stages” is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.301Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-059",
+  "title": "Creating the draft alone reserves nothing on the PR",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

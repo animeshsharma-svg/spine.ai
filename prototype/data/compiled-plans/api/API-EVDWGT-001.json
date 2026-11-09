@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-001",
+  "title": "A request without the weightages object is refused",
+  "compiledAt": "2026-11-09T22:46:19.555Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case's one valid weight value is unspecified, so the request uses an empty values object.",
+   "The available read-back fields cannot verify that no weight was saved or that the round remains unweighted.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 2,
+   "promptTokens": 12605,
+   "completionTokens": 862,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.007Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-001",
+  "title": "A request without the weightages object is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightage_on": "lot",
+      "values": {}
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

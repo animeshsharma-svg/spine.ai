@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "API-NSURTECH-006",
+  "title": "Enter the vendor's technical response on their behalf: page_responses.UWdkTmRE[0].value has the wrong type",
+  "compiledAt": "2026-11-09T19:41:48.417Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields cannot verify that no technical response was created or that no other data changed."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /template_responses/create_surrogate_response",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the technical response call, the request the case itself writes.",
+    "As the buyer, read the technical round and check that Data check: “status” equals active."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.160Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NSURTECH-006",
+  "title": "Enter the vendor's technical response on their behalf: page_responses.UWdkTmRE[0].value has the wrong type",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/template_responses/create_surrogate_response",
+     "body": {
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {
+       "UWdkTmRE": [
+        {
+         "value": 12345
+        }
+       ]
+      },
+      "page_uuids": [
+       "UWdkTmRE"
+      ],
+      "surrogate_remarks": {
+       "remarks": "QA_Platform_Surrogate_{{stamp}}",
+       "attachments": []
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

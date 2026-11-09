@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-033",
+  "title": "Deleting one activity of a service deletes all of that service's activities",
+  "compiledAt": "2026-11-09T19:37:40.683Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Service-grouped events with services S1 and S2 cannot be created by the available setup recipes.",
+   "Deleting activity a and verifying that sibling activities b and c are also deleted cannot be expressed.",
+   "Forms and their deleted status cannot be read or verified.",
+   "The second deletion of activity d cannot be performed in the same service-grouped scenario.",
+   "The available line-item read-back only verifies a successful response, not which lines were deleted or retained."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, the request the case itself writes.",
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.053Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-033",
+  "title": "Deleting one activity of a service deletes all of that service's activities",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/event_groups/{{eventGroupUuid}}",
+     "body": {
+      "line_items": [
+       {
+        "uuid": "{{lineItemUuid}}",
+        "status": "deleted"
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

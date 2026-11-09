@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-038",
+  "title": "A PR line on hold is refused when the draft already has a pricing stage",
+  "compiledAt": "2026-11-09T19:45:21.351Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The operation or request for pulling the held line is not provided, so the decisive refusal cannot be sent.",
+   "The HTTP 422 response with code 557 cannot be asserted.",
+   "The transaction rollback and complete absence of writes cannot be verified with the available read-backs."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer reads the event.",
+    "As the buyer, read the event and check that Data check: “status” equals draft."
+   ],
+   "expected": "The app refuses the step the case is about with “Purchase request items are not valid”, and never with a server error. Read back afterwards: Data check: “status” equals draft."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.298Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-038",
+  "title": "A PR line on hold is refused when the draft already has a pricing stage",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "557",
+   "message": "Purchase request items are not valid"
+  }
+ }
+}

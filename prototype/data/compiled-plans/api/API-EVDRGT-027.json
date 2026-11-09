@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-027",
+  "title": "Another round of the same event is refused",
+  "compiledAt": "2026-11-09T19:32:19.299Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The regret request cannot be expressed because no operation or METHOD/path is provided for it."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.955Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-027",
+  "title": "Another round of the same event is refused",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "params": {
+     "trade_request_uuid": "{{tradeId}}",
+     "company_uuid": "{{vendorUuid}}"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found"
+  }
+ }
+}

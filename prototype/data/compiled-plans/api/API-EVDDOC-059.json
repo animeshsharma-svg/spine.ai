@@ -3,15 +3,13 @@
   "caseId": "API-EVDDOC-059",
   "title": "A withdrawal-notice file on an outside host is refused and the event stays live",
   "compiledAt": "2026-10-15T12:18:22.345Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "the part about “pdf” is outside what an API plan on a sourcing event checks"
   ],
-  "warnings": [
-   "error code 472 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
@@ -27,13 +25,14 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer withdraws the event with 1 attachments, with the remarks set to “QA_Platform_withdraw_…”, with the status set to “withdrawn”.",
-    "As the buyer, read the event and check that “status” equals active."
+    "As the buyer, read the event and check that Data check: “status” equals active."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals active."
-  }
+   "expected": "The app refuses the step the case is about with “failed to add remark”, and never with a server error. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.887Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-059",
   "title": "A withdrawal-notice file on an outside host is refused and the event stays live",
   "setup": {
@@ -78,7 +77,8 @@
   ],
   "expected": {
    "outcome": "reject",
-   "code": "472"
+   "code": "472",
+   "message": "failed to add remark"
   }
  }
 }

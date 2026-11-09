@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-003",
+  "title": "Times sent as words on a started round are refused without a crash",
+  "compiledAt": "2026-11-09T20:21:02.881Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates the round, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot re-schedule this event!”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.990Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-003",
+  "title": "Times sent as words on a started round are refused without a crash",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "bid_start_time": "QA_Platform_later_{{stamp}}",
+      "bid_end_time": "QA_Platform_later_{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "258",
+   "message": "You cannot re-schedule this event!"
+  }
+ }
+}

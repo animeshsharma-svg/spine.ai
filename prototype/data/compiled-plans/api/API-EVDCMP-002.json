@@ -2,21 +2,24 @@
  "meta": {
   "caseId": "API-EVDCMP-002",
   "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
-  "compiledAt": "2026-10-15T12:35:42.961Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:06:09.028Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "QA vendor 3 is not available in the vocabulary; vendor2 is used instead.",
-   "The available assertions do not expose the submitted bid price or directly verify that the surrogate price is higher than QA vendor 1's price.",
-   "The available assertions do not directly verify that L1 is unchanged beyond checking that QA vendor 1 remains the best bidder.",
-   "it does not read the record back to confirm what was kept or shown"
+   "The case names QA vendor 3, but the vocabulary supports only the invited QA vendor and QA vendor 2; the plan uses vendor2.",
+   "The available tokens do not expose QA vendor 1's submitted price, so the plan cannot guarantee that 200 is higher than that bid.",
+   "the decisive step tests something else than the case's point: No supported read-back field directly verifies the unchanged L1 value; the comparison rank is verified instead."
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "PATCH /v1/trade/add_audience",
    "POST /bids/template_input",
+   "GET /trade/:id",
    "GET /v1/trade/:id/event_indicators"
   ],
   "llm": {
@@ -29,14 +32,16 @@
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
     "The buyer invites QA vendor 2 to the live pricing round.",
-    "The buyer enters a surrogate bid of 101 on the vendor's behalf for a second QA vendor.",
-    "The buyer reads the round's comparison (ranks, best bidder)."
+    "The buyer enters a surrogate bid of 200 on the vendor's behalf for a second QA vendor.",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 2.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is at least 2."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 2; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank” is at least 2."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.854Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDCMP-002",
   "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
   "setup": {
@@ -55,16 +60,40 @@
     "as": "buyer",
     "params": {
      "vendor": "vendor2",
-     "price": 101
+     "price": 200
     },
     "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
    },
    {
     "op": "read_indicators",
-    "as": "buyer"
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 1
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "gte",
+      "value": 2
+     }
+    ]
    }
   ],
-  "verify": [],
   "expected": {
    "outcome": "accept"
   }

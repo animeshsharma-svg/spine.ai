@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-019",
+  "title": "The same unknown event with a recipient named crashes in the permission check",
+  "compiledAt": "2026-11-09T20:11:20.004Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify that nothing was created.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/chats"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the chats request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Project does not exist.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.912Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-019",
+  "title": "The same unknown event with a recipient named crashes in the permission check",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/chats?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+     "body": {
+      "context": "general",
+      "message_to_uuids": [
+       "{{vendorUuid}}"
+      ],
+      "message_body": "QA_Platform_query_{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "533",
+   "message": "Project does not exist."
+  }
+ }
+}

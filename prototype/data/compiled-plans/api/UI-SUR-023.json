@@ -3,7 +3,7 @@
   "caseId": "UI-SUR-023",
   "title": "A surrogate bid is refused with a negative or absent price",
   "compiledAt": "2026-11-01T19:46:07.523Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -23,13 +23,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer enters a surrogate bid of -10 on the vendor's behalf."
+    "The buyer enters a surrogate bid of -10 on the vendor's behalf.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.391Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-SUR-023",
   "title": "A surrogate bid is refused with a negative or absent price",
   "setup": {
@@ -45,7 +47,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-021",
+  "title": "The status endpoint rejects a submitted bid while bidding is open",
+  "compiledAt": "2026-11-09T19:33:00.268Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The HTTP 200 status of the status endpoint response and that the response body is the bid are not directly asserted."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/update_bid_status/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes.",
+    "As the buyer, read the bid and check that Data check: “status” equals rejected."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals rejected."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.977Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-021",
+  "title": "The status endpoint rejects a submitted bid while bidding is open",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/update_bid_status/{{bidUuid}}",
+     "body": {
+      "status": "rejected",
+      "rejection_remarks": "QA_Platform_reject_{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "rejected"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

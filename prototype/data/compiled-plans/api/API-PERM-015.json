@@ -2,20 +2,18 @@
  "meta": {
   "caseId": "API-PERM-015",
   "title": "Live-auction audience edits need view access",
-  "compiledAt": "2026-10-15T13:07:11.183Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:00.800Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the plan has the vendor send PATCH /v1/trade/add_audience, but the vendor's session may not call PATCH /v1/trade/add_audience (trade#add_audience_live_auction is not on that app's list in config/app_auth_config.yml)",
-   "The available operation does not express both audience-edit variants: allowed with view access and refused without view access.",
-   "The plan does not verify the allowed-then-refused sequence or the refusal code for the without-view-access case.",
-   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+   "The available vocabulary does not expose a separate view-access field; the first attempt uses the invited vendor's existing access, then removes the vendor before the refused retry. The successful first attempt is not independently asserted"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /v1/trade/add_audience"
+   "PATCH /v1/trade/add_audience",
+   "PATCH /v1/trade/remove_audience"
   ],
   "llm": {
    "calls": 0,
@@ -26,13 +24,16 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor sends the request that invites vendors to a round, exactly as the matching library case writes it."
+    "The buyer sends the request that invites vendors to a round, the request the case itself writes.",
+    "The buyer removes the invited vendor from the live round with 1 audience to remove uuids.",
+    "The buyer sends the request that invites vendors to a round, the request the case itself writes."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.172Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PERM-015",
   "title": "Live-auction audience edits need view access",
   "setup": {
@@ -40,15 +41,54 @@
   },
   "act": [
    {
-    "op": "library",
-    "as": "vendor",
-    "caseId": "EDGE-PUB-041",
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/add_audience?id={{tradeId}}",
+     "body": {
+      "audience_to_add_uuids": [
+       "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "remove_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_remove_uuids",
+      "set": [
+       "{{vendorUuid}}"
+      ]
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/add_audience?id={{tradeId}}",
+     "body": {
+      "audience_to_add_uuids": [
+       "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+     }
+    },
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action",
+   "codeInferred": true
   }
  }
 }

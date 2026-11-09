@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-008",
+  "title": "Dynamic closing without an extension value does not break the bid",
+  "compiledAt": "2026-11-09T19:30:15.919Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Dynamic closing default extension time of 3 minutes is not explicitly verifiable through the standard round read-back fields in this environment"
+  ],
+  "warnings": [
+   "act 1: the setup's round is open for about 20 minutes; the wait is capped at 6 minutes and the step after it may still run while bidding is open — use a *_short or closed_* setup"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "Wait until the round's bid end time has passed.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that Data check: “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.843Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDAUX-008",
+  "title": "Dynamic closing without an extension value does not break the bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

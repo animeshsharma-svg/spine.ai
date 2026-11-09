@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-024",
+  "title": "A query with no \"regarding\" and no line item is not refused",
+  "compiledAt": "2026-11-09T19:50:57.522Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot verify that no chat was created because no chat-read operation or supported response field is provided.",
+   "The observed HTTP 200 with null or HTTP 500 serialization behavior is not represented; the plan checks the specified expected HTTP 422/code 2 refusal.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/chats"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the chats request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.915Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-024",
+  "title": "A query with no \"regarding\" and no line item is not refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}",
+     "body": {
+      "message_body": "QA_Platform_query_{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

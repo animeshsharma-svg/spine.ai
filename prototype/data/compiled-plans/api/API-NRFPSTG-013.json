@@ -2,17 +2,11 @@
  "meta": {
   "caseId": "API-NRFPSTG-013",
   "title": "Add the technical round (RFP): configurations.template_uuid is omitted",
-  "compiledAt": "2026-10-16T05:29:10.039Z",
-  "planVersion": 1,
-  "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "library case EDGE-STG-072 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
-   "The library case validates a technical-round request with no forms, not specifically omission of configurations.template_uuid.",
-   "The exact HTTP 4xx error message is not asserted.",
-   "The plan cannot fully verify that no technical round or other data was created or changed.",
-   "library case EDGE-STG-072 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)"
-  ],
+  "compiledAt": "2026-11-09T20:15:41.866Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
@@ -28,14 +22,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it.",
-    "As the buyer, read the event and check that “status” equals draft."
+    "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the template uuid left out of the body.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “status” equals draft."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.154Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-NRFPSTG-013",
   "title": "Add the technical round (RFP): configurations.template_uuid is omitted",
   "setup": {
@@ -43,10 +38,16 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "add_rfp_round",
     "as": "buyer",
-    "caseId": "EDGE-STG-072",
-    "decisive": true
+    "change": [
+     {
+      "path": "configurations.template_uuid",
+      "remove": true
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer adds a technical (RFP) round to the event, exactly as the journey does, with the template uuid left out of the body."
    }
   ],
   "verify": [
@@ -55,9 +56,10 @@
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "equals",
-      "value": "draft"
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
      }
     ]
    }

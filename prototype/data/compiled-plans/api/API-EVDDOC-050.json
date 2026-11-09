@@ -3,13 +3,12 @@
   "caseId": "API-EVDDOC-050",
   "title": "A javascript: T&C link is served back to the vendor",
   "compiledAt": "2026-10-15T12:17:36.726Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "The available read-back fields cannot verify the vendor-facing public_url or confirm that the T&C link was returned unchanged.",
-   "EDGE-PUB-025 is documented as no-5xx rather than a known rejection, and no rejection code is provided.",
-   "it does not read the record back to confirm what was kept or shown"
+   "EDGE-PUB-025 is documented as no-5xx rather than a known rejection, and no rejection code is provided."
   ],
   "warnings": [],
   "validated": true,
@@ -27,13 +26,15 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
-    "The invited QA vendor reads the pricing round."
+    "The invited QA vendor reads the pricing round.",
+    "As the buyer, read the event and check that the event's title is not the one step 1 sent (nothing changed)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event's title is not the one step 1 sent (nothing changed)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.882Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-050",
   "title": "A javascript: T&C link is served back to the vendor",
   "setup": {
@@ -51,7 +52,20 @@
     "as": "vendor"
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "not_equals",
+      "value": "{{act1.body.title}}",
+      "say": "the event's title is not the one step 1 sent (nothing changed)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

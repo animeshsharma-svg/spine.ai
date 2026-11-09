@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-NBIDPRICE-002",
+  "title": "Price the line item: company_uuid has the wrong type",
+  "compiledAt": "2026-11-09T19:41:32.388Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "partial",
+  "gaps": [
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid, exactly as the journey does, with the company uuid sent as 12345."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.117Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NBIDPRICE-002",
+  "title": "Price the line item: company_uuid has the wrong type",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "say": "The invited QA vendor opens a bid on the pricing round."
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "company_uuid",
+      "set": 12345
+     }
+    ],
+    "decisive": true,
+    "say": "The invited QA vendor prices the line on the bid, exactly as the journey does, with the company uuid sent as 12345."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

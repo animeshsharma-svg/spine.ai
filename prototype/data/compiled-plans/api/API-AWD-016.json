@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-AWD-016",
+  "title": "Closing the bid to select a winner is refused outside the window",
+  "compiledAt": "2026-11-09T20:10:14.986Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The application error code is not specified.",
+   "Winner selection after bid closing is not checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/trade/:id/close_bid/approval_workflows"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "The buyer sends the trade close bid request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.794Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-AWD-016",
+  "title": "Closing the bid to select a winner is refused outside the window",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAPR-027",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

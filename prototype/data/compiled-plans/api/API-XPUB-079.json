@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-079",
+  "title": "An event with a submitted proposal cannot be withdrawn",
+  "compiledAt": "2026-11-09T19:27:28.249Z",
+  "planVersion": 2,
+  "source": "library-case",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that the event is still active (nothing changed)."
+   ],
+   "expected": "The app refuses the step the case is about with “Cannot withdraw the event as proposals are already submitted.”, and never with a server error. Read back afterwards: the event is still active (nothing changed)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.323Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XPUB-079",
+  "title": "An event with a submitted proposal cannot be withdrawn",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-079",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active",
+      "say": "the event is still active (nothing changed)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "841",
+   "message": "Cannot withdraw the event as proposals are already submitted."
+  }
+ }
+}

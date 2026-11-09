@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-040",
+  "title": "Adding vendors to a closed stage is refused with 95",
+  "compiledAt": "2026-11-09T19:46:21.711Z",
+  "planVersion": 2,
+  "source": "library-case",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "PATCH /v1/trade/add_audience"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer withdraws the event first (with a remark).",
+    "The buyer sends the request that invites vendors to a round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.310Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XPUB-040",
+  "title": "Adding vendors to a closed stage is refused with 95",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "expect": "accept",
+    "say": "The buyer withdraws the event first (with a remark)."
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-040",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found"
+  }
+ }
+}

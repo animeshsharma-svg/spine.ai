@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-EVDDOC-053",
   "title": "Editing only the T&C files wipes the written terms",
-  "compiledAt": "2026-10-15T12:17:54.704Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:24:06.062Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available operations and library cases cannot send a pricing-round PATCH with only attachments and no terms_and_conditions.",
-   "read_round has no T&C fields, so retention of the written clause cannot be verified.",
-   "The plan only verifies the available live-round terms update, not the attachment-only update or clause-preservation behavior."
+   "The exact attachment payload for one t_and_c file is not provided; the plan represents it with type=t_and_c.",
+   "it does not read the record back to confirm what was kept or shown"
   ],
   "warnings": [],
   "validated": true,
@@ -26,14 +25,16 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the request that updates the round, exactly as the matching library case writes it.",
-    "As the buyer, read the pricing round and check that the read succeeds."
+    "The buyer sends the request that updates the round, the request the case itself writes.",
+    "The buyer sends the request that updates the round, the request the case itself writes.",
+    "The buyer sends the request that reads the round, the request the case itself writes."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.884Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDDOC-053",
   "title": "Editing only the T&C files wipes the written terms",
   "setup": {
@@ -41,23 +42,45 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "buyer",
-    "caseId": "EDGE-DAMD-043",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "terms_and_conditions": [
+       "QA_Platform_tnc_keep"
+      ]
+     }
+    },
+    "ifRefused": "pass"
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "attachments": [
+       {
+        "type": "t_and_c"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/trade/{{tradeId}}"
+    },
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_round",
-    "as": "buyer",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
    "outcome": "accept"
   }

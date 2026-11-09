@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-003",
+  "title": "Who else bid and their bid status stay hidden from a vendor (known defect BUG-63, the bid-count angle)",
+  "compiledAt": "2026-11-09T20:07:43.397Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup provides one submitted bid from each of two QA vendors, but cannot express vendor B submitting a second bid as a revision.",
+   "The available read-back fields do not expose individual bid status, so bid-status hiding is not checked separately.",
+   "There is no dedicated operation for opening the live event; read_event is used as the closest available operation."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor reads the event.",
+    "As the invited QA vendor, read the pricing round and check that Data check: “participants” has exactly 1 entries."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “participants” has exactly 1 entries."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.089Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-003",
+  "title": "Who else bid and their bid status stay hidden from a vendor (known defect BUG-63, the bid-count angle)",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "participants",
+      "op": "count",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

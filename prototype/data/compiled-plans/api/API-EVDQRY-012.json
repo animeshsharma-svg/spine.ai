@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-012",
+  "title": "Counts are allowed on the owner's draft event",
+  "compiledAt": "2026-11-09T19:50:43.531Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"total_threads_count\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/chats/get_chats_count_data"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the chats get chats count data request, the request the case itself writes.",
+    "As the buyer, read the chats get chats count data request and check that Data check: “total threads count” equals 0."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “total threads count” equals 0."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.909Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-012",
+  "title": "Counts are allowed on the owner's draft event",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid={{eventGroupUuid}}"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid={{eventGroupUuid}}"
+    },
+    "assert": [
+     {
+      "path": "total_threads_count",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

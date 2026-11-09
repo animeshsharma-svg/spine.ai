@@ -2,14 +2,16 @@
  "meta": {
   "caseId": "API-SUR-010",
   "title": "With the config on, a repeat surrogate bid revises rather than duplicates",
-  "compiledAt": "2026-10-15T13:02:36.507Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:09.689Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug"
+   "it depends on a company setting this run does not change (`allowed_surrogate_bid_even_after_bid`) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts the new bid."
+  ],
   "validated": true,
   "endpoints": [
    "POST /bids/template_input"
@@ -23,13 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.194Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-SUR-010",
   "title": "With the config on, a repeat surrogate bid revises rather than duplicates",
   "setup": {
@@ -37,15 +41,27 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "surrogate_bid",
     "as": "buyer",
-    "caseId": "API-SUR-010",
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "accept"
   },
   "dependsOnSetting": "`allowed_surrogate_bid_even_after_bid`"
  }

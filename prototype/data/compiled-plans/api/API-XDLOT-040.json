@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-040",
+  "title": "A lot entry without its item list is refused, not a crash",
+  "compiledAt": "2026-11-09T20:23:16.368Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/create_new_lot"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer sends the trade create new lot request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.287Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-040",
+  "title": "A lot entry without its item list is refused, not a crash",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/create_new_lot",
+     "body": {
+      "lots": {
+       "1": {
+        "lot_title": "QA_Platform_lot"
+       }
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

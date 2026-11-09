@@ -3,15 +3,13 @@
   "caseId": "API-STG-005",
   "title": "A pricing stage without trade products is refused",
   "compiledAt": "2026-10-15T12:05:42.949Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "cannot explicitly set rfx_mode in add_rfq_round; assuming default rfq"
   ],
-  "warnings": [
-   "error code 80 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /trade/template_input"
@@ -25,13 +23,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer adds a pricing (RFQ) round to the event with no data."
+    "The buyer adds a pricing (RFQ) round to the event with no data.",
+    "As the buyer, read the event and check that the event still has no round (nothing was added)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Product not found”, and never with a server error. Read back afterwards: the event still has no round (nothing was added)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.184Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-STG-005",
   "title": "A pricing stage without trade products is refused",
   "setup": {
@@ -50,10 +50,24 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 0,
+      "say": "the event still has no round (nothing was added)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "80"
+   "code": "80",
+   "message": "Product not found"
   }
  }
 }

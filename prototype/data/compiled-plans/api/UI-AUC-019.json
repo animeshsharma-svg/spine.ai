@@ -3,14 +3,18 @@
   "caseId": "UI-AUC-019",
   "title": "A Dutch acceptance with zero or negative quantity is refused",
   "compiledAt": "2026-11-01T19:37:55.786Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the plan has the buyer send POST /v1/bids, but the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)",
+   "library case API-BID-034 is written for the buyer, but the plan sends it as vendor",
    "Testing multiple distinct quantity inputs (0 and -1) separately within a single plan without separate library cases for each"
   ],
-  "warnings": [],
+  "warnings": [
+   "act 2: library case API-BID-034 is written for the buyer — sent as the buyer",
+   "act 2: sent as the vendor — the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)",
+   "act 2: the vendor is not invited to this setup — it acts as an outsider"
+  ],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
@@ -26,13 +30,14 @@
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
     "The buyer publishes the event.",
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
    "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+  },
+  "recheckedAt": "2026-11-09T22:46:33.364Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "UI-AUC-019",
   "title": "A Dutch acceptance with zero or negative quantity is refused",
   "setup": {
@@ -45,7 +50,7 @@
    },
    {
     "op": "library",
-    "as": "buyer",
+    "as": "vendor",
     "caseId": "API-BID-034",
     "decisive": true
    }

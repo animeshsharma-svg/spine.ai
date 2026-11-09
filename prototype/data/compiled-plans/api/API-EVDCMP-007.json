@@ -2,12 +2,13 @@
  "meta": {
   "caseId": "API-EVDCMP-007",
   "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
-  "compiledAt": "2026-10-04T07:12:49.982Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:06:16.449Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Exact price of the live bid cannot be asserted with the available read‑back fields",
+   "The plan verifies that exactly one live bid remains, but the available assertion fields do not expose or compare the bid's accepted price.",
+   "The available assertion vocabulary cannot express both possible outcomes of the vendor submission as independently passing branches; the submission is allowed to be refused while the final one-bid state is verified.",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
@@ -17,7 +18,8 @@
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id",
-   "GET /trade/:id"
+   "GET /trade/:id",
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,15 +30,17 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
-    "The invited QA vendor places a complete bid (open, price, submit).",
-    "As the invited QA vendor, read the pricing round and check that “bid count” equals 1."
+    "The buyer places QA vendor 3's bid on its behalf.",
+    "QA vendor 3 bids itself at a slightly lower price; the app may accept it as a revision or refuse it.",
+    "As the buyer, read the pricing round and check that QA vendor 3 has exactly one live bid.",
+    "As the invited QA vendor, read the bid and check that QA vendor 3 can read its one live bid."
    ],
-   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
-  }
+   "expected": "The app accepts it. Read back afterwards: QA vendor 3 has exactly one live bid; QA vendor 3 can read its one live bid."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.858Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDCMP-007",
   "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
   "setup": {
@@ -45,23 +49,50 @@
   "act": [
    {
     "op": "surrogate_bid",
-    "as": "buyer"
+    "as": "buyer",
+    "change": [
+     {
+      "path": "company_uuid",
+      "set": "{{vendorUuid}}"
+     }
+    ],
+    "params": {
+     "price": 100,
+     "vendor": "vendor"
+    },
+    "say": "The buyer places QA vendor 3's bid on its behalf."
    },
    {
     "op": "place_bid",
     "as": "vendor",
-    "decisive": true
+    "params": {
+     "price": 99
+    },
+    "decisive": true,
+    "ifRefused": "pass",
+    "say": "QA vendor 3 bids itself at a slightly lower price; the app may accept it as a revision or refuse it."
    }
   ],
   "verify": [
    {
     "op": "read_round",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "path": "bid_count",
       "op": "equals",
-      "value": 1
+      "value": 1,
+      "say": "QA vendor 3 has exactly one live bid"
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx",
+      "say": "QA vendor 3 can read its one live bid"
      }
     ]
    }

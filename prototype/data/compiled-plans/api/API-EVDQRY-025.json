@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-025",
+  "title": "Attachments sent as text crash the request",
+  "compiledAt": "2026-11-09T20:20:19.985Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Does not verify the alternative expected application error code 812.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/chats"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the chats request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.916Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-025",
+  "title": "Attachments sent as text crash the request",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/chats?module=PurchaseRequest&module_uuid=Z2dnWmdaUWtnZw==",
+     "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}",
+      "attachments": "QA_Platform_not_a_list"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

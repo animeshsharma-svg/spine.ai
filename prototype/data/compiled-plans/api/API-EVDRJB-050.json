@@ -2,20 +2,18 @@
  "meta": {
   "caseId": "API-EVDRJB-050",
   "title": "The rejected-bids list answers after a rejection",
-  "compiledAt": "2026-10-15T12:28:02.566Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:12:27.544Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "No operation is available to reject a bid.",
-   "No operation is available to read the rejected-bids list.",
-   "The rejected bid, QA vendor 1, and rejection reason cannot be asserted.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The plan does not verify that the rejected bid is listed under QA vendor 1 or that its rejection reason is present because the response fields for this request are not provided."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /trade/:id"
+   "PATCH /bids/:id/reject",
+   "GET /v1/trade/:id/rejected_bids"
   ],
   "llm": {
    "calls": 0,
@@ -26,34 +24,49 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "As the buyer, read the pricing round and check that the read succeeds; “bid count” equals 1."
+    "The buyer sends the bid call, the request the case itself writes.",
+    "As the buyer, read the trade rejected bids request and check that Status check: the reply's status code is 200 — OK — the request worked."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds; “bid count” equals 1."
-  }
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.988Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-050",
   "title": "The rejected-bids list answers after a rejection",
   "setup": {
    "recipe": "rfq_with_bid"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebilling": true
+     }
+    },
+    "decisive": true
+   }
+  ],
   "verify": [
    {
-    "op": "read_round",
-    "as": "buyer",
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/trade/{{tradeId}}/rejected_bids"
+    },
     "assert": [
      {
-      "path": "status",
-      "op": "status_2xx"
-     },
-     {
-      "path": "bid_count",
-      "op": "equals",
-      "value": 1
+      "op": "status",
+      "value": 200
      }
-    ]
+    ],
+    "as": "buyer"
    }
   ],
   "expected": {

@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-038",
+  "title": "Splitting is refused once an award is submitted — with a misleading message",
+  "compiledAt": "2026-11-09T20:17:20.731Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The request body for creating one lot is not defined, so the lot payload and quoted trade product cannot be expressed without inventing fields.",
+   "No available read-back field directly verifies that no lot was created.",
+   "The expected application wording says an award proposal is already submitted, but the available expected message is the misleading auction-created message.",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (rfx_project_enabled) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/create_new_lot"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the trade create new lot request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot edit rfq once the auction is created.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.285Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-038",
+  "title": "Splitting is refused once an award is submitted — with a misleading message",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/create_new_lot",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "769",
+   "message": "You cannot edit rfq once the auction is created."
+  },
+  "dependsOnSetting": "rfx_project_enabled"
+ }
+}

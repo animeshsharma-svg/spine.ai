@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-006",
+  "title": "A new event carries the company's trade reasons and starts unsaved, not on hold",
+  "compiledAt": "2026-11-09T20:04:03.972Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Creating the draft through the create_draft operation cannot be tested because productUuid and productQualityUuid are unavailable as tokens.",
+   "Company trade reasons and removal of empty reasons are not readable fields.",
+   "The on-hold flag is not a read-back field.",
+   "Saving the event and verifying saved count 0 then 1 are not covered by an available operation or read-back field.",
+   "Whether a line is part of a draft event only after the first save is not expressible.",
+   "Scheduling publication and verifying the returned scheduled publish time are not covered by an available operation or read-back field."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "As the buyer, read the event and check that Data check: “status” equals draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.066Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-006",
+  "title": "A new event carries the company's trade reasons and starts unsaved, not on hold",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

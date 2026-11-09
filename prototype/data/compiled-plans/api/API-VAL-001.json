@@ -2,18 +2,22 @@
  "meta": {
   "caseId": "API-VAL-001",
   "title": "Every required parameter is enforced on every write endpoint",
-  "compiledAt": "2026-10-04T07:02:42.286Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:23:07.764Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Only the missing-lots parameter on the lot-saving write is checked; required-parameter enforcement for event-group create/update, stage create, bid create, proposal create, and other write endpoints is not covered.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "Does not check omission of every required parameter individually.",
+   "Does not check event-group creation because create_draft requires productUuid and productQualityUuid, which are not available as tokens.",
+   "Does not check stage creation parameters for add_rfq_round or add_rfp_round.",
+   "Does not check bid creation parameters for open_bid, price_bid, submit_bid, or place_bid.",
+   "Does not check proposal creation parameters for open_proposal.",
+   "Each omission requires an independent fresh record, but a plan has only one setup recipe."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id/save_draft_lots"
+   "PATCH /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -22,33 +26,38 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer sends the event groups save draft lots request, exactly as the matching library case writes it."
+    "The buyer updates the event without the title."
    ],
-   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.204Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-VAL-001",
   "title": "Every required parameter is enforced on every write endpoint",
   "setup": {
-   "recipe": "awarded_rfq"
+   "recipe": "draft_event"
   },
   "act": [
    {
-    "op": "library",
+    "op": "update_event",
     "as": "buyer",
-    "caseId": "EDGE-DLOT-014",
-    "decisive": true
+    "change": [
+     {
+      "path": "title",
+      "remove": true
+     }
+    ],
+    "decisive": true,
+    "ifRefused": "pass"
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "reject",
-   "code": "2",
-   "message": "Insufficient parameters"
+   "outcome": "accept"
   }
  }
 }

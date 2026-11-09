@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "API-EVDAUX-007",
+  "title": "Without dynamic closing, a last-minute new leader still adds 3 minutes when the round allows it",
+  "compiledAt": "2026-11-09T19:30:07.159Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot configure or verify rank limit 1, disabled dynamic closing, last-minute timing, rank 1 leadership, or an exact three-minute extension with the available operations and assertions.",
+   "Cannot verify the separate requirement that this behavior never occurs on an RFQ."
+  ],
+  "warnings": [
+   "act 2: the vendor is not invited to this setup — it acts as an outsider"
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: “ending at” is present; Schema check: “rfx mode” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “ending at” is present; Schema check: “rfx mode” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.843Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDAUX-007",
+  "title": "Without dynamic closing, a last-minute new leader still adds 3 minutes when the round allows it",
+  "setup": {
+   "recipe": "draft_auction"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "rfx_mode",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-002",
+  "title": "Once the vendor submits a bid it drops out of the offer-submission list",
+  "compiledAt": "2026-11-09T19:32:01.321Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The response field for confirming that nothing else is pending is not specified."
+  ],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"offer_submissions\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /reminders/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the reminders request and check that Status check: the reply's status code is 200 — OK — the request worked; Data check: “offer submissions” equals null."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked; Data check: “offer submissions” equals null."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.932Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDREM-002",
+  "title": "Once the vendor submits a bid it drops out of the offer-submission list",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group"
+    },
+    "assert": [
+     {
+      "op": "status",
+      "value": 200
+     },
+     {
+      "path": "offer_submissions",
+      "op": "equals",
+      "value": null
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

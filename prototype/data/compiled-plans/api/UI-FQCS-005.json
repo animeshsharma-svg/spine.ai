@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "UI-FQCS-005",
+  "title": "The downloaded report equals the screen",
+  "compiledAt": "2026-11-09T19:28:32.510Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Opening Master QCS is not explicitly represented; read_indicators is used as the closest available operation.",
+   "Downloading the report is not represented by any operation.",
+   "The vocabulary cannot compare every vendor and line's Rate, Gross Amount, or Rank between the file and Master QCS.",
+   "The vocabulary cannot verify that Sum Total equals the sum of line amounts.",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “report” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.373Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-FQCS-005",
+  "title": "The downloaded report equals the screen",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

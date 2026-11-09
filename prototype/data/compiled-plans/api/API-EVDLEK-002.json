@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-002",
+  "title": "A vendor cannot open another vendor's quote by its id",
+  "compiledAt": "2026-11-09T19:23:45.814Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary has vendor and vendor2 but no vendor4, so the check is performed as the bidding vendor rather than QA vendor 4."
+  ],
+  "warnings": [
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept",
+   "verify 1: read_bid's reply shape has not been sampled; \"message\" is unverified",
+   "verify 1: read_bid's reply shape has not been sampled; \"price\" is unverified",
+   "verify 1: read_bid's reply shape has not been sampled; \"name\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Data check: “message” equals Bid not found; Schema check: “price” is absent; Schema check: “name” is absent."
+   ],
+   "expected": "The app refuses it with a clear message, and never with a server error. Read back afterwards: Data check: “message” equals Bid not found; Schema check: “price” is absent; Schema check: “name” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.898Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDLEK-002",
+  "title": "A vendor cannot open another vendor's quote by its id",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "message",
+      "op": "equals",
+      "value": "Bid not found"
+     },
+     {
+      "path": "price",
+      "op": "absent"
+     },
+     {
+      "path": "name",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

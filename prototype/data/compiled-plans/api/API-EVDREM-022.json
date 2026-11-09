@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-022",
+  "title": "A missing resource type behaves the same way",
+  "compiledAt": "2026-11-09T19:52:09.677Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"error.code\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /reminders/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the reminders request, the request the case itself writes.",
+    "As the buyer, read the reminders request and check that Data check: “error › code” equals 2."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error. Read back afterwards: Data check: “error › code” equals 2."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.935Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDREM-022",
+  "title": "A missing resource type behaves the same way",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}"
+    },
+    "assert": [
+     {
+      "path": "error.code",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

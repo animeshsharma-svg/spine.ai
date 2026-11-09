@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "EVI-TOT-007",
   "title": "Wrong totals sent by a vendor cannot make it L1",
-  "compiledAt": "2026-10-04T07:18:00.926Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:09:54.627Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "specific recomputed total amount comparison for vendor 2 is outside read_indicators exact shape",
+   "The available read-back fields do not expose the recomputed best total, so the best-total value cannot be verified.",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
   ],
   "validated": true,
   "endpoints": [
@@ -26,13 +27,14 @@
   "words": {
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals false."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals false."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.359Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-TOT-007",
   "title": "Wrong totals sent by a vendor cannot make it L1",
   "setup": {
@@ -48,6 +50,11 @@
       "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
       "op": "equals",
       "value": true
+     },
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": false
      }
     ]
    }

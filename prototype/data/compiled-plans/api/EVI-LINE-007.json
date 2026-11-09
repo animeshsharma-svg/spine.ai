@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-007",
+  "title": "Many lines in one bid all total correctly",
+  "compiledAt": "2026-11-09T20:23:42.912Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not specify an RFQ with 60 lines, mixed quantities, or GST slabs.",
+   "The available bid read-back fields do not expose the bid total or per-line totals, so exact total calculation and comparison to shown places cannot be asserted.",
+   "the decisive step tests something else than the case's point: The setup already contains submitted bids, so the plan cannot verify both vendors quoting every line as an act."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the second QA vendor's bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.343Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "EVI-LINE-007",
+  "title": "Many lines in one bid all total correctly",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_bid2",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

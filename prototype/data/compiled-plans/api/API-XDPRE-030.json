@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-030",
+  "title": "A quantity sent as a bare number (not an object) fails with a raw Ruby message",
+  "compiledAt": "2026-11-09T20:01:43.806Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case says \"Pull\", but no pull operation or request path is provided; create_draft is the closest available operation.",
+   "The plan cannot assert HTTP 422, error code 15, a NoMethodError message, acceptance of the bare number, or refusal specifically with code 2.",
+   "The expected outcome is ambiguous because both acceptance and refusal with code 2 are stated as desired outcomes."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft with quantity sent as the bare number 5."
+   ],
+   "expected": "The app refuses the step the case is about with “Operation failed”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.295Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-030",
+  "title": "A quantity sent as a bare number (not an object) fails with a raw Ruby message",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "line_items[0].quantity",
+      "set": 5
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer creates a draft with quantity sent as the bare number 5."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "15",
+   "message": "Operation failed"
+  }
+ }
+}

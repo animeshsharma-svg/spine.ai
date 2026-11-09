@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "API-VAL-010",
   "title": "Numeric edge values are handled or refused explicitly",
-  "compiledAt": "2026-10-15T12:44:26.389Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:52.539Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Quantity values cannot be changed through the available operations for this setup.",
-   "The read-back fields do not expose bid prices or quantities, so exact value preservation cannot be asserted.",
-   "The plan cannot encode the acceptable alternative outcome where each individual value is refused with a readable message; it only sends the values and permits refusal without stopping subsequent attempts.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The prices 999999999999.99, 1e10, and 0.000001 are not tested.",
+   "Quantity values 0, 999999999999.99, 1e10, and 0.000001 are not tested because no available operation can set those quantities on the fresh record.",
+   "The refusal message cannot be asserted because no documented response-message field is available.",
+   "Exact value preservation for accepted values cannot be verified because no documented bid price read-back field is available."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
    "GET /trade/:id"
   ],
   "llm": {
@@ -28,18 +29,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor prices the line on the bid at 0.",
-    "The invited QA vendor prices the line on the bid at 999999999999.99.",
-    "The invited QA vendor prices the line on the bid at 10000000000.",
-    "The invited QA vendor prices the line on the bid at 0.000001.",
-    "As the invited QA vendor, read the pricing round and check that the read succeeds."
+    "The invited QA vendor places a complete bid of 0 (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.208Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-VAL-010",
   "title": "Numeric edge values are handled or refused explicitly",
   "setup": {
@@ -47,57 +45,30 @@
   },
   "act": [
    {
-    "op": "open_bid",
-    "as": "vendor"
-   },
-   {
-    "op": "price_bid",
+    "op": "place_bid",
     "as": "vendor",
     "params": {
      "price": 0
     },
-    "ifRefused": "pass"
-   },
-   {
-    "op": "price_bid",
-    "as": "vendor",
-    "params": {
-     "price": 999999999999.99
-    },
-    "ifRefused": "pass"
-   },
-   {
-    "op": "price_bid",
-    "as": "vendor",
-    "params": {
-     "price": 10000000000
-    },
-    "ifRefused": "pass"
-   },
-   {
-    "op": "price_bid",
-    "as": "vendor",
-    "params": {
-     "price": 1e-06
-    },
-    "decisive": true,
-    "ifRefused": "pass"
+    "decisive": true
    }
   ],
   "verify": [
    {
     "op": "read_round",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "status_2xx"
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject"
   }
  }
 }

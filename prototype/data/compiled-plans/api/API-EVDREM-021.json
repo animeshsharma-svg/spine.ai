@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-021",
+  "title": "An unknown resource type skips every permission check and reports an error as success",
+  "compiledAt": "2026-11-09T19:52:02.082Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot verify that no permission check occurred.",
+   "The expected HTTP 200 response conflicts with the stated requirement that the request should return HTTP 422; the plan asserts the error body but does not assert either status because the required outcome is reject.",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /reminders/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the reminders request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.934Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDREM-021",
+  "title": "An unknown resource type skips every permission check and reports an error as success",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=trade_request"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

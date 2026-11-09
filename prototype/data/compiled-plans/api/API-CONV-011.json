@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "API-CONV-011",
+  "title": "The RFQ becomes bid-restricted once its auction exists",
+  "compiledAt": "2026-11-09T22:23:37.982Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot edit rfq once the auction is created.”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.824Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-CONV-011",
+  "title": "The RFQ becomes bid-restricted once its auction exists",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "expect": "accept"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "769",
+   "message": "You cannot edit rfq once the auction is created."
+  }
+ }
+}

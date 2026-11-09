@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-010",
+  "title": "On a price round a vendor never learns its own rank",
+  "compiledAt": "2026-11-09T20:07:51.311Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The closed RFQ state cannot be combined with an accepted open_bid action because opening a bid after the window closes is rejected.",
+   "the decisive step tests something else than the case's point: The setup cannot express the specified bid prices of vendor B at 95 and the QA vendor at 100.",
+   "The available read-back vocabulary does not identify the exact bid-row rank field; the plan checks the named field rank."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "As the invited QA vendor, read the bid and check that Schema check: “rank” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “rank” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.092Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-010",
+  "title": "On a price round a vendor never learns its own rank",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "rank",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

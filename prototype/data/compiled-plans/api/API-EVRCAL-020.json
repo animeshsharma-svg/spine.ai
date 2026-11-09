@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-020",
+  "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
+  "compiledAt": "2026-11-09T20:12:50.889Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create two line items with the required quote history: L1 with A's first quote 100 revised to 90 and B's first quote 95, and L2 with only A's revised quote.",
+   "the decisive step tests something else than the case's point: The available bid operations cannot create or verify first-versus-revised quote history after the round is closed.",
+   "The read_indicators read-back exposes ranks and best bidder only; it does not expose line-wise savings, default reference, final quote, or saving-per-unit values.",
+   "The plan cannot verify that L1 has reference 95, final 90, and saving 5 per unit, or that L2 has no reference and no saving."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.039Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-020",
+  "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

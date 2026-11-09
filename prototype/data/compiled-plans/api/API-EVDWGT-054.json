@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-054",
+  "title": "A weight key containing \"uuid\" is mangled by the id decoder",
+  "compiledAt": "2026-11-09T22:45:41.237Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The complete happy-path weight payload and value are not specified; the request preserves only the named qa_uuid_bonus key.",
+   "it does not read the record back to confirm what was kept or shown",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.028Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-054",
+  "title": "A weight key containing \"uuid\" is mangled by the id decoder",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "qa_uuid_bonus": "{{stamp}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

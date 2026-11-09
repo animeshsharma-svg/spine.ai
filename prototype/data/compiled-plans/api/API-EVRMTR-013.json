@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-013",
+  "title": "With a cost-breakdown review window, an extension shifts the review window first and the evaluation after it",
+  "compiledAt": "2026-11-09T20:14:33.308Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup recipes do not create a cost-breakdown review window or a separate evaluation window.",
+   "The available tokens cannot express an extension of exactly 30 minutes; the plan uses the permitted maximum wait-compatible extension of 4 minutes.",
+   "No read-back field verifies that the review window shifts before the evaluation window.",
+   "Counter-offer task due dates cannot be read or verified with the available operations and fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later.",
+    "As the buyer, read the pricing round and check that Data check: “ending at” equals {{roundEnd+240}}."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “ending at” equals {{roundEnd+240}}."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.079Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-013",
+  "title": "With a cost-breakdown review window, an extension shifts the review window first and the evaluation after it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+240}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "equals",
+      "value": "{{roundEnd+240}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

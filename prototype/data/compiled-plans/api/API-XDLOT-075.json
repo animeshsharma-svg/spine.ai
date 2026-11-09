@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-075",
+  "title": "The base currency's own rate cannot be changed",
+  "compiledAt": "2026-11-09T20:17:24.932Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ with INR as the base currency and no bids.",
+   "The response wording that specifically says the base currency rate cannot be changed is not asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.289Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-075",
+  "title": "The base currency's own rate cannot be changed",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "INR": 2
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

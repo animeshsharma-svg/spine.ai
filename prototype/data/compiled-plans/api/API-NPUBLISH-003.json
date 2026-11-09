@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-NPUBLISH-003",
+  "title": "Publish the event to the invited vendor: status is omitted",
+  "compiledAt": "2026-11-09T19:41:34.100Z",
+  "planVersion": 2,
+  "source": "rules",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event, exactly as the journey does, with the status left out of the body.",
+    "As the buyer, read the event and check that the event is still a draft (not published)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event is still a draft (not published)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.144Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-NPUBLISH-003",
+  "title": "Publish the event to the invited vendor: status is omitted",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "remove": true
+     }
+    ],
+    "decisive": true,
+    "say": "The buyer publishes the event, exactly as the journey does, with the status left out of the body."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft",
+      "say": "the event is still a draft (not published)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-019",
+  "title": "The event page shows the top four live bids; quote details show the full history",
+  "compiledAt": "2026-11-09T20:21:58.067Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: No setup recipe creates a live RFQ with six vendors bidding, including revised and rejected bids.",
+   "No operation reads the event page bid block or verifies that exactly four bids are shown, filtered to active/awarded/pending-approval and ordered best first.",
+   "No operation opens quote details or exposes the full bid history, including active, revised, awarded, pending-approval, and approval-requested bids while excluding rejected bids.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
+   "verify 2: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 2.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 1 › inline › the line › best bidder” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 2; Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is present; Schema check: “auction identifiers data › QA vendor 1 › inline › the line › best bidder” is present."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.063Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-019",
+  "title": "The event page shows the top four live bids; quote details show the full history",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.best_bidder",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

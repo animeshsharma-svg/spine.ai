@@ -3,7 +3,7 @@
   "caseId": "API-EVDRJB-041",
   "title": "After discarding a draft the vendor can quote from scratch",
   "compiledAt": "2026-10-15T12:27:41.331Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -26,13 +26,15 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor places a complete bid (open, price, submit)."
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.986Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-041",
   "title": "After discarding a draft the vendor can quote from scratch",
   "setup": {
@@ -49,7 +51,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   }

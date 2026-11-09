@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-001",
+  "title": "A vendor must not receive other vendors' individual price limits",
+  "compiledAt": "2026-11-09T20:07:35.699Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The read-back vocabulary does not expose individual vendor price limits or line details, so it cannot verify that the QA vendor receives at most 120 or that vendor B's 105 limit is absent.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "PATCH /trade/:id/update_vendor_validations",
+   "POST /v1/bids",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The buyer sets the invited vendor's price cap on the round to 120 (a bid must be strictly below it) for the invited QA vendor.",
+    "The buyer sets the invited vendor's price cap on the round to 105 (a bid must be strictly below it) for a second QA vendor.",
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor reads the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.088Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-001",
+  "title": "A vendor must not receive other vendors' individual price limits",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    },
+    "expect": "accept"
+   },
+   {
+    "op": "price_cap",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor",
+     "price": 120
+    },
+    "expect": "accept"
+   },
+   {
+    "op": "price_cap",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2",
+     "price": 105
+    },
+    "expect": "accept"
+   },
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept"
+   },
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

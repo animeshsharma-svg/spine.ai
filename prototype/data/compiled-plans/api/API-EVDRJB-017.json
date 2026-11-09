@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-017",
+  "title": "Rejecting one vendor's bid leaves the other vendor's bid active",
+  "compiledAt": "2026-11-09T19:24:04.535Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available tokens provide only one bidUuid, so the plan cannot target QA vendor 1's bid and then separately target or verify QA vendor 2's bid. The second rejection and HTTP 200 assertion for the distinct bid are not expressible.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.975Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-017",
+  "title": "Rejecting one vendor's bid leaves the other vendor's bid active",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebilling": true
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

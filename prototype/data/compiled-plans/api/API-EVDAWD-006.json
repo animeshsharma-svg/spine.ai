@@ -3,7 +3,7 @@
   "caseId": "API-EVDAWD-006",
   "title": "Changing an awarded vendor's quantity changes its amount",
   "compiledAt": "2026-10-15T12:34:47.031Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
@@ -24,13 +24,15 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer awards the line to a vendor on the proposal for the invited QA vendor."
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "As the buyer, read the event and check that the event carries the award proposal."
    ],
-   "expected": "The app accepts it."
-  }
+   "expected": "The app accepts it. Read back afterwards: the event carries the award proposal."
+  },
+  "recheckedAt": "2026-11-09T22:46:32.847Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDAWD-006",
   "title": "Changing an awarded vendor's quantity changes its amount",
   "setup": {
@@ -46,7 +48,19 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals",
+      "op": "non_empty",
+      "say": "the event carries the award proposal"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   }

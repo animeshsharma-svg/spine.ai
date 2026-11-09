@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-004",
+  "title": "Weightages and currency preferences do not name the other vendors",
+  "compiledAt": "2026-11-09T20:15:00.203Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup does not create a weighted RFQ, per-vendor weights, a second invited vendor, or a multi-currency configuration with vendor B quoting in USD.",
+   "The available read-back fields do not expose vendor-specific weight or currency visibility, so the vendor's own weight and currency—and exclusion of other vendors' values—cannot be checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.089Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-004",
+  "title": "Weightages and currency preferences do not name the other vendors",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

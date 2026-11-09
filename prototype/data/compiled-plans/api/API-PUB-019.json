@@ -2,14 +2,14 @@
  "meta": {
   "caseId": "API-PUB-019",
   "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
-  "compiledAt": "2026-10-15T12:07:00.727Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:09.752Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "No setup recipe creates an active event with no draft stages, no line items, and no config.",
-   "The plan cannot verify that no service ran or distinguish an unchanged state from a silent state change.",
-   "The operation vocabulary does not expose response-body assertions for a coherent non-500 response."
+   "The available setup recipe includes a line item, while the case requires no line_items.",
+   "the decisive step tests something else than the case's point: The available setup recipe does not expose whether the event has no draft_trade_request_ids or config.",
+   "the decisive step tests something else than the case's point: The plan cannot directly verify that no service ran; it verifies only the non-5xx behavior and unchanged active status."
   ],
   "warnings": [],
   "validated": true,
@@ -26,14 +26,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer updates the event with the status set to “active”.",
-    "As the buyer, read the event and check that “status” equals active."
+    "The buyer sends the request that updates (and publishes) the event, the request the case itself writes.",
+    "As the buyer, read the event and check that Data check: “status” equals active."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “status” equals active."
-  }
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.177Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-019",
   "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
   "setup": {
@@ -41,15 +42,15 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "request",
     "as": "buyer",
-    "change": [
-     {
-      "path": "status",
-      "set": "active",
-      "add": true
+    "request": {
+     "method": "PATCH",
+     "path": "/event_groups/{{eventGroupUuid}}",
+     "body": {
+      "status": "active"
      }
-    ],
+    },
     "decisive": true
    }
   ],

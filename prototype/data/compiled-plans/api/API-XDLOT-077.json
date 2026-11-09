@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-077",
+  "title": "Absurd rates are accepted, and an infinite one is stored as empty",
+  "compiledAt": "2026-11-09T22:26:42.319Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not create a multi-currency RFQ.",
+   "No available read operation or known field verifies the sanity-bound decision or that the infinite rate is stored as empty.",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (multi-currency RFQ) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes.",
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.290Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-077",
+  "title": "Absurd rates are accepted, and an infinite one is stored as empty",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "USD": 830000000
+       }
+      ]
+     }
+    }
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "USD": null
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "multi-currency RFQ"
+ }
+}

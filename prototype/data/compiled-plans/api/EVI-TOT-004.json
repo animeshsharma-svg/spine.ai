@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "EVI-TOT-004",
+  "title": "The bid count matches the bids listed",
+  "compiledAt": "2026-11-09T20:24:01.520Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan verifies the expected bid count and that both bid records can be read, but cannot dynamically compare bid_count with a returned list length because no operation lists all bids or supports cross-field assertions."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 2.",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the second QA vendor's bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 2; Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:46:33.357Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "EVI-TOT-004",
+  "title": "The bid count matches the bids listed",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_bid2",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}
