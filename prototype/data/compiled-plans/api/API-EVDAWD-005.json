@@ -2,15 +2,14 @@
  "meta": {
   "caseId": "API-EVDAWD-005",
   "title": "Taking a vendor off the award removes exactly its amount, and putting it back restores it",
-  "compiledAt": "2026-11-09T20:10:37.427Z",
+  "compiledAt": "2026-11-09T22:49:14.965Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup has only one awarded vendor, not three vendors with QA vendor 3 and two other allocations.",
-   "The vocabulary has no operation for the exact award-removal action or for restoring an award with 5 units.",
-   "The proposal read-back schema does not expose known assertion paths for allocation totals, vendor membership, or the ₹0 empty-award total.",
-   "the decisive step tests something else than the case's point: The available library case removes the allocation through an unknown action and only verifies that the request does not produce a 5xx response."
+   "The available setup creates an award to one QA vendor only, so the three-vendor allocation and the other two vendors' amounts cannot be reproduced.",
+   "The sampled read-back vocabulary does not expose proposal total value, awarded quantities, or vendor-list fields, so the exact ₹0/5-unit totals and vendor removal cannot be asserted.",
+   "it depends on a company setting this run does not change (is_partial_awarding_enabled) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -27,12 +26,14 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer sends the award proposal call, exactly as the matching library case writes it.",
-    "As the buyer, read the award proposal and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "The buyer sends the award proposal call, the request the case itself writes.",
+    "The buyer reads the award proposal.",
+    "The buyer sends the award proposal call, the request the case itself writes.",
+    "The buyer reads the award proposal."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it."
   },
-  "recheckedAt": "2026-11-09T22:46:32.847Z"
+  "recheckedAt": "2026-11-09T22:56:36.721Z"
  },
  "plan": {
   "version": 2,
@@ -43,25 +44,60 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "buyer",
-    "caseId": "EDGE-AWD-104",
-    "decisive": true
-   }
-  ],
-  "verify": [
+    "request": {
+     "method": "POST",
+     "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+     "body": {
+      "responses": {
+       "{{vendorUuid}}": {
+        "action": "remove",
+        "egli_data": {
+         "{{lineItemUuid}}": {
+          "awarded_quantity": 0
+         }
+        }
+       }
+      }
+     }
+    },
+    "ifRefused": "pass"
+   },
    {
     "op": "read_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "request",
     "as": "buyer",
-    "assert": [
-     {
-      "op": "status_2xx"
+    "request": {
+     "method": "POST",
+     "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+     "body": {
+      "responses": {
+       "{{vendorUuid}}": {
+        "action": "add",
+        "egli_data": {
+         "{{lineItemUuid}}": {
+          "awarded_quantity": 5
+         }
+        }
+       }
+      }
      }
-    ]
+    },
+    "decisive": true
+   },
+   {
+    "op": "read_proposal",
+    "as": "buyer"
    }
   ],
+  "verify": [],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "is_partial_awarding_enabled"
  }
 }

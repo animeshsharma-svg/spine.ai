@@ -2,21 +2,23 @@
  "meta": {
   "caseId": "API-PERM-009",
   "title": "Vendor self-participation requires show access and open tenders",
-  "compiledAt": "2026-11-09T20:15:54.314Z",
+  "compiledAt": "2026-11-09T22:52:12.323Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The uninvited-vendor participation refusal is not covered: EDGE-PUB-083 tests event reading, not participation.",
-   "the decisive step tests something else than the case's point: The non-open-tender refusal requires a buyer-company open_tenders setting that the available setup and operations cannot control.",
-   "The three participation scenarios cannot be executed from one fresh setup recipe while preserving the required starting states.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”",
-   "it does not read the record back to confirm what was kept or shown"
+   "the decisive step tests something else than the case's point: The fresh setup cannot switch the buyer company’s open_tenders setting between participation attempts, so the non-open-tender refusal depends on the configured company setting.",
+   "API-AUD-011 covers self-participation by a mapped vendor on an active open-tender event, but the available vocabulary cannot independently verify that the first caller was already invited or that the second caller was uninvited.",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (the buyer company’s open_tenders setting) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "act 2: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor"
+  ],
   "validated": true,
   "endpoints": [
-   "GET /event_groups/:id"
+   "GET /event_groups/:id",
+   "POST /event_groups/:id/participants"
   ],
   "llm": {
    "calls": 0,
@@ -27,11 +29,13 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor sends the request that reads the event, exactly as the matching library case writes it."
+    "The invited QA vendor sends the request that reads the event, exactly as the matching library case writes it.",
+    "A second QA vendor sends the request that reads the event, exactly as the matching library case writes it.",
+    "The buyer sends the event groups participants request, exactly as the matching library case writes it."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.169Z"
+  "recheckedAt": "2026-11-09T22:56:37.019Z"
  },
  "plan": {
   "version": 2,
@@ -45,12 +49,27 @@
     "op": "library",
     "as": "vendor",
     "caseId": "API-AUD-011",
+    "ifRefused": "pass"
+   },
+   {
+    "op": "library",
+    "as": "vendor2",
+    "caseId": "API-AUD-011",
+    "ifRefused": "pass"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-049",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
-  }
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  },
+  "dependsOnSetting": "the buyer company’s open_tenders setting"
  }
 }

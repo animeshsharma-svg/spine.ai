@@ -2,18 +2,19 @@
  "meta": {
   "caseId": "EVI-RANK-005",
   "title": "Ranks follow the dense-rank rule, a tie at the best moving everyone down",
-  "compiledAt": "2026-11-09T20:18:28.510Z",
+  "compiledAt": "2026-11-09T22:53:08.551Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup does not create a tie at the best bid.",
-   "The available read-back fields do not expose numeric ranks, so the dense-rank values and the +1 shift for all other vendors cannot be checked.",
-   "the decisive step tests something else than the case's point: The setup does not guarantee that ranks are visible on the stage.",
+   "the decisive step tests something else than the case's point: The setup does not guarantee that the two bids tie at the best ranking figure.",
+   "The available read-back fields do not expose numeric rank values or the ranking figure, so the dense-rank rule and the expected rank increment cannot be checked.",
+   "Stage rank visibility is not configurable or assertable with the available vocabulary.",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
   "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
   ],
   "validated": true,
   "endpoints": [
@@ -29,11 +30,11 @@
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
     "The buyer reads the round's comparison (ranks, best bidder).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
   },
-  "recheckedAt": "2026-11-09T22:46:33.346Z"
+  "recheckedAt": "2026-11-09T22:56:37.169Z"
  },
  "plan": {
   "version": 2,
@@ -56,6 +57,10 @@
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
       "op": "exists"
      }
     ]

@@ -2,22 +2,20 @@
  "meta": {
   "caseId": "API-EVRMTR-028",
   "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
-  "compiledAt": "2026-11-09T20:14:43.414Z",
+  "compiledAt": "2026-11-09T22:51:09.854Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup does not configure a masked event or the show_bidding_stats_in_masked_events gate.",
-   "A second live round with show_placed_bids_stats=false cannot be created or configured with the available recipes and fields.",
-   "A super admin actor is not available, so the super-admin read is not covered.",
-   "The available read-back fields cannot assert that the live response contains only placed-bid counts, that the stored false value is returned to normal buyers, or that full data is returned after the round ends.",
-   "it does not read the record back to confirm what was kept or shown",
+   "The vocabulary has no super-admin actor, so the super-admin reads cannot be tested.",
+   "the decisive step tests something else than the case's point: The vocabulary cannot create a second live round or set show_placed_bids_stats to false.",
+   "The vocabulary cannot verify the complete masked statistics payload; this plan checks the available bid_count and participants fields only.",
    "it depends on a company setting this run does not change (show_bidding_stats_in_masked_events) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /v1/trade/:id/event_indicators"
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -28,13 +26,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
    "steps": [
-    "The buyer reads the round's comparison (ranks, best bidder).",
-    "Wait until the round has closed (bid end and extra closing time over).",
-    "The buyer reads the round's comparison (ranks, best bidder)."
+    "The buyer reads the pricing round.",
+    "Wait until the round's bid end time has passed.",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the pricing round and check that Schema check: “bid count” is present; Schema check: “participants” is absent.",
+    "As the buyer, read the pricing round and check that Schema check: “participants” is present."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “bid count” is present; Schema check: “participants” is absent; Schema check: “participants” is present."
   },
-  "recheckedAt": "2026-11-09T22:46:33.083Z"
+  "recheckedAt": "2026-11-09T22:56:36.925Z"
  },
  "plan": {
   "version": 2,
@@ -45,23 +45,48 @@
   },
   "act": [
    {
-    "op": "read_indicators",
+    "op": "read_round",
     "as": "buyer"
    },
    {
     "op": "wait",
     "as": "buyer",
     "params": {
-     "until": "close"
+     "until": "bid_end"
     }
    },
    {
-    "op": "read_indicators",
+    "op": "read_round",
     "as": "buyer",
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "exists"
+     },
+     {
+      "path": "participants",
+      "op": "absent"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "participants",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "accept"
   },

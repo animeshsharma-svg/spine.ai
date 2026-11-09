@@ -2,14 +2,14 @@
  "meta": {
   "caseId": "API-EVRVIS-030",
   "title": "A vendor's list of auctions it took part in opens even when one of them is a sealed-bid lot auction",
-  "compiledAt": "2026-11-09T20:15:38.292Z",
+  "compiledAt": "2026-11-09T22:51:49.719Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: No setup recipe creates a closed sealed-bid lot auction with a vendor bid.",
-   "No operation or assertion verifies that the list is specifically participated auctions, that the auction appears in the list, or that its rank is absent.",
-   "it does not read the record back to confirm what was kept or shown"
+   "the decisive step tests something else than the case's point: The available setup does not create a sealed-bid lot auction; it creates a closed RFQ with a vendor bid.",
+   "The available list operation does not specifically verify the participated-auctions list or that the auction appears in it.",
+   "The available read-back fields cannot verify that the listed auction has no rank."
   ],
   "warnings": [],
   "validated": true,
@@ -25,11 +25,11 @@
   "words": {
    "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "The buyer lists events."
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.099Z"
+  "recheckedAt": "2026-11-09T22:56:36.941Z"
  },
  "plan": {
   "version": 2,
@@ -38,14 +38,18 @@
   "setup": {
    "recipe": "closed_rfq_with_bid"
   },
-  "act": [
+  "act": [],
+  "verify": [
    {
     "op": "list_events",
     "as": "buyer",
-    "decisive": true
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
    }
   ],
-  "verify": [],
   "expected": {
    "outcome": "accept"
   }

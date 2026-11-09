@@ -2,67 +2,25 @@
  "meta": {
   "caseId": "EVI-LINE-006",
   "title": "The smallest price the screen allows is a real quote",
-  "compiledAt": "2026-11-09T20:18:17.881Z",
+  "compiledAt": "2026-11-09T22:53:02.510Z",
   "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup recipes provide only one line item, so line 2 cannot be created or checked.",
-   "No read-back field exposes line total, quantity, line savings, reference price, or the 1.18 multiplier, so the pricing formula and savings calculation cannot be verified.",
-   "No operation or field sets or verifies the company's minimum allowed price.",
-   "what the screen shows (an API plan checks the data, not the page)"
+   "The available setup recipes create only one line item, so line 2 cannot be created or tested.",
+   "The vocabulary does not define the company's minimum allowed price or a way to set a bid price to that minimum.",
+   "No read-back fields are available for line total, line savings, reference price, or the price-times-quantity calculation.",
+   "The available indicator read-back can verify rank and best bidder, but cannot target line 2 or verify the requested pricing calculations."
   ],
-  "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.best_bidder\" is unverified"
-  ],
-  "validated": true,
-  "endpoints": [
-   "GET /v1/trade/:id/event_indicators"
-  ],
+  "warnings": [],
+  "validated": false,
+  "endpoints": [],
   "llm": {
    "calls": 0,
    "promptTokens": 0,
    "completionTokens": 0,
    "usd": 0
-  },
-  "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
-   "steps": [
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; Data check: “auction identifiers data › QA vendor 1 › inline › the line › best bidder” equals {{vendorUuid}}."
-   ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 1; Data check: “auction identifiers data › QA vendor 1 › inline › the line › best bidder” equals {{vendorUuid}}."
-  },
-  "recheckedAt": "2026-11-09T22:46:33.342Z"
- },
- "plan": {
-  "version": 2,
-  "caseId": "EVI-LINE-006",
-  "title": "The smallest price the screen allows is a real quote",
-  "setup": {
-   "recipe": "rfq_with_bid"
-  },
-  "act": [],
-  "verify": [
-   {
-    "op": "read_indicators",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
-      "op": "equals",
-      "value": 1
-     },
-     {
-      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.best_bidder",
-      "op": "equals",
-      "value": "{{vendorUuid}}"
-     }
-    ]
-   }
-  ],
-  "expected": {
-   "outcome": "accept"
   }
- }
+ },
+ "plan": null
 }

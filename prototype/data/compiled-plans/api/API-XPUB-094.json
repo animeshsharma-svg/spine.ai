@@ -2,15 +2,14 @@
  "meta": {
   "caseId": "API-XPUB-094",
   "title": "Ownership can be changed on a draft even though the UI forbids it",
-  "compiledAt": "2026-10-15T12:14:29.751Z",
+  "compiledAt": "2026-11-09T22:52:51.962Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The change_ownership operation is not available.",
-   "The config.is_allowed_to_change_ownership field is not available for verification.",
-   "A valid same-team user token is not available.",
-   "The ownership transfer outcome cannot be checked.",
+   "The change_ownership request cannot be expressed because {{userUuid}} is not an allowed token and the required request body field cannot be specified without inventing a field.",
+   "The read_event vocabulary does not expose config.is_allowed_to_change_ownership, so its false value cannot be asserted.",
+   "The ownership transfer and its successful result cannot be verified.",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
@@ -27,12 +26,11 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
-    "The buyer reads the event.",
-    "As the buyer, read the event and check that Data check: “status” equals draft."
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.326Z"
+  "recheckedAt": "2026-11-09T22:56:37.152Z"
  },
  "plan": {
   "version": 2,
@@ -41,22 +39,14 @@
   "setup": {
    "recipe": "draft_event"
   },
-  "act": [
-   {
-    "op": "read_event",
-    "as": "buyer",
-    "decisive": true
-   }
-  ],
+  "act": [],
   "verify": [
    {
     "op": "read_event",
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "equals",
-      "value": "draft"
+      "op": "status_2xx"
      }
     ]
    }

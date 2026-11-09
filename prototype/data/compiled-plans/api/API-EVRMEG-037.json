@@ -2,105 +2,23 @@
  "meta": {
   "caseId": "API-EVRMEG-037",
   "title": "After award, the event's start and close times are set from its rounds and open rounds are pulled in",
-  "compiledAt": "2026-11-09T20:22:15.472Z",
+  "compiledAt": "2026-11-09T22:55:25.286Z",
   "planVersion": 2,
-  "source": "llm-fast",
-  "coverage": "partial",
+  "source": "none",
+  "coverage": "none",
   "gaps": [
-   "The available read-back fields do not expose the event start time or a distinct event close time, so earliest-round-start and latest-price-round-close equality cannot be asserted.",
-   "The available assertion operators cannot compare ending times across rounds or verify that later-closing rounds were pulled to the calculated close time.",
-   "the decisive step tests something else than the case's point: No setup recipe creates the separate technical-only event or an event whose rounds are all withdrawn.",
-   "No operation withdraws individual rounds, so the all-withdrawn timing case cannot be arranged or verified.",
-   "The behavior for a withdrawn event receiving no timing updates cannot be tested with the available setup and read-back fields.",
-   "the part about “po” is outside what an API plan on a sourcing event checks"
+   "the answer was not valid JSON (1315 chars, malformed) — answer with ONE compact JSON object and nothing else; keep \"say\" texts short",
+   "no valid API plan could be compiled from the words"
   ],
   "warnings": [],
-  "validated": true,
-  "endpoints": [
-   "POST /bids/template_input",
-   "POST /proposal",
-   "POST /proposal/:id/add_response",
-   "GET /event_groups/:id",
-   "GET /trade/:id"
-  ],
+  "validated": false,
+  "endpoints": [],
   "llm": {
    "calls": 0,
    "promptTokens": 0,
    "completionTokens": 0,
    "usd": 0
-  },
-  "words": {
-   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
-   "steps": [
-    "The buyer enters a surrogate bid of 1 on the vendor's behalf for the invited QA vendor.",
-    "The buyer opens an award proposal.",
-    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
-    "The buyer reads the event.",
-    "The buyer reads the pricing round.",
-    "The buyer reads the technical round.",
-    "As the buyer, read the event and check that the event carries the award proposal."
-   ],
-   "expected": "The app accepts it. Read back afterwards: the event carries the award proposal."
-  },
-  "recheckedAt": "2026-11-09T22:46:33.074Z"
- },
- "plan": {
-  "version": 2,
-  "caseId": "API-EVRMEG-037",
-  "title": "After award, the event's start and close times are set from its rounds and open rounds are pulled in",
-  "setup": {
-   "recipe": "rfp_rfq_with_tech_response"
-  },
-  "act": [
-   {
-    "op": "surrogate_bid",
-    "as": "buyer",
-    "params": {
-     "vendor": "vendor",
-     "price": 1
-    },
-    "ifRefused": "pass"
-   },
-   {
-    "op": "open_proposal",
-    "as": "buyer"
-   },
-   {
-    "op": "award_vendor",
-    "as": "buyer",
-    "params": {
-     "vendor": "vendor"
-    },
-    "decisive": true
-   },
-   {
-    "op": "read_event",
-    "as": "buyer"
-   },
-   {
-    "op": "read_round",
-    "as": "buyer"
-   },
-   {
-    "op": "read_rfp_round",
-    "as": "buyer"
-   }
-  ],
-  "verify": [
-   {
-    "op": "read_event",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "proposals",
-      "op": "non_empty",
-      "say": "the event carries the award proposal"
-     }
-    ]
-   }
-  ],
-  "expected": {
-   "outcome": "accept"
   }
- }
+ },
+ "plan": null
 }

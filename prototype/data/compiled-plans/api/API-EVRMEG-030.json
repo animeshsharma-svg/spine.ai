@@ -2,21 +2,23 @@
  "meta": {
   "caseId": "API-EVRMEG-030",
   "title": "Publishing or withdrawing an event updates the \"in progress\" quantity on its PR items",
-  "compiledAt": "2026-11-09T20:14:12.889Z",
+  "compiledAt": "2026-11-09T22:50:56.124Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup cannot create two events, distinguish PR from BOQ, or create multiple line items.",
-   "No operation can delete one line item before publishing.",
-   "The available line-item read-back does not expose an in-progress quantity field, so quantity recomputation and stale values cannot be verified.",
-   "The plan does not separately publish and withdraw both the PR event and the BOQ event."
+   "the decisive step tests something else than the case's point: The setup cannot create two events from PRs with three and two items.",
+   "the decisive step tests something else than the case's point: The setup cannot create an event with one item later deleted.",
+   "The BOQ event state is not available in any recipe.",
+   "There is no operation to delete a line item.",
+   "In-progress quantity is not a read-back field for read_event or read_line_items.",
+   "The publish-time and withdrawal-time quantity changes cannot be verified."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "GET /event_groups/:id/get_line_items"
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,22 +27,22 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
     "The buyer publishes the event.",
     "The buyer withdraws the event.",
-    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the buyer, read the event and check that Data check: “status” equals withdrawn."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals withdrawn."
   },
-  "recheckedAt": "2026-11-09T22:46:33.073Z"
+  "recheckedAt": "2026-11-09T22:56:36.915Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRMEG-030",
   "title": "Publishing or withdrawing an event updates the \"in progress\" quantity on its PR items",
   "setup": {
-   "recipe": "draft_event"
+   "recipe": "draft_rfq"
   },
   "act": [
    {
@@ -55,11 +57,13 @@
   ],
   "verify": [
    {
-    "op": "read_line_items",
+    "op": "read_event",
     "as": "buyer",
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "status",
+      "op": "equals",
+      "value": "withdrawn"
      }
     ]
    }

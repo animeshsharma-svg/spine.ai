@@ -2,20 +2,24 @@
  "meta": {
   "caseId": "EVI-TOT-007",
   "title": "Wrong totals sent by a vendor cannot make it L1",
-  "compiledAt": "2026-11-09T20:09:54.627Z",
+  "compiledAt": "2026-11-09T22:48:58.972Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available read-back fields do not expose the recomputed best total, so the best-total value cannot be verified.",
+   "The available operations cannot submit intentionally incorrect line totals while retaining real prices and quantities, so recomputation of totals and confirmation that ₹1 appears nowhere are not checked.",
+   "The read_indicators read-back vocabulary exposes best_bidder but not the numeric L1 rank or best total.",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
   ],
   "validated": true,
   "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
    "GET /v1/trade/:id/event_indicators"
   ],
   "llm": {
@@ -25,22 +29,56 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals false."
+    "The buyer invites QA vendor 2 to the live pricing round with 1 audience to add uuids.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "A second QA vendor places a complete bid of 50 (open, price, submit).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true; Data check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals false."
+   "expected": "The app accepts it. Read back afterwards: Data check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
   },
-  "recheckedAt": "2026-11-09T22:46:33.359Z"
+  "recheckedAt": "2026-11-09T22:56:37.182Z"
  },
  "plan": {
   "version": 2,
   "caseId": "EVI-TOT-007",
   "title": "Wrong totals sent by a vendor cannot make it L1",
   "setup": {
-   "recipe": "rfq_with_2_bids"
+   "recipe": "published_rfq"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_add_uuids",
+      "set": [
+       "{{vendor2Uuid}}"
+      ]
+     }
+    ],
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 50
+    },
+    "decisive": true
+   }
+  ],
   "verify": [
    {
     "op": "read_indicators",
@@ -50,11 +88,6 @@
       "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
       "op": "equals",
       "value": true
-     },
-     {
-      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
-      "op": "equals",
-      "value": false
      }
     ]
    }

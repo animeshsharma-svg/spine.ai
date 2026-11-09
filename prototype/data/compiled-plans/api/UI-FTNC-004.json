@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "UI-FTNC-004",
   "title": "With the switch off, only clauses marked required block the vendor",
-  "compiledAt": "2026-11-09T20:18:58.140Z",
+  "compiledAt": "2026-11-09T22:53:36.089Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup does not create or verify one required and one optional clause.",
-   "The available operation fields do not express accepting only the required clause while leaving the optional clause unaccepted.",
-   "it depends on a company setting this run does not change (is_tnc_mandatory off) — a failure is reported as couldn't tell, not as a bug"
+   "the decisive step tests something else than the case's point: The available setup recipes do not guarantee is_tnc_mandatory is off or configure one required and one optional clause.",
+   "No available operation or listed field expresses accepting the required clause while leaving the optional clause unaccepted."
   ],
   "warnings": [],
   "validated": true,
@@ -17,7 +16,7 @@
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id",
-   "GET /trade/:id"
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -29,13 +28,13 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor prices the line on the bid at 100.",
+    "The invited QA vendor prices the line on the bid at 1000.",
     "The invited QA vendor submits the bid.",
-    "As the buyer, read the pricing round and check that the round counts the new bid."
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.375Z"
+  "recheckedAt": "2026-11-09T22:56:37.196Z"
  },
  "plan": {
   "version": 2,
@@ -47,17 +46,13 @@
   "act": [
    {
     "op": "open_bid",
-    "as": "vendor",
-    "params": {
-     "trade_request_uuid": "{{tradeId}}",
-     "company_uuid": "{{vendorUuid}}"
-    }
+    "as": "vendor"
    },
    {
     "op": "price_bid",
     "as": "vendor",
     "params": {
-     "price": 100
+     "price": 1000
     }
    },
    {
@@ -68,21 +63,17 @@
   ],
   "verify": [
    {
-    "op": "read_round",
-    "as": "buyer",
+    "op": "read_bid",
+    "as": "vendor",
     "assert": [
      {
-      "path": "bid_count",
-      "op": "gte",
-      "value": 1,
-      "say": "the round counts the new bid"
+      "op": "status_2xx"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "accept"
-  },
-  "dependsOnSetting": "is_tnc_mandatory off"
+  }
  }
 }

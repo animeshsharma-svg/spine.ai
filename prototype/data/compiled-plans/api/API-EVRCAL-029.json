@@ -2,21 +2,24 @@
  "meta": {
   "caseId": "API-EVRCAL-029",
   "title": "A vendor never receives savings data in its own quote or sheet",
-  "compiledAt": "2026-11-09T20:07:01.157Z",
+  "compiledAt": "2026-11-09T22:48:01.138Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup recipe does not establish that savings are configured with a budget reference or that savings have been computed.",
-   "The available read-back fields do not expose named savings fields, so the absence of savings figures anywhere in the vendor's quote or event response cannot be asserted.",
-   "Opening a quote or sheet is represented only by read_bid; no operation exposes a separate vendor quote or sheet response.",
+   "the decisive step tests something else than the case's point: The setup recipe does not explicitly configure a budget reference for savings",
+   "Savings visibility in the vendor's event page and other vendor-facing sheet fields is not checked",
+   "it depends on a company setting this run does not change (savings configuration enabled) — a failure is reported as couldn't tell, not as a bug",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"savings\" is unverified",
+   "verify 2: the request's reply shape has not been sampled; \"savings\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "GET /bids/:id",
-   "GET /event_groups/:id"
+   "GET /v1/trade/:id/quote_details/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,14 +30,12 @@
   "words": {
    "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "The invited QA vendor reads the bid.",
-    "The invited QA vendor reads the event.",
-    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
-    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the invited QA vendor, read the bid and check that Schema check: “savings” is absent.",
+    "As the buyer, read the trade quote details request and check that Schema check: “savings” is absent."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “savings” is absent; Schema check: “savings” is absent."
   },
-  "recheckedAt": "2026-11-09T22:46:33.041Z"
+  "recheckedAt": "2026-11-09T22:56:36.887Z"
  },
  "plan": {
   "version": 2,
@@ -43,39 +44,36 @@
   "setup": {
    "recipe": "closed_rfq_with_bid"
   },
-  "act": [
-   {
-    "op": "read_bid",
-    "as": "vendor"
-   },
-   {
-    "op": "read_event",
-    "as": "vendor",
-    "decisive": true
-   }
-  ],
+  "act": [],
   "verify": [
    {
     "op": "read_bid",
     "as": "vendor",
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "savings",
+      "op": "absent"
      }
     ]
    },
    {
-    "op": "read_event",
-    "as": "vendor",
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}?additional_request_bid_required=false"
+    },
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "savings",
+      "op": "absent"
      }
-    ]
+    ],
+    "as": "buyer"
    }
   ],
   "expected": {
    "outcome": "accept"
-  }
+  },
+  "dependsOnSetting": "savings configuration enabled"
  }
 }

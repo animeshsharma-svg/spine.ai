@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-XDAMD-061",
   "title": "A new stage can only be added from an RFP",
-  "compiledAt": "2026-11-09T20:23:10.067Z",
+  "compiledAt": "2026-11-09T22:56:00.358Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The plan does not verify HTTP 422 or code 2001 because the case is treated as an accepted request.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”",
-   "it depends on a company setting this run does not change (is_add_new_stage_allowed) — a failure is reported as couldn't tell, not as a bug"
+   "the decisive step tests something else than the case's point: The setup cannot enable is_add_new_stage_allowed; when it is OFF, the application returns code 1127 instead of code 2001.",
+   "it depends on a company setting this run does not change (is_add_new_stage_allowed=ON) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -27,9 +26,9 @@
    "steps": [
     "The buyer sends the trade add new stage in live event request, the request the case itself writes."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app refuses the step the case is about with “New stage cannot be added unless the referring stage is an RFP”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.278Z"
+  "recheckedAt": "2026-11-09T22:56:37.115Z"
  },
  "plan": {
   "version": 2,
@@ -54,8 +53,10 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "2001",
+   "message": "New stage cannot be added unless the referring stage is an RFP"
   },
-  "dependsOnSetting": "is_add_new_stage_allowed"
+  "dependsOnSetting": "is_add_new_stage_allowed=ON"
  }
 }

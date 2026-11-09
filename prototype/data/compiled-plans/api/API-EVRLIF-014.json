@@ -2,21 +2,20 @@
  "meta": {
   "caseId": "API-EVRLIF-014",
   "title": "An amended round's bidding window is its configured length, wherever extensions happened",
-  "compiledAt": "2026-11-09T20:13:32.121Z",
+  "compiledAt": "2026-11-09T22:50:32.874Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The available setup recipes do not create an auction configured for a 1-hour bidding window followed by a 1-day evaluation window.",
-   "No operation models two-minute automatic extensions; extend_round only exposes an explicit extension target of {{roundEnd+60}}.",
-   "The available read-backs do not expose a window start time or an assertion that the amended auction end equals the maximum of now + 1 hour and the evaluation-window end.",
-   "The evaluation window starting with bidding is not verifiable with the available fields and assertion operations."
+   "the decisive step tests something else than the case's point: The setup does not create an auction configured for a 1-hour bidding window, two 2-minute auto-extensions, or a 1-day evaluation window.",
+   "The plan cannot verify that all amended rows start at now.",
+   "The plan cannot verify that extension rows end at now + 2 minutes, that the evaluation window ends at now + 1 day, or that the auction end uses the maximum of those windows.",
+   "The plan cannot verify that the evaluation window starts with bidding."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "PATCH /trade/:id",
    "POST /item_versions",
    "GET /event_groups/:id",
    "GET /trade/:id"
@@ -31,15 +30,13 @@
    "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
    "steps": [
     "The buyer publishes the event.",
-    "The buyer moves the round's bid end time with the increase auction time moved later.",
-    "The buyer moves the round's bid end time with the increase auction time moved later.",
-    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “line_item”.",
-    "As the buyer, read the event and check that Schema check: “stages › ending at” is not empty; Schema check: “stages › ending at” is a Unix timestamp in seconds.",
-    "As the buyer, read the pricing round and check that Schema check: “ending at” is not empty; Schema check: “ending at” is a Unix timestamp in seconds."
+    "The buyer issues a new version of the event.",
+    "As the buyer, read the event and check that Data check: “status” equals active; Schema check: “stages › ending at” is present; Schema check: “stages › ending at” is a Unix timestamp in seconds.",
+    "As the buyer, read the pricing round and check that Data check: “rfx mode” equals auction; Schema check: “starting from” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is present; Schema check: “ending at” is a Unix timestamp in seconds; Schema check: “extra closing time” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: Schema check: “stages › ending at” is not empty; Schema check: “stages › ending at” is a Unix timestamp in seconds; Schema check: “ending at” is not empty; Schema check: “ending at” is a Unix timestamp in seconds."
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active; Schema check: “stages › ending at” is present; Schema check: “stages › ending at” is a Unix timestamp in seconds; Data check: “rfx mode” equals auction; Schema check: “starting from” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is present; Schema check: “ending at” is a Unix timestamp in seconds; Schema check: “extra closing time” is present."
   },
-  "recheckedAt": "2026-11-09T22:46:33.049Z"
+  "recheckedAt": "2026-11-09T22:56:36.897Z"
  },
  "plan": {
   "version": 2,
@@ -54,38 +51,8 @@
     "as": "buyer"
    },
    {
-    "op": "extend_round",
-    "as": "buyer",
-    "change": [
-     {
-      "path": "increase_auction_time",
-      "set": "{{roundEnd+60}}"
-     }
-    ]
-   },
-   {
-    "op": "extend_round",
-    "as": "buyer",
-    "change": [
-     {
-      "path": "increase_auction_time",
-      "set": "{{roundEnd+60}}"
-     }
-    ]
-   },
-   {
     "op": "new_version",
     "as": "buyer",
-    "change": [
-     {
-      "path": "item_uuid",
-      "set": "{{lineItemUuid}}"
-     },
-     {
-      "path": "item_type",
-      "set": "line_item"
-     }
-    ],
     "decisive": true
    }
   ],
@@ -95,8 +62,13 @@
     "as": "buyer",
     "assert": [
      {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     },
+     {
       "path": "stages[*].ending_at",
-      "op": "non_empty"
+      "op": "exists"
      },
      {
       "path": "stages[*].ending_at",
@@ -110,13 +82,31 @@
     "as": "buyer",
     "assert": [
      {
+      "path": "rfx_mode",
+      "op": "equals",
+      "value": "auction"
+     },
+     {
+      "path": "starting_from",
+      "op": "exists"
+     },
+     {
+      "path": "starting_from",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
       "path": "ending_at",
-      "op": "non_empty"
+      "op": "exists"
      },
      {
       "path": "ending_at",
       "op": "format",
       "value": "epochSeconds"
+     },
+     {
+      "path": "extra_closing_time",
+      "op": "exists"
      }
     ]
    }

@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "API-EVRVIS-021",
   "title": "Line items: last purchase price is buyer-only; PR creator details and quantities are hidden from vendors and brokers when configured",
-  "compiledAt": "2026-11-09T20:15:30.892Z",
+  "compiledAt": "2026-11-09T22:51:42.978Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup does not provide last-PO data or guarantee that quantity widgets are disabled.",
+   "the decisive step tests something else than the case's point: The setup cannot create last-PO data or disable quantity widgets.",
    "read_line_items is available only as buyer, so vendor visibility cannot be checked.",
-   "Broker users are not represented in the available actors or operations.",
-   "The read_line_items response shape is unsampled, so field-level assertions for last-PO fields, PR creator details, and quantity cannot be expressed.",
+   "Broker users are not supported as an actor, so broker visibility cannot be checked.",
+   "the decisive step tests something else than the case's point: The buyer assertion checks only that the line-item response is successful and non-empty; it cannot assert that all fields are present.",
    "it depends on a company setting this run does not change (mask_pr_creator_details_for_vendor) — a failure is reported as couldn't tell, not as a bug",
    "the part about “po” is outside what an API plan on a sourcing event checks"
   ],
@@ -28,11 +28,11 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: “$” is not empty."
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “$” is not empty."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
   },
-  "recheckedAt": "2026-11-09T22:46:33.098Z"
+  "recheckedAt": "2026-11-09T22:56:36.940Z"
  },
  "plan": {
   "version": 2,
@@ -48,11 +48,10 @@
     "as": "buyer",
     "assert": [
      {
-      "path": "$",
       "op": "status_2xx"
      },
      {
-      "path": "$",
+      "path": "",
       "op": "non_empty"
      }
     ]

@@ -7,7 +7,9 @@
   "source": "llm-fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
   "validated": true,
   "endpoints": [
    "POST /trade/move_to_auction",
@@ -23,11 +25,12 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The buyer converts the RFQ pricing round into an auction.",
-    "The invited vendor tries to open a bid on the original RFQ after its auction exists."
+    "The invited vendor tries to open a bid on the original RFQ after its auction exists.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with “You cannot edit rfq once the auction is created.”, and never with a server error."
+   "expected": "The app refuses the step the case is about with “You cannot edit rfq once the auction is created.”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
   },
-  "recheckedAt": "2026-11-09T22:46:32.806Z"
+  "recheckedAt": "2026-11-09T22:56:36.684Z"
  },
  "plan": {
   "version": 2,
@@ -51,7 +54,20 @@
     "say": "The invited vendor tries to open a bid on the original RFQ after its auction exists."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "769",

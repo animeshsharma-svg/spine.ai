@@ -9,7 +9,9 @@
   "gaps": [
    "vendor2 discarding vendor1's draft bid (no vocabulary for discard action)"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
   "validated": true,
   "endpoints": [
    "POST /v1/bids"
@@ -23,11 +25,12 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”, with the company uuid set to “…”."
+    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”, with the company uuid set to “…”.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with “No such bid exists”, and never with a server error."
+   "expected": "The app refuses the step the case is about with “No such bid exists”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
   },
-  "recheckedAt": "2026-11-09T22:46:32.987Z"
+  "recheckedAt": "2026-11-09T22:56:36.843Z"
  },
  "plan": {
   "version": 2,
@@ -53,7 +56,20 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "250",

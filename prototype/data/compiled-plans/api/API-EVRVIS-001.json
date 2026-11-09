@@ -2,22 +2,19 @@
  "meta": {
   "caseId": "API-EVRVIS-001",
   "title": "A vendor must not receive other vendors' individual price limits",
-  "compiledAt": "2026-11-09T20:07:35.699Z",
+  "compiledAt": "2026-11-09T22:47:58.500Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The read-back vocabulary does not expose individual vendor price limits or line details, so it cannot verify that the QA vendor receives at most 120 or that vendor B's 105 limit is absent.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”",
+   "The available operations do not expose individual vendor price limits in the vendor's bidding-screen response. This plan verifies the closest available privacy boundary: the QA vendor is refused access to the second vendor's bid, rather tha",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /v1/trade/add_audience",
    "PATCH /trade/:id/update_vendor_validations",
-   "POST /v1/bids",
-   "GET /trade/:id"
+   "GET /bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -26,32 +23,30 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "The buyer invites QA vendor 2 to the live pricing round.",
     "The buyer sets the invited vendor's price cap on the round to 120 (a bid must be strictly below it) for the invited QA vendor.",
     "The buyer sets the invited vendor's price cap on the round to 105 (a bid must be strictly below it) for a second QA vendor.",
-    "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor reads the pricing round.",
-    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "The invited QA vendor reads the second QA vendor's bid."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app refuses the step the case is about with “You are not allowed to view this event.”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.088Z"
+  "recheckedAt": "2026-11-09T22:56:36.929Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRVIS-001",
   "title": "A vendor must not receive other vendors' individual price limits",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "rfq_with_2_bids"
   },
   "act": [
    {
-    "op": "add_vendor",
+    "op": "price_cap",
     "as": "buyer",
     "params": {
-     "round": "pricing"
+     "price": 120,
+     "vendor": "vendor"
     },
     "expect": "accept"
    },
@@ -59,44 +54,24 @@
     "op": "price_cap",
     "as": "buyer",
     "params": {
-     "vendor": "vendor",
-     "price": 120
+     "price": 105,
+     "vendor": "vendor2"
     },
     "expect": "accept"
    },
    {
-    "op": "price_cap",
-    "as": "buyer",
-    "params": {
-     "vendor": "vendor2",
-     "price": 105
-    },
-    "expect": "accept"
-   },
-   {
-    "op": "open_bid",
+    "op": "read_bid2",
     "as": "vendor",
-    "expect": "accept"
-   },
-   {
-    "op": "read_round",
-    "as": "vendor",
+    "expect": "reject",
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_round",
-    "as": "vendor",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "536",
+   "message": "You are not allowed to view this event.",
+   "codeInferred": true
   }
  }
 }

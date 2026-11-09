@@ -2,17 +2,20 @@
  "meta": {
   "caseId": "API-EVRCAL-020",
   "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
-  "compiledAt": "2026-11-09T20:12:50.889Z",
+  "compiledAt": "2026-11-09T22:49:52.088Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup cannot create two line items with the required quote history: L1 with A's first quote 100 revised to 90 and B's first quote 95, and L2 with only A's revised quote.",
-   "the decisive step tests something else than the case's point: The available bid operations cannot create or verify first-versus-revised quote history after the round is closed.",
-   "The read_indicators read-back exposes ranks and best bidder only; it does not expose line-wise savings, default reference, final quote, or saving-per-unit values.",
-   "The plan cannot verify that L1 has reference 95, final 90, and saving 5 per unit, or that L2 has no reference and no saving."
+   "the decisive step tests something else than the case's point: The setup does not create two line items or the required first and revised quote history.",
+   "There is no operation to submit a first quote and then revise it for a line.",
+   "The default savings strategy cannot be set or verified with the available fields.",
+   "Line-level reference values, final values, savings per unit, and the absence of savings cannot be asserted because read_indicators exposes only rank and best_bidder fields.",
+   "The stage is already closed by the setup, so no close-stage act is performed."
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "GET /v1/trade/:id/event_indicators"
@@ -26,11 +29,11 @@
   "words": {
    "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
    "steps": [
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data” is present."
   },
-  "recheckedAt": "2026-11-09T22:46:33.039Z"
+  "recheckedAt": "2026-11-09T22:56:36.886Z"
  },
  "plan": {
   "version": 2,
@@ -46,7 +49,8 @@
     "as": "buyer",
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "auction_identifiers_data",
+      "op": "exists"
      }
     ]
    }

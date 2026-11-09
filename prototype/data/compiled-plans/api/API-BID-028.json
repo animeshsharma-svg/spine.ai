@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "API-BID-028",
   "title": "Rejecting a bid works only on an active bid",
-  "compiledAt": "2026-11-09T19:29:37.452Z",
+  "compiledAt": "2026-11-09T22:48:55.777Z",
   "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "The second rejection is allowed to fail but its HTTP 422 response and error code 101 are not asserted.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /bids/:id/reject"
+   "PATCH /bids/:id/reject",
+   "PATCH /v1/bids/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,11 +23,11 @@
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
     "The buyer sends the bid call, the request the case itself writes.",
-    "The buyer sends the bid call, the request the case itself writes."
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:32.813Z"
+  "recheckedAt": "2026-11-09T22:56:36.691Z"
  },
  "plan": {
   "version": 2,
@@ -47,28 +45,22 @@
      "path": "/bids/{{bidUuid}}/reject",
      "body": {
       "rejection_remarks": "QA_Platform_{{stamp}}",
-      "allow_rebilling": true
+      "allow_rebidding": true
      }
     }
    },
    {
-    "op": "request",
-    "as": "buyer",
-    "request": {
-     "method": "PATCH",
-     "path": "/bids/{{bidUuid}}/reject",
-     "body": {
-      "rejection_remarks": "QA_Platform_{{stamp}}",
-      "allow_rebilling": true
-     }
-    },
-    "decisive": true,
-    "ifRefused": "pass"
+    "op": "library",
+    "as": "vendor",
+    "caseId": "BID-CO-003",
+    "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
   }
  }
 }

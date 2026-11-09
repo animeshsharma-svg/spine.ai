@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "API-EVDREM-021",
   "title": "An unknown resource type skips every permission check and reports an error as success",
-  "compiledAt": "2026-11-09T19:52:02.082Z",
+  "compiledAt": "2026-11-09T22:54:03.509Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "Cannot verify that no permission check occurred.",
-   "The expected HTTP 200 response conflicts with the stated requirement that the request should return HTTP 422; the plan asserts the error body but does not assert either status because the required outcome is reject.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "Cannot verify the desired 422 response while asserting the stated HTTP 200 behavior."
   ],
-  "warnings": [],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"error\" is unverified"
+  ],
   "validated": true,
   "endpoints": [
    "GET /reminders/:id"
@@ -25,11 +26,12 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the reminders request, the request the case itself writes."
+    "The buyer sends the reminders request, the request the case itself writes.",
+    "As the buyer, read the reminders request and check that Data check: “error” equals Reminders does not exist; Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+   "expected": "The app accepts it. Read back afterwards: Data check: “error” equals Reminders does not exist; Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:32.934Z"
+  "recheckedAt": "2026-11-09T22:56:36.798Z"
  },
  "plan": {
   "version": 2,
@@ -49,9 +51,29 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=trade_request"
+    },
+    "assert": [
+     {
+      "path": "error",
+      "op": "equals",
+      "value": "Reminders does not exist"
+     },
+     {
+      "path": "$",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "reject"
+   "outcome": "accept"
   }
  }
 }

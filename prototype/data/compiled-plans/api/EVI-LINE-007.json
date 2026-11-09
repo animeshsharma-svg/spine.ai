@@ -2,14 +2,14 @@
  "meta": {
   "caseId": "EVI-LINE-007",
   "title": "Many lines in one bid all total correctly",
-  "compiledAt": "2026-11-09T20:23:42.912Z",
+  "compiledAt": "2026-11-09T22:56:18.055Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup recipe does not specify an RFQ with 60 lines, mixed quantities, or GST slabs.",
-   "The available bid read-back fields do not expose the bid total or per-line totals, so exact total calculation and comparison to shown places cannot be asserted.",
-   "the decisive step tests something else than the case's point: The setup already contains submitted bids, so the plan cannot verify both vendors quoting every line as an act."
+   "The available setup creates one-line bids, not RFQ events with 60 lines.",
+   "the decisive step tests something else than the case's point: The available operations cannot create or verify mixed line quantities, GST slabs, quoting every line, or exact bid-total arithmetic versus unrounded line totals.",
+   "The bid read-back fields are not sampled, so the displayed totals and their shown places cannot be asserted."
   ],
   "warnings": [],
   "validated": true,
@@ -25,12 +25,12 @@
   "words": {
    "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
    "steps": [
-    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked).",
     "As the buyer, read the second QA vendor's bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
    "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.343Z"
+  "recheckedAt": "2026-11-09T22:56:37.166Z"
  },
  "plan": {
   "version": 2,
@@ -43,7 +43,7 @@
   "verify": [
    {
     "op": "read_bid",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "op": "status_2xx"

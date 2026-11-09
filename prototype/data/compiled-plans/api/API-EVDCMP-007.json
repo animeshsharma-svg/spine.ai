@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-EVDCMP-007",
   "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
-  "compiledAt": "2026-11-09T20:06:16.449Z",
+  "compiledAt": "2026-11-09T22:47:22.373Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The plan verifies that exactly one live bid remains, but the available assertion fields do not expose or compare the bid's accepted price.",
-   "The available assertion vocabulary cannot express both possible outcomes of the vendor submission as independently passing branches; the submission is allowed to be refused while the final one-bid state is verified.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available read-backs cannot verify that the single live bid belongs specifically to QA vendor 3 or that its price is the latest accepted price.",
+   "The case allows either acceptance as a revision or refusal, but the refusal path is planned because the vendor's self-bid follows an existing surrogate bid."
   ],
   "warnings": [],
   "validated": true,
@@ -30,14 +29,14 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer places QA vendor 3's bid on its behalf.",
-    "QA vendor 3 bids itself at a slightly lower price; the app may accept it as a revision or refuse it.",
-    "As the buyer, read the pricing round and check that QA vendor 3 has exactly one live bid.",
-    "As the invited QA vendor, read the bid and check that QA vendor 3 can read its one live bid."
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf.",
+    "The invited QA vendor places a complete bid of 99 (open, price, submit).",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 1.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: QA vendor 3 has exactly one live bid; QA vendor 3 can read its one live bid."
+   "expected": "The app refuses the step the case is about with “A bid has already been placed from your team”, and never with a server error. Read back afterwards: Data check: “bid count” equals 1; Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:32.858Z"
+  "recheckedAt": "2026-11-09T22:56:36.730Z"
  },
  "plan": {
   "version": 2,
@@ -50,17 +49,9 @@
    {
     "op": "surrogate_bid",
     "as": "buyer",
-    "change": [
-     {
-      "path": "company_uuid",
-      "set": "{{vendorUuid}}"
-     }
-    ],
     "params": {
-     "price": 100,
-     "vendor": "vendor"
-    },
-    "say": "The buyer places QA vendor 3's bid on its behalf."
+     "price": 100
+    }
    },
    {
     "op": "place_bid",
@@ -68,9 +59,7 @@
     "params": {
      "price": 99
     },
-    "decisive": true,
-    "ifRefused": "pass",
-    "say": "QA vendor 3 bids itself at a slightly lower price; the app may accept it as a revision or refuse it."
+    "decisive": true
    }
   ],
   "verify": [
@@ -81,8 +70,7 @@
      {
       "path": "bid_count",
       "op": "equals",
-      "value": 1,
-      "say": "QA vendor 3 has exactly one live bid"
+      "value": 1
      }
     ]
    },
@@ -91,14 +79,16 @@
     "as": "vendor",
     "assert": [
      {
-      "op": "status_2xx",
-      "say": "QA vendor 3 can read its one live bid"
+      "op": "status_2xx"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "34",
+   "message": "A bid has already been placed from your team",
+   "codeInferred": true
   }
  }
 }

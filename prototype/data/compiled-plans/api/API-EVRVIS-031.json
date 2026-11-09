@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-EVRVIS-031",
   "title": "\"Allowed to reopen\" is not offered to vendors on a technical round",
-  "compiledAt": "2026-11-09T19:59:44.743Z",
+  "compiledAt": "2026-11-09T22:55:46.035Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The technical round read-back fields do not include a reopen flag, so its vendor value cannot be verified.",
-   "No operation or allowed request path expresses a vendor attempt to reopen a technical round.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The technical round read-back does not expose a reopen flag, so its value cannot be verified.",
+   "No operation or named request path is provided for a vendor attempting to reopen a technical round, so the refusal cannot be tested."
   ],
   "warnings": [],
   "validated": true,
@@ -25,11 +24,12 @@
   "words": {
    "preconditions": "A fresh RFP + RFQ event where the invited QA vendor submitted its technical response, and both windows are over (evaluation time).",
    "steps": [
+    "The invited QA vendor reads the technical round.",
     "As the invited QA vendor, read the technical round and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.100Z"
+  "recheckedAt": "2026-11-09T22:56:36.941Z"
  },
  "plan": {
   "version": 2,
@@ -38,20 +38,27 @@
   "setup": {
    "recipe": "closed_rfp_rfq_with_tech_response"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "read_rfp_round",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
   "verify": [
    {
     "op": "read_rfp_round",
     "as": "vendor",
     "assert": [
      {
+      "path": "status",
       "op": "status_2xx"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject"
   }
  }
 }

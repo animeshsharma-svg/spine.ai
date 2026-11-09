@@ -2,14 +2,12 @@
  "meta": {
   "caseId": "API-EVDRJB-002",
   "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
-  "compiledAt": "2026-11-09T20:06:42.924Z",
+  "compiledAt": "2026-11-09T22:47:39.901Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The closed-round setup does not verify that a live-round rejection with allow_rebidding=false places QA vendor 1 on the round's block list.",
-   "The available read_round fields do not expose the vendor re-bid block list.",
-   "The available assertion vocabulary does not provide a direct assertion for HTTP 200 on the reject request."
+   "The available read-back fields do not expose the round's vendor re-bidding block list, so the plan cannot verify that QA vendor 1 is listed as not allowed to re-bid."
   ],
   "warnings": [],
   "validated": true,
@@ -27,11 +25,11 @@
    "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
     "The buyer sends the bid call, the request the case itself writes.",
-    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is 200 — OK — the request worked."
    ],
-   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
   },
-  "recheckedAt": "2026-11-09T22:46:32.967Z"
+  "recheckedAt": "2026-11-09T22:56:36.825Z"
  },
  "plan": {
   "version": 2,
@@ -61,7 +59,8 @@
     "as": "buyer",
     "assert": [
      {
-      "op": "status_2xx"
+      "op": "status",
+      "value": 200
      }
     ]
    }

@@ -2,27 +2,24 @@
  "meta": {
   "caseId": "API-EVDAWD-010",
   "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
-  "compiledAt": "2026-11-09T20:10:42.941Z",
+  "compiledAt": "2026-11-09T22:49:10.835Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available assertion operations cannot calculate or compare the awarded amount and total to 30 multiplied by QA vendor 2's price.",
-   "the decisive step tests something else than the case's point: The available setup recipe does not expose or guarantee the line quantity is 30.",
-   "The available read-backs do not define the proposal amount, total, or bid price field paths.",
+   "The plan cannot verify that the awarded amount is exactly 30 units or that the total equals 30 multiplied by QA vendor 2's price because no supported assertion operation performs arithmetic and the proposal read-back fields are not defined ",
+   "the decisive step tests something else than the case's point: The setup recipe does not explicitly guarantee a line quantity of 30 or that both vendors are tied at the best price.",
    "it depends on a company setting this run does not change (partial awarding off) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [
    "verify 1: read_proposal's reply shape has not been sampled; \"amount\" is unverified",
-   "verify 1: read_proposal's reply shape has not been sampled; \"total\" is unverified",
-   "verify 2: read_bid2's reply shape has not been sampled; \"price\" is unverified"
+   "verify 1: read_proposal's reply shape has not been sampled; \"total\" is unverified"
   ],
   "validated": true,
   "endpoints": [
    "POST /proposal",
    "POST /proposal/:id/add_response",
-   "GET /proposal/:id",
-   "GET /bids/:id"
+   "GET /proposal/:id"
   ],
   "llm": {
    "calls": 0,
@@ -35,12 +32,11 @@
    "steps": [
     "The buyer opens an award proposal.",
     "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
-    "As the buyer, read the award proposal and check that Schema check: “amount” is present; Schema check: “total” is present.",
-    "As the buyer, read the second QA vendor's bid and check that Schema check: “price” is present."
+    "As the buyer, read the award proposal and check that Schema check: “amount” is present; Schema check: “total” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: Schema check: “amount” is present; Schema check: “total” is present; Schema check: “price” is present."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “amount” is present; Schema check: “total” is present."
   },
-  "recheckedAt": "2026-11-09T22:46:32.850Z"
+  "recheckedAt": "2026-11-09T22:56:36.724Z"
  },
  "plan": {
   "version": 2,
@@ -74,16 +70,6 @@
      },
      {
       "path": "total",
-      "op": "exists"
-     }
-    ]
-   },
-   {
-    "op": "read_bid2",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "price",
       "op": "exists"
      }
     ]

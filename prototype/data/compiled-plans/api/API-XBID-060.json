@@ -9,7 +9,9 @@
   "gaps": [
    "it depends on a company setting this run does not change (ceiling) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
@@ -27,11 +29,12 @@
    "steps": [
     "The invited QA vendor opens a bid on the pricing round.",
     "The buyer sets the invited vendor's price cap on the round to 100 (a bid must be strictly below it) for the invited QA vendor.",
-    "The invited QA vendor prices the line on the bid at 1000."
+    "The invited QA vendor prices the line on the bid at 1000.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with “Price cannot be more than the allowed price”, and never with a server error."
+   "expected": "The app refuses the step the case is about with “Price cannot be more than the allowed price”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.260Z"
+  "recheckedAt": "2026-11-09T22:56:37.097Z"
  },
  "plan": {
   "version": 2,
@@ -63,7 +66,20 @@
     "ifRefused": "pass"
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "38",

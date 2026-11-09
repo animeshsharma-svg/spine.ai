@@ -2,73 +2,24 @@
  "meta": {
   "caseId": "API-XDLOT-027",
   "title": "Lot names and descriptions are stored safely",
-  "compiledAt": "2026-11-09T22:45:58.455Z",
+  "compiledAt": "2026-11-09T22:56:06.106Z",
   "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The plan cannot save or verify the 5,000-character lot description because update_event exposes only title.",
-   "The plan cannot record or verify the stored description length.",
-   "The plan does not verify subsequent publishing behavior.",
-   "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
+   "No operation or library case expresses saving a lot with a title and description.",
+   "The request method, path, and body for saving the lot are not provided, so they cannot be invented.",
+   "No read-back fields are available to verify tag stripping, quote preservation, or the stored 5,000-character description length."
   ],
   "warnings": [],
-  "validated": true,
-  "endpoints": [
-   "PATCH /event_groups/:id",
-   "GET /trade/:id"
-  ],
+  "validated": false,
+  "endpoints": [],
   "llm": {
    "calls": 0,
    "promptTokens": 0,
    "completionTokens": 0,
    "usd": 0
-  },
-  "words": {
-   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
-   "steps": [
-    "The buyer updates the event with the title set to “QA_Platform_<b>bold</b> O'Brien”.",
-    "As the buyer, read the pricing round and check that Data check: “event group › title” equals QA_Platform_bold O'Brien."
-   ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “event group › title” equals QA_Platform_bold O'Brien."
-  },
-  "recheckedAt": "2026-11-09T22:46:33.284Z"
- },
- "plan": {
-  "version": 2,
-  "caseId": "API-XDLOT-027",
-  "title": "Lot names and descriptions are stored safely",
-  "setup": {
-   "recipe": "closed_rfq"
-  },
-  "act": [
-   {
-    "op": "update_event",
-    "as": "buyer",
-    "change": [
-     {
-      "path": "title",
-      "set": "QA_Platform_<b>bold</b> O'Brien"
-     }
-    ],
-    "decisive": true
-   }
-  ],
-  "verify": [
-   {
-    "op": "read_round",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "event_group.title",
-      "op": "equals",
-      "value": "QA_Platform_bold O'Brien"
-     }
-    ]
-   }
-  ],
-  "expected": {
-   "outcome": "accept"
   }
- }
+ },
+ "plan": null
 }

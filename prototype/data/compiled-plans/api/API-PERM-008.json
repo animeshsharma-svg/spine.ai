@@ -2,17 +2,15 @@
  "meta": {
   "caseId": "API-PERM-008",
   "title": "Clone requires allowed company, create permission, non-planner, non-draft, non-PR",
-  "compiledAt": "2026-10-15T13:06:31.425Z",
+  "compiledAt": "2026-11-09T22:51:58.366Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Does not vary or verify refusal when the company is not allowed.",
-   "Does not vary or verify refusal without create permission.",
-   "Does not vary or verify refusal for a planner.",
-   "Does not verify the non-draft and non-PR conditions independently.",
-   "Does not verify the cloned record because no clone read-back field or assertion is available.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The known-good clone success case is not checked.",
+   "Allowed-company membership, create permission, planner status, and PR status cannot be varied independently.",
+   "The full one-condition-at-a-time variation matrix is not executed.",
+   "The cloned record is not verified because cloneUuid cannot be used by the available read operations."
   ],
   "warnings": [],
   "validated": true,
@@ -26,31 +24,34 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer clones the event."
+    "The buyer sends the event groups create clone request, exactly as the matching library case writes it."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.169Z"
+  "recheckedAt": "2026-11-09T22:56:37.018Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-PERM-008",
   "title": "Clone requires allowed company, create permission, non-planner, non-draft, non-PR",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "draft_rfq"
   },
   "act": [
    {
-    "op": "clone_event",
+    "op": "library",
     "as": "buyer",
+    "caseId": "EDGE-PUB-110",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
   }
  }
 }

@@ -2,20 +2,19 @@
  "meta": {
   "caseId": "API-XDPRE-063",
   "title": "Publishing moves the line from \"reserved by a draft\" to \"in progress in an event\"",
-  "compiledAt": "2026-11-09T20:09:02.801Z",
+  "compiledAt": "2026-11-09T22:48:21.092Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup cannot create a QA PR line of 100 with 40 reserved by the draft and no twin.",
-   "The available read-back fields do not expose or define assertions for draft reservation removal, in-progress quantity 40, open quantity 60, or line-item status_in_progress."
+   "the decisive step tests something else than the case's point: The setup vocabulary cannot create a draft reservation of 40 against a PR line of 100 or guarantee that there is no twin.",
+   "The available read-backs cannot verify that the draft reservation is gone, that in-progress quantity is 40, that open quantity is 60, or that the line status is in_progress."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "GET /event_groups/:id",
-   "GET /event_groups/:id/get_line_items"
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,12 +26,11 @@
    "preconditions": "A fresh draft event with one line item and no rounds.",
    "steps": [
     "The buyer publishes the event.",
-    "As the buyer, read the event and check that Data check: “status” equals active.",
-    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the buyer, read the event and check that Data check: “status” equals active."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active; Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active."
   },
-  "recheckedAt": "2026-11-09T22:46:33.302Z"
+  "recheckedAt": "2026-11-09T22:56:37.134Z"
  },
  "plan": {
   "version": 2,
@@ -45,7 +43,6 @@
    {
     "op": "publish_event",
     "as": "buyer",
-    "expect": "accept",
     "decisive": true
    }
   ],
@@ -58,15 +55,6 @@
       "path": "status",
       "op": "equals",
       "value": "active"
-     }
-    ]
-   },
-   {
-    "op": "read_line_items",
-    "as": "buyer",
-    "assert": [
-     {
-      "op": "status_2xx"
      }
     ]
    }

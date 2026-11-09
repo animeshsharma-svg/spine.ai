@@ -2,23 +2,24 @@
  "meta": {
   "caseId": "API-EVRLIF-010",
   "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
-  "compiledAt": "2026-11-09T20:21:37.256Z",
+  "compiledAt": "2026-11-09T22:54:53.910Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Quick-flow auction creation is not exposed as an operation.",
-   "Company policy values and their being ignored cannot be set or verified.",
-   "Auction strategy rank is not available as a read-back field.",
-   "Exact bid end of start + 2 days cannot be asserted.",
-   "Exact evaluation end of start + 4 days cannot be asserted.",
-   "Order type from the template is not available as a read-back field.",
+   "Quick flow is not represented by an operation.",
+   "Company policy settings for bid duration, evaluation duration, and auction strategy cannot be set or asserted.",
+   "The exact bid end of start + 2 days cannot be asserted because no matching time token or assertion is available.",
+   "The evaluation end of start + 4 days is not available in read-back fields.",
+   "Auction strategy rank cannot be asserted.",
+   "Order type from the template cannot be asserted.",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /event_groups/:id"
+   "POST /trade/move_to_auction",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,36 +28,44 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and an auction round attached, not published.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "As the buyer, read the event and check that Data check: “status” equals draft; Data check: “stages › rfx mode” equals auction."
+    "The buyer converts the pricing round into a live auction.",
+    "As the buyer, read the pricing round and check that Data check: “title” equals Auction; Schema check: “ending at” is a number."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft; Data check: “stages › rfx mode” equals auction."
+   "expected": "The app accepts it. Read back afterwards: Data check: “title” equals Auction; Schema check: “ending at” is a number."
   },
-  "recheckedAt": "2026-11-09T22:46:33.047Z"
+  "recheckedAt": "2026-11-09T22:56:36.894Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRLIF-010",
   "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
   "setup": {
-   "recipe": "draft_auction"
+   "recipe": "draft_rfq"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
   "verify": [
    {
-    "op": "read_event",
+    "op": "read_round",
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
+      "path": "title",
       "op": "equals",
-      "value": "draft"
+      "value": "Auction"
      },
      {
-      "path": "stages[*].rfx_mode",
-      "op": "equals",
-      "value": "auction"
+      "path": "ending_at",
+      "op": "type_is",
+      "value": "number"
      }
     ]
    }

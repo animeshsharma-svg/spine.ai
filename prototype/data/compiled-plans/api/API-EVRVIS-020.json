@@ -2,16 +2,15 @@
  "meta": {
   "caseId": "API-EVRVIS-020",
   "title": "The project page keeps the buyer's notes and history away from vendors",
-  "compiledAt": "2026-11-09T20:15:28.437Z",
+  "compiledAt": "2026-11-09T22:51:35.863Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup cannot create the required prior amendment with a remark.",
-   "the decisive step tests something else than the case's point: The setup cannot transfer ownership.",
-   "the decisive step tests something else than the case's point: The setup cannot refresh last-PO data.",
-   "The available read-back fields cannot assert that buyer notes or history are absent from the vendor view.",
-   "The available read-back fields cannot assert that the stage owner name is visible only to the buyer.",
+   "the decisive step tests something else than the case's point: The setup cannot express a prior project amendment with a remark, ownership transfer, or last-PO data refresh.",
+   "The available read-back fields cannot verify that buyer notes are absent from the vendor's project page.",
+   "The available read-back fields cannot verify stage owner visibility for the buyer.",
+   "it does not read the record back to confirm what was kept or shown",
    "what the screen shows (an API plan checks the data, not the page)",
    "the part about “po” is outside what an API plan on a sourcing event checks"
   ],
@@ -31,14 +30,11 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The invited QA vendor reads the event.",
-    "The invited QA vendor reads the event's history.",
-    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
-    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
-    "As the invited QA vendor, read the event's history and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "The invited QA vendor reads the event's history."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app refuses the step the case is about with “You are not allowed to view this event.”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.097Z"
+  "recheckedAt": "2026-11-09T22:56:36.939Z"
  },
  "plan": {
   "version": 2,
@@ -58,37 +54,12 @@
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_event",
-    "as": "buyer",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   },
-   {
-    "op": "read_event",
-    "as": "vendor",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   },
-   {
-    "op": "read_history",
-    "as": "vendor",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "536",
+   "message": "You are not allowed to view this event.",
+   "codeInferred": true
   }
  }
 }

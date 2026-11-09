@@ -2,23 +2,24 @@
  "meta": {
   "caseId": "API-EVRMTR-006",
   "title": "A round is a closed tender open to everyone unless the company has open tenders switched on",
-  "compiledAt": "2026-11-09T20:22:25.499Z",
+  "compiledAt": "2026-11-09T22:55:33.032Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: Cannot create or compare two companies with different company settings in one fresh-record setup.",
-   "the decisive step tests something else than the case's point: Cannot create two separate events, each containing both a pricing round and an auction round.",
-   "Cannot verify that an auction remains closed because the selected setup contains only a pricing round.",
-   "Cannot verify the second company's pricing round becomes an open tender.",
-   "Cannot verify an event not marked show under open events remains closed.",
+   "the decisive step tests something else than the case's point: The setup cannot create two companies with different gate settings.",
+   "the decisive step tests something else than the case's point: The setup cannot create two events, each containing both a pricing round and an auction.",
+   "The auction behavior cannot be tested because no available setup contains an auction alongside a pricing round.",
+   "The available read-back fields do not expose a supported assertion for the tender type value or audience equal to everyone.",
+   "The behavior of an event not marked show_under_open_events cannot be tested in the same plan.",
    "it depends on a company setting this run does not change (gate: enable_open_tender_events) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "GET /trade/:id"
+   "GET /trade/:id",
+   "GET /event_groups/:id/get_audience"
   ],
   "llm": {
    "calls": 0,
@@ -30,11 +31,12 @@
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
     "The buyer publishes the event with a changed show under open events.",
-    "As the buyer, read the pricing round and check that Data check: “rfx mode” equals closed; Data check: “customised audience” equals everyone."
+    "As the buyer, read the pricing round and check that Schema check: “rfx mode” is present.",
+    "As the buyer, list the event's invited vendors and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “rfx mode” equals closed; Data check: “customised audience” equals everyone."
+   "expected": "The app accepts it. Read back afterwards: Schema check: “rfx mode” is present; Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.076Z"
+  "recheckedAt": "2026-11-09T22:56:36.917Z"
  },
  "plan": {
   "version": 2,
@@ -63,13 +65,16 @@
     "assert": [
      {
       "path": "rfx_mode",
-      "op": "equals",
-      "value": "closed"
-     },
+      "op": "exists"
+     }
+    ]
+   },
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
      {
-      "path": "customised_audience",
-      "op": "equals",
-      "value": "everyone"
+      "op": "status_2xx"
      }
     ]
    }

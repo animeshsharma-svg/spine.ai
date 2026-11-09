@@ -2,21 +2,19 @@
  "meta": {
   "caseId": "API-EVRVIS-010",
   "title": "On a price round a vendor never learns its own rank",
-  "compiledAt": "2026-11-09T20:07:51.311Z",
+  "compiledAt": "2026-11-09T22:48:04.102Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The closed RFQ state cannot be combined with an accepted open_bid action because opening a bid after the window closes is rejected.",
-   "the decisive step tests something else than the case's point: The setup cannot express the specified bid prices of vendor B at 95 and the QA vendor at 100.",
-   "The available read-back vocabulary does not identify the exact bid-row rank field; the plan checks the named field rank."
+   "the decisive step tests something else than the case's point: The setup does not specify the bid prices as vendor B 95 and QA vendor 100.",
+   "the decisive step tests something else than the case's point: The setup does not expose or configure whether the lot is sealed."
   ],
   "warnings": [
    "verify 1: read_bid's reply shape has not been sampled; \"rank\" is unverified"
   ],
   "validated": true,
   "endpoints": [
-   "POST /v1/bids",
    "GET /bids/:id"
   ],
   "llm": {
@@ -26,29 +24,22 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round.",
     "As the invited QA vendor, read the bid and check that Schema check: “rank” is absent."
    ],
    "expected": "The app accepts it. Read back afterwards: Schema check: “rank” is absent."
   },
-  "recheckedAt": "2026-11-09T22:46:33.092Z"
+  "recheckedAt": "2026-11-09T22:56:36.933Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRVIS-010",
   "title": "On a price round a vendor never learns its own rank",
   "setup": {
-   "recipe": "rfq_with_2_bids"
+   "recipe": "closed_rfq_with_2_bids"
   },
-  "act": [
-   {
-    "op": "open_bid",
-    "as": "vendor",
-    "decisive": true
-   }
-  ],
+  "act": [],
   "verify": [
    {
     "op": "read_bid",

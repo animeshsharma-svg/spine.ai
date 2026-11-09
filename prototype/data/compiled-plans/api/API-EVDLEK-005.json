@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "API-EVDLEK-005",
   "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
-  "compiledAt": "2026-11-09T20:06:23.793Z",
+  "compiledAt": "2026-11-09T22:47:34.926Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The available setup does not create a final split award between QA vendors 1, 2, and 3 or an uninvited/non-bidding QA vendor 4.",
-   "Only vendor and vendor2 actors are available; QA vendor 3 and QA vendor 4 cannot be represented.",
-   "The three views and searchable vendor/price fields are not defined by the available vocabulary, so the plan cannot verify that other winners or their prices are absent."
+   "the decisive step tests something else than the case's point: The available setup does not create a final split award among QA vendors 1, 2, and 3 or QA vendor 4 as a non-bidding vendor.",
+   "The vocabulary has no vendor3 or vendor4 actors; vendor and vendor2 cannot represent all requested vendors.",
+   "The three named views and searching them for other vendors or prices cannot be expressed with the available read operations or known read-back fields.",
+   "the decisive step tests something else than the case's point: The plan only checks that supported vendor reads succeed; it cannot verify the absence of other winners or winning prices."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "GET /event_groups/:id",
    "GET /trade/:id",
-   "GET /v1/trade/:id/event_indicators"
+   "GET /orders"
   ],
   "llm": {
    "calls": 0,
@@ -29,11 +30,12 @@
    "steps": [
     "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked).",
     "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As a second QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:32.900Z"
+  "recheckedAt": "2026-11-09T22:56:36.765Z"
  },
  "plan": {
   "version": 2,
@@ -63,8 +65,17 @@
     ]
    },
    {
-    "op": "read_indicators",
+    "op": "list_events",
     "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "vendor2",
     "assert": [
      {
       "op": "status_2xx"

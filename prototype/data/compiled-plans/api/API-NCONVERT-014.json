@@ -5,11 +5,11 @@
   "compiledAt": "2026-11-09T22:26:07.380Z",
   "planVersion": 2,
   "source": "rules",
-  "coverage": "partial",
-  "gaps": [
-   "it does not read the record back to confirm what was kept or shown"
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
   ],
-  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /trade/move_to_auction"
@@ -23,11 +23,12 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer converts the pricing round into a live auction, exactly as the journey does, with the value sent as \"not-a-number\"."
+    "The buyer converts the pricing round into a live auction, exactly as the journey does, with the value sent as \"not-a-number\".",
+    "As the buyer, read the event and check that the event has no new round (the conversion left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the event has no new round (the conversion left nothing)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.127Z"
+  "recheckedAt": "2026-11-09T22:56:36.974Z"
  },
  "plan": {
   "version": 2,
@@ -50,7 +51,20 @@
     "say": "The buyer converts the pricing round into a live auction, exactly as the journey does, with the value sent as \"not-a-number\"."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count",
+      "value": 1,
+      "say": "the event has no new round (the conversion left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

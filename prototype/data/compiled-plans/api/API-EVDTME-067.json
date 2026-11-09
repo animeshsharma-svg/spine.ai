@@ -9,7 +9,9 @@
   "gaps": [
    "The plan does not assert the specific HTTP 422 code because the application may return code 32 after the end-of-bidding job discards the draft, code 33 when the order is inactive, or code 508 during extra closing time when counter-offer mod"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
@@ -28,11 +30,12 @@
     "QA vendor 1 opens a draft bid before the bid end.",
     "The buyer moves the bid end in to 90 seconds from now.",
     "Wait until the new bid end has passed.",
-    "QA vendor 1 tries to price the draft after the bid end."
+    "QA vendor 1 tries to price the draft after the bid end.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.005Z"
+  "recheckedAt": "2026-11-09T22:56:36.860Z"
  },
  "plan": {
   "version": 2,
@@ -79,7 +82,20 @@
     "say": "QA vendor 1 tries to price the draft after the bid end."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "32",

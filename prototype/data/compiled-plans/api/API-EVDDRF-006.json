@@ -2,12 +2,12 @@
  "meta": {
   "caseId": "API-EVDDRF-006",
   "title": "Moving the end of a draft RFQ-only round does not break the server",
-  "compiledAt": "2026-11-09T20:11:12.772Z",
+  "compiledAt": "2026-11-09T22:49:22.885Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The exact increase of the round end by 3600 seconds cannot be expressed because the available time tokens do not include {{roundEnd+3600}}; the operation uses its default increase instead."
+   "The requested end time of {{roundEnd+3600}} cannot be expressed because the available time token is {{roundEnd+60}}."
   ],
   "warnings": [],
   "validated": true,
@@ -23,11 +23,11 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer moves the round's bid end time with the remarks set to “QA_Platform_…”."
+    "The buyer moves the round's bid end time with the increase auction time moved later, with the remarks set to “QA_Platform_…”."
    ],
    "expected": "The app answers cleanly — accepted or refused — but never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:32.896Z"
+  "recheckedAt": "2026-11-09T22:56:36.762Z"
  },
  "plan": {
   "version": 2,
@@ -41,6 +41,10 @@
     "op": "extend_round",
     "as": "buyer",
     "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     },
      {
       "path": "remarks",
       "set": "QA_Platform_{{stamp}}"

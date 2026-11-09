@@ -2,22 +2,58 @@
  "meta": {
   "caseId": "API-EVDTME-010",
   "title": "Rescheduling a round that does not exist",
-  "compiledAt": "2026-11-09T19:55:18.954Z",
+  "compiledAt": "2026-11-09T22:56:28.795Z",
   "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "none",
-  "gaps": [
-   "Rescheduling a nonexistent round with a fixed invalid trade ID and bid_start_time/bid_end_time is not expressible: no operation covers this request, and request placeholders cannot use the fixed ID Z2dnWmdaUWtnWw== or an equivalent nonexist"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [],
-  "validated": false,
-  "endpoints": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id"
+  ],
   "llm": {
-   "calls": 0,
-   "promptTokens": 0,
-   "completionTokens": 0,
+   "calls": 2,
+   "promptTokens": 12972,
+   "completionTokens": 463,
    "usd": 0
-  }
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the request that updates the round, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.849Z"
  },
- "plan": null
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-010",
+  "title": "Rescheduling a round that does not exist",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/Z2dnWmdaUWtnZw==",
+     "body": {
+      "bid_start_time": "{{now+3600}}",
+      "bid_end_time": "{{now+7200}}"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "4",
+   "message": "Request not found"
+  }
+ }
 }

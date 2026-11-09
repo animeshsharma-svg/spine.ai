@@ -2,21 +2,25 @@
  "meta": {
   "caseId": "API-EVRMEG-019",
   "title": "A vendor's first technical submission is time-stamped, replaces its drafts and adds it to the participants",
-  "compiledAt": "2026-11-09T20:14:00.710Z",
+  "compiledAt": "2026-11-09T22:50:46.208Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "No operation can submit a vendor's technical draft.",
-   "the decisive step tests something else than the case's point: The setup does not provide two technical drafts for the same alternative, so replacement of the other draft cannot be checked.",
-   "No read operation exposes technical response submission time, active/inactive draft status, or the vendor's pending tasks.",
-   "No operation or read-back can verify that later revisions retain the first submission time."
+   "The available operations cannot submit the vendor's technical draft.",
+   "the decisive step tests something else than the case's point: The setup cannot create two technical response drafts for the same alternative.",
+   "The vendor's response records and submission timestamp cannot be read back.",
+   "The inactive status of the other draft cannot be verified.",
+   "The technical round participant list cannot be verified after submission.",
+   "The vendor's pending tasks and completion of the submit-response task cannot be read.",
+   "it does not read the record back to confirm what was kept or shown"
   ],
-  "warnings": [],
+  "warnings": [
+   "act 1: the vendor is not invited to this setup — it acts as an outsider"
+  ],
   "validated": true,
   "endpoints": [
-   "POST /template_responses",
-   "GET /trade/:id"
+   "POST /template_responses"
   ],
   "llm": {
    "calls": 0,
@@ -25,21 +29,20 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
    "steps": [
-    "The invited QA vendor starts a technical response on the RFP round.",
-    "As the invited QA vendor, read the technical round and check that Data check: “participants” contains {{vendorUuid}}."
+    "The invited QA vendor starts a technical response on the RFP round."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “participants” contains {{vendorUuid}}."
+   "expected": "The app accepts it."
   },
-  "recheckedAt": "2026-11-09T22:46:33.067Z"
+  "recheckedAt": "2026-11-09T22:56:36.909Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRMEG-019",
   "title": "A vendor's first technical submission is time-stamped, replaces its drafts and adds it to the participants",
   "setup": {
-   "recipe": "published_rfp_rfq"
+   "recipe": "draft_rfp_rfq"
   },
   "act": [
    {
@@ -48,19 +51,7 @@
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_rfp_round",
-    "as": "vendor",
-    "assert": [
-     {
-      "path": "participants",
-      "op": "contains",
-      "value": "{{vendorUuid}}"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
    "outcome": "accept"
   }

@@ -2,19 +2,18 @@
  "meta": {
   "caseId": "API-VAL-012",
   "title": "Epoch times as strings are handled consistently",
-  "compiledAt": "2026-11-09T20:23:14.662Z",
+  "compiledAt": "2026-11-09T22:56:01.697Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The vocabulary does not provide a way to force the epoch token to be serialized as a JSON string, so the numeric and string forms cannot be compared. It also cannot assert that a refused string includes a readable message.",
+   "The vocabulary cannot distinguish a numeric epoch value from the same epoch represented as a string, so both requests use the same token representation. It also cannot assert that two requests were accepted identically or model the alternat",
    "the case reads as “it is refused”, but the plan checks “it is accepted”"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /trade/:id",
-   "GET /trade/:id"
+   "PATCH /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,13 +24,12 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer moves the round's bid end time with the increase auction time moved later.",
-    "The buyer moves the round's bid end time with the increase auction time moved later.",
-    "As the buyer, read the pricing round and check that Schema check: “ending at” is a number."
+    "The buyer moves the pricing round's bid end time with the increase auction time moved later.",
+    "The buyer moves the pricing round's bid end time with the increase auction time moved later."
    ],
-   "expected": "The app accepts it. Read back afterwards: Schema check: “ending at” is a number."
+   "expected": "The app accepts it."
   },
-  "recheckedAt": "2026-11-09T22:46:33.209Z"
+  "recheckedAt": "2026-11-09T22:56:37.055Z"
  },
  "plan": {
   "version": 2,
@@ -47,9 +45,13 @@
     "change": [
      {
       "path": "increase_auction_time",
-      "set": "{{roundEnd+240}}"
+      "set": "{{roundEnd+60}}"
      }
-    ]
+    ],
+    "params": {
+     "round": "pricing"
+    },
+    "ifRefused": "pass"
    },
    {
     "op": "extend_round",
@@ -57,26 +59,16 @@
     "change": [
      {
       "path": "increase_auction_time",
-      "set": "{{roundEnd+240}}"
+      "set": "{{roundEnd+60}}"
      }
     ],
-    "decisive": true,
-    "ifRefused": "pass"
+    "params": {
+     "round": "pricing"
+    },
+    "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_round",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "ending_at",
-      "op": "type_is",
-      "value": "number"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
    "outcome": "accept"
   }

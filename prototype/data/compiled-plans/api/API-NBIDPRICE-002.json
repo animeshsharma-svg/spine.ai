@@ -5,11 +5,11 @@
   "compiledAt": "2026-11-09T19:41:32.388Z",
   "planVersion": 2,
   "source": "rules",
-  "coverage": "partial",
-  "gaps": [
-   "it does not read the record back to confirm what was kept or shown"
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
   ],
-  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids",
@@ -25,11 +25,12 @@
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
     "The invited QA vendor opens a bid on the pricing round.",
-    "The invited QA vendor prices the line on the bid, exactly as the journey does, with the company uuid sent as 12345."
+    "The invited QA vendor prices the line on the bid, exactly as the journey does, with the company uuid sent as 12345.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.117Z"
+  "recheckedAt": "2026-11-09T22:56:36.961Z"
  },
  "plan": {
   "version": 2,
@@ -58,7 +59,20 @@
     "say": "The invited QA vendor prices the line on the bid, exactly as the journey does, with the company uuid sent as 12345."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject"
   }

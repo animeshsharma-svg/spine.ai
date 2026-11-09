@@ -2,16 +2,14 @@
  "meta": {
   "caseId": "API-XDLOT-077",
   "title": "Absurd rates are accepted, and an infinite one is stored as empty",
-  "compiledAt": "2026-11-09T22:26:42.319Z",
+  "compiledAt": "2026-11-09T22:52:31.470Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup recipe does not create a multi-currency RFQ.",
-   "No available read operation or known field verifies the sanity-bound decision or that the infinite rate is stored as empty.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”",
-   "it does not read the record back to confirm what was kept or shown",
-   "it depends on a company setting this run does not change (multi-currency RFQ) — a failure is reported as couldn't tell, not as a bug"
+   "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ or an auto-fetched USD rate, so the ±50% sanity-bound decision cannot be checked.",
+   "The response field showing the infinite rate was stored as null cannot be verified because the response shape is not provided.",
+   "it does not read the record back to confirm what was kept or shown"
   ],
   "warnings": [],
   "validated": true,
@@ -30,9 +28,9 @@
     "The buyer sends the trade currency exchange rates request, the request the case itself writes.",
     "The buyer sends the trade currency exchange rates request, the request the case itself writes."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app refuses the step the case is about with “Invalid exchange rate: rate_in_base must be a positive number.”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.290Z"
+  "recheckedAt": "2026-11-09T22:56:37.126Z"
  },
  "plan": {
   "version": 2,
@@ -55,7 +53,8 @@
        }
       ]
      }
-    }
+    },
+    "ifRefused": "pass"
    },
    {
     "op": "request",
@@ -76,8 +75,9 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "accept"
-  },
-  "dependsOnSetting": "multi-currency RFQ"
+   "outcome": "reject",
+   "code": "878",
+   "message": "Invalid exchange rate: rate_in_base must be a positive number."
+  }
  }
 }

@@ -2,13 +2,12 @@
  "meta": {
   "caseId": "API-PERM-001",
   "title": "`GET /api/event_groups` requires trade read permission",
-  "compiledAt": "2026-11-09T20:07:57.581Z",
+  "compiledAt": "2026-11-09T22:48:07.514Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup cannot explicitly remove trade read permission; the vendor actor is used as the user without that permission.",
-   "it depends on a company setting this run does not change (trade read permission) — a failure is reported as couldn't tell, not as a bug"
+   "The vocabulary cannot configure or identify a user with trade read permission versus one without it; buyer and vendor roles are used as proxies."
   ],
   "warnings": [],
   "validated": true,
@@ -22,21 +21,22 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
    "steps": [
     "The buyer lists events.",
-    "The buyer lists events."
+    "The buyer lists events.",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.166Z"
+  "recheckedAt": "2026-11-09T22:56:37.015Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-PERM-001",
   "title": "`GET /api/event_groups` requires trade read permission",
   "setup": {
-   "recipe": "published_rfq"
+   "recipe": "none"
   },
   "act": [
    {
@@ -49,13 +49,22 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
    "code": "455",
    "message": "You are not authorized to perform this action",
    "codeInferred": true
-  },
-  "dependsOnSetting": "trade read permission"
+  }
  }
 }

@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "API-EVRLIF-025",
   "title": "Starting a technical answer reuses the vendor's draft and carries its last submitted answers",
-  "compiledAt": "2026-11-09T20:21:55.728Z",
+  "compiledAt": "2026-11-09T22:55:09.173Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Cannot read the technical response draft or verify that the vendor's last submitted answers are carried forward.",
-   "Cannot provide different extra details when starting the second vendor revision because start_tech_response exposes only item_uuid, item_type, and company_uuid.",
-   "the decisive step tests something else than the case's point: Cannot create a draft award proposal with the same numeric id as the technical round, or verify that the draft lookup ignores item type.",
-   "Cannot verify that the surrogate remark is added again on every call because no response read-back operation or usable response token is available."
+   "No setup recipe or operation can create a draft award proposal with the same numeric id as the technical round.",
+   "No read operation or supported assertion field can read and compare the technical answers carried into the revision.",
+   "start_tech_response has no supported fields for supplying different extra details on the second call.",
+   "No read operation or supported assertion field can verify that the surrogate remark is added again on each call."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
+   "POST /proposal",
    "POST /template_responses",
    "POST /template_responses/create_surrogate_response"
   ],
@@ -27,14 +28,15 @@
   "words": {
    "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
    "steps": [
+    "The buyer opens an award proposal.",
     "The invited QA vendor starts a technical response on the RFP round.",
     "The invited QA vendor starts a technical response on the RFP round.",
-    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_revision_…”.",
-    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_revision_…”."
+    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_surrogate_…”.",
+    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_surrogate_…”."
    ],
    "expected": "The app accepts it."
   },
-  "recheckedAt": "2026-11-09T22:46:33.051Z"
+  "recheckedAt": "2026-11-09T22:56:36.898Z"
  },
  "plan": {
   "version": 2,
@@ -45,13 +47,16 @@
   },
   "act": [
    {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
     "op": "start_tech_response",
     "as": "vendor"
    },
    {
     "op": "start_tech_response",
-    "as": "vendor",
-    "ifRefused": "pass"
+    "as": "vendor"
    },
    {
     "op": "surrogate_tech_response",
@@ -59,10 +64,9 @@
     "change": [
      {
       "path": "surrogate_remarks.remarks",
-      "set": "QA_Platform_revision_{{stamp}}"
+      "set": "QA_Platform_surrogate_{{stamp}}"
      }
-    ],
-    "ifRefused": "pass"
+    ]
    },
    {
     "op": "surrogate_tech_response",
@@ -70,7 +74,7 @@
     "change": [
      {
       "path": "surrogate_remarks.remarks",
-      "set": "QA_Platform_revision_{{stamp}}"
+      "set": "QA_Platform_surrogate_{{stamp}}"
      }
     ],
     "decisive": true

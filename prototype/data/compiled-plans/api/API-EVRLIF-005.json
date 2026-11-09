@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "API-EVRLIF-005",
   "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
-  "compiledAt": "2026-11-09T20:13:02.174Z",
+  "compiledAt": "2026-11-09T22:50:01.393Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Cannot configure company policies for bid duration or evaluation duration.",
-   "Cannot schedule publication for tomorrow at 10:00.",
-   "the decisive step tests something else than the case's point: Cannot create or inspect a second event with a past schedule.",
-   "Cannot add a round from an existing RFQ.",
-   "Cannot verify that the round starts at the scheduled publish time.",
-   "Cannot verify that evaluation ends exactly four days after start or one day before bid end."
+   "Cannot set or verify company policies for bid duration or evaluation duration.",
+   "Cannot schedule publication for tomorrow at 10:00 or create a second event with a past schedule.",
+   "the decisive step tests something else than the case's point: Cannot build a round specifically from an existing RFQ beyond the RFQ supplied by the setup recipe.",
+   "Cannot verify the round's scheduled start time or the relationship between evaluation end and bid end.",
+   "Cannot verify whether saving the scheduled round itself is refused."
   ],
   "warnings": [],
   "validated": true,
@@ -28,11 +27,11 @@
   "words": {
    "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
    "steps": [
-    "The buyer moves the round's bid end time."
+    "The buyer moves the round's bid end time with the increase auction time moved later, with the remarks set to “QA_Platform_…”."
    ],
    "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:33.043Z"
+  "recheckedAt": "2026-11-09T22:56:36.889Z"
  },
  "plan": {
   "version": 2,
@@ -45,6 +44,17 @@
    {
     "op": "extend_round",
     "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+60}}"
+     },
+     {
+      "path": "remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "expect": "reject",
     "decisive": true
    }
   ],

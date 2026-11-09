@@ -2,19 +2,21 @@
  "meta": {
   "caseId": "API-EVRLIF-013",
   "title": "Cloning an event whose live round had a line deleted should not fail",
-  "compiledAt": "2026-11-09T20:13:09.148Z",
+  "compiledAt": "2026-11-09T22:50:10.330Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The setup does not create an event with three lines, a deleted second line, or a hidden invited vendor.",
-   "The clone cannot be read back because read_event requires eventGroupUuid and clone_event provides cloneUuid.",
-   "The expected untyped HTTP 500 cannot be asserted with the available assertion vocabulary."
+   "The setup recipe provides one line item, not three.",
+   "A line cannot be deleted while the round is live with the available operations.",
+   "The invited vendor cannot be hidden with the available operations.",
+   "The clone read-back cannot verify that the deleted line is not skipped or that nil.id is handled."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /event_groups/:id/create_clone"
+   "POST /event_groups/:id/create_clone",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,11 +27,12 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer clones the event."
+    "The buyer clones the event.",
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.048Z"
+  "recheckedAt": "2026-11-09T22:56:36.895Z"
  },
  "plan": {
   "version": 2,
@@ -45,7 +48,17 @@
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "no-5xx"
   }

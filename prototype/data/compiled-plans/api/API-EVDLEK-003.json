@@ -2,19 +2,22 @@
  "meta": {
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
-  "compiledAt": "2026-11-09T20:06:30.830Z",
+  "compiledAt": "2026-11-09T22:47:27.823Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "the decisive step tests something else than the case's point: The available setup recipes cannot create a third QA vendor or a buyer-placed surrogate bid specifically for that vendor.",
-   "The available read-back fields and assertion vocabulary cannot search round or event responses for QA vendor 3 or assert that the vendor's data is absent.",
+   "the decisive step tests something else than the case's point: The setup recipes and tokens do not provide QA vendor 3 or four QA vendors; vendor2 is used as the other vendor.",
+   "The available assertion vocabulary cannot search response contents for QA vendor 3's name, company id, price, or totals, or assert that those values are absent.",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /bids/template_input",
    "GET /trade/:id",
+   "GET /v1/trade/:id/schema",
    "GET /event_groups/:id"
   ],
   "llm": {
@@ -24,39 +27,69 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
-    "As the invited QA vendor, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
+    "The buyer invites QA vendor 2 to the live round.",
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf for a second QA vendor with the company uuid set to “…”.",
+    "The invited QA vendor reads the pricing round.",
+    "The invited QA vendor reads the pricing round's schema.",
+    "The invited QA vendor reads the event.",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
   },
-  "recheckedAt": "2026-11-09T22:46:32.899Z"
+  "recheckedAt": "2026-11-09T22:56:36.764Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
   "setup": {
-   "recipe": "rfq_with_2_bids"
+   "recipe": "published_rfq"
   },
-  "act": [],
-  "verify": [
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer"
+   },
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "company_uuid",
+      "set": "{{vendor2Uuid}}"
+     }
+    ],
+    "params": {
+     "price": 100,
+     "vendor": "vendor2"
+    },
+    "decisive": true
+   },
    {
     "op": "read_round",
-    "as": "vendor",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
+    "as": "vendor"
+   },
+   {
+    "op": "read_round_schema",
+    "as": "vendor"
    },
    {
     "op": "read_event",
-    "as": "vendor",
+    "as": "vendor"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
     "assert": [
      {
-      "op": "status_2xx"
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
      }
     ]
    }

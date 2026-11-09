@@ -1,5 +1,5 @@
 {
- "updatedAt": "2026-11-09T22:46:34.037Z",
+ "updatedAt": "2026-11-09T22:56:37.849Z",
  "planVersion": 2,
  "cases": {
   "API-AUD-001": {
@@ -463,17 +463,15 @@
    "at": "2026-11-09T19:23:07.927Z"
   },
   "API-AWD-018": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "A selected bid can no longer be revised",
    "source": "llm-fast",
-   "why": [
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:05:07.760Z"
+   "at": "2026-11-09T22:46:52.754Z"
   },
   "API-AWD-019": {
    "coverage": "none",
@@ -829,18 +827,16 @@
    "at": "2026-10-15T13:01:33.152Z"
   },
   "API-BID-028": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Rejecting a bid works only on an active bid",
    "source": "llm-fast",
-   "why": [
-    "The second rejection is allowed to fail but its HTTP 422 response and error code 101 are not asserted.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
-    "PATCH /bids/:id/reject"
+    "PATCH /bids/:id/reject",
+    "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T19:29:37.452Z"
+   "at": "2026-11-09T22:48:55.777Z"
   },
   "API-BID-029": {
    "coverage": "none",
@@ -874,27 +870,25 @@
    "source": "llm-fast",
    "why": [
     "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-    "The second request without vendor_ids is included but its expected HTTP 422/code 5 result cannot be represented separately in one plan."
+    "The separate missing-vendor_ids request and its expected HTTP 422/code 5 result are not independently represented because only one decisive act is permitted."
    ],
    "endpoints": [
     "GET /bids"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:05:21.842Z"
+   "at": "2026-11-09T22:47:04.444Z"
   },
   "API-BID-032": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Bid feedback is restricted to the order's team or a super admin",
    "source": "llm-fast",
    "why": [
-    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-    "the decisive step tests something else than the case's point: The setup recipes do not guarantee that the buyer is not on the order's team or is not a super admin."
+    "The request body for POST /bids/{{bidUuid}}/feedback is not provided; write requests without a body cannot be expressed.",
+    "The setup vocabulary cannot create or authenticate a buyer who is not on the order's team and is not a super admin."
    ],
-   "endpoints": [
-    "POST /v1/bids/:id/feedback"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:19:52.031Z"
+   "at": "2026-11-09T22:53:42.031Z"
   },
   "API-BID-033": {
    "coverage": "full",
@@ -1030,20 +1024,16 @@
    "at": "2026-11-09T22:23:28.452Z"
   },
   "API-CONV-007": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Conversion requires both create permission and view access",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot configure create permission or view access for either user variant.",
-    "The exact PATCH move_to_auction request cannot be represented because its request body is not provided.",
-    "The plan covers only one conversion attempt and cannot execute the request as each permission variant.",
-    "The refusal code is not specified for this permission combination."
+    "The case requires testing PATCH move_to_auction with two users having different create and view permissions, but no operation or library case provides this PATCH request with its body.",
+    "The setup recipes cannot create or configure users with create permission or event view access, and the available buyer/vendor actors do not represent the two permission variants."
    ],
-   "endpoints": [
-    "POST /trade/move_to_auction"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T22:23:30.213Z"
+   "at": "2026-11-09T22:49:00.875Z"
   },
   "API-CONV-008": {
    "coverage": "partial",
@@ -1256,15 +1246,15 @@
    "source": "llm-fast",
    "why": [
     "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-    "the decisive step tests something else than the case's point: The setup cannot configure a caller whose teams lack the trade: create_record permission.",
-    "The exact request path /api/event_groups is not available; create_draft is the available event-creation operation.",
-    "it depends on a company setting this run does not change (trade: create_record) — a failure is reported as couldn't tell, not as a bug"
+    "The plan cannot configure a caller whose teams lack trade: create_record permission.",
+    "The exact POST /api/event_groups path cannot be expressed; create_draft is the available event-creation operation.",
+    "The required productUuid and productQualityUuid inputs are not provided by the case."
    ],
    "endpoints": [
     "POST /event_groups"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:05:26.492Z"
+   "at": "2026-11-09T22:46:59.006Z"
   },
   "API-EG-014": {
    "coverage": "partial",
@@ -1420,23 +1410,18 @@
    "at": "2026-11-09T20:10:31.791Z"
   },
   "API-EVDAUX-003": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "A second late lead change extends again",
    "source": "llm-fast",
    "why": [
-    "The setup has only vendor and vendor2; QA vendor 3 and vendor3Uuid are unavailable.",
-    "The case requires bidding below QA vendor 3, but no operation or assertion can compare bid prices.",
-    "The case requires the bid to occur inside the last minute of an already extended window; the available wait operation cannot target that interval.",
-    "the decisive step tests something else than the case's point: The available operations cannot create or verify the automatic two-minute extension, so the exact end-time change is not checked."
+    "The available setup recipes do not create a published rank auction with dynamic closing configured for a one-minute trigger, a two-minute extension, and three QA vendors.",
+    "There is no token or operation for QA vendor 3; only vendor and vendor2 are available.",
+    "The first-extension state from API-EVDAUX-001 cannot be carried into this plan.",
+    "The available assertions cannot verify that the end time moved by exactly two minutes relative to the prior end time."
    ],
-   "endpoints": [
-    "POST /v1/bids",
-    "POST /v1/bids/:id/create_bid_products",
-    "PATCH /v1/bids/:id",
-    "GET /trade/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:05:40.631Z"
+   "at": "2026-11-09T22:47:06.656Z"
   },
   "API-EVDAUX-004": {
    "coverage": "full",
@@ -1545,36 +1530,32 @@
    "at": "2026-11-09T20:05:56.059Z"
   },
   "API-EVDAWD-004": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Vendors tied at the best price count as best-price (L1) awards",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup does not create a third QA vendor or an award to one of two tied vendors.",
-    "No available operation creates or reads awarded-to-L1 and awarded-to-others amounts.",
-    "The available indicator assertions do not express that both tied vendors are counted as L1 or that only QA vendor 3 is counted as others."
+    "No setup recipe creates a closed RFQ with three QA vendors, with QA vendors 1 and 2 tied at the best price and QA vendor 3 at a higher price.",
+    "The available proposal read-back fields do not expose the awarded-to-L1 and awarded-to-others amounts needed for verification."
    ],
-   "endpoints": [
-    "GET /v1/trade/:id/event_indicators"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:10:25.305Z"
+   "at": "2026-11-09T22:49:04.322Z"
   },
   "API-EVDAWD-005": {
    "coverage": "partial",
    "title": "Taking a vendor off the award removes exactly its amount, and putting it back restores it",
    "source": "llm-fast",
    "why": [
-    "The available setup has only one awarded vendor, not three vendors with QA vendor 3 and two other allocations.",
-    "The vocabulary has no operation for the exact award-removal action or for restoring an award with 5 units.",
-    "The proposal read-back schema does not expose known assertion paths for allocation totals, vendor membership, or the ₹0 empty-award total.",
-    "the decisive step tests something else than the case's point: The available library case removes the allocation through an unknown action and only verifies that the request does not produce a 5xx response."
+    "The available setup creates an award to one QA vendor only, so the three-vendor allocation and the other two vendors' amounts cannot be reproduced.",
+    "The sampled read-back vocabulary does not expose proposal total value, awarded quantities, or vendor-list fields, so the exact ₹0/5-unit totals and vendor removal cannot be asserted.",
+    "it depends on a company setting this run does not change (is_partial_awarding_enabled) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "POST /proposal/:id/add_response",
     "GET /proposal/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:10:37.427Z"
+   "at": "2026-11-09T22:49:14.965Z"
   },
   "API-EVDAWD-006": {
    "coverage": "partial",
@@ -1639,34 +1620,32 @@
    "title": "With partial awarding off, the whole line awarded to one vendor carries the exact amount",
    "source": "llm-fast",
    "why": [
-    "The available assertion operations cannot calculate or compare the awarded amount and total to 30 multiplied by QA vendor 2's price.",
-    "the decisive step tests something else than the case's point: The available setup recipe does not expose or guarantee the line quantity is 30.",
-    "The available read-backs do not define the proposal amount, total, or bid price field paths.",
+    "The plan cannot verify that the awarded amount is exactly 30 units or that the total equals 30 multiplied by QA vendor 2's price because no supported assertion operation performs arithmetic and the proposal read-back fields are not defined ",
+    "the decisive step tests something else than the case's point: The setup recipe does not explicitly guarantee a line quantity of 30 or that both vendors are tied at the best price.",
     "it depends on a company setting this run does not change (partial awarding off) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "POST /proposal",
     "POST /proposal/:id/add_response",
-    "GET /proposal/:id",
-    "GET /bids/:id"
+    "GET /proposal/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:10:42.941Z"
+   "at": "2026-11-09T22:49:10.835Z"
   },
   "API-EVDAWD-011": {
    "coverage": "partial",
    "title": "With partial awarding off, a second vendor cannot be added to a line already fully awarded",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not specify that QA vendor 2, specifically, already holds the full award.",
-    "The library case uses an over-quantity award request rather than an award request with no stated quantity based on the vendor's quoted 30 units.",
-    "The plan cannot independently set or verify that partial awarding is off; it relies on the library case precondition."
+    "The available vocabulary does not expose a setting change or assertion for partial awarding being off.",
+    "The available vocabulary does not expose the award response body needed to explicitly omit the quantity; the plan relies on award_vendor using the vendor's quoted quantity."
    ],
    "endpoints": [
+    "POST /proposal",
     "POST /proposal/:id/add_response"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:10:46.867Z"
+   "at": "2026-11-09T22:49:17.746Z"
   },
   "API-EVDAWD-012": {
    "coverage": "partial",
@@ -1734,9 +1713,9 @@
    "title": "A higher bid the buyer places on a vendor's behalf does not take the lead",
    "source": "llm-fast",
    "why": [
-    "The case names QA vendor 3, but the vocabulary supports only the invited QA vendor and QA vendor 2; the plan uses vendor2.",
-    "The available tokens do not expose QA vendor 1's submitted price, so the plan cannot guarantee that 200 is higher than that bid.",
-    "the decisive step tests something else than the case's point: No supported read-back field directly verifies the unchanged L1 value; the comparison rank is verified instead."
+    "The available vocabulary supports only vendor and vendor2; it cannot represent QA vendor 3.",
+    "The available read-back fields expose best-bidder status but not the L1 price, so unchanged L1 price is not checked.",
+    "The available tokens cannot express a price relative to QA vendor 1's existing bid; the surrogate price is set explicitly to 101."
    ],
    "endpoints": [
     "PATCH /v1/trade/add_audience",
@@ -1745,7 +1724,7 @@
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:09.028Z"
+   "at": "2026-11-09T22:47:13.741Z"
   },
   "API-EVDCMP-003": {
    "coverage": "partial",
@@ -1812,9 +1791,8 @@
    "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
    "source": "llm-fast",
    "why": [
-    "The plan verifies that exactly one live bid remains, but the available assertion fields do not expose or compare the bid's accepted price.",
-    "The available assertion vocabulary cannot express both possible outcomes of the vendor submission as independently passing branches; the submission is allowed to be refused while the final one-bid state is verified.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The available read-backs cannot verify that the single live bid belongs specifically to QA vendor 3 or that its price is the latest accepted price.",
+    "The case allows either acceptance as a revision or refusal, but the refusal path is planned because the vendor's self-bid follows an existing surrogate bid."
    ],
    "endpoints": [
     "POST /bids/template_input",
@@ -1825,7 +1803,7 @@
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:16.449Z"
+   "at": "2026-11-09T22:47:22.373Z"
   },
   "API-EVDCMP-008": {
    "coverage": "partial",
@@ -2095,18 +2073,15 @@
    "at": "2026-11-09T19:49:44.385Z"
   },
   "API-EVDDOC-014": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "PowerPoint files are not accepted today",
    "source": "llm-fast",
-   "why": [
-    "The case's expected HTTP 422 refusal with code 484 is not represented because the required outcome is accept.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/upload_file"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:27:13.629Z"
+   "at": "2026-11-09T22:53:46.132Z"
   },
   "API-EVDDOC-015": {
    "coverage": "partial",
@@ -2155,15 +2130,14 @@
    "title": "A vendor is allowed to upload and is stopped only by validation",
    "source": "llm-fast",
    "why": [
-    "The plan does not check that validation returns HTTP 422 with code 2 or that the permission check passed before validation.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "The permission check is not separately asserted.",
     "the part about “invoice” is outside what an API plan on a sourcing event checks"
    ],
    "endpoints": [
     "POST /trade/upload_file"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:27:24.485Z"
+   "at": "2026-11-09T22:53:46.612Z"
   },
   "API-EVDDOC-025": {
    "coverage": "full",
@@ -2223,18 +2197,16 @@
    "at": "2026-11-09T22:27:31.577Z"
   },
   "API-EVDDOC-030": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "A name longer than the storage key limit fails cleanly",
-   "source": "llm-fast",
+   "source": "none",
    "why": [
-    "the decisive step tests something else than the case's point: The request does not encode the required 1,100-character filename boundary; it uses a representative .png filename instead. HTTP 422 and absence of HTTP 500 are not separately asserted.",
-    "it does not read the record back to confirm what was kept or shown"
+    "the answer was not valid JSON (7932 chars, cut off) — answer with ONE compact JSON object and nothing else; keep \"say\" texts short",
+    "no valid API plan could be compiled from the words"
    ],
-   "endpoints": [
-    "POST /templates/upload_attachment"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T22:27:36.659Z"
+   "at": "2026-11-09T22:54:11.789Z"
   },
   "API-EVDDOC-034": {
    "coverage": "none",
@@ -2356,8 +2328,8 @@
    "title": "Attachments sent as plain links break the event page",
    "source": "llm-fast",
    "why": [
-    "The exact HTTP 422 status and attachment validation error body are not asserted because no attachment error fields or known error code are provided.",
-    "the decisive step tests something else than the case's point: Vendor GET behavior is not checked because the draft_rfq setup does not create an invited vendor state.",
+    "The plan cannot assert the exact HTTP 422 response or that each attachment must be an object with a url.",
+    "The plan does not verify that subsequent event reads fail for vendors; the refused publish is expected to leave the event in draft.",
     "what the screen shows (an API plan checks the data, not the page)",
     "the part about “pdf” is outside what an API plan on a sourcing event checks"
    ],
@@ -2366,16 +2338,14 @@
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:15.841Z"
+   "at": "2026-11-09T22:47:17.807Z"
   },
   "API-EVDDOC-049": {
    "coverage": "partial",
    "title": "A round T&C file from another company's folder is accepted",
    "source": "llm-fast",
    "why": [
-    "Does not verify that saving terms notifies the invited vendor.",
-    "Does not verify that the attachment is stored or signed for the vendor.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "The plan does not verify vendor notifications or whether the attachment is stored or signed for invited vendors.",
     "it does not read the record back to confirm what was kept or shown",
     "the part about “pdf” is outside what an API plan on a sourcing event checks"
    ],
@@ -2383,7 +2353,7 @@
     "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:10:50.551Z"
+   "at": "2026-11-09T22:49:18.861Z"
   },
   "API-EVDDOC-050": {
    "coverage": "partial",
@@ -2591,7 +2561,7 @@
    "title": "The reports list for a draft event is empty with no body",
    "source": "llm-fast",
    "why": [
-    "The empty response body cannot be directly asserted with the available assertion operations.",
+    "The empty response body cannot be asserted with the available assertion operations; HTTP 204 implies no content.",
     "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
@@ -2599,7 +2569,7 @@
     "GET /event_groups/:id/get_all_attachments"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:20:06.793Z"
+   "at": "2026-11-09T22:53:56.367Z"
   },
   "API-EVDDOC-070": {
    "coverage": "partial",
@@ -2709,14 +2679,14 @@
    "title": "An empty update to a draft technical round does not break the server",
    "source": "llm-fast",
    "why": [
-    "The plan does not distinguish between a clean refusal and a no-op, and cannot assert the exact missing-parameters response.",
-    "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
+    "Does not distinguish a clean refusal from a successful no-op.",
+    "Does not assert the exact refusal status or missing-parameter error."
    ],
    "endpoints": [
-    "PATCH /event_groups/:id"
+    "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-10-15T12:19:30.110Z"
+   "at": "2026-11-09T22:49:21.243Z"
   },
   "API-EVDDRF-005": {
    "coverage": "partial",
@@ -2736,27 +2706,24 @@
    "title": "Moving the end of a draft RFQ-only round does not break the server",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The exact increase of the round end by 3600 seconds cannot be expressed because the available time tokens do not include {{roundEnd+3600}}; the operation uses its default increase instead."
+    "The requested end time of {{roundEnd+3600}} cannot be expressed because the available time token is {{roundEnd+60}}."
    ],
    "endpoints": [
     "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:11:12.772Z"
+   "at": "2026-11-09T22:49:22.885Z"
   },
   "API-EVDDRF-007": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "An empty update to a draft RFQ-only round does not break the server",
    "source": "llm-fast",
-   "why": [
-    "the decisive step tests something else than the case's point: The plan checks only that the request does not return a 5xx; it does not distinguish a clean refusal from a no-op or assert the exact response status.",
-    "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:11:16.411Z"
+   "at": "2026-11-09T22:49:24.896Z"
   },
   "API-EVDLEK-001": {
    "coverage": "partial",
@@ -2799,16 +2766,19 @@
    "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes cannot create a third QA vendor or a buyer-placed surrogate bid specifically for that vendor.",
-    "The available read-back fields and assertion vocabulary cannot search round or event responses for QA vendor 3 or assert that the vendor's data is absent.",
+    "the decisive step tests something else than the case's point: The setup recipes and tokens do not provide QA vendor 3 or four QA vendors; vendor2 is used as the other vendor.",
+    "The available assertion vocabulary cannot search response contents for QA vendor 3's name, company id, price, or totals, or assert that those values are absent.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
+    "PATCH /v1/trade/add_audience",
+    "POST /bids/template_input",
     "GET /trade/:id",
+    "GET /v1/trade/:id/schema",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:30.830Z"
+   "at": "2026-11-09T22:47:27.823Z"
   },
   "API-EVDLEK-004": {
    "coverage": "partial",
@@ -2828,17 +2798,18 @@
    "title": "A vendor that lost (or won only a share) does not see who else won or at what price",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup does not create a final split award between QA vendors 1, 2, and 3 or an uninvited/non-bidding QA vendor 4.",
-    "Only vendor and vendor2 actors are available; QA vendor 3 and QA vendor 4 cannot be represented.",
-    "The three views and searchable vendor/price fields are not defined by the available vocabulary, so the plan cannot verify that other winners or their prices are absent."
+    "the decisive step tests something else than the case's point: The available setup does not create a final split award among QA vendors 1, 2, and 3 or QA vendor 4 as a non-bidding vendor.",
+    "The vocabulary has no vendor3 or vendor4 actors; vendor and vendor2 cannot represent all requested vendors.",
+    "The three named views and searching them for other vendors or prices cannot be expressed with the available read operations or known read-back fields.",
+    "the decisive step tests something else than the case's point: The plan only checks that supported vendor reads succeed; it cannot verify the absence of other winners or winning prices."
    ],
    "endpoints": [
     "GET /event_groups/:id",
     "GET /trade/:id",
-    "GET /v1/trade/:id/event_indicators"
+    "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:23.793Z"
+   "at": "2026-11-09T22:47:34.926Z"
   },
   "API-EVDLEK-006": {
    "coverage": "partial",
@@ -2885,19 +2856,15 @@
    "at": "2026-10-15T12:38:06.401Z"
   },
   "API-EVDNFA-002": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "No second award can be started while one is in approval",
    "source": "llm-fast",
-   "why": [
-    "The expected refusal message is not checked because starting a new award is modeled as an accepted product action.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
-    "POST /proposal",
-    "GET /event_groups/:id"
+    "POST /proposal"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:29.297Z"
+   "at": "2026-11-09T22:47:29.902Z"
   },
   "API-EVDNFA-003": {
    "coverage": "none",
@@ -3666,14 +3633,13 @@
    "source": "llm-fast",
    "why": [
     "Cannot verify that no permission check occurred.",
-    "The expected HTTP 200 response conflicts with the stated requirement that the request should return HTTP 422; the plan asserts the error body but does not assert either status because the required outcome is reject.",
-    "the case reads as “it is accepted”, but the plan checks “it is refused”"
+    "Cannot verify the desired 422 response while asserting the stated HTTP 200 behavior."
    ],
    "endpoints": [
     "GET /reminders/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T19:52:02.082Z"
+   "at": "2026-11-09T22:54:03.509Z"
   },
   "API-EVDREM-022": {
    "coverage": "full",
@@ -3802,32 +3768,32 @@
   "API-EVDREM-055": {
    "coverage": "partial",
    "title": "An auction reminder on an event without an auction returns an error inside a success reply",
-   "source": "rules",
-   "why": [
-    "the case reads as “it is accepted”, but the plan checks “it is refused”",
-    "the part about “email” is outside what an API plan on a sourcing event checks"
-   ],
-   "endpoints": [
-    "PATCH /event_groups/:id",
-    "GET /event_groups/:id"
-   ],
-   "usd": 0,
-   "at": "2026-10-15T13:17:22.089Z"
-  },
-  "API-EVDREM-056": {
-   "coverage": "partial",
-   "title": "An auction reminder with unknown ids after the round closed returns the same error-as-success",
    "source": "llm-fast",
    "why": [
-    "The response body assertions for error=true and code=533 cannot be expressed because write request responses have no supported response assertion step.",
-    "the case reads as “it is accepted”, but the plan checks “it is refused”",
+    "the decisive step tests something else than the case's point: The setup vocabulary does not expose a pricingTradeUuid token, so {{tradeId}} is used for the RFQ round identifier.",
+    "No available read operation verifies that reminder records or email notifications were not created or sent.",
+    "The plan observes the current HTTP 200 response but cannot assert the desired HTTP 422 response.",
     "the part about “email” is outside what an API plan on a sourcing event checks"
    ],
    "endpoints": [
     "POST /reminders/:id/send_reminder"
    ],
    "usd": 0,
-   "at": "2026-11-09T19:52:48.850Z"
+   "at": "2026-11-09T22:54:13.774Z"
+  },
+  "API-EVDREM-056": {
+   "coverage": "partial",
+   "title": "An auction reminder with unknown ids after the round closed returns the same error-as-success",
+   "source": "llm-fast",
+   "why": [
+    "The response body field error=true is not independently asserted.",
+    "the part about “email” is outside what an API plan on a sourcing event checks"
+   ],
+   "endpoints": [
+    "POST /reminders/:id/send_reminder"
+   ],
+   "usd": 0,
+   "at": "2026-11-09T22:54:16.857Z"
   },
   "API-EVDREM-057": {
    "coverage": "partial",
@@ -3936,38 +3902,34 @@
    "title": "A line regretted in the draft can still be priced",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available operations cannot create a draft bid with its line regretted; the plan prices an ordinary draft bid instead.",
-    "The expected HTTP 200 response is not asserted because no response-status assertion is available for an act.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
-    "it does not read the record back to confirm what was kept or shown"
+    "the decisive step tests something else than the case's point: The setup cannot create QA vendor 1's draft with the line regretted.",
+    "The available operations cannot target POST /v1/bids/{{bidUuid}}/create_bid_products with the case's exact request body or verify HTTP 200."
    ],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:20:32.812Z"
+   "at": "2026-11-09T22:54:27.073Z"
   },
   "API-EVDRGT-006": {
    "coverage": "partial",
    "title": "Regretting the only line and submitting leaves the vendor with no live bid",
    "source": "llm-fast",
    "why": [
-    "The case's regret-line request cannot be expressed because no supported operation or complete request method and body are provided.",
-    "the decisive step tests something else than the case's point: The setup cannot create a vendor draft with its only line already regretted; no setup recipe provides that state.",
-    "The exact revised bid status and removal of the priced line cannot be checked from the available read-back fields.",
-    "The participants list can only be checked for a successful response; its sampled field shape does not expose the bid-placed category.",
-    "The case does not specify the numeric price; the plan uses 1."
+    "The line-regret step cannot be expressed because no regret operation is available and the case does not provide a request method, path, and body.",
+    "The audience response shape is not sampled, so the vendor's specific bid-placed count cannot be asserted."
    ],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products",
     "PATCH /v1/bids/:id",
     "GET /trade/:id",
-    "GET /event_groups/:id/get_audience"
+    "GET /event_groups/:id/get_audience",
+    "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:24:48.241Z"
+   "at": "2026-11-09T22:49:39.214Z"
   },
   "API-EVDRGT-007": {
    "coverage": "partial",
@@ -4322,14 +4284,15 @@
    "title": "Regret on an event that has been superseded by a new version",
    "source": "llm-fast",
    "why": [
-    "The regret action and its request path are not available in the operations or library cases, so the decisive 422/code 101 request and no-5xx check cannot be executed."
+    "The decisive regret request cannot be expressed because no regret operation or METHOD/path and body are provided.",
+    "The plan does not verify that the new version remains unpublished."
    ],
    "endpoints": [
     "POST /v1/bids",
     "POST /item_versions"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:20:45.428Z"
+   "at": "2026-11-09T22:54:23.500Z"
   },
   "API-EVDRGT-057": {
    "coverage": "partial",
@@ -4377,35 +4340,35 @@
    "title": "A declined vendor can still bid, and the buyer sees both answers at once",
    "source": "llm-fast",
    "why": [
-    "The vocabulary has no operation for the event-level decline described as 'in 057'.",
-    "EDGE-BID-017 covers submitting a priced bid after a decline, but does not create the decline state from this setup or perform a complete full-bid flow.",
-    "The read_audience shape has no sampled fields, so the plan cannot assert that the vendor row retains the decline text or that the stage lists the vendor as bid placed.",
-    "The alternative requirement—either refusing the bid or clearing the decline—is not expressible as an assertion alternative.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
-    "it does not read the record back to confirm what was kept or shown"
+    "The event-level decline from case 057 cannot be expressed because no decline operation or named request path/body is provided.",
+    "The audience response shape is not sampled, so the plan cannot verify the vendor's decline text or that the stage lists the vendor as bid placed.",
+    "The alternative requirement that the bid be refused or the decline be cleared cannot be asserted with the available read-back fields.",
+    "the case reads as “it is refused”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
     "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
     "PATCH /v1/bids/:id",
     "GET /event_groups/:id/get_audience"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:12:03.630Z"
+   "at": "2026-11-09T22:49:38.210Z"
   },
   "API-EVDRGT-062": {
    "coverage": "partial",
    "title": "Declining and then accepting: the latest answer wins in the vendor's event view",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: No setup recipe creates a live RFQ whose vendor has already declined at event level.",
-    "The event-level POST /user_intents request is not expressible because /user_intents is not an allowed request route and no operation covers it.",
-    "The vendor event view has no sampled read-back field for the saved acceptance, so the acceptance itself cannot be verified."
+    "the decisive step tests something else than the case's point: The setup cannot create a live RFQ where the vendor has already declined at event level.",
+    "The required POST /user_intents decline and acceptance requests cannot be expressed because /user_intents is not an allowed request route; the acceptance is represented by library case EDGE-BID-009.",
+    "The event-view assertion can verify HTTP 200 but cannot verify an acceptance field because no event-view response field is provided."
    ],
    "endpoints": [
+    "POST /user_intents",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:20:45.572Z"
+   "at": "2026-11-09T22:54:30.258Z"
   },
   "API-EVDRGT-063": {
    "coverage": "partial",
@@ -4422,23 +4385,18 @@
    "at": "2026-11-09T22:28:57.779Z"
   },
   "API-EVDRGT-064": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Joining through \"participate\" after declining records an acceptance the buyer never sees",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create an event-level vendor decline (H02) before the participate request.",
-    "The vendor read-back cannot assert user_intent.intent_type equals trade_accept because that field is not available in the read_event vocabulary.",
-    "The buyer audience read-back cannot verify that the decline text remains or that the new row has no company_id because the audience response shape is not sampled.",
-    "The request response cannot be asserted as HTTP 200 because act-step response assertions are not expressible.",
-    "it depends on a company setting this run does not change (enable_open_tender_events) — a failure is reported as couldn't tell, not as a bug"
+    "No setup recipe creates a live event with QA vendor 1 already declined at event level.",
+    "The case's POST /event_groups/{{eventGroupUuid}}/participants request body is not provided, and a write request without a body cannot be expressed.",
+    "The enable_open_tender_events company setting cannot be configured by any available operation.",
+    "The read-back field user_intent.intent_type is not available for read_event, and the buyer audience response shape is unspecified."
    ],
-   "endpoints": [
-    "POST /event_groups/:id/participants",
-    "GET /event_groups/:id",
-    "GET /event_groups/:id/get_audience"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:20:59.574Z"
+   "at": "2026-11-09T22:54:31.921Z"
   },
   "API-EVDRJB-001": {
    "coverage": "partial",
@@ -4460,16 +4418,14 @@
    "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The closed-round setup does not verify that a live-round rejection with allow_rebidding=false places QA vendor 1 on the round's block list.",
-    "The available read_round fields do not expose the vendor re-bid block list.",
-    "The available assertion vocabulary does not provide a direct assertion for HTTP 200 on the reject request."
+    "The available read-back fields do not expose the round's vendor re-bidding block list, so the plan cannot verify that QA vendor 1 is listed as not allowed to re-bid."
    ],
    "endpoints": [
     "PATCH /bids/:id/reject",
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:42.924Z"
+   "at": "2026-11-09T22:47:39.901Z"
   },
   "API-EVDRJB-003": {
    "coverage": "partial",
@@ -4596,19 +4552,15 @@
    "at": "2026-11-09T20:11:49.444Z"
   },
   "API-EVDRJB-012": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "A bid can be rejected after bidding has closed",
-   "source": "rules",
-   "why": [
-    "the case reads as “it is accepted”, but the plan checks “it is refused”"
-   ],
+   "source": "llm-fast",
+   "why": [],
    "endpoints": [
-    "POST /v1/bids",
-    "POST /v1/bids/:id/create_bid_products",
-    "PATCH /v1/bids/:id"
+    "PATCH /bids/:id/reject"
    ],
    "usd": 0,
-   "at": "2026-10-15T12:25:48.252Z"
+   "at": "2026-11-09T22:49:42.537Z"
   },
   "API-EVDRJB-013": {
    "coverage": "partial",
@@ -4740,9 +4692,7 @@
    "title": "A rejection through the status endpoint never blocks re-bidding",
    "source": "llm-fast",
    "why": [
-    "The buyer's rejection through the status endpoint cannot be expressed because its METHOD, path, and body are not provided and no operation covers it.",
-    "The plan cannot verify that a status rejection never blocks re-bidding while the RFQ remains open.",
-    "the case reads as “it is accepted”, but the plan checks “it is refused”"
+    "The buyer's status-endpoint rejection cannot be expressed because no operation or case-owned request provides its method, path, and body; the re-bid step therefore cannot be verified in the required post-rejection state."
    ],
    "endpoints": [
     "POST /v1/bids",
@@ -4751,7 +4701,7 @@
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:12:21.058Z"
+   "at": "2026-11-09T22:49:46.234Z"
   },
   "API-EVDRJB-023": {
    "coverage": "full",
@@ -4959,11 +4909,11 @@
    "title": "Discarding a bid that does not exist",
    "source": "llm-fast",
    "why": [
-    "The request uses a fixed non-existent bid identifier (Z2dnWmdaUWtnZw==), but request placeholders may only use the listed tokens; no operation or token can express a non-existent bid."
+    "The PATCH /bids/delete_draft_bid/Z2dnWmdaUWtnZw== request cannot be expressed because no operation covers this endpoint and the request operation requires a write body, while the case provides no body."
    ],
    "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T19:55:07.753Z"
+   "at": "2026-11-09T22:56:27.453Z"
   },
   "API-EVDRJB-045": {
    "coverage": "partial",
@@ -5129,15 +5079,15 @@
    "at": "2026-10-15T12:29:10.680Z"
   },
   "API-EVDTME-010": {
-   "coverage": "none",
+   "coverage": "full",
    "title": "Rescheduling a round that does not exist",
    "source": "llm-fast",
-   "why": [
-    "Rescheduling a nonexistent round with a fixed invalid trade ID and bid_start_time/bid_end_time is not expressible: no operation covers this request, and request placeholders cannot use the fixed ID Z2dnWmdaUWtnWw== or an equivalent nonexist"
+   "why": [],
+   "endpoints": [
+    "PATCH /trade/:id"
    ],
-   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T19:55:18.954Z"
+   "at": "2026-11-09T22:56:28.795Z"
   },
   "API-EVDTME-011": {
    "coverage": "partial",
@@ -5216,112 +5166,91 @@
    "title": "Reopening a line on a round that is not staggered",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not explicitly verify that the RFQ is not staggered.",
-    "The plan does not assert the error message 'Request not found'."
+    "the decisive step tests something else than the case's point: The setup does not explicitly verify that the round is not staggered.",
+    "The response message 'Request not found' is not checked."
    ],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:03.524Z"
+   "at": "2026-11-09T22:54:34.611Z"
   },
   "API-EVDTME-058": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen without naming any line: the round check answers first",
    "source": "llm-fast",
-   "why": [
-    "The expected HTTP 422 response and code 4 are not represented because the case is treated as accepted.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T19:56:08.636Z"
+   "at": "2026-11-09T22:54:34.890Z"
   },
   "API-EVDTME-059": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen for zero seconds: the round check answers first",
    "source": "llm-fast",
-   "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not explicitly guarantee that the RFQ is not staggered.",
-    "The HTTP 422 response and error code 4 are not asserted because the case is treated as accepted.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:13.049Z"
+   "at": "2026-11-09T22:54:37.618Z"
   },
   "API-EVDTME-060": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen with the extension written as a word: the round check answers first",
    "source": "llm-fast",
-   "why": [
-    "The HTTP 422 code 4 refusal expectation is not represented because the case is treated as accepted.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:44:35.546Z"
+   "at": "2026-11-09T22:54:38.572Z"
   },
   "API-EVDTME-061": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen on a round that does not exist",
    "source": "llm-fast",
-   "why": [
-    "The stated HTTP 422 rejection and error code 4 are not reflected because this case is treated as an accepted product action.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:44:36.792Z"
+   "at": "2026-11-09T22:54:40.997Z"
   },
   "API-EVDTME-062": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen with a garbled round id",
    "source": "llm-fast",
-   "why": [
-    "The referenced HTTP 422 response and error code 4 are not asserted because the expected outcome is accept.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:44:41.558Z"
+   "at": "2026-11-09T22:54:40.907Z"
   },
   "API-EVDTME-063": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen on a draft round",
    "source": "llm-fast",
-   "why": [
-    "The HTTP 422 response and error code 4 are not checked.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:44:43.350Z"
+   "at": "2026-11-09T22:54:43.996Z"
   },
   "API-EVDTME-064": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Reopen on a fully closed round",
    "source": "llm-fast",
-   "why": [
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/:id/reopen_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:44:48.261Z"
+   "at": "2026-11-09T22:54:41.317Z"
   },
   "API-EVDTME-065": {
    "coverage": "none",
@@ -5806,29 +5735,27 @@
    "title": "Two weights with the same name are accepted",
    "source": "llm-fast",
    "why": [
-    "The plan checks API acceptance only; it cannot verify that the screen refuses duplicate weight names.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "The specific error code for duplicate weight names is not provided.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
     "PATCH /trade/:id/edit_weight_parameters"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:45:37.361Z"
+   "at": "2026-11-09T22:54:45.004Z"
   },
   "API-EVDWGT-043": {
    "coverage": "partial",
    "title": "A weight can be set for a vendor who is not invited to the round",
    "source": "llm-fast",
    "why": [
-    "The available vocabulary does not expose a weight read-back field for verifying the saved row for QA vendor 2.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The plan does not verify the expected HTTP 200 response or a saved weight row because the case expects the request to be refused."
    ],
    "endpoints": [
     "PATCH /trade/:id/edit_weight_parameters"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:25:25.798Z"
+   "at": "2026-11-09T22:49:47.516Z"
   },
   "API-EVDWGT-044": {
    "coverage": "partial",
@@ -6206,33 +6133,36 @@
    "title": "The default savings reference is the best FIRST quote, priced at the buyer's quantity",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not create two lines with buyer quantities 10 and 5.",
-    "the decisive step tests something else than the case's point: The setup does not create first quotes followed by revisions for either vendor.",
-    "the decisive step tests something else than the case's point: The setup does not create vendor A's quantity-8 quote on L1.",
-    "The available read_indicators operation does not expose the savings reference, final best total, saving amount, or saving percentage.",
-    "The available vocabulary does not expose or configure the default lot-based savings strategy."
+    "The available setup provides one line item, not two lines with buyer quantities 10 and 5.",
+    "No operation can configure the default, lot-based savings strategy.",
+    "No operation can create first bids followed by revised bids for each vendor.",
+    "No operation can set distinct per-line prices or a vendor quote quantity of 8.",
+    "The available read operations expose round comparison indicators, but no savings reference, final best total, savings amount, or savings percentage fields.",
+    "The stage is already closed by the setup; no separate close-stage operation is available."
    ],
    "endpoints": [
+    "GET /trade/:id",
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:06:56.954Z"
+   "at": "2026-11-09T22:47:45.668Z"
   },
   "API-EVRCAL-020": {
    "coverage": "partial",
    "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create two line items with the required quote history: L1 with A's first quote 100 revised to 90 and B's first quote 95, and L2 with only A's revised quote.",
-    "the decisive step tests something else than the case's point: The available bid operations cannot create or verify first-versus-revised quote history after the round is closed.",
-    "The read_indicators read-back exposes ranks and best bidder only; it does not expose line-wise savings, default reference, final quote, or saving-per-unit values.",
-    "The plan cannot verify that L1 has reference 95, final 90, and saving 5 per unit, or that L2 has no reference and no saving."
+    "the decisive step tests something else than the case's point: The setup does not create two line items or the required first and revised quote history.",
+    "There is no operation to submit a first quote and then revise it for a line.",
+    "The default savings strategy cannot be set or verified with the available fields.",
+    "Line-level reference values, final values, savings per unit, and the absence of savings cannot be asserted because read_indicators exposes only rank and best_bidder fields.",
+    "The stage is already closed by the setup, so no close-stage act is performed."
    ],
    "endpoints": [
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:12:50.889Z"
+   "at": "2026-11-09T22:49:52.088Z"
   },
   "API-EVRCAL-022": {
    "coverage": "full",
@@ -6252,17 +6182,17 @@
    "title": "A vendor never receives savings data in its own quote or sheet",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not establish that savings are configured with a budget reference or that savings have been computed.",
-    "The available read-back fields do not expose named savings fields, so the absence of savings figures anywhere in the vendor's quote or event response cannot be asserted.",
-    "Opening a quote or sheet is represented only by read_bid; no operation exposes a separate vendor quote or sheet response.",
+    "the decisive step tests something else than the case's point: The setup recipe does not explicitly configure a budget reference for savings",
+    "Savings visibility in the vendor's event page and other vendor-facing sheet fields is not checked",
+    "it depends on a company setting this run does not change (savings configuration enabled) — a failure is reported as couldn't tell, not as a bug",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
     "GET /bids/:id",
-    "GET /event_groups/:id"
+    "GET /v1/trade/:id/quote_details/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:07:01.157Z"
+   "at": "2026-11-09T22:48:01.138Z"
   },
   "API-EVRLIF-001": {
    "coverage": "partial",
@@ -6316,18 +6246,17 @@
    "title": "A quick-flow round starts at the scheduled publish time and its evaluation ends after bidding",
    "source": "llm-fast",
    "why": [
-    "Cannot configure company policies for bid duration or evaluation duration.",
-    "Cannot schedule publication for tomorrow at 10:00.",
-    "the decisive step tests something else than the case's point: Cannot create or inspect a second event with a past schedule.",
-    "Cannot add a round from an existing RFQ.",
-    "Cannot verify that the round starts at the scheduled publish time.",
-    "Cannot verify that evaluation ends exactly four days after start or one day before bid end."
+    "Cannot set or verify company policies for bid duration or evaluation duration.",
+    "Cannot schedule publication for tomorrow at 10:00 or create a second event with a past schedule.",
+    "the decisive step tests something else than the case's point: Cannot build a round specifically from an existing RFQ beyond the RFQ supplied by the setup recipe.",
+    "Cannot verify the round's scheduled start time or the relationship between evaluation end and bid end.",
+    "Cannot verify whether saving the scheduled round itself is refused."
    ],
    "endpoints": [
     "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:02.174Z"
+   "at": "2026-11-09T22:50:01.393Z"
   },
   "API-EVRLIF-006": {
    "coverage": "partial",
@@ -6351,28 +6280,26 @@
    "title": "A multi-currency quick-flow round derives each currency's precision from its rate",
    "source": "llm-fast",
    "why": [
-    "The company multi-currency setting, base INR, currency rates, currency catalogue, and second company without rates cannot be configured.",
-    "The quick-flow mode cannot be set or verified.",
-    "Currency precision derived from each rate cannot be asserted.",
-    "The unknown currency being skipped cannot be asserted.",
-    "The no-rates case cannot be created or verified.",
-    "the decisive step tests something else than the case's point: A build failure leaving the round without currency setup cannot be induced or verified."
+    "Cannot configure multi-currency, base INR, USD and JPY rates, an unknown currency, or a second company without rates.",
+    "Cannot verify currency rates, derived precision, skipped currencies, or mode \"multiple currencies\" because no currency-setup read-back fields are available.",
+    "Cannot verify that no rates produce no currency setup.",
+    "Cannot simulate a failure while building the round or verify that the round remains without currency setup."
    ],
    "endpoints": [
-    "POST /trade/template_input",
     "GET /v1/trade/:id/schema"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:12:55.687Z"
+   "at": "2026-11-09T22:49:58.588Z"
   },
   "API-EVRLIF-008": {
    "coverage": "partial",
    "title": "A price round built from PR items carries each item's location, unit, number and reference prices",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup vocabulary cannot create a draft event with two line items, PR number RFQ/24/001, PR item 10, locations, units, budget price 50, historical price 48, material code, or a custom dropdown value.",
-    "The available read-back fields do not expose round line-item details, so location, unit, item number, material code, PR number, dropdown option mapping, budget and historical references, serial ordering, or ceiling/floor/tick values cannot ",
-    "the decisive step tests something else than the case's point: The available setup and operations cannot add a round from another round or verify that its vendors are copied and restricted.",
+    "the decisive step tests something else than the case's point: The setup cannot create a draft event with the specified PR item, PR number, location, unit, budget, historical price, material code, or custom dropdown.",
+    "the decisive step tests something else than the case's point: The setup cannot create the second line without a PR item or set its unit symbol to NOS.",
+    "read_round does not expose line-level fields, serial order, reference prices, dropdown option mapping, ceiling, floor, or tick for assertions.",
+    "No available operation or setup can add a round from another round or verify that its vendors are copied and restricted.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
@@ -6380,44 +6307,43 @@
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:01.850Z"
+   "at": "2026-11-09T22:50:04.689Z"
   },
   "API-EVRLIF-009": {
    "coverage": "partial",
    "title": "A technical round built from PR items asks one question per quality parameter and names an evaluator",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup vocabulary cannot create PR items with quality parameters, item text, creator U, fund center planner P, or items with no creator.",
-    "The plan cannot verify one required multi-line question per quality parameter, optional item text, additional documents, or remarks.",
-    "The available read-back fields do not expose the technical form questions or evaluators, so U, P, and none cannot be verified.",
-    "The plan cannot verify the title \"Technical Stage\" or that the template is the company's last default RFI template.",
-    "The refusal code for a line with no PR item is not provided."
+    "the decisive step tests something else than the case's point: The setup vocabulary cannot create PR items with quality parameters, item text, creators, fund-center planners, or evaluator assignments.",
+    "The available read-back fields cannot inspect technical-round forms, questions, required or optional settings, evaluator names, template identity, or the Technical Stage title.",
+    "The refusal error code for a line with no PR item is not provided."
    ],
    "endpoints": [
     "POST /trade/template_input",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:15.609Z"
+   "at": "2026-11-09T22:50:13.824Z"
   },
   "API-EVRLIF-010": {
    "coverage": "partial",
    "title": "A quick-flow auction uses fixed 2-day bidding and 4-day evaluation whatever the company policy",
    "source": "llm-fast",
    "why": [
-    "Quick-flow auction creation is not exposed as an operation.",
-    "Company policy values and their being ignored cannot be set or verified.",
-    "Auction strategy rank is not available as a read-back field.",
-    "Exact bid end of start + 2 days cannot be asserted.",
-    "Exact evaluation end of start + 4 days cannot be asserted.",
-    "Order type from the template is not available as a read-back field.",
+    "Quick flow is not represented by an operation.",
+    "Company policy settings for bid duration, evaluation duration, and auction strategy cannot be set or asserted.",
+    "The exact bid end of start + 2 days cannot be asserted because no matching time token or assertion is available.",
+    "The evaluation end of start + 4 days is not available in read-back fields.",
+    "Auction strategy rank cannot be asserted.",
+    "Order type from the template cannot be asserted.",
     "the case reads as “it is refused”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
-    "GET /event_groups/:id"
+    "POST /trade/move_to_auction",
+    "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:37.256Z"
+   "at": "2026-11-09T22:54:53.910Z"
   },
   "API-EVRLIF-011": {
    "coverage": "partial",
@@ -6454,35 +6380,36 @@
    "title": "Cloning an event whose live round had a line deleted should not fail",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not create an event with three lines, a deleted second line, or a hidden invited vendor.",
-    "The clone cannot be read back because read_event requires eventGroupUuid and clone_event provides cloneUuid.",
-    "The expected untyped HTTP 500 cannot be asserted with the available assertion vocabulary."
+    "The setup recipe provides one line item, not three.",
+    "A line cannot be deleted while the round is live with the available operations.",
+    "The invited vendor cannot be hidden with the available operations.",
+    "The clone read-back cannot verify that the deleted line is not skipped or that nil.id is handled."
    ],
    "endpoints": [
-    "POST /event_groups/:id/create_clone"
+    "POST /event_groups/:id/create_clone",
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:09.148Z"
+   "at": "2026-11-09T22:50:10.330Z"
   },
   "API-EVRLIF-014": {
    "coverage": "partial",
    "title": "An amended round's bidding window is its configured length, wherever extensions happened",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes do not create an auction configured for a 1-hour bidding window followed by a 1-day evaluation window.",
-    "No operation models two-minute automatic extensions; extend_round only exposes an explicit extension target of {{roundEnd+60}}.",
-    "The available read-backs do not expose a window start time or an assertion that the amended auction end equals the maximum of now + 1 hour and the evaluation-window end.",
-    "The evaluation window starting with bidding is not verifiable with the available fields and assertion operations."
+    "the decisive step tests something else than the case's point: The setup does not create an auction configured for a 1-hour bidding window, two 2-minute auto-extensions, or a 1-day evaluation window.",
+    "The plan cannot verify that all amended rows start at now.",
+    "The plan cannot verify that extension rows end at now + 2 minutes, that the evaluation window ends at now + 1 day, or that the auction end uses the maximum of those windows.",
+    "The plan cannot verify that the evaluation window starts with bidding."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "PATCH /trade/:id",
     "POST /item_versions",
     "GET /event_groups/:id",
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:32.121Z"
+   "at": "2026-11-09T22:50:32.874Z"
   },
   "API-EVRLIF-016": {
    "coverage": "partial",
@@ -6582,17 +6509,18 @@
    "title": "Starting a technical answer reuses the vendor's draft and carries its last submitted answers",
    "source": "llm-fast",
    "why": [
-    "Cannot read the technical response draft or verify that the vendor's last submitted answers are carried forward.",
-    "Cannot provide different extra details when starting the second vendor revision because start_tech_response exposes only item_uuid, item_type, and company_uuid.",
-    "the decisive step tests something else than the case's point: Cannot create a draft award proposal with the same numeric id as the technical round, or verify that the draft lookup ignores item type.",
-    "Cannot verify that the surrogate remark is added again on every call because no response read-back operation or usable response token is available."
+    "No setup recipe or operation can create a draft award proposal with the same numeric id as the technical round.",
+    "No read operation or supported assertion field can read and compare the technical answers carried into the revision.",
+    "start_tech_response has no supported fields for supplying different extra details on the second call.",
+    "No read operation or supported assertion field can verify that the surrogate remark is added again on each call."
    ],
    "endpoints": [
+    "POST /proposal",
     "POST /template_responses",
     "POST /template_responses/create_surrogate_response"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:55.728Z"
+   "at": "2026-11-09T22:55:09.173Z"
   },
   "API-EVRLIF-026": {
    "coverage": "none",
@@ -6622,7 +6550,7 @@
     "PATCH /template_responses/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:46:22.248Z"
+   "at": "2026-11-09T22:50:14.497Z"
   },
   "API-EVRLIF-028": {
    "coverage": "none",
@@ -6638,22 +6566,18 @@
    "at": "2026-11-09T19:37:13.213Z"
   },
   "API-EVRLIF-029": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "A counter offer creates one task per bid, due at the evaluation end, and the due date follows extensions",
    "source": "llm-fast",
    "why": [
-    "No operation or library case creates a counter offer or its task.",
-    "Cannot raise a second counter offer on the same bid.",
-    "the decisive step tests something else than the case's point: Cannot create or configure a second round with a participant review window.",
-    "Cannot resolve the counter offer.",
-    "Cannot inspect task due dates, task counts, deleted-bid task updates, or verify that the due date remains unchanged for a review window."
+    "The counter-offer request is not specified and no operation or library case creates a counter offer on a bid.",
+    "No setup recipe creates a second round with a participant review window.",
+    "There is no operation for resolving a counter offer, deleting a bid, or reading the resulting task.",
+    "Task count, evaluation-end due date, extension behavior, and the expected error after bid deletion cannot be asserted with the available read-back fields."
    ],
-   "endpoints": [
-    "PATCH /trade/:id",
-    "GET /trade/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:13:39.474Z"
+   "at": "2026-11-09T22:50:20.536Z"
   },
   "API-EVRLIF-032": {
    "coverage": "partial",
@@ -6706,17 +6630,16 @@
    "title": "Open-tender search matches title or number literally, and the list sorts only on allowed fields",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create the four specifically titled open-tender events or the amended event with the available setup recipes.",
-    "Cannot express search terms such as 100%, A_B, or rfx-n.1.",
-    "Cannot express created-from/to filtering.",
-    "Cannot express sorting by title or created_at asc.",
-    "Cannot verify literal matching, returned event contents, or sort order because list_events exposes only a status_2xx assertion."
+    "the decisive step tests something else than the case's point: The setup creates only one event and cannot create the four named open-tender events or the amended event RFX-n.1.",
+    "The available list_events operation does not expose search text, created-from/to filters, or sort parameters, so literal matching for \"100%\", \"A_B\", and \"rfx-n.1\" cannot be checked.",
+    "The available read-back assertion for list_events supports only status_2xx, so returned ordering and filtering cannot be verified.",
+    "the decisive step tests something else than the case's point: The setup does not provide a separate vendor-login action; vendor access is only available through the published_rfq recipe."
    ],
    "endpoints": [
     "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:50.934Z"
+   "at": "2026-11-09T22:55:01.267Z"
   },
   "API-EVRMBP-003": {
    "coverage": "partial",
@@ -6784,48 +6707,50 @@
    "title": "The event page shows the top four live bids; quote details show the full history",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: No setup recipe creates a live RFQ with six vendors bidding, including revised and rejected bids.",
-    "No operation reads the event page bid block or verifies that exactly four bids are shown, filtered to active/awarded/pending-approval and ordered best first.",
-    "No operation opens quote details or exposes the full bid history, including active, revised, awarded, pending-approval, and approval-requested bids while excluding rejected bids.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "The available setup creates only two bidding vendors, not six.",
+    "No operation creates a revised, rejected, awarded, pending-approval, or approval-requested bid state.",
+    "The event-page bid block cannot be verified to contain exactly four bids, to filter by active/awarded/pending-approval, or to order bids with the best first.",
+    "The available quote-details read has no sampled fields for verifying the requested bid-history categories or confirming that rejected bids are omitted.",
+    "The decisive refusal verifies that a vendor cannot read the second vendor's bid; it does not verify the original buyer-facing event-page and quote-details behavior.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
-    "GET /trade/:id",
-    "GET /v1/trade/:id/event_indicators"
+    "GET /bids/:id",
+    "GET /v1/trade/:id/event_indicators",
+    "GET /v1/trade/:id/quote_details/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:21:58.067Z"
+   "at": "2026-11-09T22:55:17.993Z"
   },
   "API-EVRMBP-020": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "A vendor's draft bid is visible only to the user who started it",
    "source": "llm-fast",
-   "why": [
-    "the decisive step tests something else than the case's point: The setup does not explicitly guarantee that vendor user 2 is a distinct user from the same vendor company.",
-    "The available read_bid operation does not expose a documented draft-visibility field, so the plan uses HTTP 404 as the invisibility assertion."
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids",
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:50.080Z"
+   "at": "2026-11-09T22:50:36.279Z"
   },
   "API-EVRMEG-001": {
    "coverage": "partial",
    "title": "The event's start, end and current round follow its live rounds",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create a cancelled round with the available recipes or operations, so exclusion of the cancelled round is not checked.",
-    "Cannot read the event at Sun, Mon 12:00, Tue 12:00, Wed 12:00, and Fri because no clock-travel operation is available.",
-    "The read_event read-back fields do not expose the event start, event end, current round, or Total Duration, so those values cannot be asserted."
+    "Cannot configure the technical and pricing rounds to the specified historical schedules.",
+    "Cannot add a cancelled round or verify that it is ignored.",
+    "Cannot read the event at Sun, Mon 12:00, Tue 12:00, Wed 12:00, and Fri as separate historical times.",
+    "Cannot verify the event's current-round selection at each specified time.",
+    "No operation or read-back field exposes the Reports \"Total Duration\" value."
    ],
    "endpoints": [
-    "GET /event_groups/:id"
+    "GET /event_groups/:id",
+    "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:13:46.629Z"
+   "at": "2026-11-09T22:50:39.764Z"
   },
   "API-EVRMEG-003": {
    "coverage": "partial",
@@ -6986,17 +6911,19 @@
    "title": "A vendor's first technical submission is time-stamped, replaces its drafts and adds it to the participants",
    "source": "llm-fast",
    "why": [
-    "No operation can submit a vendor's technical draft.",
-    "the decisive step tests something else than the case's point: The setup does not provide two technical drafts for the same alternative, so replacement of the other draft cannot be checked.",
-    "No read operation exposes technical response submission time, active/inactive draft status, or the vendor's pending tasks.",
-    "No operation or read-back can verify that later revisions retain the first submission time."
+    "The available operations cannot submit the vendor's technical draft.",
+    "the decisive step tests something else than the case's point: The setup cannot create two technical response drafts for the same alternative.",
+    "The vendor's response records and submission timestamp cannot be read back.",
+    "The inactive status of the other draft cannot be verified.",
+    "The technical round participant list cannot be verified after submission.",
+    "The vendor's pending tasks and completion of the submit-response task cannot be read.",
+    "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
-    "POST /template_responses",
-    "GET /trade/:id"
+    "POST /template_responses"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:00.710Z"
+   "at": "2026-11-09T22:50:46.208Z"
   },
   "API-EVRMEG-020": {
    "coverage": "partial",
@@ -7020,36 +6947,34 @@
    "title": "A surrogate technical answer is marked as surrogate and can be scored",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create or read an older technical answer saved without extra details.",
-    "No operation can read both technical answers or ask whether either answer is surrogate.",
-    "No available operation can score both answers.",
-    "The expected behavior for the answer missing extra details cannot be verified.",
+    "Cannot read both technical answers with the available operations.",
+    "Cannot score either technical answer with the available operations.",
+    "Cannot verify which answer raises when asked whether it is a surrogate.",
+    "the decisive step tests something else than the case's point: Cannot create an older answer saved without extra details with the available setup or operations.",
     "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
     "POST /template_responses/create_surrogate_response"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:04.658Z"
+   "at": "2026-11-09T22:55:14.348Z"
   },
   "API-EVRMEG-023": {
    "coverage": "partial",
    "title": "An amendment copies the technical round and one price round, never lot rounds",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes and operations cannot create or read a lot round, so exclusion of lot rounds is not checked.",
-    "the decisive step tests something else than the case's point: The available vocabulary cannot create the second event raised from a PR or perform a separate amendment for that event.",
-    "The available read-backs cannot verify that the copied technical round is the last live one, that the auction is preferred as the latest non-lot price round, or that an RFQ is preferred for a PR amendment.",
-    "The available tokens do not expose the amended draft's new round identifiers, so the round reads use the source event's round identifiers."
+    "the decisive step tests something else than the case's point: The setup cannot create a lot round or a second event raised from a PR, so the plan cannot amend both source states.",
+    "The available read-back fields cannot identify which copied stage is the last live technical round or verify that the auction is preferred over the RFQ for a normal amendment and that the RFQ is preferred for a PR amendment.",
+    "Only one amendment can be issued because no operation creates or selects the second PR-based event."
    ],
    "endpoints": [
     "POST /trade/move_to_auction",
     "POST /item_versions",
-    "GET /event_groups/:id",
-    "GET /trade/:id"
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:06.997Z"
+   "at": "2026-11-09T22:50:52.173Z"
   },
   "API-EVRMEG-024": {
    "coverage": "partial",
@@ -7104,34 +7029,35 @@
    "title": "A line's quantity, unit and closed quantity read from what the buyer entered",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes cannot create three lines, including a second line whose quantity exists only on its pricing-round line and a third line with no data.",
-    "No available operation can award 30 and then 20 more of line 1.",
-    "The available read_line_items assertions cannot check line quantity, unit symbol, or closed quantity values, including 100 KG, 80, 0, and closed quantities 30 then 50.",
-    "The no-unit assertion for line 3 cannot be expressed because the line-item response shape is not sampled.",
+    "the decisive step tests something else than the case's point: The setup vocabulary cannot create three lines, set a quantity only on a pricing-round line, or award line 1 in partial quantities of 30 and 20.",
+    "The available read-back fields for read_line_items expose only root status and non_empty assertions, so quantity, unit symbol, and closed quantity values cannot be checked.",
+    "The expected values 100 KG, 80, 0 with no unit, and closed quantities 30 then 50 cannot be verified.",
     "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
     "GET /event_groups/:id/get_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:13.566Z"
+   "at": "2026-11-09T22:55:20.743Z"
   },
   "API-EVRMEG-030": {
    "coverage": "partial",
    "title": "Publishing or withdrawing an event updates the \"in progress\" quantity on its PR items",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create two events, distinguish PR from BOQ, or create multiple line items.",
-    "No operation can delete one line item before publishing.",
-    "The available line-item read-back does not expose an in-progress quantity field, so quantity recomputation and stale values cannot be verified.",
-    "The plan does not separately publish and withdraw both the PR event and the BOQ event."
+    "the decisive step tests something else than the case's point: The setup cannot create two events from PRs with three and two items.",
+    "the decisive step tests something else than the case's point: The setup cannot create an event with one item later deleted.",
+    "The BOQ event state is not available in any recipe.",
+    "There is no operation to delete a line item.",
+    "In-progress quantity is not a read-back field for read_event or read_line_items.",
+    "The publish-time and withdrawal-time quantity changes cannot be verified."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /event_groups/:id/get_line_items"
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:12.889Z"
+   "at": "2026-11-09T22:50:56.124Z"
   },
   "API-EVRMEG-031": {
    "coverage": "none",
@@ -7201,26 +7127,16 @@
    "at": "2026-11-09T19:58:51.907Z"
   },
   "API-EVRMEG-037": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "After award, the event's start and close times are set from its rounds and open rounds are pulled in",
-   "source": "llm-fast",
+   "source": "none",
    "why": [
-    "The available read-back fields do not expose the event start time or a distinct event close time, so earliest-round-start and latest-price-round-close equality cannot be asserted.",
-    "The available assertion operators cannot compare ending times across rounds or verify that later-closing rounds were pulled to the calculated close time.",
-    "the decisive step tests something else than the case's point: No setup recipe creates the separate technical-only event or an event whose rounds are all withdrawn.",
-    "No operation withdraws individual rounds, so the all-withdrawn timing case cannot be arranged or verified.",
-    "The behavior for a withdrawn event receiving no timing updates cannot be tested with the available setup and read-back fields.",
-    "the part about “po” is outside what an API plan on a sourcing event checks"
+    "the answer was not valid JSON (1315 chars, malformed) — answer with ONE compact JSON object and nothing else; keep \"say\" texts short",
+    "no valid API plan could be compiled from the words"
    ],
-   "endpoints": [
-    "POST /bids/template_input",
-    "POST /proposal",
-    "POST /proposal/:id/add_response",
-    "GET /event_groups/:id",
-    "GET /trade/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:22:15.472Z"
+   "at": "2026-11-09T22:55:25.286Z"
   },
   "API-EVRMEG-038": {
    "coverage": "none",
@@ -7284,34 +7200,34 @@
    "title": "A round is a closed tender open to everyone unless the company has open tenders switched on",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create or compare two companies with different company settings in one fresh-record setup.",
-    "the decisive step tests something else than the case's point: Cannot create two separate events, each containing both a pricing round and an auction round.",
-    "Cannot verify that an auction remains closed because the selected setup contains only a pricing round.",
-    "Cannot verify the second company's pricing round becomes an open tender.",
-    "Cannot verify an event not marked show under open events remains closed.",
+    "the decisive step tests something else than the case's point: The setup cannot create two companies with different gate settings.",
+    "the decisive step tests something else than the case's point: The setup cannot create two events, each containing both a pricing round and an auction.",
+    "The auction behavior cannot be tested because no available setup contains an auction alongside a pricing round.",
+    "The available read-back fields do not expose a supported assertion for the tender type value or audience equal to everyone.",
+    "The behavior of an event not marked show_under_open_events cannot be tested in the same plan.",
     "it depends on a company setting this run does not change (gate: enable_open_tender_events) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /trade/:id"
+    "GET /trade/:id",
+    "GET /event_groups/:id/get_audience"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:25.499Z"
+   "at": "2026-11-09T22:55:33.032Z"
   },
   "API-EVRMTR-007": {
    "coverage": "partial",
    "title": "A price round can be moved to auction only once",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup does not create a closed price round with bids and an already-live auction child, so the second-move scenario and the refusal message cannot be checked.",
-    "The plan does not verify that no second auction exists or that another move is allowed after the first auction is withdrawn or cancelled.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The available read operations cannot verify that no second auction round exists.",
+    "The available vocabulary cannot verify that a new move becomes allowed after the first auction is withdrawn or cancelled."
    ],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:26.411Z"
+   "at": "2026-11-09T22:50:58.865Z"
   },
   "API-EVRMTR-009": {
    "coverage": "partial",
@@ -7371,35 +7287,38 @@
    "title": "With a cost-breakdown review window, an extension shifts the review window first and the evaluation after it",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes do not create a cost-breakdown review window or a separate evaluation window.",
-    "The available tokens cannot express an extension of exactly 30 minutes; the plan uses the permitted maximum wait-compatible extension of 4 minutes.",
-    "No read-back field verifies that the review window shifts before the evaluation window.",
-    "Counter-offer task due dates cannot be read or verified with the available operations and fields."
+    "the decisive step tests something else than the case's point: The available recipes do not create a cost-breakdown review window followed by an evaluation window.",
+    "the decisive step tests something else than the case's point: The available time tokens do not express a 30-minute extension; the plan uses the permitted {{roundEnd+240}} extension instead.",
+    "The read-back vocabulary does not identify review and evaluation windows separately or allow verification that each shifted by the required amount.",
+    "Counter-offer task due dates cannot be verified because their response fields are not provided."
    ],
    "endpoints": [
     "PATCH /trade/:id",
-    "GET /trade/:id"
+    "GET /trade/:id",
+    "GET /event_groups/:id",
+    "GET /reminders/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:33.308Z"
+   "at": "2026-11-09T22:51:03.254Z"
   },
   "API-EVRMTR-016": {
    "coverage": "partial",
    "title": "Savings are recalculated after the extended end, not at the original end",
    "source": "llm-fast",
    "why": [
-    "The vendor's improved bid cannot be expressed because the case provides no numeric params.price for price_bid.",
-    "the decisive step tests something else than the case's point: The setup vocabulary does not guarantee a reference price.",
-    "No operation or permitted request path exposes standard or custom savings values, so recalculation after the new end cannot be verified.",
-    "the decisive step tests something else than the case's point: The required approximately 2-second custom-savings and 5-second standard-savings timing cannot be represented; wait only waits for the round end.",
+    "The available vocabulary does not expose assertion fields for standard or custom savings, so the recalculated values and their use of the improved price are not verified.",
+    "The available vocabulary cannot verify that custom savings appear about 2 seconds and standard savings about 5 seconds after the new end.",
+    "the decisive step tests something else than the case's point: The setup does not explicitly guarantee a reference price, and the bid price is fixed at 1 because no prior bid price token is available.",
     "it depends on a company setting this run does not change (show_custom_savings) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "PATCH /trade/:id",
-    "GET /trade/:id"
+    "POST /v1/bids/:id/create_bid_products",
+    "PATCH /v1/bids/:id",
+    "GET /v1/trade/:id/best_line_wise_savings"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:37.339Z"
+   "at": "2026-11-09T22:55:36.712Z"
   },
   "API-EVRMTR-017": {
    "coverage": "none",
@@ -7495,18 +7414,16 @@
    "title": "In a masked live round, the buyer gets only placed-bid counts when \"bidding stats in masked events\" is on",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not configure a masked event or the show_bidding_stats_in_masked_events gate.",
-    "A second live round with show_placed_bids_stats=false cannot be created or configured with the available recipes and fields.",
-    "A super admin actor is not available, so the super-admin read is not covered.",
-    "The available read-back fields cannot assert that the live response contains only placed-bid counts, that the stored false value is returned to normal buyers, or that full data is returned after the round ends.",
-    "it does not read the record back to confirm what was kept or shown",
+    "The vocabulary has no super-admin actor, so the super-admin reads cannot be tested.",
+    "the decisive step tests something else than the case's point: The vocabulary cannot create a second live round or set show_placed_bids_stats to false.",
+    "The vocabulary cannot verify the complete masked statistics payload; this plan checks the available bid_count and participants fields only.",
     "it depends on a company setting this run does not change (show_bidding_stats_in_masked_events) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
-    "GET /v1/trade/:id/event_indicators"
+    "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:43.414Z"
+   "at": "2026-11-09T22:51:09.854Z"
   },
   "API-EVRMTR-030": {
    "coverage": "partial",
@@ -7567,35 +7484,30 @@
    "title": "Vendors are ranked on line price and on the lot gross total unless the round says otherwise",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create or configure the three required rounds with ranking settings A, B, and C.",
-    "Cannot read back or assert the line and lot ranking widget values because no ranking-widget read-back fields are provided.",
-    "the decisive step tests something else than the case's point: Cannot create rounds dated on or before 8 May 2024 or verify the historical ranking behavior.",
-    "Only one fresh RFQ round is available through the selected setup recipe."
+    "the decisive step tests something else than the case's point: Cannot create or configure three separate rounds with the specified ranking settings.",
+    "Cannot read or assert line-price, gross-total, landed-cost, or buyer-configured ranking fields because no ranking read-back fields are provided.",
+    "Cannot verify the historical 8 May 2024 ranking behavior."
    ],
    "endpoints": [
     "GET /v1/trade/:id/schema"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:14:43.937Z"
+   "at": "2026-11-09T22:51:10.751Z"
   },
   "API-EVRMTR-039": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Knockout and Dutch auctions refuse multi-product rounds without fast bidding",
    "source": "llm-fast",
    "why": [
-    "Cannot configure a knockout auction with two line items.",
-    "Cannot configure fast bidding off or on.",
-    "the decisive step tests something else than the case's point: Cannot create and publish a second independently configured auction in the same plan.",
-    "the decisive step tests something else than the case's point: Cannot create a Dutch auction as a plain price round type.",
-    "The setup recipe provides one auction line item, so the multi-product refusal condition is not fully reproduced.",
-    "Round 2 successful publication cannot be checked because one plan has exactly one fresh setup record."
+    "The case requires multiple auction rounds or events, but exactly one fresh setup recipe is allowed.",
+    "The available auction setup recipe creates only one line item; no operation can add a second line.",
+    "Fast bidding cannot be enabled or disabled through the available setup fields or operations.",
+    "The available recipes and operations cannot create a knockout auction and a Dutch auction made from a plain pricing round for comparison.",
+    "The expected refusal and publication outcomes for the three distinct rounds cannot be tested in one plan."
    ],
-   "endpoints": [
-    "PATCH /event_groups/:id",
-    "GET /event_groups/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:14:57.158Z"
+   "at": "2026-11-09T22:51:15.675Z"
   },
   "API-EVRMTR-043": {
    "coverage": "none",
@@ -7644,18 +7556,17 @@
    "at": "2026-11-09T19:59:23.410Z"
   },
   "API-EVRMTR-048": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Terms stored as old plain text are returned as text with stable ids",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create a round copied from an old event with plain-text terms and a separate round with structured terms.",
-    "No read-back field or assertion path is available for terms, plain-text values, structured terms, or legacy ids such as legacy_<round>_<n>."
+    "No setup recipe creates a round copied from an old event with plain-text terms alongside a new round with structured terms.",
+    "No operation or read-back field can read either round's terms or verify that terms are returned as text.",
+    "No supported assertion can verify legacy item ids such as \"legacy_<round>_<n>\"."
    ],
-   "endpoints": [
-    "GET /trade/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:24:06.418Z"
+   "at": "2026-11-09T22:56:17.655Z"
   },
   "API-EVRMTR-049": {
    "coverage": "partial",
@@ -7694,18 +7605,15 @@
    "title": "A vendor must not receive other vendors' individual price limits",
    "source": "llm-fast",
    "why": [
-    "The read-back vocabulary does not expose individual vendor price limits or line details, so it cannot verify that the QA vendor receives at most 120 or that vendor B's 105 limit is absent.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "The available operations do not expose individual vendor price limits in the vendor's bidding-screen response. This plan verifies the closest available privacy boundary: the QA vendor is refused access to the second vendor's bid, rather tha",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
-    "PATCH /v1/trade/add_audience",
     "PATCH /trade/:id/update_vendor_validations",
-    "POST /v1/bids",
-    "GET /trade/:id"
+    "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:07:35.699Z"
+   "at": "2026-11-09T22:47:58.500Z"
   },
   "API-EVRVIS-002": {
    "coverage": "partial",
@@ -7742,15 +7650,15 @@
    "title": "Weightages and currency preferences do not name the other vendors",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup does not create a weighted RFQ, per-vendor weights, a second invited vendor, or a multi-currency configuration with vendor B quoting in USD.",
-    "The available read-back fields do not expose vendor-specific weight or currency visibility, so the vendor's own weight and currency—and exclusion of other vendors' values—cannot be checked."
+    "the decisive step tests something else than the case's point: The available setup recipes cannot create a weighted RFQ with per-vendor weights, a second invited vendor, or multi-currency configuration.",
+    "The available read-back fields do not expose vendor weightages or currency preferences, so the plan cannot verify that the vendor sees only its own values."
    ],
    "endpoints": [
     "POST /v1/bids",
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:00.203Z"
+   "at": "2026-11-09T22:51:16.310Z"
   },
   "API-EVRVIS-005": {
    "coverage": "full",
@@ -7769,13 +7677,13 @@
    "source": "llm-fast",
    "why": [
     "the decisive step tests something else than the case's point: The setup does not configure savings.",
-    "The available read-back fields do not include misc, so its presence for the buyer and absence for the vendor cannot be asserted."
+    "The read_round vocabulary does not expose the stage's misc field, so its presence for the buyer and absence for the vendor cannot be asserted."
    ],
    "endpoints": [
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:01.837Z"
+   "at": "2026-11-09T22:51:23.067Z"
   },
   "API-EVRVIS-007": {
    "coverage": "partial",
@@ -7810,38 +7718,37 @@
    "title": "On a price round a vendor never learns its own rank",
    "source": "llm-fast",
    "why": [
-    "The closed RFQ state cannot be combined with an accepted open_bid action because opening a bid after the window closes is rejected.",
-    "the decisive step tests something else than the case's point: The setup cannot express the specified bid prices of vendor B at 95 and the QA vendor at 100.",
-    "The available read-back vocabulary does not identify the exact bid-row rank field; the plan checks the named field rank."
+    "the decisive step tests something else than the case's point: The setup does not specify the bid prices as vendor B 95 and QA vendor 100.",
+    "the decisive step tests something else than the case's point: The setup does not expose or configure whether the lot is sealed."
    ],
    "endpoints": [
-    "POST /v1/bids",
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:07:51.311Z"
+   "at": "2026-11-09T22:48:04.102Z"
   },
   "API-EVRVIS-011": {
    "coverage": "partial",
    "title": "Vendor card rank and colour only while the auction runs, never on a sealed stage",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available vocabulary cannot create or read a second sealed-bids auction in the same fresh record.",
-    "Traffic colour has no read-back field or assertion path.",
-    "There is no operation for the required vendor revisions, so the condition that rank appears only after those revisions is not checked.",
-    "The vocabulary does not support ordered read-backs before start, during the open auction, and after its end; only the post-close absence check is included.",
+    "the decisive step tests something else than the case's point: Cannot create or test a second auction with sealed bids because no setup recipe or operation creates a second auction or configures sealed bidding.",
+    "Cannot check rank before the auction starts because no available setup or operation provides that pre-start auction state.",
+    "Cannot model the required vendor revisions because no revision operation or assertion field is available.",
+    "Traffic colour is not available in the read-back fields or assertion vocabulary.",
+    "The available indicator read-back exposes rank and best_bidder, but not the vendor card itself.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
-    "PATCH /v1/trade/add_audience",
     "POST /trade/move_to_auction",
+    "PATCH /v1/trade/add_audience",
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products",
     "PATCH /v1/bids/:id",
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:20.020Z"
+   "at": "2026-11-09T22:51:39.043Z"
   },
   "API-EVRVIS-012": {
    "coverage": "none",
@@ -7912,30 +7819,30 @@
    "title": "The buyer's award remark is not shown to the vendor",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The awarded_rfq setup does not specify or create a selection remark naming another vendor.",
-    "The available read-back vocabulary does not identify a field for the buyer's award or selection remark, so its absence from the vendor view cannot be asserted."
+    "the decisive step tests something else than the case's point: The setup recipe cannot configure a selection remark naming another vendor.",
+    "The available read-back fields do not identify a buyer selection remark field, so its absence cannot be asserted."
    ],
    "endpoints": [
     "POST /v1/bids",
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:18.145Z"
+   "at": "2026-11-09T22:51:26.688Z"
   },
   "API-EVRVIS-017": {
    "coverage": "partial",
    "title": "A vendor's event card carries no buyer-internal fields",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup vocabulary cannot create a project with Clara auto-pilot stuck, an unregistered email bid pending, or a scheduled publish job.",
-    "The event-card fields that must be absent are not named in the available read-back fields, so their absence cannot be asserted.",
+    "the decisive step tests something else than the case's point: The setup cannot create a project with Clara auto-pilot stuck, an unregistered email bid pending, or a scheduled publish job.",
+    "The available list_events read-back only supports status_2xx, so absence of buyer-internal fields in the vendor event card cannot be asserted.",
     "the part about “email” is outside what an API plan on a sourcing event checks"
    ],
    "endpoints": [
     "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:41.240Z"
+   "at": "2026-11-09T22:55:37.287Z"
   },
   "API-EVRVIS-018": {
    "coverage": "partial",
@@ -7969,11 +7876,10 @@
    "title": "The project page keeps the buyer's notes and history away from vendors",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create the required prior amendment with a remark.",
-    "the decisive step tests something else than the case's point: The setup cannot transfer ownership.",
-    "the decisive step tests something else than the case's point: The setup cannot refresh last-PO data.",
-    "The available read-back fields cannot assert that buyer notes or history are absent from the vendor view.",
-    "The available read-back fields cannot assert that the stage owner name is visible only to the buyer.",
+    "the decisive step tests something else than the case's point: The setup cannot express a prior project amendment with a remark, ownership transfer, or last-PO data refresh.",
+    "The available read-back fields cannot verify that buyer notes are absent from the vendor's project page.",
+    "The available read-back fields cannot verify stage owner visibility for the buyer.",
+    "it does not read the record back to confirm what was kept or shown",
     "what the screen shows (an API plan checks the data, not the page)",
     "the part about “po” is outside what an API plan on a sourcing event checks"
    ],
@@ -7982,17 +7888,17 @@
     "GET /event_groups/:id/history"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:28.437Z"
+   "at": "2026-11-09T22:51:35.863Z"
   },
   "API-EVRVIS-021": {
    "coverage": "partial",
    "title": "Line items: last purchase price is buyer-only; PR creator details and quantities are hidden from vendors and brokers when configured",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not provide last-PO data or guarantee that quantity widgets are disabled.",
+    "the decisive step tests something else than the case's point: The setup cannot create last-PO data or disable quantity widgets.",
     "read_line_items is available only as buyer, so vendor visibility cannot be checked.",
-    "Broker users are not represented in the available actors or operations.",
-    "The read_line_items response shape is unsampled, so field-level assertions for last-PO fields, PR creator details, and quantity cannot be expressed.",
+    "Broker users are not supported as an actor, so broker visibility cannot be checked.",
+    "the decisive step tests something else than the case's point: The buyer assertion checks only that the line-item response is successful and non-empty; it cannot assert that all fields are present.",
     "it depends on a company setting this run does not change (mask_pr_creator_details_for_vendor) — a failure is reported as couldn't tell, not as a bug",
     "the part about “po” is outside what an API plan on a sourcing event checks"
    ],
@@ -8000,17 +7906,16 @@
     "GET /event_groups/:id/get_line_items"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:30.892Z"
+   "at": "2026-11-09T22:51:42.978Z"
   },
   "API-EVRVIS-022": {
    "coverage": "partial",
    "title": "With vendor masking, buyer users see aliases and no vendor contact details",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot switch on vendor masking or create a buyer without the unmask right.",
-    "The available read-back fields do not expose a supported assertion for aliases.",
-    "No operation or supported read-back field specifically checks rejected bids or bidder remarks.",
-    "No supported read-back fields allow asserting that bidder phone and email are absent.",
+    "Depends on the vendor masking setting being enabled and the buyer lacking the unmask right.",
+    "The available read-back vocabulary does not define fields for vendor aliases, rejected bids, bidder remarks, bidder phone numbers, or bidder email addresses.",
+    "No operation separately reads a bids list or rejected-bids list; the plan verifies the round bid count and one bid response only.",
     "it depends on a company setting this run does not change (vendor) — a failure is reported as couldn't tell, not as a bug",
     "the part about “email” is outside what an API plan on a sourcing event checks"
    ],
@@ -8019,7 +7924,7 @@
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:35.176Z"
+   "at": "2026-11-09T22:51:54.891Z"
   },
   "API-EVRVIS-023": {
    "coverage": "none",
@@ -8039,30 +7944,29 @@
    "title": "A vendor's list of auctions it took part in opens even when one of them is a sealed-bid lot auction",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: No setup recipe creates a closed sealed-bid lot auction with a vendor bid.",
-    "No operation or assertion verifies that the list is specifically participated auctions, that the auction appears in the list, or that its rank is absent.",
-    "it does not read the record back to confirm what was kept or shown"
+    "the decisive step tests something else than the case's point: The available setup does not create a sealed-bid lot auction; it creates a closed RFQ with a vendor bid.",
+    "The available list operation does not specifically verify the participated-auctions list or that the auction appears in it.",
+    "The available read-back fields cannot verify that the listed auction has no rank."
    ],
    "endpoints": [
     "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:38.292Z"
+   "at": "2026-11-09T22:51:49.719Z"
   },
   "API-EVRVIS-031": {
    "coverage": "partial",
    "title": "\"Allowed to reopen\" is not offered to vendors on a technical round",
    "source": "llm-fast",
    "why": [
-    "The technical round read-back fields do not include a reopen flag, so its vendor value cannot be verified.",
-    "No operation or allowed request path expresses a vendor attempt to reopen a technical round.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The technical round read-back does not expose a reopen flag, so its value cannot be verified.",
+    "No operation or named request path is provided for a vendor attempting to reopen a technical round, so the refusal cannot be tested."
    ],
    "endpoints": [
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T19:59:44.743Z"
+   "at": "2026-11-09T22:55:46.035Z"
   },
   "API-LC-002": {
    "coverage": "full",
@@ -8157,13 +8061,14 @@
    "title": "Cloning a PR-created event is refused",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: No setup recipe creates an active event created from a purchase request; published_rfq does not guarantee the required PR-created state."
+    "the decisive step tests something else than the case's point: No setup recipe creates an active event created from a purchase request, so the PR-created prerequisite is not guaranteed.",
+    "The library case documents code 455, which conflicts with the requested expected code 1123."
    ],
    "endpoints": [
     "POST /event_groups/:id/create_clone"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:42.234Z"
+   "at": "2026-11-09T22:55:44.819Z"
   },
   "API-LC-011": {
    "coverage": "partial",
@@ -8436,12 +8341,10 @@
    "at": "2026-11-09T19:41:32.150Z"
   },
   "API-NBIDNEW-001": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: trade_request_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8449,12 +8352,10 @@
    "at": "2026-11-09T19:41:32.151Z"
   },
   "API-NBIDNEW-002": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: trade_request_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8462,12 +8363,10 @@
    "at": "2026-11-09T19:41:32.172Z"
   },
   "API-NBIDNEW-003": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: company_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8475,12 +8374,10 @@
    "at": "2026-11-09T19:41:32.194Z"
   },
   "API-NBIDNEW-004": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: company_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8488,12 +8385,10 @@
    "at": "2026-11-09T19:41:32.215Z"
   },
   "API-NBIDNEW-005": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: currency_preference.name is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8501,12 +8396,10 @@
    "at": "2026-11-09T19:41:32.238Z"
   },
   "API-NBIDNEW-006": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: currency_preference.name has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8514,12 +8407,10 @@
    "at": "2026-11-09T19:41:32.260Z"
   },
   "API-NBIDNEW-007": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: broker_company_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8527,12 +8418,10 @@
    "at": "2026-11-09T19:41:32.284Z"
   },
   "API-NBIDNEW-008": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Open a bid on the pricing round: broker_company_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids"
    ],
@@ -8540,12 +8429,10 @@
    "at": "2026-11-09T19:41:32.308Z"
   },
   "API-NBIDPRICE-001": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Price the line item: company_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
@@ -8554,12 +8441,10 @@
    "at": "2026-11-09T19:41:32.363Z"
   },
   "API-NBIDPRICE-002": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Price the line item: company_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
@@ -8568,12 +8453,10 @@
    "at": "2026-11-09T19:41:32.388Z"
   },
   "API-NBIDPRICE-003": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Price the line item: trade_request_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
@@ -8582,12 +8465,10 @@
    "at": "2026-11-09T19:41:32.411Z"
   },
   "API-NBIDPRICE-004": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Price the line item: trade_request_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
@@ -8680,12 +8561,10 @@
    "at": "2026-11-09T19:41:32.574Z"
   },
   "API-NCONVERT-001": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.global_price_components[0].uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8693,12 +8572,10 @@
    "at": "2026-11-09T22:26:06.875Z"
   },
   "API-NCONVERT-002": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.global_price_components[0].uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8706,12 +8583,10 @@
    "at": "2026-11-09T22:26:06.918Z"
   },
   "API-NCONVERT-003": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.global_price_components[0].name is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8719,12 +8594,10 @@
    "at": "2026-11-09T22:26:06.960Z"
   },
   "API-NCONVERT-004": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.global_price_components[0].name has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8732,12 +8605,10 @@
    "at": "2026-11-09T22:26:07.000Z"
   },
   "API-NCONVERT-005": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.inline_components[0].name is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8745,12 +8616,10 @@
    "at": "2026-11-09T22:26:07.043Z"
   },
   "API-NCONVERT-006": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: widgets.inline_components[0].name has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8758,12 +8627,10 @@
    "at": "2026-11-09T22:26:07.080Z"
   },
   "API-NCONVERT-007": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.value is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8771,12 +8638,10 @@
    "at": "2026-11-09T22:26:07.115Z"
   },
   "API-NCONVERT-008": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.value has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8784,12 +8649,10 @@
    "at": "2026-11-09T22:26:07.149Z"
   },
   "API-NCONVERT-009": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8797,12 +8660,10 @@
    "at": "2026-11-09T22:26:07.183Z"
   },
   "API-NCONVERT-010": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8810,12 +8671,10 @@
    "at": "2026-11-09T22:26:07.219Z"
   },
   "API-NCONVERT-011": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.event_group_line_item_uuid is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8823,12 +8682,10 @@
    "at": "2026-11-09T22:26:07.266Z"
   },
   "API-NCONVERT-012": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].product.event_group_line_item_uuid has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8836,12 +8693,10 @@
    "at": "2026-11-09T22:26:07.304Z"
   },
   "API-NCONVERT-013": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].creator_quantity.value is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8849,12 +8704,10 @@
    "at": "2026-11-09T22:26:07.344Z"
   },
   "API-NCONVERT-014": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].creator_quantity.value has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8862,12 +8715,10 @@
    "at": "2026-11-09T22:26:07.380Z"
   },
   "API-NCONVERT-015": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].buyer_hub.value is omitted",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -8875,12 +8726,10 @@
    "at": "2026-11-09T22:26:07.467Z"
   },
   "API-NCONVERT-016": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "Convert the pricing round into a live auction: data[0].buyer_hub.value has the wrong type",
    "source": "rules",
-   "why": [
-    "it does not read the record back to confirm what was kept or shown"
-   ],
+   "why": [],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
@@ -9164,15 +9013,15 @@
    "title": "The events listing responds inside the performance budget",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: Cannot create or exercise tenant datasets of approximately 10, 100, and 1000 events with the available setup recipes.",
-    "the decisive step tests something else than the case's point: Cannot assert the approximately 3-second performance budget because assertion ops provide no response-time check.",
+    "the decisive step tests something else than the case's point: Cannot create or select tenants with approximately 10, 100, and 1000 events using the available recipes.",
+    "the decisive step tests something else than the case's point: Cannot assert the approximately 3-second response-time budget with the available assertion operations.",
     "the part about “performance” is outside what an API plan on a sourcing event checks"
    ],
    "endpoints": [
     "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:46.567Z"
+   "at": "2026-11-09T22:55:49.281Z"
   },
   "API-NFR-002": {
    "coverage": "none",
@@ -10208,14 +10057,13 @@
    "title": "`GET /api/event_groups` requires trade read permission",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot explicitly remove trade read permission; the vendor actor is used as the user without that permission.",
-    "it depends on a company setting this run does not change (trade read permission) — a failure is reported as couldn't tell, not as a bug"
+    "The vocabulary cannot configure or identify a user with trade read permission versus one without it; buyer and vendor roles are used as proxies."
    ],
    "endpoints": [
     "GET /orders"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:07:57.581Z"
+   "at": "2026-11-09T22:48:07.514Z"
   },
   "API-PERM-002": {
    "coverage": "partial",
@@ -10290,50 +10138,48 @@
    "title": "Event-group update accepts either policy branch and refuses outside both",
    "source": "llm-fast",
    "why": [
-    "The CSM Procol employee branch cannot be represented because no CSM Procol employee actor is available.",
-    "the decisive step tests something else than the case's point: The user in neither category is approximated by the available vendor actor; the available vocabulary does not provide an explicit unauthorized-user actor."
+    "The CSM Procol employee identity cannot be represented; the first buyer update is used as the allowed policy branch proxy.",
+    "A user in neither category cannot be represented; the invited vendor is used as the unauthorized-user proxy."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /event_groups/:id"
+    "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:10.141Z"
+   "at": "2026-11-09T22:48:16.434Z"
   },
   "API-PERM-008": {
    "coverage": "partial",
    "title": "Clone requires allowed company, create permission, non-planner, non-draft, non-PR",
    "source": "llm-fast",
    "why": [
-    "Does not vary or verify refusal when the company is not allowed.",
-    "Does not vary or verify refusal without create permission.",
-    "Does not vary or verify refusal for a planner.",
-    "Does not verify the non-draft and non-PR conditions independently.",
-    "Does not verify the cloned record because no clone read-back field or assertion is available.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The known-good clone success case is not checked.",
+    "Allowed-company membership, create permission, planner status, and PR status cannot be varied independently.",
+    "The full one-condition-at-a-time variation matrix is not executed.",
+    "The cloned record is not verified because cloneUuid cannot be used by the available read operations."
    ],
    "endpoints": [
     "POST /event_groups/:id/create_clone"
    ],
    "usd": 0,
-   "at": "2026-10-15T13:06:31.425Z"
+   "at": "2026-11-09T22:51:58.366Z"
   },
   "API-PERM-009": {
    "coverage": "partial",
    "title": "Vendor self-participation requires show access and open tenders",
    "source": "llm-fast",
    "why": [
-    "The uninvited-vendor participation refusal is not covered: EDGE-PUB-083 tests event reading, not participation.",
-    "the decisive step tests something else than the case's point: The non-open-tender refusal requires a buyer-company open_tenders setting that the available setup and operations cannot control.",
-    "The three participation scenarios cannot be executed from one fresh setup recipe while preserving the required starting states.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
-    "it does not read the record back to confirm what was kept or shown"
+    "the decisive step tests something else than the case's point: The fresh setup cannot switch the buyer company’s open_tenders setting between participation attempts, so the non-open-tender refusal depends on the configured company setting.",
+    "API-AUD-011 covers self-participation by a mapped vendor on an active open-tender event, but the available vocabulary cannot independently verify that the first caller was already invited or that the second caller was uninvited.",
+    "it does not read the record back to confirm what was kept or shown",
+    "it depends on a company setting this run does not change (the buyer company’s open_tenders setting) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
-    "GET /event_groups/:id"
+    "GET /event_groups/:id",
+    "POST /event_groups/:id/participants"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:15:54.314Z"
+   "at": "2026-11-09T22:52:12.323Z"
   },
   "API-PERM-010": {
    "coverage": "none",
@@ -10486,15 +10332,17 @@
    "title": "Activation succeeds with the pricing sheet filled and with it empty",
    "source": "llm-fast",
    "why": [
-    "The empty pricing-sheet activation is not covered because one setup creates only one fresh record and no operation can reset or create a second fresh record within the same plan.",
-    "The plan does not verify the exact API response or error message when activation is refused.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "the decisive step tests something else than the case's point: The vocabulary permits only one fresh setup record, so it cannot independently test activation on two separate events.",
+    "the decisive step tests something else than the case's point: The setup and add_rfq_round operation do not expose a complete, explicit pricing-sheet value field set; the filled-sheet case is represented by the default round template and the empty-sheet case by data=[].",
+    "The plan cannot verify that a refusal is readable because no assertion operation exposes the response error body for publish_event."
    ],
    "endpoints": [
-    "PATCH /event_groups/:id"
+    "POST /trade/template_input",
+    "PATCH /event_groups/:id",
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-10-15T12:06:38.826Z"
+   "at": "2026-11-09T22:52:10.275Z"
   },
   "API-PUB-011": {
    "coverage": "full",
@@ -10523,16 +10371,15 @@
    "title": "A Procol-employee CSM can update without the trade permission flag",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup vocabulary cannot create or identify a Procol employee, CSM relationship, or the absence of the trade:create_record permission flag.",
-    "The available update operation is update_event, so the specific PATCH update intended by the case is not otherwise specified.",
-    "it depends on a company setting this run does not change (Procol-employee CSM status without trade:create_record) — a failure is reported as couldn't tell, not as a bug"
+    "The vocabulary does not model a Procol employee or CSM identity, the trade:create_record permission flag, or a generic trade update PATCH; the plan uses the available event update operation as the closest expression.",
+    "it depends on a company setting this run does not change (Procol-employee CSM access without trade:create_record) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /trade/:id"
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:06.145Z"
+   "at": "2026-11-09T22:52:15.526Z"
   },
   "API-PUB-016": {
    "coverage": "partial",
@@ -10564,16 +10411,15 @@
    "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
    "source": "llm-fast",
    "why": [
-    "The available setup recipe includes a line item, while the case requires no line_items.",
-    "the decisive step tests something else than the case's point: The available setup recipe does not expose whether the event has no draft_trade_request_ids or config.",
-    "the decisive step tests something else than the case's point: The plan cannot directly verify that no service ran; it verifies only the non-5xx behavior and unchanged active status."
+    "the decisive step tests something else than the case's point: The setup recipe includes one line item and an invited vendor, so it cannot create an event with no line_items.",
+    "The response's exact coherent status and service-execution behavior cannot be asserted with the available fields."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:09.752Z"
+   "at": "2026-11-09T22:52:17.728Z"
   },
   "API-PUB-021": {
    "coverage": "partial",
@@ -10976,15 +10822,15 @@
    "title": "Updating a draft stage via template_input strips the status",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipe does not explicitly create a scheduled template; it creates an unpublished draft RFQ event.",
-    "No specific other edits were provided, so their application cannot be verified."
+    "the decisive step tests something else than the case's point: No setup recipe creates a draft stage on a scheduled template; draft_rfq is the closest available setup.",
+    "No other edits were specified, so their application cannot be checked."
    ],
    "endpoints": [
     "PATCH /trade/:id/template_input",
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:15.337Z"
+   "at": "2026-11-09T22:52:20.902Z"
   },
   "API-STG-024": {
    "coverage": "partial",
@@ -11029,7 +10875,8 @@
    "title": "A surrogate bid is refused on an offline-trading event",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes and operations do not create or configure an offline-trading stage.",
+    "the decisive step tests something else than the case's point: The setup vocabulary cannot configure an offline-trading event.",
+    "The refusal code is not specified.",
     "it depends on a company setting this run does not change (offline trading) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
@@ -11037,7 +10884,7 @@
     "GET /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:22:56.845Z"
+   "at": "2026-11-09T22:55:50.644Z"
   },
   "API-SUR-005": {
    "coverage": "full",
@@ -11061,7 +10908,7 @@
     "POST /bids/template_input"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:15.388Z"
+   "at": "2026-11-09T22:52:17.776Z"
   },
   "API-SUR-007": {
    "coverage": "none",
@@ -11559,15 +11406,14 @@
    "title": "Epoch times as strings are handled consistently",
    "source": "llm-fast",
    "why": [
-    "The vocabulary does not provide a way to force the epoch token to be serialized as a JSON string, so the numeric and string forms cannot be compared. It also cannot assert that a refused string includes a readable message.",
+    "The vocabulary cannot distinguish a numeric epoch value from the same epoch represented as a string, so both requests use the same token representation. It also cannot assert that two requests were accepted identically or model the alternat",
     "the case reads as “it is refused”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
-    "PATCH /trade/:id",
-    "GET /trade/:id"
+    "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:14.662Z"
+   "at": "2026-11-09T22:56:01.697Z"
   },
   "API-VAL-013": {
    "coverage": "partial",
@@ -11778,7 +11624,7 @@
     "PATCH /v1/trade/:id/request_tr_reevaluation"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.010Z"
+   "at": "2026-11-09T22:52:17.821Z"
   },
   "API-XAWD-040": {
    "coverage": "partial",
@@ -11791,7 +11637,7 @@
     "PATCH /v1/trade/:id/request_tr_reevaluation"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.443Z"
+   "at": "2026-11-09T22:55:50.693Z"
   },
   "API-XAWD-041": {
    "coverage": "partial",
@@ -11901,7 +11747,7 @@
     "PATCH /additional_request/revoke_additional_requests"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.055Z"
+   "at": "2026-11-09T22:52:17.861Z"
   },
   "API-XAWD-050": {
    "coverage": "full",
@@ -11951,7 +11797,7 @@
     "POST /additional_request/raise_additional_request"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:24.679Z"
+   "at": "2026-11-09T22:48:07.565Z"
   },
   "API-XAWD-054": {
    "coverage": "partial",
@@ -12094,7 +11940,7 @@
     "POST /additional_request/raise_additional_request"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.199Z"
+   "at": "2026-11-09T22:52:17.897Z"
   },
   "API-XAWD-066": {
    "coverage": "partial",
@@ -12107,7 +11953,7 @@
     "POST /additional_request/raise_additional_request"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.494Z"
+   "at": "2026-11-09T22:55:50.732Z"
   },
   "API-XAWD-067": {
    "coverage": "partial",
@@ -12136,7 +11982,7 @@
     "POST /additional_request/raise_additional_request"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.234Z"
+   "at": "2026-11-09T22:52:17.932Z"
   },
   "API-XAWD-069": {
    "coverage": "full",
@@ -12160,7 +12006,7 @@
     "POST /additional_request/raise_bulk_counter_offer"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:24.894Z"
+   "at": "2026-11-09T22:48:07.608Z"
   },
   "API-XAWD-071": {
    "coverage": "full",
@@ -12197,7 +12043,7 @@
     "PATCH /additional_request/revoke_additional_requests"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.269Z"
+   "at": "2026-11-09T22:52:17.972Z"
   },
   "API-XAWD-074": {
    "coverage": "partial",
@@ -12210,7 +12056,7 @@
     "PATCH /additional_request/revoke_additional_requests"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.302Z"
+   "at": "2026-11-09T22:52:18.009Z"
   },
   "API-XAWD-075": {
    "coverage": "partial",
@@ -12223,7 +12069,7 @@
     "PATCH /additional_request/revoke_additional_requests"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.335Z"
+   "at": "2026-11-09T22:52:18.048Z"
   },
   "API-XAWD-076": {
    "coverage": "partial",
@@ -12379,7 +12225,7 @@
     "GET /proposal/:id/approval_workflows"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:25.405Z"
+   "at": "2026-11-09T22:52:18.084Z"
   },
   "API-XAWD-117": {
    "coverage": "partial",
@@ -12574,19 +12420,15 @@
    "at": "2026-10-15T12:13:09.998Z"
   },
   "API-XBID-007": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "An intent can only be recorded against an event, not another record type",
    "source": "llm-fast",
    "why": [
-    "The exact POST /user_intents request with item_type 'User' and item_uuid {{userUuid}} cannot be expressed because /user_intents is not an allowed request route and {{userUuid}} is not an available token.",
-    "The library case tests a made-up item type against {{tradeId}}, not a User record.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "The requested POST /user_intents with item_type 'User' and item_uuid {{userUuid}} is not covered by an operation or an exact library case; /user_intents is outside the allowed request routes, and {{userUuid}} is not an available token."
    ],
-   "endpoints": [
-    "POST /user_intents"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:00:06.406Z"
+   "at": "2026-11-09T22:55:55.342Z"
   },
   "API-XBID-012": {
    "coverage": "partial",
@@ -12612,7 +12454,7 @@
     "POST /user_intents"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:52.715Z"
+   "at": "2026-11-09T22:52:18.118Z"
   },
   "API-XBID-014": {
    "coverage": "partial",
@@ -12633,14 +12475,13 @@
    "source": "library-case",
    "why": [
     "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
     "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
     "POST /v1/bids"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:26.510Z"
+   "at": "2026-11-09T22:48:07.658Z"
   },
   "API-XBID-017": {
    "coverage": "partial",
@@ -12648,14 +12489,13 @@
    "source": "library-case",
    "why": [
     "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
     "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:26.561Z"
+   "at": "2026-11-09T22:48:07.697Z"
   },
   "API-XBID-020": {
    "coverage": "full",
@@ -12723,7 +12563,7 @@
     "POST /template_responses"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:26.609Z"
+   "at": "2026-11-09T22:48:07.738Z"
   },
   "API-XBID-036": {
    "coverage": "partial",
@@ -12737,7 +12577,7 @@
     "PATCH /template_responses/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:26.704Z"
+   "at": "2026-11-09T22:48:07.777Z"
   },
   "API-XBID-037": {
    "coverage": "full",
@@ -12762,7 +12602,7 @@
     "PATCH /template_responses/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:52.752Z"
+   "at": "2026-11-09T22:52:18.155Z"
   },
   "API-XBID-040": {
    "coverage": "partial",
@@ -12775,7 +12615,7 @@
     "PUT /template_responses/:id/create_page_responses"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:52.788Z"
+   "at": "2026-11-09T22:52:18.191Z"
   },
   "API-XBID-041": {
    "coverage": "partial",
@@ -12879,7 +12719,7 @@
     "POST /v1/bids"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:52.825Z"
+   "at": "2026-11-09T22:52:18.228Z"
   },
   "API-XBID-059": {
    "coverage": "partial",
@@ -12914,15 +12754,15 @@
    "title": "A price below the configured floor is refused",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes and operations cannot configure or guarantee a line-item floor (min) price; price 0 is used as the below-floor input.",
-    "it depends on a company setting this run does not change (floor) — a failure is reported as couldn't tell, not as a bug"
+    "the decisive step tests something else than the case's point: The setup recipe does not configure or expose the floor price, so the chosen price must be below the configured floor.",
+    "it depends on a company setting this run does not change (floor price set) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:01.176Z"
+   "at": "2026-11-09T22:52:24.564Z"
   },
   "API-XBID-062": {
    "coverage": "partial",
@@ -12936,7 +12776,7 @@
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.717Z"
+   "at": "2026-11-09T22:52:20.958Z"
   },
   "API-XBID-063": {
    "coverage": "partial",
@@ -12950,7 +12790,7 @@
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.759Z"
+   "at": "2026-11-09T22:52:21.043Z"
   },
   "API-XBID-064": {
    "coverage": "partial",
@@ -12964,7 +12804,7 @@
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.795Z"
+   "at": "2026-11-09T22:52:21.081Z"
   },
   "API-XBID-069": {
    "coverage": "partial",
@@ -12977,7 +12817,7 @@
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:32.130Z"
+   "at": "2026-11-09T22:48:07.815Z"
   },
   "API-XBID-070": {
    "coverage": "full",
@@ -13004,7 +12844,7 @@
     "POST /v1/bids/:id/create_bid_products"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.600Z"
+   "at": "2026-11-09T22:55:55.344Z"
   },
   "API-XBID-072": {
    "coverage": "full",
@@ -13028,7 +12868,7 @@
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:32.169Z"
+   "at": "2026-11-09T22:48:07.853Z"
   },
   "API-XBID-074": {
    "coverage": "partial",
@@ -13041,7 +12881,7 @@
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:32.205Z"
+   "at": "2026-11-09T22:48:07.897Z"
   },
   "API-XBID-075": {
    "coverage": "partial",
@@ -13093,7 +12933,7 @@
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.839Z"
+   "at": "2026-11-09T22:52:21.119Z"
   },
   "API-XBID-079": {
    "coverage": "partial",
@@ -13106,7 +12946,7 @@
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:08:37.376Z"
+   "at": "2026-11-09T22:48:07.998Z"
   },
   "API-XBID-081": {
    "coverage": "full",
@@ -13131,7 +12971,7 @@
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.874Z"
+   "at": "2026-11-09T22:52:21.156Z"
   },
   "API-XBID-083": {
    "coverage": "partial",
@@ -13145,7 +12985,7 @@
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.909Z"
+   "at": "2026-11-09T22:52:21.193Z"
   },
   "API-XBID-084": {
    "coverage": "partial",
@@ -13159,7 +12999,7 @@
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:16:58.945Z"
+   "at": "2026-11-09T22:52:21.234Z"
   },
   "API-XBID-085": {
    "coverage": "partial",
@@ -13186,7 +13026,7 @@
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:01.223Z"
+   "at": "2026-11-09T22:52:21.281Z"
   },
   "API-XBID-087": {
    "coverage": "full",
@@ -13210,7 +13050,7 @@
     "PATCH /bids/revise_bid/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:01.258Z"
+   "at": "2026-11-09T22:52:21.332Z"
   },
   "API-XBID-097": {
    "coverage": "partial",
@@ -13224,7 +13064,7 @@
     "POST /v1/bids"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.635Z"
+   "at": "2026-11-09T22:55:55.384Z"
   },
   "API-XBID-099": {
    "coverage": "partial",
@@ -13237,7 +13077,7 @@
     "PATCH /v1/bids/:id/line_items/:id/regret_status"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:01.296Z"
+   "at": "2026-11-09T22:52:21.386Z"
   },
   "API-XBID-100": {
    "coverage": "partial",
@@ -13250,7 +13090,7 @@
     "PATCH /v1/bids/:id/line_items/:id/regret_status"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:01.375Z"
+   "at": "2026-11-09T22:52:21.443Z"
   },
   "API-XBID-101": {
    "coverage": "partial",
@@ -13263,7 +13103,7 @@
     "PATCH /v1/bids/:id/line_items/:id/regret_status"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.669Z"
+   "at": "2026-11-09T22:55:55.426Z"
   },
   "API-XBID-102": {
    "coverage": "partial",
@@ -13277,20 +13117,20 @@
     "PATCH /v1/bids/:id/line_items/:id/regret_status"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.702Z"
+   "at": "2026-11-09T22:55:55.467Z"
   },
   "API-XBID-103": {
    "coverage": "partial",
    "title": "During cost-breakdown time, global price updates are ignored",
    "source": "library-case",
    "why": [
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+    "it depends on a company setting this run does not change (in_cost_break_down_time.) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-10-15T13:09:41.907Z"
+   "at": "2026-11-09T22:55:55.503Z"
   },
   "API-XBID-104": {
    "coverage": "partial",
@@ -13304,7 +13144,7 @@
     "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:00.782Z"
+   "at": "2026-11-09T22:55:55.587Z"
   },
   "API-XDAMD-007": {
    "coverage": "partial",
@@ -13339,15 +13179,14 @@
    "title": "A new stage can only be added from an RFP",
    "source": "llm-fast",
    "why": [
-    "The plan does not verify HTTP 422 or code 2001 because the case is treated as an accepted request.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
-    "it depends on a company setting this run does not change (is_add_new_stage_allowed) — a failure is reported as couldn't tell, not as a bug"
+    "the decisive step tests something else than the case's point: The setup cannot enable is_add_new_stage_allowed; when it is OFF, the application returns code 1127 instead of code 2001.",
+    "it depends on a company setting this run does not change (is_add_new_stage_allowed=ON) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "POST /v1/trade/:id/add_new_stage_in_live_event"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:10.067Z"
+   "at": "2026-11-09T22:56:00.358Z"
   },
   "API-XDAMD-063": {
    "coverage": "none",
@@ -13595,21 +13434,17 @@
    "at": "2026-11-09T20:23:13.282Z"
   },
   "API-XDLOT-027": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "Lot names and descriptions are stored safely",
    "source": "llm-fast",
    "why": [
-    "The plan cannot save or verify the 5,000-character lot description because update_event exposes only title.",
-    "The plan cannot record or verify the stored description length.",
-    "The plan does not verify subsequent publishing behavior.",
-    "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
+    "No operation or library case expresses saving a lot with a title and description.",
+    "The request method, path, and body for saving the lot are not provided, so they cannot be invented.",
+    "No read-back fields are available to verify tag stripping, quote preservation, or the stored 5,000-character description length."
    ],
-   "endpoints": [
-    "PATCH /event_groups/:id",
-    "GET /trade/:id"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T22:45:58.455Z"
+   "at": "2026-11-09T22:56:06.106Z"
   },
   "API-XDLOT-032": {
    "coverage": "partial",
@@ -13746,14 +13581,14 @@
    "title": "The base currency's own rate cannot be changed",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ with INR as the base currency and no bids.",
+    "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ with INR as the base currency; depends on the currency_configuration setting.",
     "The response wording that specifically says the base currency rate cannot be changed is not asserted."
    ],
    "endpoints": [
     "PATCH /v1/trade/:id/currency_exchange_rates"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:24.932Z"
+   "at": "2026-11-09T22:52:27.306Z"
   },
   "API-XDLOT-076": {
    "coverage": "partial",
@@ -13767,24 +13602,22 @@
     "PATCH /v1/trade/:id/currency_exchange_rates"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:46:08.360Z"
+   "at": "2026-11-09T22:56:02.265Z"
   },
   "API-XDLOT-077": {
    "coverage": "partial",
    "title": "Absurd rates are accepted, and an infinite one is stored as empty",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not create a multi-currency RFQ.",
-    "No available read operation or known field verifies the sanity-bound decision or that the infinite rate is stored as empty.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
-    "it does not read the record back to confirm what was kept or shown",
-    "it depends on a company setting this run does not change (multi-currency RFQ) — a failure is reported as couldn't tell, not as a bug"
+    "the decisive step tests something else than the case's point: The setup recipe does not guarantee a multi-currency RFQ or an auto-fetched USD rate, so the ±50% sanity-bound decision cannot be checked.",
+    "The response field showing the infinite rate was stored as null cannot be verified because the response shape is not provided.",
+    "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
     "PATCH /v1/trade/:id/currency_exchange_rates"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:26:42.319Z"
+   "at": "2026-11-09T22:52:31.470Z"
   },
   "API-XDLOT-079": {
    "coverage": "none",
@@ -13802,15 +13635,14 @@
    "title": "Rates of a draft event cannot be changed here",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not explicitly guarantee a multi-currency RFQ.",
-    "The response wording that the event must be published first, or that drafts are allowed, is not checked because the response shape is not sampled.",
-    "it depends on a company setting this run does not change (multi-currency is configured for the RFQ) — a failure is reported as couldn't tell, not as a bug"
+    "the decisive step tests something else than the case's point: The setup recipe does not explicitly create a multi-currency RFQ.",
+    "The expected error wording ('publish the event first' or 'allow drafts') is not asserted."
    ],
    "endpoints": [
     "PATCH /v1/trade/:id/currency_exchange_rates"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:29.608Z"
+   "at": "2026-11-09T22:56:12.497Z"
   },
   "API-XDLST-044": {
    "coverage": "none",
@@ -13861,20 +13693,17 @@
    "at": "2026-11-09T19:44:50.944Z"
   },
   "API-XDPRE-013": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "A user without event-create permission cannot pull PR lines",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The vocabulary cannot create a second restricted user session or configure the acting user's team permissions.",
-    "The valid request body for pulling PR lines is not specified; the represented body uses available line_items and product_uuid fields but may not match the required request schema.",
-    "The vocabulary has no verification that the rejected request wrote nothing.",
-    "it depends on a company setting this run does not change (trade: create_record permission disabled for the acting user) — a failure is reported as couldn't tell, not as a bug"
+    "The vocabulary cannot create or use a second user session whose teams lack trade: create_record.",
+    "The request body for a valid POST /event_groups/{{eventGroupUuid}}/pri_to_draft_project is not provided, and no operation supplies that body.",
+    "The vocabulary cannot verify that nothing was written after the authorization refusal."
    ],
-   "endpoints": [
-    "POST /event_groups/:id/pri_to_draft_project"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:08:53.963Z"
+   "at": "2026-11-09T22:48:15.915Z"
   },
   "API-XDPRE-014": {
    "coverage": "none",
@@ -13990,10 +13819,9 @@
    "title": "A zero quantity is accepted and reserves nothing",
    "source": "llm-fast",
    "why": [
-    "The plan does not verify the exact HTTP 200 status.",
-    "The plan does not read back the draft to confirm that the zero-quantity line is rate-only.",
-    "The plan does not verify that the PR line still shows 100 open or is marked in progress.",
-    "The available library case creates the draft itself and does not expose an eventGroupUuid for a subsequent read-back.",
+    "The plan does not read back the created draft because the library operation does not provide an eventGroupUuid.",
+    "The plan does not verify that the draft line is explicitly rate-only or that a PR line still shows 100 open.",
+    "the decisive step tests something else than the case's point: The setup vocabulary does not provide a QA PR line or twin state.",
     "the case reads as “it is refused”, but the plan checks “it is accepted”",
     "it does not read the record back to confirm what was kept or shown"
    ],
@@ -14001,7 +13829,7 @@
     "POST /event_groups"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:37.860Z"
+   "at": "2026-11-09T22:52:37.953Z"
   },
   "API-XDPRE-027": {
    "coverage": "none",
@@ -14334,16 +14162,15 @@
    "title": "Publishing moves the line from \"reserved by a draft\" to \"in progress in an event\"",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot create a QA PR line of 100 with 40 reserved by the draft and no twin.",
-    "The available read-back fields do not expose or define assertions for draft reservation removal, in-progress quantity 40, open quantity 60, or line-item status_in_progress."
+    "the decisive step tests something else than the case's point: The setup vocabulary cannot create a draft reservation of 40 against a PR line of 100 or guarantee that there is no twin.",
+    "The available read-backs cannot verify that the draft reservation is gone, that in-progress quantity is 40, that open quantity is 60, or that the line status is in_progress."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /event_groups/:id",
-    "GET /event_groups/:id/get_line_items"
+    "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:02.801Z"
+   "at": "2026-11-09T22:48:21.092Z"
   },
   "API-XDPRE-064": {
    "coverage": "partial",
@@ -14392,17 +14219,16 @@
    "title": "Withdrawing logs which PR lines reopened and by how much",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The published_rfq setup does not guarantee that the line starts with quantity 40; the plan checks the returned quantity but cannot configure the setup quantity.",
-    "The available history read-back vocabulary does not identify the exact event-reference field or the association between the activity entry and the reopened line."
+    "the decisive step tests something else than the case's point: The setup does not specify or guarantee a PR line quantity of 40.",
+    "The available read-back fields do not expose whether the line returned to open.",
+    "The available read-back fields do not expose activity-log entry type, event reference, or reopened quantity."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
-    "GET /event_groups/:id",
-    "GET /event_groups/:id/get_line_items",
     "GET /event_groups/:id/history"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:35.495Z"
+   "at": "2026-11-09T22:56:13.956Z"
   },
   "API-XDPRE-068": {
    "coverage": "partial",
@@ -14633,15 +14459,14 @@
    "title": "Publishing an RFP that ends after its RFQ is refused with 712",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not specify that the technical RFP ends after the pricing RFQ.",
-    "The publish_event operation does not expose a listed token for the technical round UUID, so the request cannot explicitly set both stage UUIDs in draft_trade_request_uuids."
+    "The plan does not verify that both stage UUIDs were included in draft_trade_request_uuids or that no stage was modified individually."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:07.098Z"
+   "at": "2026-11-09T22:48:26.807Z"
   },
   "API-XPUB-016": {
    "coverage": "full",
@@ -14672,27 +14497,24 @@
    "title": "An invited vendor can call add-audience on the buyer's live stage",
    "source": "library-case",
    "why": [
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
     "it does not read the record back to confirm what was kept or shown"
    ],
    "endpoints": [
     "PATCH /v1/trade/add_audience"
    ],
    "usd": 0,
-   "at": "2026-10-04T07:06:05.234Z"
+   "at": "2026-11-09T22:48:21.148Z"
   },
   "API-XPUB-042": {
-   "coverage": "partial",
+   "coverage": "full",
    "title": "An invited vendor can remove a competitor who has not bid yet",
    "source": "library-case",
-   "why": [
-    "the case reads as “it is refused”, but the plan checks “it is accepted”"
-   ],
+   "why": [],
    "endpoints": [
     "PATCH /v1/trade/remove_audience"
    ],
    "usd": 0,
-   "at": "2026-10-04T07:06:05.236Z"
+   "at": "2026-11-09T22:48:21.186Z"
   },
   "API-XPUB-043": {
    "coverage": "partial",
@@ -14706,7 +14528,7 @@
     "PATCH /v1/trade/add_audience"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:43.839Z"
+   "at": "2026-11-09T22:52:31.515Z"
   },
   "API-XPUB-045": {
    "coverage": "full",
@@ -14769,7 +14591,7 @@
     "POST /event_groups/:id/participants"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:43.888Z"
+   "at": "2026-11-09T22:52:31.556Z"
   },
   "API-XPUB-055": {
    "coverage": "full",
@@ -14807,7 +14629,7 @@
     "PATCH /event_groups/:id/reject_participant"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:35.600Z"
+   "at": "2026-11-09T22:56:12.686Z"
   },
   "API-XPUB-061": {
    "coverage": "partial",
@@ -14815,14 +14637,13 @@
    "source": "llm-fast",
    "why": [
     "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-    "The plan covers an RFQ stage only; no setup recipe explicitly provides an auction stage whose window has ended but is not yet closed.",
-    "The available wait operation may reach the bid end boundary rather than guarantee the stage remains expired and not yet closed."
+    "the decisive step tests something else than the case's point: The setup cannot explicitly configure reopen permission off or verify that the caller is not a Procol employee or super admin."
    ],
    "endpoints": [
     "PATCH /trade/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:09.384Z"
+   "at": "2026-11-09T22:48:25.758Z"
   },
   "API-XPUB-062": {
    "coverage": "full",
@@ -14951,7 +14772,7 @@
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:17:43.926Z"
+   "at": "2026-11-09T22:52:31.594Z"
   },
   "API-XPUB-085": {
    "coverage": "partial",
@@ -14965,7 +14786,7 @@
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:07.159Z"
+   "at": "2026-11-09T22:48:25.797Z"
   },
   "API-XPUB-086": {
    "coverage": "partial",
@@ -15007,35 +14828,32 @@
    "at": "2026-10-03T09:50:24.179Z"
   },
   "API-XPUB-093": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "A buyer who is not the owner cannot change ownership",
    "source": "llm-fast",
    "why": [
-    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-    "the decisive step tests something else than the case's point: The available setup recipes do not create an event owned by a different buyer while signing in as another buyer of the same company who is not a super admin."
+    "act 1: POST /event_groups/{{eventGroupUuid}}/change_ownership is sent with no body — a request step carries the body the case writes (or a library/operation step has a working one)",
+    "The case's POST has no body, but request steps require a body; no operation or library case expresses change_ownership authorization for a non-owner buyer. Available ownership library cases test missing or invalid new owners and expect code"
    ],
-   "endpoints": [
-    "POST /event_groups/:id/change_ownership"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:17:59.493Z"
+   "at": "2026-11-09T22:52:42.278Z"
   },
   "API-XPUB-094": {
    "coverage": "partial",
    "title": "Ownership can be changed on a draft even though the UI forbids it",
    "source": "llm-fast",
    "why": [
-    "The change_ownership operation is not available.",
-    "The config.is_allowed_to_change_ownership field is not available for verification.",
-    "A valid same-team user token is not available.",
-    "The ownership transfer outcome cannot be checked.",
+    "The change_ownership request cannot be expressed because {{userUuid}} is not an allowed token and the required request body field cannot be specified without inventing a field.",
+    "The read_event vocabulary does not expose config.is_allowed_to_change_ownership, so its false value cannot be asserted.",
+    "The ownership transfer and its successful result cannot be verified.",
     "the case reads as “it is refused”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-10-15T12:14:29.751Z"
+   "at": "2026-11-09T22:52:51.962Z"
   },
   "API-XPUB-095": {
    "coverage": "none",
@@ -16222,16 +16040,16 @@
    "title": "An RFQ-then-auction round next to an RFQ round on the same draft is not blocked",
    "source": "llm-fast",
    "why": [
-    "The complete working body for /trade/template_input is not provided, so only rfx_mode is sent.",
-    "the decisive step tests something else than the case's point: The setup cannot specify the RFQ round's bid end time, evaluator, or buyer permission settings.",
-    "The plan checks a 2xx response and event read without asserting that both RFQ and auction rounds coexist."
+    "The supplied case refers to a complete working request body and changing only rfx_mode, but does not provide that body; the plan sends only the named rfx_mode field.",
+    "The available read-back fields do not expose the resulting round's rfx_mode or prove that the RFQ-then-auction round was created next to the existing RFQ round.",
+    "The evaluator and permission prerequisites cannot be set or verified with the available vocabulary."
    ],
    "endpoints": [
     "POST /trade/template_input",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:04.320Z"
+   "at": "2026-11-09T22:52:50.753Z"
   },
   "API-XSTG-020": {
    "coverage": "partial",
@@ -16284,20 +16102,21 @@
    "title": "Award value per vendor = awarded quantity × that vendor's unit price",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup does not create a split award with multiple vendors or expose awarded quantities and vendor unit prices for asserting awardTotals()."
+    "the decisive step tests something else than the case's point: The available setup does not create a split award.",
+    "The vocabulary has no read-back field or assertion for awardTotals(), awarded quantity, vendor unit price, or calculated award value, so the multiplication cannot be verified."
    ],
    "endpoints": [
     "GET /proposal/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:11.023Z"
+   "at": "2026-11-09T22:48:30.418Z"
   },
   "EVI-AWD-002": {
    "coverage": "partial",
    "title": "A tied L1 vendor's award counts as L1",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The rfq_with_2_bids recipe guarantees two submitted bids but does not guarantee that the vendors are tied at the best price."
+    "the decisive step tests something else than the case's point: The setup recipe guarantees two submitted bids but does not explicitly guarantee that the vendors are tied at the best price."
    ],
    "endpoints": [
     "POST /proposal",
@@ -16305,7 +16124,7 @@
     "GET /proposal/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:11.695Z"
+   "at": "2026-11-09T22:53:02.575Z"
   },
   "EVI-CHG-001": {
    "coverage": "none",
@@ -16537,35 +16356,33 @@
    "at": "2026-11-09T20:09:27.295Z"
   },
   "EVI-LINE-006": {
-   "coverage": "partial",
+   "coverage": "none",
    "title": "The smallest price the screen allows is a real quote",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipes provide only one line item, so line 2 cannot be created or checked.",
-    "No read-back field exposes line total, quantity, line savings, reference price, or the 1.18 multiplier, so the pricing formula and savings calculation cannot be verified.",
-    "No operation or field sets or verifies the company's minimum allowed price.",
-    "what the screen shows (an API plan checks the data, not the page)"
+    "The available setup recipes create only one line item, so line 2 cannot be created or tested.",
+    "The vocabulary does not define the company's minimum allowed price or a way to set a bid price to that minimum.",
+    "No read-back fields are available for line total, line savings, reference price, or the price-times-quantity calculation.",
+    "The available indicator read-back can verify rank and best bidder, but cannot target line 2 or verify the requested pricing calculations."
    ],
-   "endpoints": [
-    "GET /v1/trade/:id/event_indicators"
-   ],
+   "endpoints": [],
    "usd": 0,
-   "at": "2026-11-09T20:18:17.881Z"
+   "at": "2026-11-09T22:53:02.510Z"
   },
   "EVI-LINE-007": {
    "coverage": "partial",
    "title": "Many lines in one bid all total correctly",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup recipe does not specify an RFQ with 60 lines, mixed quantities, or GST slabs.",
-    "The available bid read-back fields do not expose the bid total or per-line totals, so exact total calculation and comparison to shown places cannot be asserted.",
-    "the decisive step tests something else than the case's point: The setup already contains submitted bids, so the plan cannot verify both vendors quoting every line as an act."
+    "The available setup creates one-line bids, not RFQ events with 60 lines.",
+    "the decisive step tests something else than the case's point: The available operations cannot create or verify mixed line quantities, GST slabs, quoting every line, or exact bid-total arithmetic versus unrounded line totals.",
+    "The bid read-back fields are not sampled, so the displayed totals and their shown places cannot be asserted."
    ],
    "endpoints": [
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:23:42.912Z"
+   "at": "2026-11-09T22:56:18.055Z"
   },
   "EVI-PREC-001": {
    "coverage": "partial",
@@ -16629,30 +16446,33 @@
    "title": "Every tied vendor is marked best bidder",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The recipe does not explicitly guarantee that the two bids are tied.",
-    "The available assertion vocabulary cannot verify that no other vendor keys are marked best bidder."
+    "The available read_indicators fields do not expose the bid price, so the tie price itself is not checked."
    ],
    "endpoints": [
+    "PATCH /v1/trade/add_audience",
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
+    "PATCH /v1/bids/:id",
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:23.816Z"
+   "at": "2026-11-09T22:53:08.728Z"
   },
   "EVI-RANK-005": {
    "coverage": "partial",
    "title": "Ranks follow the dense-rank rule, a tie at the best moving everyone down",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not create a tie at the best bid.",
-    "The available read-back fields do not expose numeric ranks, so the dense-rank values and the +1 shift for all other vendors cannot be checked.",
-    "the decisive step tests something else than the case's point: The setup does not guarantee that ranks are visible on the stage.",
+    "the decisive step tests something else than the case's point: The setup does not guarantee that the two bids tie at the best ranking figure.",
+    "The available read-back fields do not expose numeric rank values or the ranking figure, so the dense-rank rule and the expected rank increment cannot be checked.",
+    "Stage rank visibility is not configurable or assertable with the available vocabulary.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:28.510Z"
+   "at": "2026-11-09T22:53:08.551Z"
   },
   "EVI-RANK-006": {
    "coverage": "partial",
@@ -16703,19 +16523,15 @@
    "title": "Rank auction: overall ranks on the bid total",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup and operations cannot create a rank auction with three vendors; only two vendors can be invited and bid.",
-    "The third bid at ₹100 cannot be created.",
-    "The available read-back fields expose the best bidder but not the numeric ranks 1, 2, and 3 or the best total amount."
+    "The available setup creates only two vendors with bids, not three vendors at the specified prices.",
+    "The available operations cannot set or verify the three bid prices ₹101.25, ₹99.50, and ₹100.",
+    "The available read-back fields expose ranks and best-bidder status, but not the best total or a total value to compare."
    ],
    "endpoints": [
-    "PATCH /v1/trade/add_audience",
-    "POST /v1/bids",
-    "POST /v1/bids/:id/create_bid_products",
-    "PATCH /v1/bids/:id",
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:26.146Z"
+   "at": "2026-11-09T22:48:33.310Z"
   },
   "EVI-RANK-010": {
    "coverage": "full",
@@ -16907,14 +16723,14 @@
    "title": "GST per unit and landed cost per unit in the price breakup",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not guarantee a GST rate with no freight or discount.",
-    "The plan cannot verify the GST-per-unit calculation or the landed-cost-per-unit calculation because arithmetic assertions and the corresponding bid field paths are not available."
+    "the decisive step tests something else than the case's point: The setup does not guarantee a line with a GST rate and no freight or discount.",
+    "The bid read-back vocabulary does not define fields for the price breakup, GST per unit, or landed cost per unit, so the calculated values cannot be asserted."
    ],
    "endpoints": [
     "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:33.983Z"
+   "at": "2026-11-09T22:53:13.414Z"
   },
   "EVI-TAX-003": {
    "coverage": "partial",
@@ -17031,14 +16847,19 @@
    "title": "Wrong totals sent by a vendor cannot make it L1",
    "source": "llm-fast",
    "why": [
-    "The available read-back fields do not expose the recomputed best total, so the best-total value cannot be verified.",
+    "The available operations cannot submit intentionally incorrect line totals while retaining real prices and quantities, so recomputation of totals and confirmation that ₹1 appears nowhere are not checked.",
+    "The read_indicators read-back vocabulary exposes best_bidder but not the numeric L1 rank or best total.",
     "the case reads as “it is refused”, but the plan checks “it is accepted”"
    ],
    "endpoints": [
+    "PATCH /v1/trade/add_audience",
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
+    "PATCH /v1/bids/:id",
     "GET /v1/trade/:id/event_indicators"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:54.627Z"
+   "at": "2026-11-09T22:48:58.972Z"
   },
   "UI-AUC-002": {
    "coverage": "partial",
@@ -17150,16 +16971,15 @@
    "title": "A Dutch offer accepted without a quantity is refused",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: No setup recipe creates a live Dutch auction with an open offer.",
-    "The available vocabulary does not provide an operation to create or open a Dutch offer.",
-    "The expected quantity-specific error message or code is not provided."
+    "the decisive step tests something else than the case's point: The available setup does not create a specifically Dutch auction or an open Dutch offer.",
+    "The quantity-specific refusal message cannot be asserted because no response field or exact message is provided."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
     "POST /bids/accept_dutch_offer"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:40.635Z"
+   "at": "2026-11-09T22:53:19.130Z"
   },
   "UI-AUC-019": {
    "coverage": "partial",
@@ -17212,17 +17032,17 @@
    "title": "Switching closing mode from line-item to lot on a multi-product trade is refused",
    "source": "llm-fast",
    "why": [
-    "The setup recipe provides one line item, not a multi-product RFQ.",
-    "the decisive step tests something else than the case's point: The setup recipe does not configure the RFQ as partial-lot.",
-    "No permitted field or operation expresses switching the closing mode to lot on the conversion request.",
-    "The expected refusal message is not specified by an available assertion or known error code.",
+    "The available setup recipes create only one line item; a multi-product RFQ cannot be created.",
+    "the decisive step tests something else than the case's point: The setup cannot establish a partial-lot closing mode.",
+    "The publish step is not included because the conversion operation is the closest available decisive action and is expected to be refused.",
+    "The refusal message and error code are not provided or known in the available vocabulary.",
     "what the screen shows (an API plan checks the data, not the page)"
    ],
    "endpoints": [
     "POST /trade/move_to_auction"
    ],
    "usd": 0,
-   "at": "2026-11-09T22:27:01.864Z"
+   "at": "2026-11-09T22:53:24.827Z"
   },
   "UI-AWD-002": {
    "coverage": "partial",
@@ -17282,16 +17102,17 @@
    "title": "Awarding the whole lot on a partial-lot RFQ is refused",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The available setup recipes do not create an RFQ configured for partial-lot awarding.",
-    "The available operation fields do not express the complete whole-lot award response or assert the refusal message.",
-    "The refusal error code is not provided."
+    "the decisive step tests something else than the case's point: The setup recipe does not guarantee a partial-lot RFQ configuration.",
+    "The exact refusal message and error code are not provided.",
+    "No verify step is included because the award is expected to be refused.",
+    "it depends on a company setting this run does not change (partial-lot RFQ) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
     "POST /proposal",
     "POST /proposal/:id/add_response"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:40.904Z"
+   "at": "2026-11-09T22:53:25.970Z"
   },
   "UI-AWD-019": {
    "coverage": "partial",
@@ -17551,18 +17372,17 @@
    "title": "With the switch off, only clauses marked required block the vendor",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup does not create or verify one required and one optional clause.",
-    "The available operation fields do not express accepting only the required clause while leaving the optional clause unaccepted.",
-    "it depends on a company setting this run does not change (is_tnc_mandatory off) — a failure is reported as couldn't tell, not as a bug"
+    "the decisive step tests something else than the case's point: The available setup recipes do not guarantee is_tnc_mandatory is off or configure one required and one optional clause.",
+    "No available operation or listed field expresses accepting the required clause while leaving the optional clause unaccepted."
    ],
    "endpoints": [
     "POST /v1/bids",
     "POST /v1/bids/:id/create_bid_products",
     "PATCH /v1/bids/:id",
-    "GET /trade/:id"
+    "GET /bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:58.140Z"
+   "at": "2026-11-09T22:53:36.089Z"
   },
   "UI-LI-007": {
    "coverage": "none",
@@ -17601,7 +17421,7 @@
     "PATCH /trade/:id/update_vendor_validations"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:18:56.404Z"
+   "at": "2026-11-09T22:53:30.068Z"
   },
   "UI-LI-015": {
    "coverage": "none",
@@ -17987,10 +17807,8 @@
    "title": "An RFQ→Auction conversion bypasses the savings-mandatory check",
    "source": "llm-fast",
    "why": [
-    "The available operations cannot set or remove a savings entry, so the no-savings input cannot be explicitly represented.",
-    "The app's error code for the mandatory-savings refusal is not provided.",
-    "The plan depends on the isSavingsConfigurationMandatory setting.",
-    "the case reads as “it is accepted”, but the plan checks “it is refused”",
+    "The gate setting cannot be configured by the plan.",
+    "There is no available savings field or assertion to verify that no savings entry was supplied or that no savings error was returned.",
     "it depends on a company setting this run does not change (isSavingsConfigurationMandatory) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
@@ -17999,7 +17817,7 @@
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:19:13.360Z"
+   "at": "2026-11-09T22:53:37.128Z"
   },
   "UI-SAV-008": {
    "coverage": "partial",
@@ -18043,18 +17861,19 @@
    "title": "A vendor must see the terms before bidding where acceptance is required",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The published_rfq recipe does not explicitly guarantee event clauses.",
-    "No available operation verifies that terms were displayed, accepted, or that bidding remains blocked without acceptance.",
-    "the case reads as “it is refused”, but the plan checks “it is accepted”",
+    "the decisive step tests something else than the case's point: The setup recipe cannot configure the terms-acceptance-required gate or guarantee event clauses.",
+    "The plan does not verify that the vendor can see the terms before bidding.",
+    "The plan does not verify that bidding becomes available after terms are accepted.",
+    "The blocking error code is not specified.",
     "it does not read the record back to confirm what was kept or shown",
-    "it depends on a company setting this run does not change (terms acceptance required) — a failure is reported as couldn't tell, not as a bug"
+    "it depends on a company setting this run does not change (terms) — a failure is reported as couldn't tell, not as a bug"
    ],
    "endpoints": [
-    "GET /event_groups/:id",
-    "POST /v1/bids"
+    "POST /v1/bids",
+    "PATCH /v1/bids/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:19:35.046Z"
+   "at": "2026-11-09T22:53:42.942Z"
   },
   "UI-SS-002": {
    "coverage": "full",
@@ -18207,16 +18026,15 @@
    "title": "An empty Vendor Assessment blocks publish",
    "source": "llm-fast",
    "why": [
-    "the decisive step tests something else than the case's point: The setup cannot explicitly configure an RFP stage with every component except an empty Vendor Assessment.",
-    "The refusal message cannot be asserted because no known error message or readable field for it is provided.",
-    "The error code is not specified."
+    "The available vocabulary has no field for configuring or removing Vendor Assessment, so the RFP stage cannot be guaranteed to contain everything except Vendor Assessment.",
+    "The exact refusal message is not asserted because no read-back field or known error message is provided."
    ],
    "endpoints": [
     "PATCH /event_groups/:id",
     "GET /event_groups/:id"
    ],
    "usd": 0,
-   "at": "2026-11-09T20:09:55.083Z"
+   "at": "2026-11-09T22:48:40.808Z"
   },
   "UI-TECH-004": {
    "coverage": "none",

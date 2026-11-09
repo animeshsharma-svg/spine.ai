@@ -2,14 +2,12 @@
  "meta": {
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
-  "compiledAt": "2026-11-09T20:12:21.058Z",
+  "compiledAt": "2026-11-09T22:49:46.234Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The buyer's rejection through the status endpoint cannot be expressed because its METHOD, path, and body are not provided and no operation covers it.",
-   "The plan cannot verify that a status rejection never blocks re-bidding while the RFQ remains open.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The buyer's status-endpoint rejection cannot be expressed because no operation or case-owned request provides its method, path, and body; the re-bid step therefore cannot be verified in the required post-rejection state."
   ],
   "warnings": [],
   "validated": true,
@@ -26,21 +24,21 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
     "The invited QA vendor places a complete bid (open, price, submit).",
-    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
   },
-  "recheckedAt": "2026-11-09T22:46:32.978Z"
+  "recheckedAt": "2026-11-09T22:56:36.835Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVDRJB-022",
   "title": "A rejection through the status endpoint never blocks re-bidding",
   "setup": {
-   "recipe": "closed_rfq_with_bid"
+   "recipe": "rfq_with_bid"
   },
   "act": [
    {
@@ -56,18 +54,15 @@
     "assert": [
      {
       "path": "bid_count",
-      "op": "equals",
-      "value": 1,
-      "say": "the round counts no new bid (the refused bid left nothing)"
+      "op": "gte",
+      "value": 2,
+      "say": "the round counts the new bid"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "reject",
-   "code": "33",
-   "message": "Order not active",
-   "codeInferred": true
+   "outcome": "accept"
   }
  }
 }

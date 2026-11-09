@@ -2,67 +2,24 @@
  "meta": {
   "caseId": "API-XDPRE-013",
   "title": "A user without event-create permission cannot pull PR lines",
-  "compiledAt": "2026-11-09T20:08:53.963Z",
+  "compiledAt": "2026-11-09T22:48:15.915Z",
   "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "the decisive step tests something else than the case's point: The vocabulary cannot create a second restricted user session or configure the acting user's team permissions.",
-   "The valid request body for pulling PR lines is not specified; the represented body uses available line_items and product_uuid fields but may not match the required request schema.",
-   "The vocabulary has no verification that the rejected request wrote nothing.",
-   "it depends on a company setting this run does not change (trade: create_record permission disabled for the acting user) — a failure is reported as couldn't tell, not as a bug"
+   "The vocabulary cannot create or use a second user session whose teams lack trade: create_record.",
+   "The request body for a valid POST /event_groups/{{eventGroupUuid}}/pri_to_draft_project is not provided, and no operation supplies that body.",
+   "The vocabulary cannot verify that nothing was written after the authorization refusal."
   ],
   "warnings": [],
-  "validated": true,
-  "endpoints": [
-   "POST /event_groups/:id/pri_to_draft_project"
-  ],
+  "validated": false,
+  "endpoints": [],
   "llm": {
    "calls": 0,
    "promptTokens": 0,
    "completionTokens": 0,
    "usd": 0
-  },
-  "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
-   "steps": [
-    "The buyer sends the “create the draft event” request, the request the case itself writes."
-   ],
-   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
-  },
-  "recheckedAt": "2026-11-09T22:46:33.293Z"
+  }
  },
- "plan": {
-  "version": 2,
-  "caseId": "API-XDPRE-013",
-  "title": "A user without event-create permission cannot pull PR lines",
-  "setup": {
-   "recipe": "draft_event"
-  },
-  "act": [
-   {
-    "op": "request",
-    "as": "buyer",
-    "request": {
-     "method": "POST",
-     "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
-     "body": {
-      "line_items": [
-       {
-        "product_uuid": "{{lineItemUuid}}"
-       }
-      ]
-     }
-    },
-    "decisive": true
-   }
-  ],
-  "verify": [],
-  "expected": {
-   "outcome": "reject",
-   "code": "455",
-   "message": "You are not authorized to perform this action"
-  },
-  "dependsOnSetting": "trade: create_record permission disabled for the acting user"
- }
+ "plan": null
 }

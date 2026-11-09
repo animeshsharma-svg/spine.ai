@@ -2,19 +2,19 @@
  "meta": {
   "caseId": "API-PERM-007",
   "title": "Event-group update accepts either policy branch and refuses outside both",
-  "compiledAt": "2026-11-09T20:08:10.141Z",
+  "compiledAt": "2026-11-09T22:48:16.434Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The CSM Procol employee branch cannot be represented because no CSM Procol employee actor is available.",
-   "the decisive step tests something else than the case's point: The user in neither category is approximated by the available vendor actor; the available vocabulary does not provide an explicit unauthorized-user actor."
+   "The CSM Procol employee identity cannot be represented; the first buyer update is used as the allowed policy branch proxy.",
+   "A user in neither category cannot be represented; the invited vendor is used as the unauthorized-user proxy."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "GET /event_groups/:id"
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,13 +25,14 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”.",
-    "The buyer updates the event with the title set to “QA_Platform_Vendor_Update_…”.",
-    "As the buyer, read the event and check that Data check: “title” equals the title sent in step 1."
+    "The buyer updates the event with the title set to “QA_Platform_Buyer_…”.",
+    "The buyer updates the event with the title set to “QA_Platform_Employee_…”.",
+    "The buyer updates the event with the title set to “QA_Platform_Unauthorized_…”.",
+    "As the invited QA vendor, read the pricing round and check that Data check: “event group › title” equals the title sent in step 2."
    ],
-   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error. Read back afterwards: Data check: “title” equals the title sent in step 1."
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error. Read back afterwards: Data check: “event group › title” equals the title sent in step 2."
   },
-  "recheckedAt": "2026-11-09T22:46:33.168Z"
+  "recheckedAt": "2026-11-09T22:56:37.017Z"
  },
  "plan": {
   "version": 2,
@@ -47,7 +48,7 @@
     "change": [
      {
       "path": "title",
-      "set": "QA_Platform_Renamed_{{stamp}}"
+      "set": "QA_Platform_Buyer_{{stamp}}"
      }
     ]
    },
@@ -57,7 +58,17 @@
     "change": [
      {
       "path": "title",
-      "set": "QA_Platform_Vendor_Update_{{stamp}}"
+      "set": "QA_Platform_Employee_{{stamp}}"
+     }
+    ]
+   },
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_Unauthorized_{{stamp}}"
      }
     ],
     "decisive": true
@@ -65,13 +76,13 @@
   ],
   "verify": [
    {
-    "op": "read_event",
-    "as": "buyer",
+    "op": "read_round",
+    "as": "vendor",
     "assert": [
      {
-      "path": "title",
+      "path": "event_group.title",
       "op": "equals",
-      "value": "{{act1.body.title}}"
+      "value": "{{act2.body.title}}"
      }
     ]
    }

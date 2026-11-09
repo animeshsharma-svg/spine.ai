@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-BID-031",
   "title": "The bid index is restricted to super admins and Procol employees",
-  "compiledAt": "2026-11-09T20:05:21.842Z",
+  "compiledAt": "2026-11-09T22:47:04.444Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-   "The second request without vendor_ids is included but its expected HTTP 422/code 5 result cannot be represented separately in one plan."
+   "The separate missing-vendor_ids request and its expected HTTP 422/code 5 result are not independently represented because only one decisive act is permitted."
   ],
   "warnings": [],
   "validated": true,
@@ -16,20 +16,19 @@
    "GET /bids"
   ],
   "llm": {
-   "calls": 0,
-   "promptTokens": 0,
-   "completionTokens": 0,
+   "calls": 4,
+   "promptTokens": 24716,
+   "completionTokens": 2345,
    "usd": 0
   },
   "words": {
    "preconditions": "A buyer signed in to the client under test (no event is built).",
    "steps": [
-    "The buyer sends the bid call, the request the case itself writes.",
     "The buyer sends the bid call, the request the case itself writes."
    ],
    "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
   },
-  "recheckedAt": "2026-11-09T22:46:32.814Z"
+  "recheckedAt": "2026-11-09T22:56:36.692Z"
  },
  "plan": {
   "version": 2,
@@ -44,18 +43,9 @@
     "as": "buyer",
     "request": {
      "method": "GET",
-     "path": "/bids?vendor_ids={{vendorUuid}}"
-    }
-   },
-   {
-    "op": "request",
-    "as": "buyer",
-    "request": {
-     "method": "GET",
      "path": "/bids"
     },
-    "decisive": true,
-    "ifRefused": "pass"
+    "decisive": true
    }
   ],
   "verify": [],

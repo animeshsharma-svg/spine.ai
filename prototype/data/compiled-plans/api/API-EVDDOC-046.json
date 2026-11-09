@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-EVDDOC-046",
   "title": "Attachments sent as plain links break the event page",
-  "compiledAt": "2026-11-09T20:06:15.841Z",
+  "compiledAt": "2026-11-09T22:47:17.807Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The exact HTTP 422 status and attachment validation error body are not asserted because no attachment error fields or known error code are provided.",
-   "the decisive step tests something else than the case's point: Vendor GET behavior is not checked because the draft_rfq setup does not create an invited vendor state.",
+   "The plan cannot assert the exact HTTP 422 response or that each attachment must be an object with a url.",
+   "The plan does not verify that subsequent event reads fail for vendors; the refused publish is expected to leave the event in draft.",
    "what the screen shows (an API plan checks the data, not the page)",
    "the part about “pdf” is outside what an API plan on a sourcing event checks"
   ],
@@ -27,12 +27,12 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer publishes the event with the attachment sent as a plain text link instead of an object.",
-    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked); Data check: “status” equals draft."
+    "The buyer publishes the event with 1 attachments.",
+    "As the buyer, read the event and check that Data check: “status” equals draft."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Data check: “status” equals draft."
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Data check: “status” equals draft."
   },
-  "recheckedAt": "2026-11-09T22:46:32.880Z"
+  "recheckedAt": "2026-11-09T22:56:36.748Z"
  },
  "plan": {
   "version": 2,
@@ -53,8 +53,7 @@
       ]
      }
     ],
-    "decisive": true,
-    "say": "The buyer publishes the event with the attachment sent as a plain text link instead of an object."
+    "decisive": true
    }
   ],
   "verify": [
@@ -62,10 +61,6 @@
     "op": "read_event",
     "as": "buyer",
     "assert": [
-     {
-      "path": "status",
-      "op": "status_2xx"
-     },
      {
       "path": "status",
       "op": "equals",

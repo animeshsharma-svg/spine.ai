@@ -2,22 +2,19 @@
  "meta": {
   "caseId": "API-EVRLIF-007",
   "title": "A multi-currency quick-flow round derives each currency's precision from its rate",
-  "compiledAt": "2026-11-09T20:12:55.687Z",
+  "compiledAt": "2026-11-09T22:49:58.588Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The company multi-currency setting, base INR, currency rates, currency catalogue, and second company without rates cannot be configured.",
-   "The quick-flow mode cannot be set or verified.",
-   "Currency precision derived from each rate cannot be asserted.",
-   "The unknown currency being skipped cannot be asserted.",
-   "The no-rates case cannot be created or verified.",
-   "the decisive step tests something else than the case's point: A build failure leaving the round without currency setup cannot be induced or verified."
+   "Cannot configure multi-currency, base INR, USD and JPY rates, an unknown currency, or a second company without rates.",
+   "Cannot verify currency rates, derived precision, skipped currencies, or mode \"multiple currencies\" because no currency-setup read-back fields are available.",
+   "Cannot verify that no rates produce no currency setup.",
+   "Cannot simulate a failure while building the round or verify that the round remains without currency setup."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /trade/template_input",
    "GET /v1/trade/:id/schema"
   ],
   "llm": {
@@ -27,34 +24,33 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer adds a pricing (RFQ) round to the event.",
-    "The buyer reads the pricing round's schema."
+    "As the buyer, read the pricing round's schema and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app accepts it."
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
   },
-  "recheckedAt": "2026-11-09T22:46:33.044Z"
+  "recheckedAt": "2026-11-09T22:56:36.891Z"
  },
  "plan": {
   "version": 2,
   "caseId": "API-EVRLIF-007",
   "title": "A multi-currency quick-flow round derives each currency's precision from its rate",
   "setup": {
-   "recipe": "draft_event"
+   "recipe": "draft_rfq"
   },
-  "act": [
-   {
-    "op": "add_rfq_round",
-    "as": "buyer"
-   },
+  "act": [],
+  "verify": [
    {
     "op": "read_round_schema",
     "as": "buyer",
-    "decisive": true
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
    }
   ],
-  "verify": [],
   "expected": {
    "outcome": "accept"
   }
