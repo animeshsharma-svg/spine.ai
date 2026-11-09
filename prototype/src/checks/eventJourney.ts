@@ -187,6 +187,14 @@ export interface JourneyRunOptions {
    * event goes to the whole suggestion (Aanya, 2026-10-09).
    */
   inviteCount?: number;
+  /**
+   * A caller's last word on a round's body just before it is sent (the screen-state
+   * set-up, src/ui/uiSetup.ts, 10 Nov): a forward auction (configurations.order_type
+   * "sell"), a dutch / knockout strategy with its prices and tick, vendor masking on the
+   * round. Called with the body the builder made and the round's kind; it edits in place.
+   * Unset, the body is sent as built.
+   */
+  stageBody?: (body: Record<string, any>, stage: StageKind) => void;
 }
 
 /** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees and bidders. */
@@ -1033,6 +1041,8 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
             });
       if (j.audience || (j.vendorCompanyUuid && widerAudience(j))) (body as any).audience_company_uuids = audienceOf(j);
       withEveryLineItem(body, sk, ev.lineItems);
+      // the caller's variant of the round (forward / dutch / knockout / masked) — see JourneyRunOptions.stageBody
+      j.opts.stageBody?.(body as Record<string, any>, sk);
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
       const uuid = reply.data?.uuid;
