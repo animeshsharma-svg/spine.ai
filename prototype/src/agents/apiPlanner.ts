@@ -761,8 +761,10 @@ function actorWhoMay(allowed: ActorId[], method: string, path: string, prefer: A
  */
 export function casePolarity(ctx: ValidateContext | undefined): Outcome | null {
   if (!ctx) return null;
-  // the whole title / expected column (an "HTTP 200" at its end counts), the long prose last
-  const heads = (ctx.heads ?? []).map((h) => String(h ?? "").slice(0, 400));
+  // the EXPECTED column first (it says the outcome: "HTTP 422, code 4"), then the title, then the long prose.
+  // Seen 2026-11-10 on API-EVDTME-060: the title "Reopen with the extension written as a word…" read as
+  // accepted ("reopen") and outvoted "HTTP 422, code 4 'Request not found'".
+  const heads = (ctx.heads ?? []).map((h) => String(h ?? "").slice(0, 400)).reverse();
   return [...heads, ctx.text ?? ""].map((h) => (h.trim() ? polarityOf(h) : null)).find((x) => x !== null) ?? null;
 }
 
@@ -1840,7 +1842,7 @@ export function polarityOf(t: string): Outcome | null {
   if (/\b(cannot|can't|can not|not allowed|refus\w*|reject\w*|block\w*|prevent\w*|disallow\w*|is denied|fails?|error|invalid|must not|should not|isn't allowed|not be able)\b/.test(s)) return "reject";
   // "check whether a vendor can bid…" is a question, not an expected outcome
   if (/\b(whether|check if|verify if|see if|find out if)\b|\?/.test(s)) return null;
-  if (/\b(can|succeeds?|accept\w*|allowed|works?|updates?|changes?|is saved|is created|shows?|reopens?|2xx|200)\b/.test(s)) return "accept";
+  if (/\b(can|succeeds?|accept\w*|allowed|works?|updates?|changes?|is saved|is created|shows?|2xx|200)\b/.test(s)) return "accept";
   return null;
 }
 

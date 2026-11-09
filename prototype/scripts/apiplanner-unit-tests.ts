@@ -75,7 +75,7 @@ function check(name: string, ok: boolean, detail?: unknown) {
   check("outcome: the code the case names is taken", v2.ok && v2.soft.length === 0 && v2.plan.expected.code === "33" && !v2.plan.expected.codeInferred, v2.plan.expected);
   const v3 = await validatePlan({ setup: { recipe: "draft_rfq" }, act: [{ op: "update_event" }], verify: [], expected: { outcome: "no-5xx" } }, { heads: ["Renaming a draft works", "The new title is saved"], text: "" });
   check("outcome: no-5xx on a case that expects success becomes accept in code", v3.ok && v3.plan.expected.outcome === "accept" && v3.soft.length === 0, v3.plan.expected);
-  const v4 = await validatePlan({ setup: { recipe: "draft_rfq" }, act: [{ op: "update_event" }], verify: [], expected: { outcome: "no-5xx" } }, { heads: ["A blank title is refused", "Should be 422 today the app accepts it"], text: "Should be 422; today the app accepts it" });
+  const v4 = await validatePlan({ setup: { recipe: "draft_rfq" }, act: [{ op: "update_event" }], verify: [], expected: { outcome: "no-5xx" } }, { heads: ["A blank title is refused", "Should be 422 (ideally refused); records today's behaviour"], text: "Should be 422; today the app accepts it" });
   check("outcome: a case that records today's behaviour keeps no-5xx without a soft problem", v4.ok && v4.plan.expected.outcome === "no-5xx" && v4.soft.length === 0, v4);
 }
 
@@ -154,6 +154,7 @@ function check(name: string, ok: boolean, detail?: unknown) {
   check("polarity: 'the buyer rejects a submitted bid … HTTP 200' is acceptance", polarityOf("The bid is rejected and the reason is stored for the vendor. HTTP 200.") === "accept");
   check("polarity: 'HTTP 422, code 258' is a refusal", polarityOf("Refused. HTTP 422, code 258 'You cannot re-schedule this event!'.") === "reject");
   check("polarity: 'crashes' is no-5xx", polarityOf("A send without a reminder kind crashes") === "no-5xx");
+  check("polarity: the expected column outvotes the title", casePolarity({ heads: ["Reopen with the extension written as a word: the round check answers first", "HTTP 422, code 4 'Request not found'."], text: "" }) === "reject");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
