@@ -2,44 +2,51 @@
  "meta": {
   "caseId": "UI-XDAPR-003",
   "title": "Bulk approve only sends the approvals that actually need me",
-  "compiledAt": "2026-10-06T06:12:27.843Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:49:35.095Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Set up an Approver-tab row whose step was just completed by a co-approver while the caller's page remains stale.",
-   "Reach and select that approval row and submit bulk approval with a remark using confirmed controls.",
-   "Trigger the relevant bulk-approval request and verify its body contains approver_uuids: [].",
-   "Assert the resulting error message, absence of a success toast, and unchanged approval row; the required action and approval row are unavailable in the prepared state."
+   "Bulk approve only sends approvals that actually need me (stale row handling)",
+   "Assert network request body approver_uuids: []"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Set up an Approver-tab row whose step was just completed by a co-approver while the caller's page remains stale.; Reach and select that approval row and submit bulk approval with a remark using confirmed controls.; Trigger the relevant bulk-approval request and verify its body contains approver_uuids: [].; Assert the resulting error message, absence of a success toast, and unchanged approval row; the required action and approval row are unavailable in the prepared state."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Bulk approve only sends approvals that actually need me (stale row handling); Assert network request body approver_uuids: []"
   ],
   "state": "proposal",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
-   "UI-XDNEG-002",
    "UI-AWD-005"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Bulk approval excludes stale approver rows",
+  "title": "UI-XDAPR-003 — Bulk approve only sends the approvals that actually need me",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
+     "screen": "proposal"
     },
-    "note": "Open the mandatory prepared starting screen without changing the fixed proposal state."
+    "note": "Open the proposal/approver view as instructed by the test environment."
    },
    {
-    "step": "capture_screen",
+    "step": "click",
     "args": {
-     "label": "bulk-approval-unavailable-prepared-proposal"
+     "role": "button",
+     "name": "Approve"
     },
-    "note": "Document the available screen for follow-up; this capture does not assert the requested approval behavior."
+    "note": "Attempt to bulk approve the selected row."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "toast",
+     "text": "error"
+    },
+    "note": "Assert that an error message/toast is shown due to the stale state."
    }
   ]
  }

@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-TPL-003",
   "title": "Changing a chosen template asks before it discards sheet data",
-  "compiledAt": "2026-10-06T05:25:12.719Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:24.959Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Reliably pick a different template: no alternative template name is supplied, and select_template without a name chooses the first offered rather than guaranteeing a different template.",
-   "Pause template replacement at the confirmation and exercise both Cancel and Confirm; select_template does not document an option to leave that confirmation pending.",
-   "Assert that all original sheet values survive cancellation and disappear on confirmation, and that the replacement template's specific columns appear; no sheet-value snapshot assertion or replacement column names are available."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Reliably pick a different template: no alternative template name is supplied, and select_template without a name chooses the first offered rather than guaranteeing a different template.; Pause template replacement at the confirmation and exercise both Cancel and Confirm; select_template does not document an option to leave that confirmation pending.; Assert that all original sheet values survive cancellation and disappear on confirmation, and that the replacement template's specific columns appear; no sheet-value snapshot assertion or replacement column names are available."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -24,53 +20,50 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Template change confirmation and data preservation",
+  "title": "UI-TPL-003 Template Change Confirmation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the stage creation screen for the template-change setup."
+    "note": "Open the multi-stage create screen for the template-change scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give this test event a unique title."
+    "args": {
+     "title": "UI-TPL-003 Template Change Confirmation"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the initial template to the default auction stage."
-   },
-   {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify the initial template was applied."
+    "note": "Choose the initial template whose sheet will be populated."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide a line item whose sheet data could be discarded by replacement."
+    "note": "Add a line item so the pricing sheet has editable data."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the initial sheet before attempting a template change."
+    "note": "Populate the sheet to establish the data that must survive cancellation and be discarded on confirmation."
    },
    {
-    "step": "expect_sheet_columns",
-    "args": {},
-    "note": "Verify the initial sheet headers rendered; this does not test replacement."
-   },
-   {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "filled-sheet-before-template-change"
+     "goal": "select a different offered template, verify the confirmation says \"Do you really want to change the template?\", cancel it and prove the original sheet values remain, then select the different template again, confirm the change, and prove the old sheet data is gone while the new template columns are present; stop on the changed sheet"
     },
-    "note": "Record the setup for manual continuation; neither confirmation branch is asserted by this capture."
+    "note": "Directly exercises and observes both cancel and confirm branches, which no catalog domain step models."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert the create screen remains healthy after both template-change branches."
    }
   ]
  }

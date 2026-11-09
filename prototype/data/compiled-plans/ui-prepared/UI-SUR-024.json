@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "UI-SUR-024",
   "title": "A surrogate bid appears to the vendor as their own bid",
-  "compiledAt": "2026-10-06T05:18:32.032Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:46:44.913Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open the prepared event as the invited vendor to inspect an existing surrogate bid without submitting or changing it.",
-   "Assert that the vendor portal shows the surrogate bid as their own bid at the entered price.",
-   "Assert that the vendor portal clearly identifies who entered the surrogate bid."
+   "the product is clear about who entered it",
+   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open the prepared event as the invited vendor to inspect an existing surrogate bid without submitting or changing it.; Assert that the vendor portal shows the surrogate bid as their own bid at the entered price.; Assert that the vendor portal clearly identifies who entered the surrogate bid."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “vendor session authentication for the specific vendor who received the surrogate bid” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: the product is clear about who entered it"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,26 +25,33 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor visibility of a surrogate bid",
+  "title": "Surrogate bid visible to vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab."
+    "note": "Open the prepared event state"
    },
    {
-    "step": "place_surrogate_bid",
+    "step": "switch_portal",
     "args": {
-     "price": 100
+     "to": "vendor"
     },
-    "note": "Establish the missing surrogate bid for the sole invited QA vendor from the buyer console."
+    "note": "Switch to the vendor portal to inspect the vendor's view"
    },
    {
-    "step": "open_master_qcs",
+    "step": "vendor_open_event",
     "args": {},
-    "note": "Assert that the buyer's comparison grid renders with the bidding vendor; this is only a setup check, not evidence of vendor-side visibility."
+    "note": "Open the event in the vendor portal"
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100"
+    },
+    "note": "Assert the bid price is visible on the vendor's view"
    }
   ]
  }

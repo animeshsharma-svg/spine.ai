@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "UI-AWD-013",
   "title": "An approver approves and the award completes",
-  "compiledAt": "2026-10-05T13:14:36.181Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:39:29.490Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Start with a submitted proposal awaiting approval; the prepared proposal is a draft.",
-   "Sign in as the approver, open the approval task, and approve the proposal.",
-   "Verify that approval selects the proposal and changes the event state to awarded.",
-   "Verify that the final awarded vendor and quantity match the proposal allocation after approval."
+   "sign in as the assigned approver from a different user account to approve the proposal (only the buyer console session is available)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Start with a submitted proposal awaiting approval; the prepared proposal is a draft.; Sign in as the approver, open the approval task, and approve the proposal.; Verify that approval selects the proposal and changes the event state to awarded.; Verify that the final awarded vendor and quantity match the proposal allocation after approval."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: sign in as the assigned approver from a different user account to approve the proposal (only the buyer console session is available)"
   ],
   "state": "proposal",
   "screen": "master_qcs",
@@ -25,28 +23,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Approver approval completes the award",
+  "title": "UI-AWD-013 - An approver approves and the award completes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open the required prepared event, which has a draft award proposal rather than a submitted proposal."
+     "screen": "proposal"
+    }
    },
    {
-    "step": "expect_api_value",
+    "step": "click",
     "args": {
-     "key": "vendorName"
-    },
-    "note": "Check the available vendor identity against the API; this does not establish that the vendor has been awarded."
+     "role": "button",
+     "name": "Approve"
+    }
    },
    {
-    "step": "capture_screen",
+    "step": "click",
     "args": {
-     "label": "draft-proposal-before-approval"
-    },
-    "note": "Record the available buyer-side state for inspection; approval and its resulting award state remain untested."
+     "role": "button",
+     "name": "Approve",
+     "within": "dialog"
+    }
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    }
    }
   ]
  }

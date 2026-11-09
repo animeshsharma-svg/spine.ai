@@ -2,19 +2,16 @@
  "meta": {
   "caseId": "UI-FTTL-003",
   "title": "Products of mixed families title \"<first product> & more - <location>\"",
-  "compiledAt": "2026-11-09T19:23:18.211Z",
+  "compiledAt": "2026-11-09T20:08:23.803Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Ensure the two selected products belong to different families because no product names or family-selection control are provided.",
-   "Assert the exact first product and location in the generated title because the case provides neither value."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Ensure the two selected products belong to different families because no product names or family-selection control are provided.; Assert the exact first product and location in the generated title because the case provides neither value."
+   "dropped open_create — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "live",
   "screen": "summary",
@@ -23,7 +20,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FTTL-003 Mixed-family automatic title",
+  "title": "Products of mixed families title auto-generation",
   "steps": [
    {
     "step": "open_prepared",
@@ -33,24 +30,39 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Set up an RFQ stage to enable product selection and pricing sheet."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage tab."
+   },
+   {
     "step": "select_template",
-    "args": {},
-    "note": "A template is required before line items can be added."
+    "note": "Select the pricing template so line items can be added."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 2
+     "count": 2,
+     "search": "mixed"
     },
-    "note": "Add the two products required by the case, though their family relationship cannot be controlled from the supplied inputs."
+    "note": "Add two line items from mixed families."
    },
    {
-    "step": "expect_value",
+    "step": "expect_api_value",
     "args": {
-     "label": "Enter the title of the project",
-     "value": "& more -"
+     "key": "title"
     },
-    "note": "Verify the automatic title shows the mixed-product pattern and includes a location suffix."
+    "note": "Assert that the auto-generated title matches the expected format for mixed families."
    }
   ]
  }

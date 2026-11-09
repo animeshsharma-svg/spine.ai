@@ -2,18 +2,17 @@
  "meta": {
   "caseId": "UI-PART-010",
   "title": "A vendor removed before any bid disappears cleanly",
-  "compiledAt": "2026-10-05T13:46:14.646Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:59.362Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The prepared event has only one invited vendor, not the two required by the case.",
-   "No catalog step or confirmed removal control can remove invited vendor B before bidding.",
-   "No catalog step can sign in as B and assert that the event is absent from B's portal list.",
-   "No catalog step can attempt direct event access as B and assert that access is refused."
+   "Remove vendor B from a live event with two invited vendors and no bids.",
+   "Sign in as vendor B in a separate vendor session to verify the event is absent from the portal list and direct access is refused."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The prepared event has only one invited vendor, not the two required by the case.; No catalog step or confirmed removal control can remove invited vendor B before bidding.; No catalog step can sign in as B and assert that the event is absent from B's portal list.; No catalog step can attempt direct event access as B and assert that access is refused."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Remove vendor B from a live event with two invited vendors and no bids.; Sign in as vendor B in a separate vendor session to verify the event is absent from the portal list and direct access is refused."
   ],
   "state": "live",
   "screen": "participants",
@@ -24,21 +23,26 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Pre-bid vendor removal revokes access",
+  "title": "Vendor removal visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared live event's Participants tab."
+    "note": "Open the closest available published-event participant screen before the missing removal and second-vendor verification."
    },
    {
-    "step": "capture_screen",
+    "step": "ask_tester",
     "args": {
-     "label": "pre-bid-removal-participants"
+     "need": "remove vendor B from the live event, then sign in as vendor B and verify the event is absent from the vendor portal list and direct access is refused"
     },
-    "note": "Record the available participant controls for inspection; this does not verify removal or vendor access revocation."
+    "note": "The catalog cannot remove a published participant or operate a second vendor's session."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting screen remains free of rendering errors after the tester's verification."
    }
   ]
  }

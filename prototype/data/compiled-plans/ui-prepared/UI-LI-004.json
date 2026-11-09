@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-LI-004",
   "title": "Removing every line item and saving is refused",
-  "compiledAt": "2026-10-05T13:36:25.432Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:41:45.692Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Remove every line item from the Manage Line Items drawer: no catalog step or confirmed row-delete control is available.",
-   "Exercise the empty-drawer save and verify its consequences: 'Please add atleast one item to proceed!', the drawer remaining open, and the badge remaining unchanged."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Remove every line item from the Manage Line Items drawer: no catalog step or confirmed row-delete control is available.; Exercise the empty-drawer save and verify its consequences: 'Please add atleast one item to proceed!', the drawer remaining open, and the badge remaining unchanged."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -23,60 +20,69 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Removing all line items blocks saving",
+  "title": "UI-LI-004 Remove All Line Items Refused",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Prepare a project for the line-item removal scenario."
+    "note": "Open a standard event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required project title."
+    "args": {
+     "title": "UI-LI-004 Remove All Line Items Refused"
+    },
+    "note": "Provide the mandatory project title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable line-item management."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Establish the smallest nonempty project."
+    "note": "Create the starting state with one line item."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Verify the initial toolbar badge."
+    "note": "Record that the project starts with one item."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Items"
+     "goal": "in the Manage Line Items drawer, remove the only remaining line item, attempt to save, and stop with the drawer still open showing the refusal message \"Please add atleast one item to proceed!\""
     },
-    "note": "Reopen the drawer containing the line item."
+    "note": "Perform the unsupported final-item removal and save attempt directly in the buyer UI."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Please add atleast one item to proceed!"
+    },
+    "note": "Assert that saving with no line items is refused with the expected message."
    },
    {
     "step": "expect_visible",
     "args": {
-     "placeholder": "Search and add line items using product name"
+     "text": "Manage Line Items",
+     "visible": true
     },
-    "note": "Confirm the line-item drawer is open."
+    "note": "Assert that the line-item drawer remains open."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_line_items",
     "args": {
-     "label": "line-item-removal-controls"
+     "count": 1
     },
-    "note": "Document the row controls needed to implement removal; this does not assert the requested refusal."
+    "note": "Assert that the line-item badge remains unchanged."
    }
   ]
  }

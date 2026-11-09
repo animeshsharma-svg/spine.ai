@@ -2,15 +2,13 @@
  "meta": {
   "caseId": "UI-XDAUC-006",
   "title": "In conversion mode only tick size, ceiling and floor can be edited in the sheet",
-  "compiledAt": "2026-10-06T06:14:15.337Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:59:20.797Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "An exhaustive assertion that no other sheet columns are editable: expect_sheet_cells checks explicitly named columns only."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: An exhaustive assertion that no other sheet columns are editable: expect_sheet_cells checks explicitly named columns only."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "bid",
   "screen": "summary",
@@ -22,56 +20,49 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "RFQ conversion edit restrictions",
+  "title": "Conversion Mode Editable Sheet Controls",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared published RFQ with its submitted bid."
+    "note": "Open the prepared event summary before entering conversion mode."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Continue through the conversion popover into the converted create screen."
+    "note": "Enter the conversion-mode create screen."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify that conversion reached the create screen."
-   },
-   {
-    "step": "expect_url_contains",
-    "args": {
-     "text": "isRfqToAuction=true"
-    },
-    "note": "Verify that the screen is in RFQ-to-Auction conversion mode."
+    "note": "Confirm conversion landed on the create screen."
    },
    {
     "step": "expect_sheet_cells",
     "args": {
      "row": 1,
-     "readonly": [
-      "Product",
-      "Quantity Requested"
-     ],
      "editable": [
       "Tick Size",
       "Ceiling Price",
       "Floor Price"
+     ],
+     "readonly": [
+      "Product",
+      "Quantity Requested"
      ]
     },
-    "note": "Check the five requested cells using the grid's lock markings; the three auction-specific header labels need confirmation."
+    "note": "Assert that only tick size, ceiling price, and floor price are editable while product and quantity are locked."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "RFQ"
     },
-    "note": "Assert that conversion cannot switch the event type to RFQ."
+    "note": "Assert the RFQ event-type tab is disabled in conversion mode."
    },
    {
     "step": "expect_message",
@@ -80,14 +71,14 @@
      "on": "RFQ",
      "text": "already configured as an RFQ"
     },
-    "note": "Check the explanation for the disabled RFQ control."
+    "note": "Verify the RFQ tab's disabled-state tooltip explains the restriction."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "RFP"
     },
-    "note": "Assert that conversion cannot switch the event type to RFP."
+    "note": "Assert the RFP event-type tab is disabled in conversion mode."
    },
    {
     "step": "expect_message",
@@ -96,7 +87,7 @@
      "on": "RFP",
      "text": "already configured as an RFQ"
     },
-    "note": "Check the explanation for the disabled RFP control."
+    "note": "Verify the RFP tab's disabled-state tooltip explains the restriction."
    }
   ]
  }

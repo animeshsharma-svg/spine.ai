@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-PART-015",
   "title": "Only a purchaser or the auction team can reject a participant",
-  "compiledAt": "2026-10-05T13:46:57.328Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:21.187Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Sign in as or verify a buyer who is neither the purchaser nor on the auction team.",
-   "Attempt participant rejection: no domain step or confirmed participant-rejection control is provided.",
-   "Verify the resulting refusal \"You are not allowed to perform this action\" and that the participant remains unchanged after the rejected attempt."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Sign in as or verify a buyer who is neither the purchaser nor on the auction team.; Attempt participant rejection: no domain step or confirmed participant-rejection control is provided.; Verify the resulting refusal \"You are not allowed to perform this action\" and that the participant remains unchanged after the rejected attempt."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,21 +19,29 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Participant rejection authorization",
+  "title": "Reject Participant Permission Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event's Participants tab."
+    "note": "Open the prepared event's Participants tab where participant actions are available."
    },
    {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "participant-rejection-authorization-controls"
+     "goal": "attempt to reject a participant as the current buyer, who is neither the purchaser nor on the auction team, and stop when the screen shows the refusal 'You are not allowed to perform this action' without changing the participant"
     },
-    "note": "Record available controls for manual follow-up; this does not assert rejection refusal or participant preservation."
+    "note": "Perform the catalog-missing rejection action in the buyer session and verify the participant remains unchanged."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "any",
+     "text": "You are not allowed to perform this action"
+    },
+    "note": "Assert the permission refusal reported by Procol."
    }
   ]
  }

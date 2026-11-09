@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-VBID-024",
   "title": "Bidding after revoking a previous bid is refused",
-  "compiledAt": "2026-11-09T19:27:59.845Z",
+  "compiledAt": "2026-11-09T20:10:00.620Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The catalog lacks a step to 'revoke' a bid, which is required to set up the test state."
+   "Establish a vendor/event state where the vendor has already revoked a previous bid"
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog lacks a step to 'revoke' a bid, which is required to set up the test state."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Establish a vendor/event state where the vendor has already revoked a previous bid"
   ],
   "state": "none",
   "screen": "create",
@@ -22,47 +23,41 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-VBID-024 Bidding after revoking a previous bid is refused",
+  "title": "Refuse bidding after revoked bid",
   "steps": [
    {
     "step": "open_event",
-    "args": {
-     "purpose": "evaluation"
-    },
-    "note": "Open an event where a vendor has already bid."
+    "args": {},
+    "note": "Open an existing event suitable for the revoked-bid scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the vendor and revoke their existing bid"
+     "need": "establish that this vendor has already revoked a previous bid on the open event, then leave the event ready for the vendor to bid again"
     },
-    "note": "The tester must perform the revocation as no step exists for this action."
+    "note": "The catalog has no step to revoke a vendor bid or select a specifically revoked-bid state."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the vendor portal to attempt the new bid."
+    "note": "Act as the vendor attempting to bid again."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round."
+    "note": "Open the event's pricing round in the supplier portal."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "because": "You cannot place a bid after revoking the previous one"
+     "step": "vendor_bid",
+     "expect": "refused"
     },
-    "note": "Attempt to submit a new bid and assert the refusal message."
+    "note": "Attempt the repeat bid and require Procol to refuse it, proving no new bid is accepted."
    }
   ]
  }

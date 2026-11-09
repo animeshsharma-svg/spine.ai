@@ -2,17 +2,18 @@
  "meta": {
   "caseId": "UI-FSCH-006",
   "title": "Evaluation time is added after the end",
-  "compiledAt": "2026-11-09T19:14:16.638Z",
+  "compiledAt": "2026-11-09T20:03:51.874Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "API read-back of the schedule's evaluation end time",
-   "Assertion that the evaluation end equals the bidding end plus 30 minutes, including any cost-breakdown window",
+   "Configure an explicit 30-minute evaluation time in the schedule drawer; set_schedule only accepts the event duration.",
+   "Read the API schedule and verify that evaluation ends at the event end plus 30 minutes, including any cost-breakdown window.",
    "the plan has no assertion step — nothing the case checks can be observed",
    "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
@@ -29,7 +30,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Evaluation Window Ends After Bidding",
+  "title": "Evaluation time after event end",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,33 +40,35 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "configure_single_stage",
+    "step": "compose_stages",
     "args": {
-     "eventType": "rfp"
+     "stages": [
+      "rfp"
+     ]
     },
-    "note": "Configure the event as an RFP technical event."
+    "note": "Create a technical stage, which is the event type that has an evaluation window."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the technical stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the technical-stage template required before publishing."
+    "note": "Apply the first available technical-stage template."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Complete the required technical questionnaire fields."
+    "note": "Complete the technical questionnaire required for publication."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Assign the evaluator required for the technical stage."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "Open the Schedule Event controls, set the evaluation time to 30 minutes after the event end, save the schedule, and stop on the screen showing the committed evaluation schedule"
-    },
-    "note": "The catalog has no dedicated argument for configuring the evaluation duration, so use the on-screen schedule controls to apply the missing setup."
+    "note": "Assign the evaluator required for a technical event."
    }
   ]
  }

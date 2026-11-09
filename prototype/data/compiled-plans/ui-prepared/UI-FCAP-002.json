@@ -2,15 +2,26 @@
  "meta": {
   "caseId": "UI-FCAP-002",
   "title": "Price cap and surrogate bid are offered only after publish",
-  "compiledAt": "2026-11-09T19:12:38.124Z",
+  "compiledAt": "2026-11-09T20:03:13.524Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that Add Bid and Add Price Cap are absent on a draft event with the message \"Bid & Price Cap can be added after event creation.\""
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, save_draft, publish)"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that Add Bid and Add Price Cap are absent on a draft event with the message \"Bid & Price Cap can be added after event creation.\""
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "live",
   "screen": "participants",
@@ -21,19 +32,77 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Price cap and surrogate bid availability after publish",
+  "title": "Price cap and surrogate bid availability",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's Participants screen in the available live state."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the draft can be saved."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Add Bid",
+     "present": false
+    },
+    "note": "Verify surrogate bidding is not offered on the draft."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Add Price Cap",
+     "present": false
+    },
+    "note": "Verify price caps are not offered on the draft."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bid & Price Cap can be added after event creation.",
+     "present": true
+    },
+    "note": "Verify the draft explains why these controls are unavailable."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the live event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Ensure the published event's stage Participants list is reached."
+    "note": "Open the published event's participant controls."
    },
    {
     "step": "expect_visible",
@@ -42,7 +111,7 @@
      "name": "Add Bid",
      "visible": true
     },
-    "note": "Assert that surrogate bidding is offered for the published event."
+    "note": "Verify surrogate bidding is offered on the live event."
    },
    {
     "step": "expect_visible",
@@ -51,7 +120,7 @@
      "name": "Add Price Cap",
      "visible": true
     },
-    "note": "Assert that price caps are offered for the published event."
+    "note": "Verify price cap management is offered on the live event."
    }
   ]
  }

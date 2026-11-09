@@ -2,17 +2,17 @@
  "meta": {
   "caseId": "UI-SUR-011",
   "title": "After expiry, Add Bid depends on the company's post-expiry setting",
-  "compiledAt": "2026-10-06T05:15:43.522Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:45:54.935Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Inspect Add Bid on closed events: the prepared event is live and its state cannot be changed.",
-   "Compare post-expiry surrogate bidding enabled and disabled tenants: no tenant identities or configured closed events are supplied, and catalog steps cannot change company settings.",
-   "Make a crafted surrogate-bid attempt when Add Bid is absent and assert refusal with \"Order not active\": no catalog step sends such a crafted request."
+   "Switch between the two unspecified tenants with post-expiry surrogate bidding enabled and disabled",
+   "Verify that Add Bid presence flips between the enabled and disabled tenant settings"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Inspect Add Bid on closed events: the prepared event is live and its state cannot be changed.; Compare post-expiry surrogate bidding enabled and disabled tenants: no tenant identities or configured closed events are supplied, and catalog steps cannot change company settings.; Make a crafted surrogate-bid attempt when Add Bid is absent and assert refusal with \"Order not active\": no catalog step sends such a crafted request."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Switch between the two unspecified tenants with post-expiry surrogate bidding enabled and disabled; Verify that Add Bid presence flips between the enabled and disabled tenant settings"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,21 +23,31 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Post-expiry Add Bid setting gate",
+  "title": "Post-expiry surrogate bidding setting",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared Participants screen; this event is live, not expired."
+    "note": "Open the prepared closed event's Participants screen."
    },
    {
-    "step": "capture_screen",
+    "step": "open_participants",
+    "args": {},
+    "note": "Ensure the Participants list and its surrogate-bid controls are rendered."
+   },
+   {
+    "step": "attempt",
     "args": {
-     "label": "live-participants-post-expiry-test-blocked"
+     "step": "place_surrogate_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused",
+     "because": "Order not active"
     },
-    "note": "Record the available controls for inspection, without treating live-state evidence as verification of the post-expiry expectations."
+    "note": "Attempt the crafted post-expiry surrogate bid and verify Procol refuses it with the expected inactive-order message."
    }
   ]
  }

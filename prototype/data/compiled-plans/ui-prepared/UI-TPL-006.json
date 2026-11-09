@@ -2,16 +2,18 @@
  "meta": {
   "caseId": "UI-TPL-006",
   "title": "A template already used by the RFQ is offered but disabled",
-  "compiledAt": "2026-10-06T05:26:19.117Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:48.169Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Identify the RFQ's automatically selected template T and reuse its name to target the same option in the other stage's picker.",
-   "Verify that T is offered but disabled, hover it to assert 'Template used in RFQ has already been selected', and confirm that clicking it does not apply it."
+   "Identify the exact template selected on the RFQ and assert that same template is disabled in the other stage's picker",
+   "Hover the disabled template and verify the tooltip text \"Template used in RFQ has already been selected\"",
+   "Click the disabled template and assert that it does not apply"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify the RFQ's automatically selected template T and reuse its name to target the same option in the other stage's picker.; Verify that T is offered but disabled, hover it to assert 'Template used in RFQ has already been selected', and confirm that clicking it does not apply it."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Identify the exact template selected on the RFQ and assert that same template is disabled in the other stage's picker; Hover the disabled template and verify the tooltip text \"Template used in RFQ has already been selected\"; Click the disabled template and assert that it does not apply"
   ],
   "state": "none",
   "screen": "create",
@@ -23,14 +25,19 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "RFQ template reuse is disabled",
+  "title": "RFQ Template Disabled on Other Stage",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage creation screen."
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so the create flow is valid."
    },
    {
     "step": "compose_stages",
@@ -40,51 +47,33 @@
       "rfq"
      ]
     },
-    "note": "Create a permitted two-stage project containing RFQ."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Give the project its required unique title."
+    "note": "Create the technical stage and RFQ stage required by the case."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Apply the prerequisite template specifically to RFQ."
+    "note": "Configure the RFQ stage first, where the template is selected."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Use an offered template because the case provides no concrete name for T."
-   },
-   {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify the RFQ template prerequisite, not the reuse restriction."
+    "note": "Select the first available RFQ template; this establishes the template that should be unavailable on the other stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Move to the other stage."
+    "note": "Move to the other stage where the previously selected template should be disabled."
    },
    {
-    "step": "click",
+    "step": "expect_template_menu",
     "args": {
-     "role": "button",
-     "name": "Select Templates"
+     "min": 1
     },
-    "note": "Open the other stage's template picker."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "other-stage-template-reuse-options"
-    },
-    "note": "Record picker evidence for manual inspection; this does not assert the disabled option or tooltip."
+    "note": "Assert that the other stage's template picker renders available templates; the catalog cannot assert the previously selected template's disabled state or tooltip."
    }
   ]
  }

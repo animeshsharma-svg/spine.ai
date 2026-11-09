@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-AWD-020",
   "title": "The awarding report downloads and matches the screen",
-  "compiledAt": "2026-10-05T13:15:22.736Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:39:48.795Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The required awarded-event setup is not supplied by the fixed prepared state, which is closed with a bid.",
-   "Download and verify receipt of the awarding sheet; no catalog step identifies and validates that specific download.",
-   "Parse the downloaded file and compare its vendors, line items, quantities and prices cell by cell against the rendered grid."
+   "Parse the downloaded awarding spreadsheet cell by cell and compare its vendors, line items, quantities, and prices against the rendered awarding grid"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The required awarded-event setup is not supplied by the fixed prepared state, which is closed with a bid.; Download and verify receipt of the awarding sheet; no catalog step identifies and validates that specific download.; Parse the downloaded file and compare its vendors, line items, quantities and prices cell by cell against the rendered grid."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Parse the downloaded awarding spreadsheet cell by cell and compare its vendors, line items, quantities, and prices against the rendered awarding grid"
   ],
   "state": "closed",
   "screen": "master_qcs",
@@ -21,50 +20,59 @@
    "UI-AWD-001",
    "UI-AWD-009"
   ],
-  "crossCheckAdded": []
+  "crossCheckAdded": [
+   "quantity",
+   "bidPrice"
+  ]
  },
  "plan": {
-  "title": "Awarding report matches the grid",
+  "title": "Awarding sheet download matches grid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the required prepared event."
+    "note": "Open the prepared awarded event on Master QCS."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Assert that the available comparison grid renders its line items and bidding vendor, not that a report matches it."
+    "note": "Assert that the comparison grid with the awarded event data is rendered."
    },
    {
-    "step": "expect_api_value",
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen where the awarding-sheet download control is available."
+   },
+   {
+    "step": "click",
     "args": {
-     "key": "vendorName"
+     "role": "button",
+     "name": "Download the Awarding sheet"
     },
-    "note": "Verify the grid displays the prepared vendor."
+    "note": "Download the awarding spreadsheet."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "name": "awarding_sheet.xlsx"
+    },
+    "note": "Verify that the awarding sheet was downloaded."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "quantity"
     },
-    "note": "Verify the displayed line-item quantity against the prepared data."
+    "note": "cross-check: the screen must show the value the API holds"
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the displayed bid price against the prepared data."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "comparison-grid-report-reference"
-    },
-    "note": "Record the available grid for manual investigation; this does not verify a downloaded awarding report."
+    "note": "cross-check: the screen must show the value the API holds"
    }
   ]
  }

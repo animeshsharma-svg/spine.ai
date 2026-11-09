@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "UI-VBID-012",
   "title": "Text in a price cell is refused, not coerced",
-  "compiledAt": "2026-11-09T19:10:43.724Z",
+  "compiledAt": "2026-11-09T20:02:15.471Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -21,21 +20,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-VBID-012 — Reject text in price cell",
+  "title": "Reject text in vendor price cell",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage-capable event create flow for the RFQ bid test."
+    "note": "Start a new multi-stage event so the RFQ pricing sheet can be configured."
    },
    {
     "step": "set_title",
     "args": {
      "title": "UI-VBID-012 Text Price Validation"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -44,96 +43,87 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ pricing stage rather than the default auction stage."
+    "note": "Use an RFQ stage because the case concerns a vendor price cell."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product so the vendor has a price cell to edit."
+    "note": "Create one line item so the pricing sheet has a price cell."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the buyer-side pricing sheet."
+    "note": "Complete the generated pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule before publishing."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor to submit a bid."
+    "note": "Invite the QA vendor needed to test the supplier portal."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so its vendor price sheet is available."
+    "note": "Publish the event so the vendor can access its bid sheet."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the event is available as a real published project."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor’s supplier portal."
+    "note": "Move to the supplier portal where the vendor price cell is shown."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event’s vendor pricing sheet."
+    "note": "Open the event's RFQ bid sheet."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "fill",
+     "step": "vendor_bid",
      "args": {
-      "label": "Price",
-      "value": "abc"
+      "price": "abc"
      },
      "expect": "refused"
     },
-    "note": "Assert that entering non-numeric text in the vendor price cell is refused or produces positive refusal evidence, rather than being accepted as zero."
+    "note": "Type text into the price cell and submit; pass only if the portal refuses it, clears it, or leaves submission disabled rather than storing zero."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to verify the refusal did not create a response."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses view for the buyer-side oracle."
+    "note": "Return to the buyer console to inspect whether an invalid bid was created."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 0,
-     "stage": "rfq"
+     "count": 0
     },
-    "note": "Confirm no vendor response or bid, including a bid at price zero, was created."
+    "note": "Assert that no vendor response, including a zero-priced bid, was created."
    }
   ]
  }

@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-SCH-014",
   "title": "The footer chip agrees with the saved schedule",
-  "compiledAt": "2026-10-06T05:07:01.385Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:45:16.841Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Assert that the footer chip's start and end times equal the saved schedule drawer's values.",
-   "Assert that the published event's bidding window equals both the saved drawer and footer chip; no catalog step supports capturing schedule values and comparing them across these different regions."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Assert that the footer chip's start and end times equal the saved schedule drawer's values.; Assert that the published event's bidding window equals both the saved drawer and footer chip; no catalog step supports capturing schedule values and comparing them across these different regions."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -23,109 +20,111 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SCH-014 Schedule window agreement",
+  "title": "UI-SCH-014 Footer and published schedule agreement",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new event for the schedule comparison."
+    "note": "Open the event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a unique title."
+    "args": {
+     "title": "UI-SCH-014 Schedule Agreement"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable line-item configuration."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide the line item required to configure scheduling."
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for publication."
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 45
+    },
+    "note": "Save a distinctive 45-minute schedule."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "footer_schedule",
+     "text": "Schedule"
+    },
+    "note": "Read and retain the saved schedule shown in the footer chip."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Edit Schedule"
+    },
+    "note": "Reopen the saved schedule drawer to inspect its committed end time."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "footer_schedule",
+     "label": "End time",
+     "as": "text"
+    },
+    "note": "Assert that the saved drawer's end time agrees with the footer chip."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Close the schedule drawer while retaining the saved schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Satisfy the publication participant requirement."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 17
-    },
-    "note": "Commit a distinctive bidding duration."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "saved-schedule-footer-chip"
-    },
-    "note": "Record the footer chip for manual comparison; this does not assert its values."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Schedule"
-    },
-    "note": "Reopen the saved schedule through its footer chip."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Schedule Event"
-    },
-    "note": "Confirm the schedule drawer opened, without claiming its values match."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "reopened-saved-schedule"
-    },
-    "note": "Record the persisted drawer values for manual comparison."
-   },
-   {
-    "step": "press",
-    "args": {
-     "key": "Escape"
-    },
-    "note": "Dismiss the drawer without changing the saved window."
+    "note": "Add the required participant so the event can be published."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish using the committed schedule."
+    "note": "Publish the event using the saved schedule."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert publication reached a real project page, not schedule agreement."
+    "note": "Confirm the event reached its live project page."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the published stage's details for inspection of its bidding window."
+    "note": "Open the published event overview where the bidding window is displayed."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_remembered",
     "args": {
-     "label": "published-event-window"
+     "key": "footer_schedule",
+     "text": "Bidding Ends At",
+     "as": "text"
     },
-    "note": "Record the published details for manual comparison with the drawer and chip."
+    "note": "Assert that the published event's bidding end time agrees with the footer and saved schedule."
    }
   ]
  }

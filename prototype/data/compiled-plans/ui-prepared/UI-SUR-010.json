@@ -2,15 +2,19 @@
  "meta": {
   "caseId": "UI-SUR-010",
   "title": "Add Bid is offered on an Upcoming event",
-  "compiledAt": "2026-10-06T05:15:01.481Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:06.556Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify offering and acceptance on an Upcoming event: the prepared event is live, and its state and schedule cannot be changed."
+   "Deterministically selecting an existing event specifically in the Upcoming state when no event title or ID is provided"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify offering and acceptance on an Upcoming event: the prepared event is live, and its state and schedule cannot be changed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Deterministically selecting an existing event specifically in the Upcoming state when no event title or ID is provided"
   ],
   "state": "live",
   "screen": "participants",
@@ -21,31 +25,36 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Upcoming event surrogate bidding",
+  "title": "UI-SUR-010 Upcoming Event Add Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's Participants tab."
+    "note": "the API built this case's state"
    },
    {
-    "step": "expect_enabled",
+    "step": "expect_text",
     "args": {
-     "control": "Add Bid"
+     "text": "Upcoming"
     },
-    "note": "Assert surrogate bidding is offered and enabled for the invited vendor."
+    "note": "Verify that the opened event is in the required Upcoming state."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the event's Participants screen where Add Bid is offered."
    },
    {
     "step": "place_surrogate_bid",
     "args": {},
-    "note": "Record a bid on the vendor's behalf from the buyer console."
+    "note": "Place a surrogate bid as the buyer."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert the surrogate bid was accepted rather than merely opening the bid drawer."
+    "note": "Assert that the surrogate bid was accepted and recorded."
    }
   ]
  }

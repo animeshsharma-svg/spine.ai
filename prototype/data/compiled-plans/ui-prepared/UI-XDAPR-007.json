@@ -2,48 +2,39 @@
  "meta": {
   "caseId": "UI-XDAPR-007",
   "title": "Submitting an award picks the only flow automatically and asks for approvers where needed",
-  "compiledAt": "2026-10-06T06:13:10.587Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:49:56.351Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure or select companies with exactly one and exactly two applicable award flows; no company IDs or approval-flow fixtures are provided.",
-   "Establish a flow with an approver-select step and verify automatic selection, Submit versus Next, and the multiple-flow summary under the required conditions.",
-   "Reliably trigger and assert \"Please select at least one approver to proceed.\" because the prepared state does not guarantee a required approver-select step.",
-   "Verify that approval_flow_uuid and step_uuid_vs_user_uuid carry the correct selected flow and approver mappings without the required flow fixture, identifiers, and completed approval selection."
+   "Compare automatic approval-flow selection between companies with one applicable flow and two applicable flows because the case does not provide switchable company IDs and the prepared state is fixed to one company.",
+   "Assert the exact selected flow and button-label behavior after flow selection because no domain step exposes the flow-choice contents.",
+   "Verify the request body carries the exact approval_flow_uuid and step_uuid_vs_user_uuid fields because the relevant request path and payload structure are not provided."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure or select companies with exactly one and exactly two applicable award flows; no company IDs or approval-flow fixtures are provided.; Establish a flow with an approver-select step and verify automatic selection, Submit versus Next, and the multiple-flow summary under the required conditions.; Reliably trigger and assert \"Please select at least one approver to proceed.\" because the prepared state does not guarantee a required approver-select step.; Verify that approval_flow_uuid and step_uuid_vs_user_uuid carry the correct selected flow and approver mappings without the required flow fixture, identifiers, and completed approval selection."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Compare automatic approval-flow selection between companies with one applicable flow and two applicable flows because the case does not provide switchable company IDs and the prepared state is fixed to one company.; Assert the exact selected flow and button-label behavior after flow selection because no domain step exposes the flow-choice contents.; Verify the request body carries the exact approval_flow_uuid and step_uuid_vs_user_uuid fields because the relevant request path and payload structure are not provided."
   ],
   "state": "proposal",
   "screen": "master_qcs",
   "technical": false,
-  "exemplars": [
-   "UI-XDNEG-002"
-  ],
+  "exemplars": [],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Award approval flow selection and required approvers",
+  "title": "Submit Award Requires Approver",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the required prepared event with its draft award proposal."
+    "note": "Open the prepared event's Master QCS as required for the award-ready state."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the existing draft proposal's awarding flow."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "path": "/awarding/"
-    },
-    "note": "Check that the awarding screen was reached."
+    "note": "Enter the awarding flow for the prepared award."
    },
    {
     "step": "click",
@@ -51,14 +42,23 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Continue from the prepared allocation to the proposal."
+    "note": "Create/open the award proposal so its submission controls are available."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Assert that the proposal screen opened."
+    "note": "Confirm the proposal screen opened."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal",
+     "visible": true
+    },
+    "note": "Assert that the proposal exposes the expected submission button."
    },
    {
     "step": "click",
@@ -66,14 +66,15 @@
      "role": "button",
      "name": "Submit Proposal"
     },
-    "note": "Invoke submission under the available default settings, which may not offer approval selection."
+    "note": "Attempt submission without selecting an approver."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "award-submission-default-approval-state"
+     "text": "Please select at least one approver to proceed.",
+     "present": true
     },
-    "note": "Record the actual submission outcome for inspection; this is not an assertion of automatic flow selection or required-approver validation."
+    "note": "Verify the required approver validation message."
    }
   ]
  }

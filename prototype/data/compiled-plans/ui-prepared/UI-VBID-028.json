@@ -2,19 +2,14 @@
  "meta": {
   "caseId": "UI-VBID-028",
   "title": "A vendor answers the technical questionnaire before pricing",
-  "compiledAt": "2026-11-09T19:20:45.061Z",
+  "compiledAt": "2026-11-09T20:06:44.864Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Have the invited vendor answer every technical questionnaire and submit the technical response without also submitting pricing."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: Have the invited vendor answer every technical questionnaire and submit the technical response without also submitting pricing."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Complete and submit the vendor's technical questionnaire before submitting pricing in the supplier portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "state": "none",
   "screen": "create",
@@ -26,109 +21,48 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor technical response before pricing",
+  "title": "Technical Response Before Pricing",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start the required multi-stage event creation flow."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "UI-VBID-028 Technical Response Before Pricing"
-    },
-    "note": "Provide the mandatory event title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Create the required Technical Stage and RFQ stages."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfp"
-    },
-    "note": "configure the rfp stage on its own tab"
-   },
-   {
-    "step": "select_template",
-    "note": "rfp needs its own template"
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the line item needed for the technical and pricing event."
-   },
-   {
-    "step": "fill_questionnaires"
-   },
-   {
-    "step": "assign_evaluator"
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "configure the rfq stage on its own tab"
-   },
-   {
-    "step": "select_template",
-    "note": "rfq needs its own template"
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor to the two-stage event."
-   },
-   {
-    "step": "publish",
+    "step": "open_event",
     "args": {},
-    "note": "Publish the live RFP and RFQ event."
+    "note": "Open the existing live event with the technical stage and invited vendor."
    },
    {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a published project page."
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the event's technical questionnaire in the vendor portal."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the invited vendor, answer every technical questionnaire, submit the technical response without submitting pricing, and return to the buyer session"
+     "need": "answer each technical questionnaire question and submit the technical response without submitting pricing"
     },
-    "note": "The vendor-side technical-only submission cannot be completed by a catalog step."
+    "note": "The catalog has no vendor-side step for submitting only the technical response before pricing."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page to inspect the submitted technical response."
    },
    {
     "step": "expect_responses",
     "args": {
      "stage": "rfp",
-     "count": 1,
-     "direct": 1
+     "atLeast": 1
     },
-    "note": "Verify from the buyer's Responses tab that the vendor's technical response was submitted and is visible."
+    "note": "Assert that the buyer's Technical Stage Responses view shows at least one submitted vendor response."
    }
   ]
  }

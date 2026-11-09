@@ -2,17 +2,20 @@
  "meta": {
   "caseId": "UI-PART-001",
   "title": "Publish is blocked with no participants",
-  "compiledAt": "2026-10-05T13:44:33.399Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:34.248Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Cannot establish a valid unpublished project with an empty audience: the prepared event is fixed as live with one invited vendor.",
-   "Cannot attempt creation-time Publish from the prepared published Participants screen or observe the expected 'Please add participants to proceed!' refusal.",
-   "Cannot verify nothing was published or that refused publication caused no redirect, because publication already occurred before this plan."
+   "needs a different starting state than live (asked for set_schedule, publish)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Cannot establish a valid unpublished project with an empty audience: the prepared event is fixed as live with one invited vendor.; Cannot attempt creation-time Publish from the prepared published Participants screen or observe the expected 'Please add participants to proceed!' refusal.; Cannot verify nothing was published or that refused publication caused no redirect, because publication already occurred before this plan."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,21 +26,62 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Publish blocked with no participants",
+  "title": "Publish is blocked with no participants",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event; this is not the unpublished, empty-audience setup the case needs."
+    "note": "the API built this case's state"
    },
    {
-    "step": "capture_screen",
+    "step": "compose_stages",
     "args": {
-     "label": "published-participants-incompatible-setup"
-    },
-    "note": "Document the available starting screen without claiming it tests publication refusal."
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    }
+   },
+   {
+    "step": "select_template",
+    "args": {}
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet",
+    "args": {}
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "invite_vendor",
+     "reason": "Testing publish blocked with no participants"
+    }
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please add participants to proceed!"
+    }
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please add participants to proceed!"
+    }
    }
   ]
  }

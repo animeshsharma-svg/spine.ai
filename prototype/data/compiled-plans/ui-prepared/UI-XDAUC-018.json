@@ -2,40 +2,56 @@
  "meta": {
   "caseId": "UI-XDAUC-018",
   "title": "Updating the audience of a live auction needs a remark and a live/upcoming event",
-  "compiledAt": "2026-10-04T14:19:04.010Z",
+  "compiledAt": "2026-11-09T19:51:12.648Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Update Audience Remarks modal",
-   "PATCH add_audience payload inspection",
-   "view-only user permission verification for audience updates",
-   "vendor masking audience hiding behavior"
+   "Observe or click the live auction's \"Update audience\" control because no catalog step exposes that label or action.",
+   "Observe the \"Update Audience Remarks\" modal and verify OK remains disabled until a remark is entered.",
+   "Verify the \"Audience Updated\" toast after submitting a remark.",
+   "Repeat the behavior on an ended auction and verify the update button is disabled.",
+   "Repeat the behavior as a view-only user; another user's sign-in/session is unavailable.",
+   "Verify the control is hidden with vendor masking enabled; tenant settings cannot be changed by the catalog.",
+   "Inspect the PATCH add_audience payload because the required update action cannot be performed."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Update Audience Remarks modal; PATCH add_audience payload inspection; view-only user permission verification for audience updates; vendor masking audience hiding behavior"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Observe or click the live auction's \"Update audience\" control because no catalog step exposes that label or action.; Observe the \"Update Audience Remarks\" modal and verify OK remains disabled until a remark is entered.; Verify the \"Audience Updated\" toast after submitting a remark.; Repeat the behavior on an ended auction and verify the update button is disabled.; Repeat the behavior as a view-only user; another user's sign-in/session is unavailable.; Verify the control is hidden with vendor masking enabled; tenant settings cannot be changed by the catalog.; Inspect the PATCH add_audience payload because the required update action cannot be performed."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-CRE-002",
-   "UI-SS-001"
+   "UI-PUB-023",
+   "UI-CRE-002"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-XDAUC-018 Updating the audience of a live auction needs a remark",
+  "title": "Live Auction Audience Update",
   "steps": [
    {
-    "step": "open_events_list",
+    "step": "open_event",
     "args": {},
-    "note": "Open events list to locate the live auction"
+    "note": "Open the best-fitting existing live event; this is the closest available navigation for the live-auction setup."
    },
    {
-    "step": "expect_events_list",
+    "step": "open_participants",
     "args": {},
-    "note": "Assert events list rendered properly"
+    "note": "Open the published event's audience/Participants list, the closest catalog screen for audience membership."
+   },
+   {
+    "step": "select_participant",
+    "args": {},
+    "note": "Add an available QA vendor to the round, covering only the audience-membership portion of the setup."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "selected": true
+    },
+    "note": "Assert that the added vendor is selected in the audience list; this does not assert the missing Update Audience workflow."
    }
   ]
  }

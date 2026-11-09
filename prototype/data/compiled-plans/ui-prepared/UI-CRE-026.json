@@ -2,18 +2,20 @@
  "meta": {
   "caseId": "UI-CRE-026",
   "title": "A stage added to an already-live event goes through the same gates",
-  "compiledAt": "2026-10-05T13:32:19.325Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:41:15.084Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Exercise the add_new_stage_config-gated flow for adding and filling a stage on an already-published event; create-screen stage composition is not that flow.",
-   "Publish the additional stage in the fixed prepared state.",
-   "Assert that the added stage appears and the live event's stage count increases by exactly one.",
-   "Compare the pre-existing stages and their bid counts before and after the addition to prove they are untouched."
+   "A dedicated catalog step to add, configure, and publish a new stage on an already-live event",
+   "An assertion that the pre-existing stage's bid count is unchanged after the addition"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Exercise the add_new_stage_config-gated flow for adding and filling a stage on an already-published event; create-screen stage composition is not that flow.; Publish the additional stage in the fixed prepared state.; Assert that the added stage appears and the live event's stage count increases by exactly one.; Compare the pre-existing stages and their bid counts before and after the addition to prove they are untouched."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: A dedicated catalog step to add, configure, and publish a new stage on an already-live event; An assertion that the pre-existing stage's bid count is unchanged after the addition"
   ],
   "state": "bid",
   "screen": "summary",
@@ -25,57 +27,29 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Add a stage to a live event without disturbing bids",
+  "title": "Add Stage to Live Event",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with its existing vendor bid."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "from the live event, add and configure a new stage, publish the addition, and stop on the live event page showing the newly added stage while preserving the existing stages and bids"
+    },
+    "note": "No domain step can perform the published-event stage-addition flow, so execute it on the buyer screen and require the resulting live event with the new stage."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "RFQ"
+     "text": "Published Stages",
+     "visible": true
     },
-    "note": "Establish that the pre-existing RFQ appears on the summary; this does not verify an added stage."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "existing-stage-baseline"
-    },
-    "note": "Record the stage summary before any addition can be exercised."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Inspect the pre-existing RFQ's bid baseline."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Verify that the prepared bidding vendor is displayed."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify the existing bid price against the API baseline, not preservation after an addition."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "existing-bid-baseline"
-    },
-    "note": "Record existing responses for the unsupported before-and-after test."
+    "note": "Confirm the resulting screen is the live event page with its published stages section visible."
    }
   ]
  }

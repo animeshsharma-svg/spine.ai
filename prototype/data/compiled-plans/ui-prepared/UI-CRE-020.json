@@ -2,20 +2,15 @@
  "meta": {
   "caseId": "UI-CRE-020",
   "title": "Emoji and non-Latin script in the title survive the round trip",
-  "compiledAt": "2026-11-09T19:21:43.222Z",
+  "compiledAt": "2026-11-09T20:07:36.091Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Byte-for-byte encoding equality is not directly observable; catalog assertions compare rendered text rather than raw bytes.",
    "expects label(s) Procol is not known to render: Événement 🚀 事件 — RFQ"
   ],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Byte-for-byte encoding equality is not directly observable; catalog assertions compare rendered text rather than raw bytes."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -27,14 +22,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Emoji and non-Latin title round trip",
+  "title": "Unicode and Emoji in Project Title Round Trip",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open a valid multi-stage project creation screen."
+    "note": "Start creating an eRFX project"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Événement 🚀 事件 — RFQ"
+    },
+    "note": "Set the title with special characters, accents, and emoji"
    },
    {
     "step": "compose_stages",
@@ -42,105 +44,67 @@
      "stages": [
       "rfq"
      ]
-    }
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Événement 🚀 事件 — RFQ"
     },
-    "note": "Set the exact Unicode title under test."
+    "note": "Set up an RFQ stage"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template so line items can be added."
+    "note": "Choose a template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item for a valid event."
+    "note": "Add a line item"
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet."
+    "note": "Fill the pricing sheet"
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Set schedule duration"
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor so the vendor-side rendering can be checked."
+    "note": "Invite a vendor"
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the event whose title will be round-tripped."
+    "note": "Publish the event"
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Confirm publication succeeded before reopening it."
+    "note": "Assert the event reached a published state"
    },
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to verify the title in the list row."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the list rendered without an error."
-   },
-   {
-    "step": "expect_event_in_list",
+    "step": "expect_event_status",
     "args": {
+     "status": "Live",
      "title": "Événement 🚀 事件 — RFQ"
     },
-    "note": "Assert the exact Unicode title is searchable and rendered in the list."
+    "note": "Assert title and status render correctly in the events list"
    },
    {
     "step": "open_event",
-    "args": {},
-    "note": "Reopen the plan's published event from the list."
-   },
-   {
-    "step": "expect_api_value",
     "args": {
-     "key": "title"
+     "title": "Événement 🚀 事件 — RFQ"
     },
-    "note": "Assert the detail page displays the event title value without mojibake."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Move to the invited vendor's view to verify the invitation rendering."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open this event's vendor overview rather than entering the bid form."
+    "note": "Reopen the event from the list to check detail page"
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Événement 🚀 事件 — RFQ"
     },
-    "note": "Assert the exact Unicode title is visible to the vendor."
+    "note": "Assert the exact title renders identically on the detail page"
    }
   ]
  }

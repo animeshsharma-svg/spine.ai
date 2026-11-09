@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-VAL-012",
   "title": "Duplicate product names in master data do not confuse the picker",
-  "compiledAt": "2026-10-06T06:04:39.386Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:48:09.748Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create or verify the master-data setup of two products with the same name and different codes; no catalog step provisions master products and no fixture identities are supplied.",
-   "Search for the duplicate product name: the case provides no name to enter.",
-   "Assert two distinguishable options and select a specific one: neither option can be named from the supplied case.",
-   "Assert that the selected product, rather than its same-name counterpart, lands in the sheet: no expected code, category or variant is supplied."
+   "Search for the specific duplicate product name because the test case does not provide the product name",
+   "Assert that both matching products are offered with distinguishing code, category, or variant text",
+   "Assert that the specifically chosen duplicate is the one that lands in the line-item sheet"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create or verify the master-data setup of two products with the same name and different codes; no catalog step provisions master products and no fixture identities are supplied.; Search for the duplicate product name: the case provides no name to enter.; Assert two distinguishable options and select a specific one: neither option can be named from the supplied case.; Assert that the selected product, rather than its same-name counterpart, lands in the sheet: no expected code, category or variant is supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Search for the specific duplicate product name because the test case does not provide the product name; Assert that both matching products are offered with distinguishing code, category, or variant text; Assert that the specifically chosen duplicate is the one that lands in the line-item sheet"
   ],
   "state": "none",
   "screen": "create",
@@ -25,24 +25,26 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Duplicate-name product picker disambiguation",
+  "title": "UI-VAL-012 Duplicate Product Picker Options",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Reach the create screen containing the line-items picker."
+    "note": "Open the standard event creation flow containing the line-item picker."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique event title."
+    "args": {
+     "title": "UI-VAL-012 Duplicate Product Picker"
+    },
+    "note": "Provide the mandatory event title so the create screen is valid."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable the Items control before opening the picker."
+    "note": "Apply a pricing template before opening the line-item picker."
    },
    {
     "step": "click",
@@ -50,21 +52,28 @@
      "role": "button",
      "name": "Items"
     },
-    "note": "Open the Manage Line Items drawer without adding an arbitrary product."
+    "note": "Open the Manage Line Items picker without inventing the unspecified product search term."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_options",
     "args": {
-     "placeholder": "Search and add line items using product name"
+     "label": "Search and add line items using product name"
     },
-    "note": "Verify the picker search field is available; this does not assert duplicate-name disambiguation."
+    "note": "Observe that the product picker offers selectable options, though the catalog cannot verify the requested filtered duplicate results or their distinguishing text."
    },
    {
-    "step": "capture_screen",
+    "step": "add_line_items",
     "args": {
-     "label": "duplicate-product-picker-awaiting-fixture"
+     "count": 1
     },
-    "note": "Record the picker for inspection; duplicate option and selection assertions remain unexpressed."
+    "note": "Add one available product as the closest supported check that a picker selection lands as a line item."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify that the picker action resulted in one line item on the create screen."
    }
   ]
  }

@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-PART-013",
   "title": "Adding a vendor to a live auction works where allowed",
-  "compiledAt": "2026-10-05T13:46:34.541Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:12.556Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The prepared event is an RFQ, not a live auction, and its event type cannot be changed.",
-   "The live-auction audience-edit permission gate cannot be configured or verified with the available steps.",
-   "Adding a new vendor mid-auction is unavailable in this fixed prepared state.",
-   "No available step can inspect the newly invited vendor's portal to assert that the event is visible and biddable within the remaining window; place_bid is explicitly unavailable."
+   "The prepared live state provides an RFQ pricing round rather than a live auction, and no step can create or open the specified live auction state without changing the test setup.",
+   "The gate that allows audience edits cannot be enabled or verified by any catalog step.",
+   "No catalog step can sign in as the newly added second vendor and verify that vendor's event visibility and biddability in the supplier portal."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The prepared event is an RFQ, not a live auction, and its event type cannot be changed.; The live-auction audience-edit permission gate cannot be configured or verified with the available steps.; Adding a new vendor mid-auction is unavailable in this fixed prepared state.; No available step can inspect the newly invited vendor's portal to assert that the event is visible and biddable within the remaining window; place_bid is explicitly unavailable."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The prepared live state provides an RFQ pricing round rather than a live auction, and no step can create or open the specified live auction state without changing the test setup.; The gate that allows audience edits cannot be enabled or verified by any catalog step.; No catalog step can sign in as the newly added second vendor and verify that vendor's event visibility and biddability in the supplier portal."
   ],
   "state": "live",
   "screen": "participants",
@@ -24,21 +24,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Late invitation to a live auction",
+  "title": "Add Vendor to Live Auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event's buyer-side Participants screen."
+    "note": "Open the prepared event's Participants tab without creating or searching for another event."
    },
    {
-    "step": "expect_api_value",
+    "step": "select_participant",
+    "args": {},
+    "note": "Add a vendor from the product's available vendor list to the current round."
+   },
+   {
+    "step": "expect_participant",
     "args": {
-     "key": "vendorName"
+     "selected": true,
+     "addBid": true
     },
-    "note": "Verify the existing invited QA vendor is displayed; this does not prove a late invitation or vendor-side bidding access."
+    "note": "Verify the added vendor is selected and has an available Add Bid control."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "grewBy": 1
+    },
+    "note": "Verify that adding the vendor increased the round's participant count by one."
    }
   ]
  }

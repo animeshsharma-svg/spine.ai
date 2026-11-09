@@ -143,8 +143,42 @@ export const GENERIC_STEPS: StepSpec[] = [
     name: "expect_remembered",
     generic: true,
     assertion: true,
-    purpose: "Re-read what remember{key} read and assert it is the same (same:true, default) or changed (same:false).",
-    args: { key: "the remember key", same: "true | false" },
+    purpose:
+      "Compare what remember{key} read with what the screen shows now: the SAME element re-read (same:true, default; same:false = it must have changed), or ANOTHER element named here by role+name / label / text / within — on this screen, another tab, the other portal after switch_portal (the vendor's total vs the buyer's grid, the footer chip vs the drawer, the vendor name on Responses vs Overview). as:\"number\" compares as numbers (₹, commas, spaces ignored); delta:\"+1\" means the number now equals the remembered one plus 1 (\"the count rises by one\"); contains:true passes when one text contains the other.",
+    args: { key: "the remember key", same: "true | false (default true) — when comparing with the same or another element", ...TARGET_ARGS, as: '"text" (default) | "number"', delta: 'for numbers: the expected difference, e.g. "+1", "-1", "0" (optional)', contains: "true: one text containing the other is enough (optional)" },
+  },
+  {
+    name: "expect_options",
+    generic: true,
+    assertion: true,
+    purpose:
+      "Open a dropdown / select / menu / picker named by its label, name or current text and assert WHAT IT OFFERS: options that must be offered, options that must NOT be offered, options offered but greyed out (disabled), the exact count, or only:true (nothing beyond `options` is offered). Reads the visible options (native select, antd select / dropdown, menu items, a radio group, a tab strip), then closes the list again. Use for \"the duration presets are 30 Mins, 1 Hour, 4 Hours, 24 Hours\", \"the menu offers only X, Y and Z\", \"Book Building is not offered\", \"template T is offered but greyed out\". With no opener named it reads the menu that is already open.",
+    args: {
+      ...TARGET_ARGS,
+      options: "array of option texts that must be offered (optional)",
+      absent: "array of option texts that must NOT be offered (optional)",
+      disabled: "array of option texts that must be offered but greyed out (optional)",
+      enabled: "array of option texts that must be offered and not greyed out (optional)",
+      count: "exact number of options offered (optional)",
+      only: "true: nothing beyond `options` is offered (optional)",
+    },
+  },
+  {
+    name: "expect_table",
+    generic: true,
+    assertion: true,
+    purpose:
+      "Read a table or grid on screen (HTML table, antd table, ARIA grid) and assert its rows: how many data rows (rows / min / max), that a row holding the given words exists (row) or does not (row + present:false), and what that row shows under a column header (cells: {\"Column header\": \"value\"} — contains, ₹ and commas ignored for numbers). Use for \"the list has 25 rows\", \"the row for X shows Y under Z\", \"no row for X\", \"each row shows a status\". Name the table by a word of its heading, caption or region (within) when the screen has several; the step waits for the rows to settle.",
+    args: {
+      within: "words of the table's heading / caption, or a region (\"dialog\") — optional when the screen has one table",
+      rows: "exact number of data rows (optional)",
+      min: "at least this many data rows (optional)",
+      max: "at most this many data rows (optional)",
+      row: "words that identify one row (optional)",
+      present: "false: that row must be absent (optional)",
+      cells: 'object {header: expected text} to check on that row, e.g. {"Status": "Live", "Qty": "10"} (optional)',
+      eachRow: 'object {header: expected text} every data row must satisfy (optional)',
+    },
   },
   {
     name: "switch_tab",
@@ -248,4 +282,4 @@ export const GENERIC_STEPS: StepSpec[] = [
 export const GENERIC_NAMES = GENERIC_STEPS.map((s) => s.name);
 
 /** Steps that only read the screen — no state changes. */
-export const GENERIC_READS = new Set(["expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "expect_remembered", "remember", "hover", "press", "expect_download", "expect_dialog"]);
+export const GENERIC_READS = new Set(["expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "expect_remembered", "remember", "hover", "press", "expect_download", "expect_dialog", "expect_table", "expect_options"]);

@@ -2,12 +2,15 @@
  "meta": {
   "caseId": "UI-VBID-014",
   "title": "Offering more than the requested quantity is refused",
-  "compiledAt": "2026-11-09T19:19:28.002Z",
+  "compiledAt": "2026-11-09T20:06:10.114Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Enter 15 in the vendor portal's Quantity Available field and verify the product-specific refusal or capped quantity resp” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
@@ -18,7 +21,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject vendor offer above requested quantity",
+  "title": "UI-VBID-014 Excess Quantity Offer Refusal",
   "steps": [
    {
     "step": "open_create",
@@ -30,7 +33,7 @@
    {
     "step": "set_title",
     "args": {
-     "title": "UI-VBID-014 Quantity Validation"
+     "title": "UI-VBID-014 Excess Quantity Offer Refusal"
     },
     "note": "Provide the mandatory event title."
    },
@@ -41,19 +44,12 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ pricing stage for the vendor offer."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the RFQ stage."
+    "note": "Configure an RFQ pricing stage for the vendor offer."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding the line item."
+    "note": "Apply a pricing template before adding the requested line item."
    },
    {
     "step": "add_line_items",
@@ -66,64 +62,67 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Invite the configured QA vendor so its portal can access the event."
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor to submit the offer."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event before attempting the vendor offer."
+    "note": "Publish the event so the vendor can access its bid sheet."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the RFQ reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as the invited vendor in the supplier portal."
+    "note": "Open the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet."
+    "note": "Open the event's RFQ bid sheet in the vendor portal."
    },
    {
-    "step": "fill",
+    "step": "ask_tester",
     "args": {
-     "label": "Quantity",
-     "value": "15"
+     "need": "enter 15 in the vendor portal's Quantity Available field and submit the offer, stopping after the product refuses or caps it"
     },
-    "note": "Enter an offer quantity greater than the requested quantity of 10."
+    "note": "The catalog has no vendor-side step for entering an offered quantity of 15."
    },
    {
-    "step": "attempt",
+    "step": "expect_message",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "because": "Quantity should be less than requested quantity",
-     "expect": "refused"
+     "kind": "error"
     },
-    "note": "Submit the over-quantity offer and require Procol to refuse it with the expected validation message."
+    "note": "Assert that the vendor is told the excess-quantity offer was refused."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Submitted",
+     "visible": false
+    },
+    "note": "Assert that the vendor bid was not submitted."
    }
   ]
  }

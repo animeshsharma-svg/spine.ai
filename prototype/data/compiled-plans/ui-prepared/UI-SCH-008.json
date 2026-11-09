@@ -2,15 +2,13 @@
  "meta": {
   "caseId": "UI-SCH-008",
   "title": "A blank end time cannot be saved",
-  "compiledAt": "2026-10-06T05:01:32.675Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:56:25.015Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that no request with a null end time is issued: the schedule-save request path and payload field are not supplied."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify that no request with a null end time is issued: the schedule-save request path and payload field are not supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -22,58 +20,46 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Blank schedule end time validation",
+  "title": "Blank end time cannot be saved",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen to reach scheduling."
+    "note": "Open the event create screen to reach the schedule drawer."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required project title."
+    "args": {
+     "title": "UI-SCH-008 Blank End Time"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable adding line items."
+    "note": "Apply a pricing template so scheduling becomes available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Satisfy the prerequisite for opening Schedule."
+    "note": "Add the minimum line item required for the schedule controls."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Avoid unrelated incomplete-sheet validation."
+    "note": "Complete the pricing sheet so the create form is valid enough to open scheduling."
    },
    {
     "step": "click",
     "args": {
-     "text": "Schedule"
+     "role": "button",
+     "name": "Schedule"
     },
-    "note": "Open the schedule drawer without committing a schedule."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Schedule Event"
-    },
-    "note": "Confirm the setup drawer is open."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "End time",
-     "option": "Fixed time"
-    },
-    "note": "Use a fixed end time rather than a duration."
+    "note": "Open the schedule drawer, matching the test setup."
    },
    {
     "step": "fill",
@@ -81,39 +67,32 @@
      "label": "End time",
      "value": ""
     },
-    "note": "Clear the end time before attempting to save."
+    "note": "Clear the end time field as required by the case."
    },
    {
-    "step": "skip",
+    "step": "click",
     "args": {
-     "step": "set_schedule",
-     "reason": "Deliberately leave the end time blank; do not repair it with a valid schedule."
+     "role": "button",
+     "name": "Save Schedule"
     },
-    "note": "Preserve the negative-test condition."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Save Schedule"
-     },
-     "expect": "refused"
-    },
-    "note": "Require positive evidence that saving the blank end time is refused."
+    "note": "Attempt to save the blank end time."
    },
    {
     "step": "expect_field_error",
     "args": {
      "field": "End time"
     },
-    "note": "Require validation at the end-time field, not merely a generic toast."
+    "note": "Assert that the app shows a field-level validation message for the blank end time."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check that the invalid save did not produce a server error or page crash."
+    "step": "expect_request",
+    "args": {
+     "path": "schedule",
+     "method": "POST",
+     "absent": true,
+     "bodyContains": "null"
+    },
+    "note": "Assert that saving was blocked client-side and no request containing a null end time was sent."
    }
   ]
  }

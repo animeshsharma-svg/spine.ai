@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-PART-002",
   "title": "A named vendor can be searched and added",
-  "compiledAt": "2026-10-05T13:44:43.371Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:39.634Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Search for and select a vendor to add: the fixed prepared state already has its only QA vendor invited, and inviting another vendor is unavailable.",
-   "Verify that selection adds the vendor to the selected list and updates its count; existing participant visibility does not establish either outcome."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Search for and select a vendor to add: the fixed prepared state already has its only QA vendor invited, and inviting another vendor is unavailable.; Verify that selection adds the vendor to the selected list and updates its count; existing participant visibility does not establish either outcome."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "live",
   "screen": "participants",
@@ -22,21 +19,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Search and add a named vendor",
+  "title": "A named vendor can be searched and added",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event's Participants tab."
+    "note": "Open the prepared event's participants screen"
    },
    {
-    "step": "expect_api_value",
+    "step": "select_participant",
+    "args": {},
+    "note": "Search and add a QA test vendor to the round"
+   },
+   {
+    "step": "expect_participant",
     "args": {
-     "key": "vendorName"
+     "present": true,
+     "selected": true
     },
-    "note": "Check that the existing invited QA vendor appears; this does not prove search, selection, or addition."
+    "note": "Assert the vendor appears in the selected list"
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "grewBy": 1
+    },
+    "note": "Assert the participant count includes the newly added vendor"
    }
   ]
  }

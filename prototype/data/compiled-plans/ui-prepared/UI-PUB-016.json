@@ -2,19 +2,19 @@
  "meta": {
   "caseId": "UI-PUB-016",
   "title": "Republishing an already-live event is idempotent",
-  "compiledAt": "2026-10-06T04:54:21.727Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:45.861Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Re-issue the publish action on an already-live event; the catalog's publish step operates on the create screen.",
-   "Assert that total stage, audience and bid counts remain unchanged across that repeated publication."
+   "Re-issue the publish action on an already-live event",
+   "Verify that republishing leaves the stage count unchanged",
+   "Verify that republishing leaves the audience count unchanged",
+   "Verify that republishing leaves the bid count unchanged"
   ],
   "warnings": [
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "inserted select_template + add_line_items before expect_published — the create screen locks Participants and Publish until a template is chosen and a product added",
-   "cannot test this case yet — no step can observe: Re-issue the publish action on an already-live event; the catalog's publish step operates on the create screen.; Assert that total stage, audience and bid counts remain unchanged across that repeated publication."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Re-issue the publish action on an already-live event; Verify that republishing leaves the stage count unchanged; Verify that republishing leaves the audience count unchanged; Verify that republishing leaves the bid count unchanged"
   ],
   "state": "none",
   "screen": "create",
@@ -26,43 +26,17 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Live event republish idempotency",
+  "title": "Republish Live Event Idempotence",
   "steps": [
-   {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    }
-   },
-   {
-    "step": "set_title"
-   },
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing live event supplied by the setup without creating another event."
+    "note": "Open a suitable existing live event from the setup state."
    },
    {
-    "step": "select_template",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "a template comes first on the create screen"
-   },
-   {
-    "step": "add_line_items",
-    "args": {},
-    "note": "a product is needed before participants or publishing"
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm a real published project page was reached; this does not establish republish idempotency."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "live-event-before-republish"
-    },
-    "note": "Record the available baseline screen for manual follow-up on the unsupported retry."
+    "note": "Confirm the live event page renders without errors; this does not test republishing idempotence."
    }
   ]
  }

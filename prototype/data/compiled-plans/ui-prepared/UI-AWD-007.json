@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-AWD-007",
   "title": "Awarding is blocked while this user holds a draft proposal",
-  "compiledAt": "2026-11-09T19:17:07.396Z",
+  "compiledAt": "2026-11-09T19:39:21.146Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that the proposal count is unchanged."
+   "The exact proposal count remaining unchanged."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the proposal count is unchanged."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The exact proposal count remaining unchanged."
   ],
   "state": "proposal",
   "screen": "proposal",
@@ -22,14 +23,14 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Awarding blocked by draft proposal",
+  "title": "Block fresh award with draft proposal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the prepared event's existing draft proposal as required for this case."
+    "note": "Open the prepared event's draft proposal state, which is the required starting state."
    },
    {
     "step": "click",
@@ -37,29 +38,21 @@
      "role": "button",
      "name": "Go back to project"
     },
-    "note": "Return from the proposal to the event project."
+    "note": "Return to the project screen where fresh awarding and the existing draft proposal are offered."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "summary"
     },
-    "note": "Confirm the project summary loaded before navigating to Master QCS."
+    "note": "Confirm the project screen loaded after leaving the proposal."
    },
    {
-    "step": "click",
+    "step": "expect_disabled",
     "args": {
-     "role": "tab",
-     "name": "Master QCS"
+     "control": "Start Awarding"
     },
-    "note": "Open the comparison and awarding screen."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Confirm Master QCS is ready for awarding checks."
+    "note": "Assert that starting a fresh award is blocked while the draft proposal exists."
    },
    {
     "step": "expect_visible",
@@ -68,16 +61,7 @@
      "name": "Bid Selection Proposal",
      "visible": true
     },
-    "note": "Assert that the existing draft proposal is offered for re-entry."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Start Awarding",
-     "visible": false
-    },
-    "note": "Assert that starting a fresh award is blocked while the draft proposal exists."
+    "note": "Assert that the existing draft proposal is still offered for continuation."
    }
   ]
  }

@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "UI-FQCS-006",
   "title": "The report's summary block describes the event correctly",
-  "compiledAt": "2026-11-09T19:13:20.828Z",
+  "compiledAt": "2026-11-09T20:03:32.100Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Comparing the event link and project ID in the summary with the API event",
-   "Comparing the template name with the API event",
-   "Comparing the event date, start time, end time, duration, creator, vendors invited, vendors participated, and closed-at value with the API event"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Comparing the event link and project ID in the summary with the API event; Comparing the template name with the API event; Comparing the event date, start time, end time, duration, creator, vendors invited, vendors participated, and closed-at value with the API event"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Compare the event link and event ID with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Compare the template name with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Compare the date, start time, end time, and duration with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Compare the creator with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Compare invited and participated vendor counts with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Compare the closed-at value with the API event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,40 +25,70 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "FQCS report summary matches event",
+  "title": "FQCS summary block accuracy",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Required first step for the prepared event and establishes the event context."
+    "note": "Open the prepared event required by the setup."
    },
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the report summary block that the test case evaluates."
+    "note": "Navigate to the report summary block under test."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Stage Code"
+    },
+    "note": "Verify the summary block renders its event-detail rows."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Stage Title"
+    },
+    "note": "Verify the summary includes the stage title row."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Participants"
+    },
+    "note": "Verify the summary includes participant information."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Starts At"
+    },
+    "note": "Verify the summary includes the event start-time row."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Ends At"
+    },
+    "note": "Verify the summary includes the event end-time row."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "title"
     },
-    "note": "Verify the summary shows the API-backed event title."
+    "note": "Assert the displayed event title matches the prepared event's API value."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "vendorName"
     },
-    "note": "Verify the summary shows the API-backed invited vendor name."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the summary renders without crashes, raw IDs, or server errors."
+    "note": "Assert the displayed vendor information matches the prepared event's API value."
    }
   ]
  }

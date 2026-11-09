@@ -2,15 +2,21 @@
  "meta": {
   "caseId": "UI-XDLST-001",
   "title": "The list shows Live and History always, Drafts and Recurring only when enabled",
-  "compiledAt": "2026-10-06T06:28:20.119Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:20.203Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Open Demo Account 2 and verify Live and History are present while Drafts and Recurring are absent: switch_company requires a numeric company ID, and no ID is mapped to Demo Account 2 in the case."
+   "Switching between PROCOL DEMO and Demo Account 2 because switch_company requires company IDs that the case does not provide."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Demo Account 2 and verify Live and History are present while Drafts and Recurring are absent: switch_company requires a numeric company ID, and no ID is mapped to Demo Account 2 in the case."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(drafts_list) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Switching between PROCOL DEMO and Demo Account 2 because switch_company requires company IDs that the case does not provide."
   ],
   "state": "draft",
   "screen": "drafts_list",
@@ -19,46 +25,103 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Events tabs follow company feature flags",
+  "title": "Tenant-specific event list tabs",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "drafts_list"
     },
-    "note": "Open the prepared events list as required, without creating or searching for an event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully before inspecting its tabs."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "tab",
-     "name": "Live"
+     "name": "Live",
+     "visible": true
     },
-    "note": "Verify the always-present Live tab on PROCOL DEMO."
+    "note": "Verify Live is available for PROCOL DEMO."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "tab",
-     "name": "History"
+     "name": "History",
+     "visible": true
     },
-    "note": "Verify the always-present History tab on PROCOL DEMO."
+    "note": "Verify History is available for PROCOL DEMO."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "tab",
-     "name": "Drafts"
+     "name": "Drafts",
+     "visible": true
     },
-    "note": "Verify Drafts is visible with show_draft_tab enabled."
+    "note": "Verify Drafts is enabled for PROCOL DEMO."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "tab",
-     "name": "Recurring"
+     "name": "Recurring",
+     "visible": true
     },
-    "note": "Verify Recurring is visible with scheduled_events_enabled enabled."
+    "note": "Verify Recurring is enabled for PROCOL DEMO."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "switch the console to Demo Account 2 and leave its events list open so its tab labels can be checked"
+    },
+    "note": "The catalog lacks the company IDs needed to switch to Demo Account 2."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm Demo Account 2's events list rendered successfully."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Live",
+     "visible": true
+    },
+    "note": "Verify Live remains available for Demo Account 2."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "History",
+     "visible": true
+    },
+    "note": "Verify History remains available for Demo Account 2."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Drafts",
+     "visible": false
+    },
+    "note": "Verify Drafts is hidden when drafts are disabled."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Recurring",
+     "visible": false
+    },
+    "note": "Verify Recurring is hidden when scheduled events are disabled."
    }
   ]
  }

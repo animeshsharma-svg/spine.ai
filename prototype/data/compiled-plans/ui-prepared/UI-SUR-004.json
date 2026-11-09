@@ -2,15 +2,19 @@
  "meta": {
   "caseId": "UI-SUR-004",
   "title": "Submit is disabled until a price is entered",
-  "compiledAt": "2026-10-06T05:13:47.381Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:56:58.408Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enter a price in the surrogate-bid grid without submitting, then assert Submit becomes enabled; place_surrogate_bid combines price entry and submission, while fill requires a labeled text field rather than a grid cell."
+   "unconfirmed label \"Submit Bid\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Submit Bid\" (expect_enabled) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Enter a price in the surrogate-bid grid without submitting, then assert Submit becomes enabled; place_surrogate_bid combines price entry and submission, while fill requires a labeled text field rather than a grid cell."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"Submit Bid\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Submit Bid\" (expect_enabled) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "state": "live",
   "screen": "participants",
@@ -21,14 +25,19 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Empty surrogate bid disables Submit",
+  "title": "Surrogate Bid Submit State",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab."
+    "note": "Open the prepared event's Participants screen where surrogate bidding is available."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the Participants list and its vendor Add Bid controls."
    },
    {
     "step": "click",
@@ -36,21 +45,29 @@
      "role": "button",
      "name": "Add Bid"
     },
-    "note": "Open the sole invited vendor's surrogate-bid drawer without entering any values."
+    "note": "Open the surrogate-bid drawer for the eligible vendor."
    },
    {
     "step": "expect_disabled",
     "args": {
-     "control": "Submit"
+     "control": "Submit Bid"
     },
-    "note": "Assert the empty bid cannot be submitted."
+    "note": "Verify Submit Bid is disabled before any price is entered."
    },
    {
-    "step": "capture_screen",
+    "step": "fill",
     "args": {
-     "label": "empty-surrogate-bid-price-controls"
+     "label": "Price",
+     "value": "100"
     },
-    "note": "Record the drawer and its controls for implementing price-only entry and the subsequent enabled-state check."
+    "note": "Enter one valid price in the bid drawer."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "Submit Bid"
+    },
+    "note": "Verify the price registered and Submit Bid is now enabled."
    }
   ]
  }

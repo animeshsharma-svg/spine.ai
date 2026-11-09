@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-CONV-007",
   "title": "Converting the same RFQ twice is refused",
-  "compiledAt": "2026-11-09T19:17:37.380Z",
+  "compiledAt": "2026-11-09T19:53:48.546Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that the RFQ still has exactly one auction child."
+   "Asserting that still exactly one auction child exists in the project hierarchy from the UI"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the RFQ still has exactly one auction child."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Asserting that still exactly one auction child exists in the project hierarchy from the UI"
   ],
   "state": "converted",
   "screen": "summary",
@@ -22,35 +23,35 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject duplicate RFQ conversion",
+  "title": "Converting the same RFQ twice is refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
-    },
-    "note": "Open the API-prepared event that has already been converted."
+    }
    },
    {
     "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event actions so the conversion action can be retried."
+    "args": {}
    },
    {
-    "step": "click",
+    "step": "attempt",
     "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
-    },
-    "note": "Attempt the second RFQ-to-auction conversion."
+     "step": "click",
+     "args": {
+      "role": "menuitem",
+      "name": "Convert to Auction"
+     },
+     "because": "An auction has already been made for this trade."
+    }
    },
    {
-    "step": "expect_toast",
+    "step": "expect_message",
     "args": {
-     "kind": "error",
+     "kind": "any",
      "text": "An auction has already been made for this trade."
-    },
-    "note": "Assert that Procol refuses the duplicate conversion with the expected message."
+    }
    }
   ]
  }

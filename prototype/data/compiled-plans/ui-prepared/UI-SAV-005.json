@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-SAV-005",
   "title": "A new custom strategy is created and auto-selected",
-  "compiledAt": "2026-10-06T04:57:35.833Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:04.331Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Create a custom savings strategy with a fresh name: no dedicated step or confirmed labels for the strategy-name input and confirmation control.",
-   "Assert that the current-strategy picker selects the newly created strategy: its label is not confirmed.",
-   "Verify the creation-triggered 'New Savings Strategy Created!' toast: toast assertions exist, but the required creation action cannot be expressed reliably."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create a custom savings strategy with a fresh name: no dedicated step or confirmed labels for the strategy-name input and confirmation control.; Assert that the current-strategy picker selects the newly created strategy: its label is not confirmed.; Verify the creation-triggered 'New Savings Strategy Created!' toast: toast assertions exist, but the required creation action cannot be expressed reliably."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -24,36 +20,38 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Custom savings strategy creation and auto-selection",
+  "title": "Create and Select Custom Savings Strategy",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start with a fresh default auction stage."
+    "note": "Open a valid event create screen to reach the Savings drawer."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique project title."
+    "args": {
+     "title": "Savings Strategy Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose a template before adding the line item required to enable Savings."
+    "note": "Apply a pricing template so the event configuration and savings controls are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Meet the Savings drawer's line-item prerequisite."
+    "note": "Add a line item required to configure savings."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the line item's buyer-entered sheet values."
+    "note": "Complete the pricing sheet so the event is in a valid configured state."
    },
    {
     "step": "click",
@@ -61,21 +59,22 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the case's setup screen."
+    "note": "Open the Savings Calculation drawer."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "text": "Savings Calculation"
+     "goal": "In the Savings Calculation drawer, create a strategy with a fresh unique name, verify the app shows the new strategy as the current selected strategy in the picker, and stop with that selection visible."
     },
-    "note": "Verify only that the savings drawer opened; this does not prove strategy creation or selection."
+    "note": "The catalog has no dedicated action for creating a custom savings strategy or asserting its picker selection, so perform and verify this buyer-side flow directly on screen."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_toast",
     "args": {
-     "label": "custom-savings-strategy-controls"
+     "kind": "success",
+     "text": "New Savings Strategy Created!"
     },
-    "note": "Record the drawer's controls for identifying the missing creation and picker targets."
+    "note": "Verify the expected creation confirmation toast."
    }
   ]
  }

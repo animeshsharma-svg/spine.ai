@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-TPL-017",
   "title": "A very large numeric value is handled without precision loss",
-  "compiledAt": "2026-10-06T06:00:43.101Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:48:04.415Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Enter exactly 999999999.99 into a chosen numeric pricing-sheet cell; fill_sheet does not accept cell values.",
-   "Read the applicable quantity and template precision, calculate the expected quantity × price, and assert that the rendered total matches at that precision."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enter exactly 999999999.99 into a chosen numeric pricing-sheet cell; fill_sheet does not accept cell values.; Read the applicable quantity and template precision, calculate the expected quantity × price, and assert that the rendered total matches at that precision."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -23,48 +20,83 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Large numeric value precision",
+  "title": "Large Numeric Total Precision",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen containing the pricing sheet."
+    "note": "Open the event creation screen containing the pricing sheet."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique event title."
+    "args": {
+     "title": "UI-TPL-017 Large Numeric Precision"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply an available pricing template before adding items."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {},
-    "note": "Verify template headers rendered; this does not assert numeric precision."
+    "note": "Apply a pricing template that supplies numeric price and total columns."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide one row for the closest available sheet setup."
+    "note": "Add one line item for the calculation."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the sheet using executor defaults, not the requested large value."
+    "note": "Render and initialize the pricing sheet columns."
    },
    {
-    "step": "capture_screen",
+    "step": "set_sheet_cell",
     "args": {
-     "label": "large-number-precision-sheet"
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "1"
     },
-    "note": "Record the sheet for manual follow-up; this is evidence capture, not the arithmetic oracle."
+    "note": "Set a deterministic quantity so the expected total is the entered price."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "kept": true,
+     "equals": "1"
+    },
+    "note": "Confirm the quantity used for the arithmetic is retained."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "999999999.99"
+    },
+    "note": "Enter the very large decimal value under test."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "kept": true,
+     "equals": "999999999.99"
+    },
+    "note": "Verify the large numeric value is preserved without precision loss."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Total Amount",
+     "equals": "999999999.99"
+    },
+    "note": "Verify the rendered total equals quantity 1 multiplied by the entered price at displayed precision."
    }
   ]
  }

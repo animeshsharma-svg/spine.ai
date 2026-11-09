@@ -2,18 +2,17 @@
  "meta": {
   "caseId": "UI-FQCS-009",
   "title": "A vendor invited but not bidding (records current behaviour)",
-  "compiledAt": "2026-10-19T11:49:29.702Z",
+  "compiledAt": "2026-11-09T19:41:36.867Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Creating or observing a second invited QA vendor who has not bid in the prepared state",
-   "Downloading the QCS report workbook",
-   "Checking whether the silent vendor appears in the workbook's vendor columns",
-   "Checking the silent vendor's cell contents in the workbook"
+   "A prepared event with exactly two invited vendors where only one has bid",
+   "Inspecting the workbook's vendor columns to determine whether the silent vendor appears and what its cells contain"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Creating or observing a second invited QA vendor who has not bid in the prepared state; Downloading the QCS report workbook; Checking whether the silent vendor appears in the workbook's vendor columns; Checking the silent vendor's cell contents in the workbook"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: A prepared event with exactly two invited vendors where only one has bid; Inspecting the workbook's vendor columns to determine whether the silent vendor appears and what its cells contain"
   ],
   "state": "live",
   "screen": "participants",
@@ -24,27 +23,27 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FQCS-009 Silent Vendor in QCS Report",
+  "title": "UI-FQCS-009 Silent vendor in downloaded report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Required first step for the prepared event; opens the event's Participants tab."
+    "note": "Open the prepared event's Participants screen as the closest available starting point for the report action."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Navigate to the on-screen comparison grid for the available bid."
-   },
-   {
-    "step": "expect_qcs_vendors",
+    "step": "click",
     "args": {
-     "count": 1,
-     "realNames": true
+     "role": "button",
+     "name": "Download Report"
     },
-    "note": "Records the number and identity of vendor columns that the prepared one-vendor state can show, but does not establish silent-vendor behavior."
+    "note": "Download the event report requested by the test case."
+   },
+   {
+    "step": "expect_download",
+    "args": {},
+    "note": "Assert that the report workbook was downloaded, although its vendor columns cannot be inspected with the available catalog."
    }
   ]
  }

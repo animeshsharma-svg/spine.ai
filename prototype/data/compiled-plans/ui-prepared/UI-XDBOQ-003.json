@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-XDBOQ-003",
   "title": "An ordinary eRFX project never offers BOQ templates",
-  "compiledAt": "2026-10-06T06:20:52.182Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:59:44.025Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enable or verify the boq_in_erfx_allowed tenant gate and provision the BOQ and ordinary template fixtures.",
-   "Read the GET /templates?type_identifier=trade response and compare its template identities and BOQ classifications with the complete picker contents."
+   "Verify the boq_in_erfx_allowed tenant setting is ON.",
+   "Compare the picker contents with the GET /templates?type_identifier=trade response."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable or verify the boq_in_erfx_allowed tenant gate and provision the BOQ and ordinary template fixtures.; Read the GET /templates?type_identifier=trade response and compare its template identities and BOQ classifications with the complete picker contents."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the boq_in_erfx_allowed tenant setting is ON.; Compare the picker contents with the GET /templates?type_identifier=trade response."
   ],
   "state": "none",
   "screen": "create",
@@ -23,52 +24,39 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Ordinary eRFX excludes BOQ templates",
+  "title": "BOQ Templates Absent from eRFX Picker",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open an ordinary eRFX project, not the BOQ creation path; its default Auction stage is a pricing stage."
+    "note": "Open the ordinary eRFX project creation flow."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Supply the required unique title for this create-screen test."
+    "note": "Provide the required project title so the create flow is valid."
    },
    {
-    "step": "click",
+    "step": "compose_stages",
     "args": {
-     "role": "button",
-     "name": "Select Templates"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "Open the pricing-stage template picker without selecting a template."
+    "note": "Configure the ordinary eRFX project with an RFQ pricing stage."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_template_menu",
     "args": {
-     "text": "Templates"
+     "eventType": "rfq",
+     "min": 1,
+     "absent": [
+      "BOQ"
+     ]
     },
-    "note": "Confirm the picker is visible before checking for excluded labels."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "BOQ",
-     "present": false,
-     "within": "Templates"
-    },
-    "note": "Assert no BOQ label is visible in the open picker."
-   },
-   {
-    "step": "expect_request",
-    "args": {
-     "path": "/templates",
-     "method": "GET",
-     "query": "type_identifier=trade"
-    },
-    "note": "Verify the picker requested trade templates successfully; this does not compare the response contents with the picker."
+    "note": "Open the RFQ pricing-stage template picker and assert that at least one template is offered while BOQ-labelled templates are absent."
    }
   ]
  }

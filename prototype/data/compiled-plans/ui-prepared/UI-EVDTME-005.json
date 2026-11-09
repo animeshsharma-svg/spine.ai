@@ -2,52 +2,52 @@
  "meta": {
   "caseId": "UI-EVDTME-005",
   "title": "The Reopen drawer lists only expired lines and sends seconds",
-  "compiledAt": "2026-10-05T13:35:12.392Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:41:13.067Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The fixed prepared RFQ cannot supply a live staggered auction with lines 1–2 expired, line 3 running, and a 10-minute serial duration.",
-   "Cannot reach the applicable Reopen drawer to assert that only expired lines 1–2 appear with their bid counts.",
-   "Cannot exercise empty-selection and empty-duration submissions and assert their validation errors and absence of a reopen request.",
-   "Cannot select the two expired lines and verify the final request body contains exactly their UUIDs and reopen_time_extension of 600.",
-   "Cannot trigger and assert the success message \"Line items reopened successfully\".",
-   "Cannot inspect the drawer tooltip explaining that reopened lines move to the end.",
-   "Cannot verify that reopened lines 1–2 appear after line 3 in the schedule."
+   "Verify the final network request body contains trade_product_uuids for lines 1 and 2 and reopen_time_extension: 600 seconds.",
+   "Verify the reopened lines appear after line 3 in the schedule.",
+   "Inspect the absence of a network request for each invalid submission."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The fixed prepared RFQ cannot supply a live staggered auction with lines 1–2 expired, line 3 running, and a 10-minute serial duration.; Cannot reach the applicable Reopen drawer to assert that only expired lines 1–2 appear with their bid counts.; Cannot exercise empty-selection and empty-duration submissions and assert their validation errors and absence of a reopen request.; Cannot select the two expired lines and verify the final request body contains exactly their UUIDs and reopen_time_extension of 600.; Cannot trigger and assert the success message \"Line items reopened successfully\".; Cannot inspect the drawer tooltip explaining that reopened lines move to the end.; Cannot verify that reopened lines 1–2 appear after line 3 in the schedule."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the final network request body contains trade_product_uuids for lines 1 and 2 and reopen_time_extension: 600 seconds.; Verify the reopened lines appear after line 3 in the schedule.; Inspect the absence of a network request for each invalid submission."
   ],
   "state": "bid",
   "screen": "summary",
   "technical": false,
   "exemplars": [
-   "UI-CONV-002",
-   "UI-CONV-001"
+   "UI-EVDTME-002",
+   "UI-CONV-002"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reopen expired lines: validation and seconds payload",
+  "title": "Reopen expired auction lines",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the fixed prepared event without creating or changing its state."
+    "note": "Open the prepared auction summary required for this case."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Inspect the event actions where Reopen Line Items would be accessed on an eligible auction."
-   },
-   {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "reopen-actions-on-prepared-rfq"
+     "goal": "open the Reopen drawer; verify that only expired lines 1 and 2 are listed with their bid counts and that the tooltip explains reopened lines move to the end; try OK with no lines selected and verify the no-selection error; try OK with an empty duration and verify the no-duration error; then select lines 1 and 2, keep the 10-minute duration, confirm the reopen, and stop when the success message says \"Line items reopened successfully\""
     },
-    "note": "Record the available actions for diagnosis; this is evidence only, not an assertion of the Reopen drawer behavior."
+    "note": "Perform and observe the drawer interactions and on-screen outcomes that have no dedicated catalog step."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Line items reopened successfully"
+    },
+    "note": "Assert the reported success message after reopening the two expired lines."
    }
   ]
  }

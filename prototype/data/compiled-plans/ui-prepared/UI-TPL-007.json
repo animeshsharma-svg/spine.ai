@@ -2,15 +2,18 @@
  "meta": {
   "caseId": "UI-TPL-007",
   "title": "Template deletion is offered only on an RFP stage that has one",
-  "compiledAt": "2026-10-06T05:26:32.145Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:48.674Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Identify and count the delete-template control: exactly 1 on RFP and 0 on RFQ. No confirmed label or dedicated catalog step targets it; the stage menu's Delete item is a different control."
+   "The exact visible label or accessibility name of the delete-template control is not specified in the catalog; this plan assumes it is named \"Delete Template\".",
+   "unconfirmed label \"Delete Template\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify and count the delete-template control: exactly 1 on RFP and 0 on RFQ. No confirmed label or dedicated catalog step targets it; the stage menu's Delete item is a different control."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"Delete Template\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The exact visible label or accessibility name of the delete-template control is not specified in the catalog; this plan assumes it is named \"Delete Template\"."
   ],
   "state": "none",
   "screen": "create",
@@ -22,14 +25,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Template deletion availability by stage",
+  "title": "UI-TPL-007 RFP-only template deletion",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage creation screen."
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-007 Template Deletion"
+    },
+    "note": "Provide the required event title for a create test."
    },
    {
     "step": "compose_stages",
@@ -39,19 +49,14 @@
       "rfq"
      ]
     },
-    "note": "Prepare the two stage types specified by the case."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Give the test project a unique title."
+    "note": "Create the required RFP and RFQ stages."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Configure the technical stage independently."
+    "note": "Configure the RFP stage first."
    },
    {
     "step": "select_template",
@@ -59,23 +64,11 @@
     "note": "Apply a template to the RFP stage."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify the RFP template prerequisite, not deletion availability."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "rfp-template-deletion-control"
-    },
-    "note": "Record the RFP controls for manual inspection; this does not assert the required count."
-   },
-   {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Configure the RFQ comparison stage."
+    "note": "Move to the RFQ stage."
    },
    {
     "step": "select_template",
@@ -83,16 +76,34 @@
     "note": "Apply a template to the RFQ stage."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify the RFQ template prerequisite, not deletion availability."
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Return to the RFP stage to check its deletion control."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_count",
     "args": {
-     "label": "rfq-template-deletion-control"
+     "text": "Delete Template",
+     "count": 1
     },
-    "note": "Record the RFQ controls for manual inspection; this does not assert the required absence."
+    "note": "Assert that exactly one delete-template control is present on the RFP stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage to check its deletion control."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Delete Template",
+     "count": 0
+    },
+    "note": "Assert that the delete-template control is absent on the RFQ stage."
    }
   ]
  }

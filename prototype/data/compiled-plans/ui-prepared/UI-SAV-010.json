@@ -2,17 +2,28 @@
  "meta": {
   "caseId": "UI-SAV-010",
   "title": "Terms and conditions clauses and attachments publish and persist",
-  "compiledAt": "2026-10-06T04:58:02.146Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:33.792Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Add two clauses and one attachment, publish, and reopen: the prepared event is already live, publishing is unavailable, and its setup does not specify these terms or an attachment.",
-   "Assert the persisted clause texts and attachment name: their expected values are not supplied, and no catalog step reads these values from the prepared API state.",
-   "Open the vendor's terms view and compare its clause texts and attachment name with the buyer's view."
+   "Exact clause text matching for the two requested clauses because their labels are not rendered by Procol.",
+   "Exact attachment filename matching for sample.pdf because that filename is not a known rendered label.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Add two clauses and one attachment, publish, and reopen: the prepared event is already live, publishing is unavailable, and its setup does not specify these terms or an attachment.; Assert the persisted clause texts and attachment name: their expected values are not supplied, and no catalog step reads these values from the prepared API state.; Open the vendor's terms view and compare its clause texts and attachment name with the buyer's view."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "resolved: “Oracle comparison of the exact clause text and attachment name between buyer and vendor views.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Exact clause text matching for the two requested clauses because their labels are not rendered by Procol.; Exact attachment filename matching for sample.pdf because that filename is not a known rendered label."
   ],
   "state": "live",
   "screen": "summary",
@@ -23,35 +34,100 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Terms and attachments persist across buyer and vendor views",
+  "title": "Publish and persist terms and attachment",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the required prepared live event."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
-    "args": {
-     "screen": "overview"
-    },
-    "note": "Reach the buyer-side overview containing the terms entry point."
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
    },
    {
-    "step": "expect_navigated",
+    "step": "add_line_items",
     "args": {
-     "screen": "overview"
+     "count": 1
     },
-    "note": "Verify navigation only; this does not prove that contractual content persisted."
+    "note": "Add the required line item for a publishable event."
    },
    {
-    "step": "capture_screen",
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "click",
     "args": {
-     "label": "buyer-overview-terms-evidence"
+     "role": "button",
+     "name": "Add T&Cs"
     },
-    "note": "Record the available buyer view for inspection without substituting it for the missing content and vendor assertions."
+    "note": "Open the known terms-and-conditions control."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "add two terms-and-conditions clauses on the open T&Cs screen and save them, without relying on unrendered clause labels"
+    },
+    "note": "Add the clauses through the buyer UI; exact clause text cannot be asserted from the catalog."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Attachments"
+    },
+    "note": "Open the known attachment control."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Add Attachments",
+     "file": "sample.pdf"
+    },
+    "note": "Attach the supplied PDF fixture."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Verify the published buyer view exposes the terms-and-conditions section."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Verify the reopened buyer view still exposes the terms-and-conditions section."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Reopen the published event in the vendor overview."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Verify the vendor view exposes the persisted terms-and-conditions section."
    }
   ]
  }

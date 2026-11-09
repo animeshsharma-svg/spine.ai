@@ -2,23 +2,30 @@
  "meta": {
   "caseId": "UI-FCOL-002",
   "title": "A vendor bid above the price cap is refused with the cap in the message",
-  "compiledAt": "2026-10-15T13:47:54.987Z",
+  "compiledAt": "2026-11-09T19:41:24.541Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure or observe a Price Cap column set to X on the prepared event.",
-   "Sign in as the vendor, enter a net price above the cap, and submit it.",
-   "Assert the refusal message \"Net Price should be less than ₹X/<unit>\" for the attempted bid.",
-   "Assert that no bid was saved as a result of the attempted submission."
+   "needs a different starting state than bid (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure or observe a Price Cap column set to X on the prepared event.; Sign in as the vendor, enter a net price above the cap, and submit it.; Assert the refusal message \"Net Price should be less than ₹X/<unit>\" for the attempted bid.; Assert that no bid was saved as a result of the attempted submission."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "bid",
   "screen": "summary",
   "technical": false,
-  "exemplars": [],
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
   "crossCheckAdded": [
    "bidPrice"
   ]
@@ -31,14 +38,88 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Required first step for the prepared event; opens the existing event summary, but cannot reproduce the vendor-side bid attempt."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "compose_stages",
     "args": {
-     "screen": "responses"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "Closest available buyer-side screen for viewing the event's existing bid responses; it does not test refusal of a new above-cap bid."
+    "note": "Create the RFQ stage required by the case."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the single line item on which the cap applies."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "add_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Set a ₹100 per-unit price cap before the vendor attempts the bid."
+   },
+   {
+    "step": "expect_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Verify that the saved price cap is ₹100."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the QA vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing sheet for the vendor."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 101
+     },
+     "expect": "refused",
+     "because": "Net Price should be less than ₹100"
+    },
+    "note": "Submit a net price above the cap and require Procol's cap validation refusal."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify no response was saved."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0,
+     "participation": "0/1"
+    },
+    "note": "Confirm the refused bid did not create a vendor response."
    },
    {
     "step": "expect_api_value",

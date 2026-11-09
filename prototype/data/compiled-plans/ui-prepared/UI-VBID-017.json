@@ -2,15 +2,22 @@
  "meta": {
   "caseId": "UI-VBID-017",
   "title": "A discount above 100% is refused",
-  "compiledAt": "2026-11-09T19:26:55.610Z",
+  "compiledAt": "2026-11-09T20:10:06.382Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "trade credit / discount column present in the standard catalog step (the catalog template does not include a trade credit/discount column by default)"
+   "Enable the trade credit setup that makes the discount column present.",
+   "Locate or enter 150% in the Discount field because Procol does not render a Discount label or control.",
+   "Assert that the invalid discount creates no bid."
   ],
   "warnings": [
-   "can only test part of this — no step for: trade credit / discount column present in the standard catalog step (the catalog template does not include a trade credit/discount column by default)"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Enable the trade credit setup that makes the discount column present.; Locate or enter 150% in the Discount field because Procol does not render a Discount label or control.; Assert that the invalid discount creates no bid."
   ],
   "state": "none",
   "screen": "create",
@@ -22,94 +29,92 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "A discount above 100% is refused",
+  "title": "Reject discount above 100%",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Start creating a multi-stage event"
+    "note": "Create the closest available vendor bidding event."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the project a title"
+    "args": {
+     "title": "Discount validation test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
-    "step": "compose_stages",
+    "step": "configure_single_stage",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "eventType": "rfq"
     },
-    "note": "Set up an RFQ stage"
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select a pricing template"
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item"
+    "note": "Add a product so the vendor bid sheet can be published."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill the pricing sheet"
+    "note": "Complete the buyer-side pricing sheet."
    },
    {
     "step": "set_schedule",
-    "args": {},
-    "note": "Set the schedule duration"
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor for bidding"
+    "note": "Add a vendor so the event can be published and viewed in the supplier portal."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event to make it live"
+    "note": "Publish the event for vendor-side inspection."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert the event published successfully"
+    "note": "Confirm the event reached a real project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the vendor portal"
+    "note": "Move to the invited vendor session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event bidding sheet as the vendor"
+    "note": "Open the vendor's pricing bid sheet, the closest available screen for the requested validation."
    },
    {
-    "step": "attempt",
+    "step": "expect_visible",
     "args": {
-     "step": "fill",
-     "args": {
-      "label": "Discount",
-      "value": "150"
-     },
-     "expect": "refused",
-     "because": "Please enter a valid discount"
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
     },
-    "note": "Attempt to enter a discount above 100% and assert it is refused"
+    "note": "Assert that the vendor bid form is present, without claiming that the unrendered Discount field was tested."
    }
   ]
  }

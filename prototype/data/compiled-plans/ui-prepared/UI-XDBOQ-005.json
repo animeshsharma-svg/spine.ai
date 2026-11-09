@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "UI-XDBOQ-005",
   "title": "Upload Sheet modal: file types, disabled OK, and the BOQ sample download",
-  "compiledAt": "2026-10-06T06:22:32.456Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:51:34.067Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Assert the title 'Upload Excel': this label is explicitly not rendered, and no confirmed replacement is supplied.",
-   "Assert OK is disabled before file selection and enabled afterward: no confirmed label for this modal's confirmation control is supplied.",
-   "Trigger the sample download: 'Download Template' is explicitly not rendered, and no confirmed replacement control is supplied; expect_request could check the request only after a supported trigger.",
-   "Verify the browser downloads the returned excel_url: no catalog step observes downloads or compares them with a response URL.",
-   "Inspect the file chooser's accept attribute for .csv, .xlsx, and .xls: no catalog step exposes that attribute or inspects native chooser restrictions."
+   "The modal title \"Upload Excel\" is not a known rendered label.",
+   "Verifying that OK is disabled before file selection.",
+   "Clicking and verifying the \"Download Template\" control and its GET /templates/excel_template/<template>?sheet_type=boq_items_sheet request.",
+   "Verifying that the returned excel_url file is downloaded.",
+   "Inspecting the file chooser accept attribute for .csv, .xlsx, and .xls."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Assert the title 'Upload Excel': this label is explicitly not rendered, and no confirmed replacement is supplied.; Assert OK is disabled before file selection and enabled afterward: no confirmed label for this modal's confirmation control is supplied.; Trigger the sample download: 'Download Template' is explicitly not rendered, and no confirmed replacement control is supplied; expect_request could check the request only after a supported trigger.; Verify the browser downloads the returned excel_url: no catalog step observes downloads or compares them with a response URL.; Inspect the file chooser's accept attribute for .csv, .xlsx, and .xls: no catalog step exposes that attribute or inspects native chooser restrictions."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The modal title \"Upload Excel\" is not a known rendered label.; Verifying that OK is disabled before file selection.; Clicking and verifying the \"Download Template\" control and its GET /templates/excel_template/<template>?sheet_type=boq_items_sheet request.; Verifying that the returned excel_url file is downloaded.; Inspecting the file chooser accept attribute for .csv, .xlsx, and .xls."
   ],
   "state": "none",
   "screen": "create",
@@ -26,29 +27,26 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ upload modal and sample download",
+  "title": "BOQ Upload Sheet Modal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Open BOQ creation with the setup gate already enabled."
+    "note": "Open the BOQ create screen required for this upload-flow test."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique project title."
+    "args": {
+     "title": "BOQ Upload Sheet Modal Test"
+    },
+    "note": "Provide the mandatory event title for the BOQ create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Establish the specified BOQ-template prerequisite."
-   },
-   {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Confirm a template is applied before opening the uploader."
+    "note": "Choose a BOQ template so the Upload Sheet control is available."
    },
    {
     "step": "click",
@@ -56,14 +54,15 @@
      "role": "button",
      "name": "Upload Sheet"
     },
-    "note": "Use the confirmed upload control rather than the unsupported modal labels."
+    "note": "Open the BOQ sheet upload modal using the known control label."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_visible",
     "args": {
-     "label": "boq-upload-sheet-modal"
+     "role": "dialog",
+     "visible": true
     },
-    "note": "Record the actual modal controls for inspection; this does not assert the requested outcomes."
+    "note": "Assert that an upload dialog opened; its specific title and controls cannot be asserted from the catalog."
    }
   ]
  }

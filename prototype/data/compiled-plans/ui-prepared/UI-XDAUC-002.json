@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-XDAUC-002",
   "title": "\"Convert to Auction\" is disabled on an old version, a project on hold, or a closed trade-mode event",
-  "compiledAt": "2026-10-06T06:13:41.130Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:50:12.916Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open an older version of an RFQ with two versions; the prepared state supplies no older version.",
-   "Inspect a project on hold; the prepared event is live and no catalog step can place it on hold.",
-   "Inspect a closed trade-mode RFQ; the prepared event is live, its state is fixed, and trade-mode configuration is not supplied.",
-   "Assert Convert to Auction is present but disabled in all three required contexts."
+   "Verify Convert to Auction is disabled specifically on an older project version.",
+   "Verify Convert to Auction is disabled specifically while a project is on hold.",
+   "Verify Convert to Auction is disabled specifically on a closed trade-mode RFQ."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open an older version of an RFQ with two versions; the prepared state supplies no older version.; Inspect a project on hold; the prepared event is live and no catalog step can place it on hold.; Inspect a closed trade-mode RFQ; the prepared event is live, its state is fixed, and trade-mode configuration is not supplied.; Assert Convert to Auction is present but disabled in all three required contexts."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify Convert to Auction is disabled specifically on an older project version.; Verify Convert to Auction is disabled specifically while a project is on hold.; Verify Convert to Auction is disabled specifically on a closed trade-mode RFQ."
   ],
   "state": "bid",
   "screen": "summary",
@@ -25,27 +25,27 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Convert to Auction disabled in restricted RFQ states",
+  "title": "Convert to Auction disabled states",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the fixed prepared RFQ without creating or changing its state."
+    "note": "Open the prepared RFQ project without creating or searching for another event."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Inspect the Settings dropdown on the available live RFQ."
+    "note": "Open the Settings menu containing the Convert to Auction action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_menu_item",
     "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
+     "item": "Convert to Auction",
+     "enabled": false
     },
-    "note": "Check only menu-item presence; this does not prove the restricted-state disabled behavior."
+    "note": "Check the available menu item's disabled state as the closest expressible oracle."
    }
   ]
  }

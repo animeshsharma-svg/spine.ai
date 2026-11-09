@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-SAV-002",
   "title": "Savings-mandatory tenants block publish without a savings entry",
-  "compiledAt": "2026-10-06T04:55:28.353Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:56:08.909Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enable or independently verify the tenant setting isSavingsConfigurationMandatory; no configured tenant ID is supplied."
+   "Enable or verify the tenant setting isSavingsConfigurationMandatory."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable or independently verify the tenant setting isSavingsConfigurationMandatory; no configured tenant ID is supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Enable or verify the tenant setting isSavingsConfigurationMandatory."
   ],
   "state": "none",
   "screen": "create",
@@ -22,63 +23,59 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Savings-required publish validation",
+  "title": "Savings configuration blocks publish",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Use a fresh, non-converted event so the conversion exemption does not apply."
+    "note": "Open the event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Satisfy the title requirement."
+    "args": {
+     "title": "Savings Mandatory Publish Test"
+    },
+    "note": "Provide the required event title so savings is the only omitted publish prerequisite."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template to the default Auction stage."
+    "note": "Configure the default stage with a pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Satisfy the line-item requirement."
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete required sheet values without configuring savings."
+    "note": "Complete the pricing sheet before testing publish."
    },
    {
     "step": "set_schedule",
-    "args": {},
-    "note": "Commit the schedule to avoid an unrelated scheduling refusal."
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Satisfy the participant requirement."
-   },
-   {
-    "step": "skip",
-    "args": {
-     "step": "click",
-     "reason": "Deliberately omit opening Savings and adding savings values; the event must have no savings configured."
-    },
-    "note": "Preserve the missing savings entry as the negative-test premise."
+    "note": "Add the required participant."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Savings configuration is mandatory"
     },
-    "note": "Require both blocked publication and the specific savings validation message; an unrelated refusal is insufficient."
+    "note": "Attempt publish and assert the tenant blocks it with the required message."
    }
   ]
  }

@@ -2,18 +2,17 @@
  "meta": {
   "caseId": "UI-PART-011",
   "title": "A vendor who already participated cannot be removed",
-  "compiledAt": "2026-10-05T13:46:24.578Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:05.564Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish the required submitted bid from vendor B: the fixed prepared state is live without a bid, and place_bid is unavailable.",
-   "Attempt removal of B: no participant-removal domain step or confirmed removal control is supplied; Remove Bid is not participant removal.",
-   "Assert the removal refusal message, \"You cannot remove a vendor who has already participated\", after an actual removal attempt.",
-   "Assert that B's bid remains counted after refusal: the prepared event contains no bid to preserve."
+   "Attempting to remove vendor B from the event",
+   "The refusal message shown when removing vendor B"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish the required submitted bid from vendor B: the fixed prepared state is live without a bid, and place_bid is unavailable.; Attempt removal of B: no participant-removal domain step or confirmed removal control is supplied; Remove Bid is not participant removal.; Assert the removal refusal message, \"You cannot remove a vendor who has already participated\", after an actual removal attempt.; Assert that B's bid remains counted after refusal: the prepared event contains no bid to preserve."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Attempting to remove vendor B from the event; The refusal message shown when removing vendor B"
   ],
   "state": "live",
   "screen": "participants",
@@ -24,21 +23,38 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Refuse removal of a participating vendor",
+  "title": "Prevent removal of participating vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event's Participants screen."
+    "note": "Open the prepared live event on its Participants tab."
    },
    {
-    "step": "capture_screen",
+    "step": "search_participants",
     "args": {
-     "label": "participant-removal-controls"
+     "vendor": "B"
     },
-    "note": "Record the available participant controls for inspection; this is evidence capture, not an assertion of removal refusal or bid preservation."
+    "note": "Locate vendor B's participant row."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "B",
+     "present": true
+    },
+    "note": "Verify vendor B is still listed as a participant."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "participation": "1/1",
+     "stage": "rfq"
+    },
+    "note": "Verify the submitted bid remains counted for the event."
    }
   ]
  }

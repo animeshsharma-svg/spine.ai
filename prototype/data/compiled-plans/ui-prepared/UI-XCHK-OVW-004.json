@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-XCHK-OVW-004",
   "title": "When savings are compared on the whole lot, the Overview's Savings Summary shows the same savings the stage's Responses tab shows",
-  "compiledAt": "2026-10-06T06:04:58.902Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:48:34.409Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Ensure the fixed prepared event uses whole-lot savings with a reference price above the submitted bid.",
-   "Read and compare the savings amounts across Responses and Overview's Savings Summary: no savings API key or cross-target value comparison is available.",
-   "Assert that the displayed savings equals the first bidder's computed savings record."
+   "savings configured specifically as whole lot versus per line item through API state setup"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Ensure the fixed prepared event uses whole-lot savings with a reference price above the submitted bid.; Read and compare the savings amounts across Responses and Overview's Savings Summary: no savings API key or cross-target value comparison is available.; Assert that the displayed savings equals the first bidder's computed savings record."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: savings configured specifically as whole lot versus per line item through API state setup"
   ],
   "state": "bid",
   "screen": "responses",
@@ -21,50 +20,37 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Whole-lot savings consistency",
+  "title": "Overview Savings Summary matches Responses Tab savings on whole lot",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ's Responses tab as required."
+    "note": "Start on the Responses tab of the prepared event"
    },
    {
-    "step": "capture_screen",
+    "step": "remember",
     "args": {
-     "label": "responses-savings"
+     "key": "responsesSavings",
+     "text": "Savings"
     },
-    "note": "Record the Responses display for manual savings inspection; this does not assert its amount."
+    "note": "Remember the savings amount shown on the Responses tab"
    },
    {
     "step": "go_to",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the same stage's Overview."
+    "note": "Navigate to the Overview tab"
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_remembered",
     "args": {
-     "screen": "overview"
+     "key": "responsesSavings",
+     "contains": true
     },
-    "note": "Verify Overview is ready."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Savings Summary Edit"
-    },
-    "note": "Verify the known Savings Summary control is present, without treating its presence as proof of matching savings."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "overview-savings-summary"
-    },
-    "note": "Record Savings Summary for manual comparison with Responses."
+    "note": "Assert the Overview tab's Savings Summary shows the same savings amount"
    }
   ]
  }

@@ -2,17 +2,25 @@
  "meta": {
   "caseId": "UI-SCH-009",
   "title": "Evaluation time is configured separately and persists",
-  "compiledAt": "2026-10-06T05:03:23.219Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:42.802Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Set a separate evaluation duration, save the schedule and publish: the prepared event is already live and schedule changes and publishing are unavailable.",
-   "Verify the live evaluation window is present and retains the configured duration: no confirmed live-screen evaluation-window target or corresponding expect_api_value key is available.",
-   "Assert that the evaluation window starts exactly at the bid-window end: the catalog cannot compare these two timestamp values."
+   "Set a separate evaluation duration in the Schedule drawer",
+   "Verify that the evaluation window starts exactly at the bid end time",
+   "needs a different starting state than bid (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Set a separate evaluation duration, save the schedule and publish: the prepared event is already live and schedule changes and publishing are unavailable.; Verify the live evaluation window is present and retains the configured duration: no confirmed live-screen evaluation-window target or corresponding expect_api_value key is available.; Assert that the evaluation window starts exactly at the bid-window end: the catalog cannot compare these two timestamp values."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Set a separate evaluation duration in the Schedule drawer; Verify that the evaluation window starts exactly at the bid end time"
   ],
   "state": "bid",
   "screen": "summary",
@@ -24,43 +32,53 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Evaluation window persistence",
+  "title": "RFP evaluation window persistence",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the required prepared event without rebuilding or changing its state."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "compose_stages",
     "args": {
-     "screen": "stage",
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Configure the event with an RFP stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
      "stage": "rfp"
     },
-    "note": "Select the technical round whose evaluation window is the subject."
+    "note": "Apply the remaining RFP-specific configuration to the RFP stage."
    },
    {
-    "step": "go_to",
-    "args": {
-     "screen": "overview"
-    },
-    "note": "Reach the technical round's overview for schedule inspection."
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an available template required for the technical stage."
    },
    {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "overview"
-    },
-    "note": "Verify navigation only; this does not establish the evaluation-window oracle."
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the RFP questionnaire so the technical stage is publishable."
    },
    {
-    "step": "capture_screen",
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for an RFP stage."
+   },
+   {
+    "step": "expect_text",
     "args": {
-     "label": "live-rfp-evaluation-window"
+     "text": "Evaluation",
+     "present": true
     },
-    "note": "Record the visible overview for manual inspection of evaluation and bidding timestamps."
+    "note": "Check that the live event exposes an evaluation window or evaluation-related display."
    }
   ]
  }

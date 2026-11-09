@@ -2,21 +2,22 @@
  "meta": {
   "caseId": "UI-FUPL-004",
   "title": "A partially filled sheet is refused",
-  "compiledAt": "2026-11-09T19:18:35.312Z",
+  "compiledAt": "2026-11-09T20:05:39.254Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Upload a specifically prepared pricing-sheet fixture with a filled template row missing exactly one mandatory cell.",
+   "A fixture or upload operation that is guaranteed to contain a row with a missing mandatory cell.",
    "needs a different starting state than live (asked for set_schedule, invite_vendor)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Upload a specifically prepared pricing-sheet fixture with a filled template row missing exactly one mandatory cell."
+   "can only test part of this — no step for: A fixture or upload operation that is guaranteed to contain a row with a missing mandatory cell."
   ],
   "state": "live",
   "screen": "summary",
@@ -27,7 +28,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Partially Filled Sheet Refusal",
+  "title": "Partially Filled Sheet Publish Refusal",
   "steps": [
    {
     "step": "open_prepared",
@@ -37,16 +38,9 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "rfq"
-    },
-    "note": "Configure the single-stage event as an RFQ pricing event."
-   },
-   {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before uploading the sheet."
+    "note": "Apply a template before uploading the sheet."
    },
    {
     "step": "upload",
@@ -54,14 +48,14 @@
      "label": "Upload Sheet",
      "file": "sample.csv"
     },
-    "note": "Upload the closest available CSV fixture; the catalog cannot ensure it has the requested missing mandatory cell."
+    "note": "Upload the closest available sheet fixture; its contents cannot be guaranteed to have the required missing mandatory cell."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Sheet partially filled, please check again."
     },
-    "note": "Assert that publishing is refused with the exact partial-sheet validation message."
+    "note": "Assert that publish is refused and the exact partial-sheet validation message is shown."
    }
   ]
  }

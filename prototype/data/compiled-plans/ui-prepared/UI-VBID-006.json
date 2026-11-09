@@ -2,12 +2,17 @@
  "meta": {
   "caseId": "UI-VBID-006",
   "title": "The vendor fills price cells and the total computes",
-  "compiledAt": "2026-11-09T19:09:47.672Z",
+  "compiledAt": "2026-11-09T20:01:49.963Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Validate the total against the template-specific GST rule when GST is included."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Validate the total against the template-specific GST rule when GST is included."
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
@@ -18,84 +23,109 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor fills price cells and total computes",
+  "title": "UI-VBID-006 Vendor total calculation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating an eRFX event"
+    "note": "Open the multi-stage event creation flow."
    },
    {
     "step": "set_title",
-    "note": "Set a title for the event"
+    "args": {
+     "title": "UI-VBID-006 Total Calculation"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ pricing stage for the bid sheet."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
    },
    {
     "step": "select_template",
-    "note": "Select a pricing template"
+    "args": {},
+    "note": "Apply a pricing template so the bid sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 1,
+     "quantity": "10"
     },
-    "note": "Add one line item"
+    "note": "Create one line item with the requested quantity of 10."
    },
    {
     "step": "fill_sheet",
-    "note": "Fill the sheet and ensure quantity requested is set"
+    "args": {},
+    "note": "Complete the buyer-side pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set event schedule"
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor"
+    "note": "Invite the QA vendor that will enter the bid."
    },
    {
     "step": "publish",
-    "note": "Publish the event so the vendor can bid"
+    "args": {},
+    "note": "Publish the event so the vendor can access its bid sheet."
    },
    {
     "step": "expect_published",
-    "note": "Verify the event is successfully published"
+    "args": {},
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the vendor portal view"
+    "note": "Open the invited vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing bid sheet as the vendor"
+    "note": "Open the event's RFQ bid sheet as the vendor."
    },
    {
-    "step": "fill",
+    "step": "vendor_bid",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "price": 100,
+     "submit": false
     },
-    "note": "Enter 100 into the price cell"
+    "note": "Enter 100 in the vendor price cells without submitting, leaving the computed total visible."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1000"
+     "text": "1000",
+     "present": true
     },
-    "note": "Assert that the computed total is 1000 (assuming qty 10)"
+    "note": "Check that the rendered total includes the expected arithmetic result for quantity 10 multiplied by price 100."
    }
   ]
  }

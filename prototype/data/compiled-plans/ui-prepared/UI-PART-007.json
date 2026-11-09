@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-PART-007",
   "title": "An invalid email in quick invite is refused",
-  "compiledAt": "2026-10-05T13:46:08.308Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:55.517Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Submit not-an-email through quick invite: no domain step or confirmed quick-invite field and submit-control labels are provided.",
-   "Assert a format-validation message caused by the invalid quick invite.",
-   "Compare the audience count before and after the rejected invitation: no confirmed count target is provided."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Submit not-an-email through quick invite: no domain step or confirmed quick-invite field and submit-control labels are provided.; Assert a format-validation message caused by the invalid quick invite.; Compare the audience count before and after the rejected invitation: no confirmed count target is provided."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,21 +19,46 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject malformed quick-invite email",
+  "title": "Invalid Email Quick Invite Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants panel."
+    "note": "Open the prepared Participants panel where quick invite is available."
    },
    {
-    "step": "capture_screen",
+    "step": "remember",
     "args": {
-     "label": "participants-quick-invite-controls"
+     "key": "audience_before",
+     "text": "Participants"
     },
-    "note": "Record the available controls for identifying the missing quick-invite and audience-count targets; this is evidence, not a validation assertion."
+    "note": "Record the Participants panel state before sending the invalid invite."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Use the Participants panel's Quick Invite control, enter not-an-email, submit it, and stop when the format refusal is shown"
+    },
+    "note": "No catalog domain step targets the quick-invite email interaction, so perform that buyer-side action directly on the current screen."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that Procol shows the refusal message for the malformed email."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "audience_before",
+     "same": true,
+     "text": "Participants",
+     "contains": true
+    },
+    "note": "Verify that the Participants panel and audience remain unchanged after the refused invite."
    }
   ]
  }

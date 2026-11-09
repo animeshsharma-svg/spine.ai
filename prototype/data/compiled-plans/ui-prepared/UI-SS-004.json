@@ -2,17 +2,18 @@
  "meta": {
   "caseId": "UI-SS-004",
   "title": "The configuration drawer renders awarding only after event type",
-  "compiledAt": "2026-10-06T05:07:54.635Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:45:29.436Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open the fresh single-stage configuration drawer without choosing an event type: no standalone domain step or confirmed opener label is provided.",
-   "Assert sub-type and awarding are absent before type selection and present afterward in the same drawer; configure_single_stage bundles opening and configuration without exposing these intermediate observations."
+   "Observe and assert that the strategy/sub-type and awarding sections are absent while the configuration drawer is open before an event type is selected."
   ],
   "warnings": [
-   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
-   "cannot test this case yet — no step can observe: Open the fresh single-stage configuration drawer without choosing an event type: no standalone domain step or confirmed opener label is provided.; Assert sub-type and awarding are absent before type selection and present afterward in the same drawer; configure_single_stage bundles opening and configuration without exposing these intermediate observations."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added set_title — publishing without a title is refused",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Observe and assert that the strategy/sub-type and awarding sections are absent while the configuration drawer is open before an event type is selected."
   ],
   "state": "none",
   "screen": "create",
@@ -24,40 +25,42 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Configuration sections depend on event type",
+  "title": "Single-stage configuration drawer options",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start on the fresh single-stage create screen."
+    "note": "Open a fresh single-stage create screen."
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Exercise the closest supported configuration flow; this does not test when sections first appear."
+    "note": "Choose an event type and configure the drawer so the dependent sections should appear."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Supply the required create-test title."
-   },
-   {
-    "step": "capture_screen",
+    "step": "expect_visible",
     "args": {
-     "label": "single-stage-before-configuration"
+     "text": "Choose a Strategy",
+     "visible": true
     },
-    "note": "Record available controls for identifying a drawer opener; this is evidence, not the visibility oracle."
+    "note": "Assert that the subtype/strategy section is present after selecting the event type."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_visible",
     "args": {
-     "label": "single-stage-after-configuration"
+     "text": "How will you award the event?",
+     "visible": true
     },
-    "note": "Record the resulting screen without claiming the drawer's conditional visibility was asserted."
+    "note": "Assert that the awarding section is present after selecting the event type."
    }
   ]
  }

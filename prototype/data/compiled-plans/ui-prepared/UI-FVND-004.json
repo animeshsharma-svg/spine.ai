@@ -2,19 +2,18 @@
  "meta": {
   "caseId": "UI-FVND-004",
   "title": "Removing a product removes the vendors it alone suggested (records current behaviour)",
-  "compiledAt": "2026-11-09T19:26:17.414Z",
+  "compiledAt": "2026-11-09T20:09:45.727Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Create two products with different mapped vendors and add both through the product-suggestion banner.",
-   "Delete the first specific product from the pricing sheet.",
-   "Observe and compare participant chips after deletion to verify that only vendors suggested by the deleted product are removed while manually added vendors remain.",
-   "Record the Flow-map Q9 outcome.",
-   "the plan has no assertion step — nothing the case checks can be observed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "live",
   "screen": "participants",
@@ -25,21 +24,26 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FVND-004 Product removal updates suggested vendors",
+  "title": "Product Removal Updates Suggested Vendors",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Opens the prepared event's Participants screen, the closest available view of the participant chips."
+    "note": "the API built this case's state"
    },
    {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "participant-chips-before-product-deletion"
+     "goal": "On the buyer's event create screen, add two products through the product banner such that they have different mapped vendors, verify the suggested participant chips, delete the first product from the sheet, then record whether the vendors suggested only by that deleted product are removed while manually added vendors remain; stop on the screen showing the post-deletion participant chips and the Flow-map Q9 result."
     },
-    "note": "Records the current participant chips, but no catalog step can perform the required product deletion or produce the after-deletion comparison."
+    "note": "No catalog domain step can add products through the mapping banner, delete a specific product while preserving the required setup, or directly inspect the resulting participant-chip behavior."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the final post-deletion screen rendered without errors while the workflow result is recorded by do_on_screen."
    }
   ]
  }

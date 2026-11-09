@@ -2,88 +2,90 @@
  "meta": {
   "caseId": "UI-TPL-010",
   "title": "Sweeping the rendered grid is required, not just the creator-marked fields",
-  "compiledAt": "2026-10-04T12:59:52.604Z",
+  "compiledAt": "2026-11-09T19:57:48.200Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Distinguishing programmatically between schema-marked creator columns and unselected rendered cells within a single fill step"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
    "dropped expect_published — expect_publish_blocked presses Publish itself and judges the refusal",
-   "moved invite_vendor after the line items — the vendor suggestions come from the products on the event",
-   "can only test part of this — no step for: Distinguishing programmatically between schema-marked creator columns and unselected rendered cells within a single fill step"
+   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
+   "dropped expect_published — expect_publish_blocked presses Publish itself and judges the refusal"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-TPL-001",
-   "UI-CRE-002"
+   "UI-TPL-015",
+   "UI-TPL-008"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-TPL-010 Sweeping the rendered grid is required, not just creator-marked fields",
+  "title": "UI-TPL-010 Rendered Grid Sweep",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating an eRFX event"
+    "note": "Open the event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Set event title"
+    "args": {
+     "title": "UI-TPL-010"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select pricing template"
+    "note": "Apply the pricing template that defines the rendered grid."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to enable sheet filling"
+    "note": "Create a data row for the grid-fill behavior."
    },
    {
-    "step": "skip",
+    "step": "do_on_screen",
     "args": {
-     "step": "fill_sheet",
-     "reason": "Intentionally fill only partial schema columns instead of sweeping the rendered grid"
+     "goal": "Fill only the fields marked creator in the schema, leaving any additional rendered editable grid columns untouched, and stop on the create screen with the grid still partially filled."
     },
-    "note": "Omit full sheet filling to test partial sheet enforcement"
+    "note": "Perform the schema-only fill strategy that no dedicated catalog step can target."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 60
+     "minutes": 30
     },
-    "note": "Set event schedule"
-   },
-   {
-    "step": "expect_publish_blocked",
-    "args": {
-     "because": "Sheet partially filled"
-    },
-    "note": "Assert publishing is refused due to incomplete sheet filling"
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Now sweep and fill the entire rendered grid correctly"
+    "note": "Commit a valid schedule so incomplete grid data is the only publication blocker."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor required for publish"
+    "note": "Add the required participant before attempting publication."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled, please check again."
+    },
+    "note": "Assert that publishing is refused because rendered editable cells remain unfilled."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Sweep every data-row cell in the rendered pricing grid and fill every cell that is not aria-disabled, then stop on the create screen showing the completed grid ready to publish."
+    },
+    "note": "Apply the rendered-grid sweep required by the oracle."
    }
   ]
  }

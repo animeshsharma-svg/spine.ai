@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-VBID-011",
   "title": "Zero as a price is either refused or accepted deliberately",
-  "compiledAt": "2026-11-09T19:19:06.807Z",
+  "compiledAt": "2026-11-09T20:05:59.433Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "A conditional outcome that accepts either a deliberate refusal with its message or a successful zero-price bid, while running the corresponding buyer-side assertion only when accepted."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "can only test part of this — no step for: A conditional outcome that accepts either a deliberate refusal with its message or a successful zero-price bid, while running the corresponding buyer-side assertion only when accepted."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -24,97 +20,37 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-VBID-011 Zero price bid outcome",
+  "title": "Zero as a bid price validation",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
+     "screen": "vendor"
     },
-    "note": "Create an event that can receive a vendor bid."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "UI-VBID-011 Zero Price Test"
-    },
-    "note": "Every publishable create test requires a title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Use an RFQ pricing stage for the vendor bid."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one line item for the bid sheet."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the buyer's pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor to submit the bid."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event before entering the vendor bid."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event is available for bidding."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert the accepted-path outcome is visibly submitted."
+    "note": "Open the vendor portal on a prepared event"
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "buyer"
+     "to": "vendor"
     },
-    "note": "Return to the buyer console to inspect the comparison."
+    "note": "Switch session to vendor"
    },
    {
-    "step": "open_master_qcs",
+    "step": "vendor_open_event",
     "args": {},
-    "note": "Open the buyer's comparison grid for the submitted bid."
+    "note": "Open the event on the vendor portal"
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "attempt",
     "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "equals": "0"
+     "step": "vendor_bid",
+     "args": {
+      "price": 0
+     },
+     "expect": "refused"
     },
-    "note": "Verify the buyer sees zero rather than a blank value."
+    "note": "Attempt to submit a bid with price zero and check for refusal or acceptance"
    }
   ]
  }

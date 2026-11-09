@@ -2,15 +2,24 @@
  "meta": {
   "caseId": "UI-AWD-008",
   "title": "Allocating a line item to a vendor moves the item counter",
-  "compiledAt": "2026-10-06T04:48:00.903Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:53:18.451Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The prepared event has only one line item; the two-line-item setup and expected selected-item counter of 1/2 cannot be tested."
+   "needs a different starting state than closed (asked for set_schedule, invite_vendor, place_bid, close_event)"
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has only one line item; the two-line-item setup and expected selected-item counter of 1/2 cannot be tested."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "closed",
   "screen": "master_qcs",
@@ -22,45 +31,62 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Allocation updates selected-item counter",
+  "title": "Allocating a line item updates the counter",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ with its vendor bid."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ so it can be bid on and awarded."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two line items required by the awarding setup."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for both line items."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding grid."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "path": "/awarding/"
-    },
-    "note": "Verify navigation to the awarding screen."
-   },
-   {
-    "step": "expect_award_counters",
-    "args": {
-     "items": "0/1"
-    },
-    "note": "Check the initial selected-item counter before allocation."
+    "note": "Open the awarding grid for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {},
-    "note": "Allocate the available line item to the vendor."
+    "note": "Allocate one line item to the available vendor."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "1/1"
+     "items": "1/2"
     },
-    "note": "Read the app's own counter to verify allocation increased the selected-item count."
+    "note": "Read the app's own selected-line-item counter and verify it shows 1/2."
    }
   ]
  }

@@ -2,44 +2,49 @@
  "meta": {
   "caseId": "UI-XDAPR-011",
   "title": "The approvals drawer only asks the new engine on v2 companies",
-  "compiledAt": "2026-10-06T06:13:22.673Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:50:06.466Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish one v1 and one v2 company, each with a pending approval for the viewer: the prepared state does not guarantee these conditions, no company IDs are supplied, and tenant settings cannot be changed.",
-   "Open the approvals drawer: no domain step or confirmed drawer-entry label is provided.",
-   "Assert no get_pending_approvals request on v1 and a successful request with listed items on v2 in the required drawer context; expect_request supports the network checks, but the necessary tenant states and drawer navigation are unavailable.",
-   "Approve pending items both with and without remarks and assert each approved item disappears: pending items and confirmed approval controls are unavailable."
+   "Open the approvals drawer for both the v1 and v2 companies because their company IDs are not provided and no catalog step reaches the approvals drawer.",
+   "Verify that v1 makes no get_pending_approvals call while v2 makes the call and lists items.",
+   "Approve an item with or without a remark and verify that the item disappears from the approvals drawer."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish one v1 and one v2 company, each with a pending approval for the viewer: the prepared state does not guarantee these conditions, no company IDs are supplied, and tenant settings cannot be changed.; Open the approvals drawer: no domain step or confirmed drawer-entry label is provided.; Assert no get_pending_approvals request on v1 and a successful request with listed items on v2 in the required drawer context; expect_request supports the network checks, but the necessary tenant states and drawer navigation are unavailable.; Approve pending items both with and without remarks and assert each approved item disappears: pending items and confirmed approval controls are unavailable."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "can only test part of this — no step for: Open the approvals drawer for both the v1 and v2 companies because their company IDs are not provided and no catalog step reaches the approvals drawer.; Verify that v1 makes no get_pending_approvals call while v2 makes the call and lists items.; Approve an item with or without a remark and verify that the item disappears from the approvals drawer."
   ],
   "state": "bid",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
-   "UI-AWD-001",
-   "UI-XDNEG-002"
+   "UI-AWD-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Approvals drawer engine gating",
+  "title": "Approvals drawer engine by company version",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the fixed prepared event as required; this does not observe the approvals drawer."
+    "note": "the API built this case's state"
    },
    {
-    "step": "capture_screen",
+    "step": "ask_tester",
     "args": {
-     "label": "approvals-drawer-entry-unavailable"
+     "need": "provide the v1 and v2 company IDs, open the approvals drawer in each company, verify the get_pending_approvals behavior, approve one pending item with or without a remark, and confirm the item disappears"
     },
-    "note": "Record the available controls for identifying a supported drawer entry point; this is evidence collection, not an assertion of the requested behavior."
+    "note": "The required approvals drawer, company-version switching, approval action, and network oracle are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the current screen remains rendered without a crash after the tester completes the unavailable flow."
    }
   ]
  }

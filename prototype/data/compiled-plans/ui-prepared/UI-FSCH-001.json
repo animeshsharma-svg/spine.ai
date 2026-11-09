@@ -2,12 +2,13 @@
  "meta": {
   "caseId": "UI-FSCH-001",
   "title": "The start date cannot be before today or more than three months ahead",
-  "compiledAt": "2026-11-09T19:22:27.796Z",
+  "compiledAt": "2026-11-09T20:07:54.321Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
@@ -23,7 +24,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Schedule start-date limits",
+  "title": "Schedule Date Bounds",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,21 +36,40 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template before adding line items and accessing scheduling."
+    "note": "Apply a template so line items and scheduling controls become available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item so the Schedule control becomes available."
+    "note": "Add the required line item for the pricing stage."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before opening scheduling."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Schedule"
+    },
+    "note": "Open the Schedule Event drawer."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open the Schedule drawer and its start date picker; verify that every day before today and every day after the date three months from today is disabled, and stop with the date picker showing the disabled states"
+     "goal": "open the schedule start-date picker and verify that every day before today and every day after today plus three months is visibly disabled; stop with the date picker open showing those disabled days"
     },
-    "note": "Inspect and assert the date-picker disabled-date behavior that no catalog assertion step can express directly."
+    "note": "Inspect the calendar’s disabled-date behavior directly, which has no dedicated catalog assertion."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Schedule Event"
+    },
+    "note": "Confirm the schedule drawer remains open after the calendar inspection."
    }
   ]
  }

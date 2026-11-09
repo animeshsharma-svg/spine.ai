@@ -2,21 +2,21 @@
  "meta": {
   "caseId": "UI-FUPL-002",
   "title": "A file over 10 MB is refused before upload",
-  "compiledAt": "2026-11-09T19:28:44.000Z",
+  "compiledAt": "2026-11-09T20:10:21.526Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Providing a file larger than 10 MB from the available catalog fixtures",
-   "Asserting that no upload request was sent without a known upload endpoint/path"
+   "Provide and select a file larger than 10 MB for the upload control.",
+   "Verify the UI refusal for that oversized file.",
+   "Verify that no upload request was sent."
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Providing a file larger than 10 MB from the available catalog fixtures; Asserting that no upload request was sent without a known upload endpoint/path"
+   "can only test part of this — no step for: Provide and select a file larger than 10 MB for the upload control.; Verify the UI refusal for that oversized file.; Verify that no upload request was sent."
   ],
   "state": "live",
   "screen": "summary",
@@ -25,7 +25,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject oversized BOQ upload",
+  "title": "Reject oversized upload before sending",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,21 +35,27 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Select a BOQ template before attempting the sheet upload."
-   },
-   {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "on the BOQ create screen, open the Upload Sheet control, select a file larger than 10 MB, and stop when the screen shows that the file is refused before upload"
+     "role": "button",
+     "name": "Upload Sheet",
+     "visible": true
     },
-    "note": "Perform the oversized-file selection that the catalog cannot parameterize; the executor may request a suitable file if none is available."
+    "note": "Confirm the file-upload control required by the case is present."
    },
    {
-    "step": "expect_error",
-    "args": {},
-    "note": "Assert that the screen displayed a refusal after selecting the oversized file."
+    "step": "ask_tester",
+    "args": {
+     "need": "provide and select a file larger than 10 MB in Upload Sheet, verify the on-screen refusal, and verify that no upload request was sent"
+    },
+    "note": "The catalog cannot supply an over-10-MB file or inspect the upload request absence."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any"
+    },
+    "note": "Check for an on-screen response after the tester performs the oversized upload attempt."
    }
   ]
  }

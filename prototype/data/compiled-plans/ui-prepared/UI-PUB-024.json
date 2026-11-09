@@ -2,18 +2,17 @@
  "meta": {
   "caseId": "UI-PUB-024",
   "title": "Changing ownership of an event works for the owner and not for others",
-  "compiledAt": "2026-10-06T04:55:15.274Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:53.999Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as the event owner and then as an unrelated buyer; no buyer-identity switching step exists.",
-   "Complete ownership transfer to a specified buyer; no transfer step or confirmed transfer-dialog controls are provided.",
-   "Assert that the event reflects the new owner; no owner-value assertion or confirmed owner field is provided.",
-   "Attempt ownership transfer as the unrelated buyer and assert refusal."
+   "Complete the ownership change as the event owner and verify the new owner is reflected.",
+   "Sign in as an unrelated buyer, attempt the ownership change, and verify that the attempt is refused."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Sign in as the event owner and then as an unrelated buyer; no buyer-identity switching step exists.; Complete ownership transfer to a specified buyer; no transfer step or confirmed transfer-dialog controls are provided.; Assert that the event reflects the new owner; no owner-value assertion or confirmed owner field is provided.; Attempt ownership transfer as the unrelated buyer and assert refusal."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Complete the ownership change as the event owner and verify the new owner is reflected.; Sign in as an unrelated buyer, attempt the ownership change, and verify that the attempt is refused."
   ],
   "state": "none",
   "screen": "create",
@@ -25,40 +24,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Owner-only event ownership transfer",
+  "title": "Event ownership change permissions",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the setup event; the executor must supply its identity and the owner's session."
+    "note": "Open the existing event described in the setup."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Inspect the existing event's ownership-action entry point."
-   },
-   {
-    "step": "expect_visible",
+    "step": "event_menu",
     "args": {
-     "role": "menuitem",
-     "name": "Change Owner"
+     "item": "Change Owner"
     },
-    "note": "Check only that the owner is offered the action; this does not establish a successful transfer."
+    "note": "Open the event's Change Owner action to reach the ownership flow."
    },
    {
-    "step": "click",
+    "step": "ask_tester",
     "args": {
-     "role": "menuitem",
-     "name": "Change Owner"
+     "need": "sign in as the event owner, complete the ownership change and verify the new owner, then sign in as the unrelated buyer and attempt the same change to verify it is refused"
     },
-    "note": "Open the ownership-transfer interface for inspection."
+    "note": "The catalog has no step for owner or unrelated-buyer authentication or for completing and observing this permission-sensitive flow."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "ownership-transfer-controls"
+     "text": "Change Owner",
+     "present": true
     },
-    "note": "Record the transfer controls for manual follow-up; this capture asserts neither transfer success nor unauthorized refusal."
+    "note": "Confirm the ownership-control label remains identifiable after the tester's interaction; this is only a reachability check, not the ownership oracle."
    }
   ]
  }

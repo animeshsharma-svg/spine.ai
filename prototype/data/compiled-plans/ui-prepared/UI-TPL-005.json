@@ -2,16 +2,16 @@
  "meta": {
   "caseId": "UI-TPL-005",
   "title": "A section-wise-scoring template is refused outside Vendor Assessment",
-  "compiledAt": "2026-10-06T05:26:00.905Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:40.412Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Identify and select a template flagged section_wise_scoring_enabled: the catalog selects by template name, but the case supplies no name and no step inspects this flag.",
-   "Exercise the intended rejection and verify its exact error and unchanged template state without an identifiable section-wise-scoring template."
+   "Distinguishing a section-wise-scoring template from normal pricing templates in the template picker by type"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify and select a template flagged section_wise_scoring_enabled: the catalog selects by template name, but the case supplies no name and no step inspects this flag.; Exercise the intended rejection and verify its exact error and unchanged template state without an identifiable section-wise-scoring template."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Distinguishing a section-wise-scoring template from normal pricing templates in the template picker by type"
   ],
   "state": "none",
   "screen": "create",
@@ -23,42 +23,49 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject scoring templates outside Vendor Assessment",
+  "title": "Section-wise scoring template refused outside Vendor Assessment",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "The default Auction stage is a pricing stage outside Vendor Assessment."
+    "note": "Open the eRFX create screen to configure stages and templates"
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique title for this create-screen test."
+    "note": "Set a title for the event"
    },
    {
-    "step": "expect_visible",
+    "step": "compose_stages",
     "args": {
-     "role": "button",
-     "name": "Select Templates"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "Check the initial unconfigured state; this is not the rejection oracle."
+    "note": "Choose an RFQ pricing stage"
    },
    {
-    "step": "click",
+    "step": "switch_stage",
     "args": {
-     "role": "button",
-     "name": "Select Templates"
+     "stage": "rfq"
     },
-    "note": "Open the pricing-stage template picker without applying an arbitrary template."
+    "note": "Switch to the RFQ stage tab"
    },
    {
-    "step": "capture_screen",
+    "step": "attempt",
     "args": {
-     "label": "pricing-stage-template-picker"
+     "step": "select_template",
+     "args": {
+      "name": "Section-wise"
+     },
+     "because": "Section-wise scoring templates can only be selected in the Vendor Assessment section."
     },
-    "note": "Record available templates so the required scoring template can be identified before completing the negative test."
+    "note": "Attempt to select the section-wise scoring template on the pricing stage and assert it is refused"
+   },
+   {
+    "step": "expect_template_selected",
+    "note": "Assert that the pricing stage still has no template applied"
    }
   ]
  }

@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-SUR-014",
   "title": "A technical stage offers Add Technical Bid, not Add Bid",
-  "compiledAt": "2026-10-06T05:16:05.506Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:46:11.535Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Assert that the technical-bid control exists: no known rendered label or catalog step identifies it, and \"Add Technical Bid\" is explicitly not rendered.",
-   "Assert that no price drawer is visible: no confirmed label or domain assertion identifies that drawer on technical Participants."
+   "The catalog cannot directly verify that the generic Add Bid control is semantically labeled as Add Technical Bid.",
+   "The catalog has no dedicated assertion for a price drawer, so only the absence of the known Add Price Cap control can be checked."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Assert that the technical-bid control exists: no known rendered label or catalog step identifies it, and \"Add Technical Bid\" is explicitly not rendered.; Assert that no price drawer is visible: no confirmed label or domain assertion identifies that drawer on technical Participants."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The catalog cannot directly verify that the generic Add Bid control is semantically labeled as Add Technical Bid.; The catalog has no dedicated assertion for a price drawer, so only the absence of the known Add Price Cap control can be checked."
   ],
   "state": "live",
   "screen": "participants",
@@ -22,14 +23,14 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Technical-stage surrogate bid controls",
+  "title": "Technical stage participant bid control",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event at the required pricing Participants starting screen."
+    "note": "Open the prepared live event's Participants screen as required for this state."
    },
    {
     "step": "go_to",
@@ -37,28 +38,29 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Switch to the technical round that the case concerns."
+    "note": "Switch the current event view to the live technical/RFP stage."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the technical round's Participants list."
+    "note": "Open the technical stage's Participants list where its bid control is offered."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Add Bid",
-     "count": 0
+     "visible": true
     },
-    "note": "Check the implied absence of the commercial Add Bid control; this does not establish that a technical alternative exists."
+    "note": "Verify that a bid control exists for the technical-stage participant."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "technical-participants-controls"
+     "text": "Add Price Cap",
+     "present": false
     },
-    "note": "Record the actual controls and any drawer for manual inspection of the unsupported oracle."
+    "note": "Check that the pricing-specific control is not shown in the technical-stage participant view."
    }
   ]
  }

@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-SAV-007",
   "title": "The multi-currency modal refuses zero selected currencies",
-  "compiledAt": "2026-10-05T11:04:05.008Z",
+  "compiledAt": "2026-11-09T19:44:20.280Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "multi-currency modal interaction and currency selection steps"
+   "Assert that the currency modal remains open because its dialog label is not provided as a catalog-known element."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: multi-currency modal interaction and currency selection steps"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Assert that the currency modal remains open because its dialog label is not provided as a catalog-known element."
   ],
   "state": "none",
   "screen": "create",
@@ -22,17 +23,22 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Multi-currency modal refuses zero selected currencies",
+  "title": "Multi-currency zero selection refusal",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the events list as a starting fallback since the specific currency modal cannot be invoked directly."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the open multi-currency modal, deselect all currencies and try to proceed; stop with the modal still open and showing the refusal message \"Please select atleast one currency.\""
+    },
+    "note": "Performs the modal-specific deselection and proceed attempt that has no dedicated catalog step."
    },
    {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert the events list rendered."
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please select atleast one currency."
+    },
+    "note": "Verifies the required refusal message is shown."
    }
   ]
  }

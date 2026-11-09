@@ -2,16 +2,21 @@
  "meta": {
   "caseId": "UI-BOQ-008",
   "title": "Re-uploading replaces the previous BOQ items",
-  "compiledAt": "2026-10-05T13:16:41.554Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:40:03.872Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Upload a different, valid 25-row BOQ sheet: the available upload fixtures do not include a BOQ sheet with known replacement products.",
-   "Verify after re-upload that the count remains 25 rather than 50, all new products are present, and all old products are removed."
+   "Upload a specifically different 25-row BOQ sheet because no such fixture is available in the catalog",
+   "Assert that the old product names are gone and replaced by specific new product names"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Upload a different, valid 25-row BOQ sheet: the available upload fixtures do not include a BOQ sheet with known replacement products.; Verify after re-upload that the count remains 25 rather than 50, all new products are present, and all old products are removed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Upload a specifically different 25-row BOQ sheet because no such fixture is available in the catalog; Assert that the old product names are gone and replaced by specific new product names"
   ],
   "state": "none",
   "screen": "create",
@@ -23,45 +28,44 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ re-upload replaces 25 items",
+  "title": "BOQ re-upload replaces items",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "boq"
-    },
-    "note": "Open the BOQ creation flow to establish the baseline."
+     "path": "erfx"
+    }
    },
    {
-    "step": "set_title",
+    "step": "set_title"
+   },
+   {
+    "step": "open_event",
     "args": {},
-    "note": "Give the baseline event a unique title."
+    "note": "Open the existing BOQ event from the prepared setup; the runner selects the fitting existing event."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Choose the required template before adding items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "click",
     "args": {
-     "count": 25
+     "role": "button",
+     "name": "Upload Sheet"
     },
-    "note": "Establish the initial 25-item BOQ."
+    "note": "Open the BOQ sheet upload control on the event's BOQ screen."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Upload the closest available replacement sheet fixture."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 25
     },
-    "note": "Assert only the initial count; this does not test re-upload replacement."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "boq-before-replacement-upload"
-    },
-    "note": "Record the baseline and available controls for the unsupported replacement-upload test."
+    "note": "Verify the BOQ contains exactly 25 items rather than 50 after re-upload."
    }
   ]
  }

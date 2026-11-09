@@ -2,18 +2,22 @@
  "meta": {
   "caseId": "UI-EVDTME-006",
   "title": "\"Increase time\" on a live staggered round re-times the lines instead of the round",
-  "compiledAt": "2026-11-09T19:12:31.427Z",
+  "compiledAt": "2026-11-09T19:41:22.949Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Create or access a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming",
-   "Increase time by exactly 10 minutes with a remark on that staggered auction",
-   "Observe and verify the complete PATCH /trade/<id>/staggered_time body, including per-line start/end changes, omitted line 1, absence of the remark, and absence of increase_auction_time",
-   "Verify the alternate normal-extension request in buffer status"
+   "Create or select a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming",
+   "Enter a remark with the time extension",
+   "Assert the exact trade_products_time mapping for lines 2 and 3, including unchanged line 2 start and omitted line 1",
+   "Assert the alternate normal-extension request in buffer status"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create or access a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming; Increase time by exactly 10 minutes with a remark on that staggered auction; Observe and verify the complete PATCH /trade/<id>/staggered_time body, including per-line start/end changes, omitted line 1, absence of the remark, and absence of increase_auction_time; Verify the alternate normal-extension request in buffer status"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Create or select a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming; Enter a remark with the time extension; Assert the exact trade_products_time mapping for lines 2 and 3, including unchanged line 2 start and omitted line 1; Assert the alternate normal-extension request in buffer status"
   ],
   "state": "upcoming",
   "screen": "summary",
@@ -25,26 +29,36 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Live staggered round increase-time request",
+  "title": "Live staggered round time extension payload",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Closest available navigation to an existing event summary; it cannot provide the required live staggered auction state."
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Opens the available event actions so the time-extension control can be inspected, but does not test staggered per-line timing."
-   },
-   {
-    "step": "expect_menu_item",
+    "step": "extend_time",
     "args": {
-     "item": "Extend Submission Time"
+     "option": "custom",
+     "amount": 10,
+     "unit": "minutes"
     },
-    "note": "Confirms whether the generic extension action is offered; this does not observe the required staggered_time request."
+    "note": "Perform the closest supported 10-minute submission-time extension."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/staggered_time",
+     "method": "PATCH",
+     "bodyContains": "trade_products_time",
+     "bodyLacks": [
+      "remark",
+      "increase_auction_time"
+     ]
+    },
+    "note": "Check the observable request path and presence/absence of the supported body fields, without claiming to verify the unexpressible nested timing structure."
    }
   ]
  }

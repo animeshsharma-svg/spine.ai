@@ -2,94 +2,118 @@
  "meta": {
   "caseId": "UI-VAL-007",
   "title": "Emoji survive in titles, descriptions and clauses",
-  "compiledAt": "2026-10-05T09:52:17.981Z",
+  "compiledAt": "2026-11-09T19:58:45.355Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify byte equality on read-back across vendor view (requires dual portal login comparison)"
+   "expects label(s) Procol is not known to render: Emoji 😀 🚀 ✅"
   ],
   "warnings": [
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "can only test part of this — no step for: Verify byte equality on read-back across vendor view (requires dual portal login comparison)"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “enter emoji in the description and clause fields and verify their byte-identical read-back on the buyer's and vendor's v” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-SS-001",
-   "UI-CRE-002"
+   "UI-VAL-009",
+   "UI-SS-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "emoji_survive_in_titles_descriptions_and_clauses",
+  "title": "UI-VAL-007 Emoji Title Rendering",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start eRFX project creation"
+    "note": "Open the event creation screen."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "🚀 Événement 🎈 RFQ"
+     "title": "Emoji 😀 🚀 ✅"
     },
-    "note": "Set title with emoji and unicode"
+    "note": "Set the title to the exact emoji string under test."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enter emoji in the description and clause fields and verify their byte-identical read-back on the buyer's and vendor's views"
+    },
+    "note": "The catalog has no known labels or dedicated steps for description and clause content, nor a byte-level read-back assertion."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select a template for the stage"
+    "note": "Apply a template so the event can be completed and published."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1,
-     "search": "AAC"
+     "count": 1
     },
-    "note": "Add a line item"
+    "note": "Add the required line item for publication."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 5
+     "minutes": 30
     },
-    "note": "Set event duration"
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor"
+    "note": "Invite the vendor needed for the vendor-side read-back."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event with emoji content"
+    "note": "Publish the event so both buyer and vendor views can be inspected."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert event successfully published"
+    "note": "Confirm the event reached a published project page."
    },
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen the published event to verify rendering"
-   },
-   {
-    "step": "expect_api_value",
+    "step": "expect_text",
     "args": {
-     "key": "title"
+     "text": "Emoji 😀 🚀 ✅"
     },
-    "note": "Verify title rendered properly"
+    "note": "Verify the exact emoji title is rendered on the buyer's view."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the vendor can read the title."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Emoji 😀 🚀 ✅"
+    },
+    "note": "Verify the exact same emoji title is rendered on the vendor's view."
    }
   ]
  }

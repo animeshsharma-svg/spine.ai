@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "UI-SAV-004",
   "title": "A duplicate custom savings strategy name is refused",
-  "compiledAt": "2026-10-06T04:57:20.479Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:58.911Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Ensure an existing custom savings strategy named S is available.",
-   "Enter S as a new custom strategy and confirm creation: the name input and confirmation control are not identified in the catalog.",
-   "Verify \"Savings Strategy Already Present!\" after duplicate submission; the message assertion exists, but the triggering submission cannot be reliably expressed.",
-   "Compare the strategy count before and after the refused creation; the strategy-list target is not identified."
+   "No dedicated catalog step can independently create and count custom savings strategies; do_on_screen must perform and observe those actions on screen."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Ensure an existing custom savings strategy named S is available.; Enter S as a new custom strategy and confirm creation: the name input and confirmation control are not identified in the catalog.; Verify \"Savings Strategy Already Present!\" after duplicate submission; the message assertion exists, but the triggering submission cannot be reliably expressed.; Compare the strategy count before and after the refused creation; the strategy-list target is not identified."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: No dedicated catalog step can independently create and count custom savings strategies; do_on_screen must perform and observe those actions on screen."
   ],
   "state": "none",
   "screen": "create",
@@ -25,53 +23,53 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject duplicate savings strategy",
+  "title": "UI-SAV-004 Duplicate Savings Strategy Refusal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen containing the Savings control."
+    "note": "Open an event create screen where savings configuration is available."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required event title."
+    "args": {
+     "title": "UI-SAV-004 Duplicate Savings Strategy"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template to enable adding line items."
+    "note": "Apply a template so the event controls, including Savings, become usable."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Meet the Savings drawer's template-and-product prerequisites."
+    "note": "Add the minimum line item required to enable the savings configuration."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Savings"
-    },
-    "note": "Open the Savings drawer."
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before interacting with savings configuration."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "text": "Savings Calculation"
+     "goal": "Open Savings, create and save an existing custom savings strategy named S, record the displayed strategy count, attempt to create another custom savings strategy named S, and stop on the screen showing the refusal message \"Savings Strategy Already Present!\" with the strategy count unchanged"
     },
-    "note": "Verify the drawer opened; this does not assert duplicate rejection."
+    "note": "Perform the custom strategy creation and duplicate attempt, observing both the refusal message and unchanged count."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "duplicate-savings-strategy-controls"
+     "text": "Savings Strategy Already Present!",
+     "present": true
     },
-    "note": "Record the available strategy controls for completing the unsupported duplicate-creation and count checks."
+    "note": "Assert that the expected duplicate-name refusal message is shown."
    }
   ]
  }

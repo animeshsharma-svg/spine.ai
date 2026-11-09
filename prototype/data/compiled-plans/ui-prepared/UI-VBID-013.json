@@ -2,12 +2,14 @@
  "meta": {
   "caseId": "UI-VBID-013",
   "title": "A negative quantity in the vendor's quantity column is refused",
-  "compiledAt": "2026-11-09T19:19:17.196Z",
+  "compiledAt": "2026-11-09T20:06:10.905Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
@@ -18,19 +20,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Negative vendor quantity is refused",
+  "title": "Vendor Negative Offered Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the RFQ event used to reach the vendor bidding sheet."
+    "note": "Open the multi-stage event creation flow."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title."
+    "args": {
+     "title": "UI-VBID-013 Negative Quantity"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -39,24 +43,24 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ pricing stage for the vendor quantity test."
+    "note": "Configure the event as an RFQ so the vendor receives a pricing sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one requested product for the vendor to quote."
+    "note": "Add one product to create a vendor quantity row."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the buyer-side pricing sheet so the event can be published."
+    "note": "Complete the buyer-side pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
@@ -70,7 +74,7 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose portal will be tested."
+    "note": "Invite the QA vendor required for the vendor-portal test."
    },
    {
     "step": "publish",
@@ -80,39 +84,41 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal."
+    "note": "Move to the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's vendor pricing sheet."
+    "note": "Open the event's RFQ pricing sheet as the vendor."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "attempt",
     "args": {
-     "row": 1,
-     "column": "Quantity",
-     "value": "-1"
+     "step": "fill",
+     "args": {
+      "label": "Quantity Available",
+      "value": "-1"
+     },
+     "expect": "refused"
     },
-    "note": "Enter the invalid negative offered quantity specified by the case."
+    "note": "Attempt the invalid negative offered quantity and require positive refusal evidence."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "expect_text",
     "args": {
-     "row": 1,
-     "column": "Quantity",
-     "refused": true
+     "text": "Submitted",
+     "present": false
     },
-    "note": "Verify the vendor sheet refuses -1 rather than keeping or accepting it."
+    "note": "Verify that no submitted bid state was created after the refusal."
    }
   ]
  }

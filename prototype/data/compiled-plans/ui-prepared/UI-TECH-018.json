@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-TECH-018",
   "title": "An evaluator scores a submitted technical response",
-  "compiledAt": "2026-10-06T05:23:53.157Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:39.652Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish that evaluation is enabled, a technical response has been submitted, and the technical stage is in evaluation time; the fixed prepared bid state does not guarantee these prerequisites.",
-   "Sign in as the assigned evaluator, open the technical response, score each question, and submit the evaluation.",
-   "Assert that the evaluation score was saved and that Master QCS shows a non-empty evaluation score for the vendor; no score assertion or confirmed score-field label is available."
+   "Sign in as the evaluator in a separate evaluator session"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish that evaluation is enabled, a technical response has been submitted, and the technical stage is in evaluation time; the fixed prepared bid state does not guarantee these prerequisites.; Sign in as the assigned evaluator, open the technical response, score each question, and submit the evaluation.; Assert that the evaluation score was saved and that Master QCS shows a non-empty evaluation score for the vendor; no score assertion or confirmed score-field label is available."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Sign in as the evaluator in a separate evaluator session"
   ],
   "state": "bid",
   "screen": "responses",
@@ -21,26 +20,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Technical evaluation score in buyer comparison",
+  "title": "Evaluator scores a submitted technical response",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared event's pricing comparison as required."
+    "note": "Open the prepared event"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the assigned evaluator and score the vendor's technical response"
+    },
+    "note": "Evaluator signs in and submits the technical evaluation"
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Assert that the buyer's comparison grid renders; this does not establish that an evaluation score exists."
+    "note": "Open Master QCS to verify the evaluation score is visible"
    },
    {
-    "step": "capture_screen",
+    "step": "expect_qcs_cell",
     "args": {
-     "label": "master-qcs-technical-evaluation"
+     "row": "Rank",
+     "vendor": 1
     },
-    "note": "Record the comparison for manual inspection of evaluation-score controls and values, without claiming the score oracle is tested."
+    "note": "Assert the comparison grid shows the vendor's evaluation result"
    }
   ]
  }

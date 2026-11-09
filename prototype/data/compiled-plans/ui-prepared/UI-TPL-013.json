@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-TPL-013",
   "title": "Freight charges only become available at three or more line items",
-  "compiledAt": "2026-10-06T06:00:18.132Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:55.427Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Reliably open and reopen the Add price field menu: its control's visible label and role are unconfirmed.",
-   "Assert that Menu.Item keyed freight_charges is absent at two line items and present at three: generic assertions cannot target internal menu keys, and no corresponding visible option label is confirmed."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Reliably open and reopen the Add price field menu: its control's visible label and role are unconfirmed.; Assert that Menu.Item keyed freight_charges is absent at two line items and present at three: generic assertions cannot target internal menu keys, and no corresponding visible option label is confirmed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -23,66 +20,69 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Freight charges threshold at three items",
+  "title": "Freight Charges Threshold",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Use the default Auction pricing stage."
+    "note": "Open the multi-stage event creation screen for a pricing stage."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Give the test event a unique title."
+    "note": "Provide the required event title for a create test."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with an RFQ pricing stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding items."
+    "note": "Apply the pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Establish the below-threshold state."
+    "note": "Create the two-line-item setup required by the case."
    },
    {
-    "step": "expect_line_items",
+    "step": "expect_options",
     "args": {
-     "count": 2
+     "role": "button",
+     "name": "Price Components",
+     "absent": [
+      "freight_charges"
+     ]
     },
-    "note": "Verify the prerequisite count, not freight-option visibility."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "pricing-sheet-two-items"
-    },
-    "note": "Record available controls for identifying the unsupported menu interaction."
+    "note": "Verify freight_charges is absent from the price-field menu at two line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the third line item."
+    "note": "Add the third line item that should cross the availability threshold."
    },
    {
-    "step": "expect_line_items",
+    "step": "expect_options",
     "args": {
-     "count": 3
+     "role": "button",
+     "name": "Price Components",
+     "options": [
+      "freight_charges"
+     ]
     },
-    "note": "Verify the threshold count without claiming the freight option appeared."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "pricing-sheet-three-items"
-    },
-    "note": "Record the three-item screen; this capture is not a menu-presence assertion."
+    "note": "Reopen the price-field menu and verify freight_charges is now present."
    }
   ]
  }

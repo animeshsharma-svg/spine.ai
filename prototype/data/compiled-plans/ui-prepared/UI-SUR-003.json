@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-SUR-003",
   "title": "The Add Bid drawer opens with that vendor's sheet",
-  "compiledAt": "2026-10-06T05:12:04.809Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:14.112Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Identify the drawer by its submit control: no confirmed name or label for that control is provided."
+   "The drawer cannot be identified by a rendered \"Submit Bid\" control because that label is not present in Procol; the exact Submit Bid oracle is not expressible."
   ],
   "warnings": [
-   "can only test part of this — no step for: Identify the drawer by its submit control: no confirmed name or label for that control is provided."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The drawer cannot be identified by a rendered \"Submit Bid\" control because that label is not present in Procol; the exact Submit Bid oracle is not expressible."
   ],
   "state": "live",
   "screen": "participants",
@@ -21,21 +22,19 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Add Bid opens the chosen vendor's sheet",
+  "title": "Add Bid drawer shows vendor sheet",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab."
+    "note": "Open the prepared event's Participants tab."
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Check that the participant list shows the prepared event's invited vendor."
+    "step": "open_participants",
+    "args": {},
+    "note": "Ensure the participant list and Add Bid controls are rendered."
    },
    {
     "step": "click",
@@ -43,39 +42,46 @@
      "role": "button",
      "name": "Add Bid"
     },
-    "note": "Open surrogate bidding for the only invited vendor."
+    "note": "Click Add Bid on the first eligible vendor row to open that vendor's bid drawer."
    },
    {
     "step": "expect_visible",
     "args": {
      "text": "Add Bid for",
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Check that the Add Bid drawer opened."
+    "note": "Verify the vendor bid drawer opened using a known rendered label."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "vendorName",
-     "within": "dialog"
+     "key": "vendorName"
     },
-    "note": "Verify the drawer names the same API-backed vendor shown in the participant list."
+    "note": "Verify the drawer identifies the vendor selected from the row."
    },
    {
-    "step": "expect_api_value",
+    "step": "expect_text",
     "args": {
-     "key": "quantity",
-     "within": "dialog"
+     "text": "Product",
+     "present": true
     },
-    "note": "Verify the drawer displays the prepared line item's quantity."
+    "note": "Verify the drawer contains the event's line-item sheet."
    },
    {
-    "step": "expect_api_value",
+    "step": "expect_text",
     "args": {
-     "key": "unit",
-     "within": "dialog"
+     "text": "Quantity Requested",
+     "present": true
     },
-    "note": "Verify the displayed line item's unit matches the event data."
+    "note": "Verify the event quantity column is present in the sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": true
+    },
+    "note": "Verify the bid price column is present in the sheet."
    }
   ]
  }

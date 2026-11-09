@@ -2,16 +2,16 @@
  "meta": {
   "caseId": "UI-CRE-019",
   "title": "A long title is accepted or refused, but never silently truncated",
-  "compiledAt": "2026-10-05T13:27:39.327Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:54:21.322Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Conditionally pass either successful publication with the complete title or refusal with a stated title-length limit; publish and refusal assertions require separate predetermined outcomes.",
-   "Compare the published title against the entered title character for character; the available text assertion checks presence rather than exact equality."
+   "The conditional refusal branch: if publication is refused, assert that the refusal explicitly states the title-length limit while also accepting the alternative successful-publication outcome in the same plan."
   ],
   "warnings": [
-   "can only test part of this — no step for: Conditionally pass either successful publication with the complete title or refusal with a stated title-length limit; publish and refusal assertions require separate predetermined outcomes.; Compare the published title against the entered title character for character; the available text assertion checks presence rather than exact equality."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The conditional refusal branch: if publication is refused, assert that the refusal explicitly states the title-length limit while also accepting the alternative successful-publication outcome in the same plan."
   ],
   "state": "none",
   "screen": "create",
@@ -23,42 +23,52 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "255-character title is not silently truncated",
+  "title": "UI-CRE-019 Long Title Handling",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a valid project using the default Auction stage."
+    "note": "Open a valid multi-stage project creation flow."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxX"
+     "title": "ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-"
     },
-    "note": "Enter exactly 255 characters: five 50-character blocks, four spaces, and a final X."
+    "note": "Enter the 255-character title under test."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "typed_title",
+     "label": "Enter the title of the project"
+    },
+    "note": "Capture the exact title value before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Supply the required pricing template."
+    "note": "Apply the required pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Supply a line item so an unrelated missing-item validation does not block publication."
+    "note": "Add the minimum required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the required pricing-sheet fields."
+    "note": "Complete the pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
-    "args": {},
+    "args": {
+     "minutes": 30
+    },
     "note": "Commit a valid event schedule."
    },
    {
@@ -66,24 +76,25 @@
     "args": {
      "count": 1
     },
-    "note": "Supply a participant to satisfy publication prerequisites."
+    "note": "Add the minimum participant required for publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Exercise publication with the long title; this plan supports the acceptance branch only."
+    "note": "Publish the valid project so its detail-page title can be checked."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project detail page."
+    "note": "Assert that publication succeeded and the event detail page was reached."
    },
    {
-    "step": "expect_text",
+    "step": "expect_remembered",
     "args": {
-     "text": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxX"
+     "key": "typed_title",
+     "text": "ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-ABCDEFGHIJKLMN-"
     },
-    "note": "Require the complete entered title on the published page, rather than merely proving that publication succeeded."
+    "note": "Assert the published detail page shows the complete title exactly as entered."
    }
   ]
  }

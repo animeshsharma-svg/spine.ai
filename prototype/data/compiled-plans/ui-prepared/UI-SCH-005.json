@@ -2,16 +2,15 @@
  "meta": {
   "caseId": "UI-SCH-005",
   "title": "A window starting now publishes as Live and is immediately biddable",
-  "compiledAt": "2026-10-06T04:59:55.622Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:56:16.760Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Directly assert that the invited vendor's bid cells are editable in the supplier portal; place_bid verifies successful bidding instead, while expect_sheet_cells does not provide navigation to the vendor's unsubmitted bid sheet."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "named AMD on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain",
-   "can only test part of this — no step for: Directly assert that the invited vendor's bid cells are editable in the supplier portal; place_bid verifies successful bidding instead, while expect_sheet_cells does not provide navigation to the vendor's unsubmitted bid sheet."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids"
   ],
   "state": "none",
   "screen": "create",
@@ -23,58 +22,57 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Start-now event is Live and immediately biddable",
+  "title": "Immediate Live Bidding After Schedule",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a valid event using the default Auction stage."
+    "note": "Open the multi-stage event creation flow."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a unique searchable title."
+    "args": {
+     "title": "Immediate Live Bidding Test"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding items."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide one item for the vendor to quote."
+    "note": "Add one line item for the vendor to quote."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete required buyer-side sheet values."
+    "note": "Complete the pricing sheet so the event is valid."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Save the default start-now schedule with a 30-minute duration."
+    "note": "Save a schedule starting now with a 30-minute duration."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1,
-     "vendors": [
-      "AMD"
-     ]
+     "count": 1
     },
-    "note": "Invite a vendor using the configured audience without inventing a company name."
+    "note": "Invite the vendor who must bid immediately."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event with its committed schedule."
+    "note": "Publish the valid scheduled event."
    },
    {
     "step": "expect_published",
@@ -84,29 +82,33 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Inspect the buyer-visible event status."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the list rendered without an error."
+    "note": "Open the buyer's events list to inspect the published status."
    },
    {
     "step": "expect_event_status",
     "args": {
      "status": "Live"
     },
-    "note": "Assert the newly published event is Live rather than Upcoming."
+    "note": "Verify the event is shown as Live to the buyer."
    },
    {
-    "step": "place_bid",
-    "args": {},
-    "note": "Submit from the configured vendor portal immediately, without waiting or changing the schedule."
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round where the bid cells should be available."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor's bid was accepted during the new window."
+    "note": "Verify the vendor's immediate bid was submitted successfully."
    }
   ]
  }

@@ -2,22 +2,23 @@
  "meta": {
   "caseId": "UI-FTNC-002",
   "title": "A product's own clauses are merged into the default group without duplicates",
-  "compiledAt": "2026-11-09T19:22:41.005Z",
+  "compiledAt": "2026-11-09T20:07:57.233Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The prepared event does not guarantee that its product carries terms and conditions, and no catalog assertion can identify or verify the product's source clauses independently of the on-screen inspection.",
-   "needs a different starting state than live (asked for set_schedule)"
+   "Select a specific product known to carry terms and conditions when the case does not provide its product name.",
+   "Guarantee adding the same product twice or another product sharing a clause using the catalog's product-selection arguments.",
+   "Directly assert that every dynamically named clause appears exactly once under the default group."
   ],
   "warnings": [
-   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The prepared event does not guarantee that its product carries terms and conditions, and no catalog assertion can identify or verify the product's source clauses independently of the on-screen inspection."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Select a specific product known to carry terms and conditions when the case does not provide its product name.; Guarantee adding the same product twice or another product sharing a clause using the catalog's product-selection arguments.; Directly assert that every dynamically named clause appears exactly once under the default group."
   ],
   "state": "live",
   "screen": "summary",
@@ -28,26 +29,50 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Product terms merge without duplicates",
+  "title": "Deduplicate Product Terms and Conditions",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event as required before inspecting or modifying its configuration."
+    "note": "the API built this case's state"
    },
    {
-    "step": "create_new_version",
+    "step": "select_template",
     "args": {},
-    "note": "Open a create screen based on the existing published event so the product can be added again without creating a separate event."
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add two product line items to approximate the duplicate/shared-clause scenario."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Open the terms and conditions area where the default group and product clauses can be inspected."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the new-version create screen, add the same product a second time (or add a product sharing a terms clause), open Terms and Conditions, and verify that every product clause appears exactly once under the default group"
+     "goal": "on the Terms & Conditions screen, ensure the product carrying terms and conditions is added twice or paired with another product sharing a clause, then verify that each clause appears exactly once under the default group; stop with the default group and its deduplicated clauses visible"
     },
-    "note": "No catalog assertion can enumerate or count arbitrary product terms clauses, so this performs the duplicate addition and directly inspects the terms group."
+    "note": "Perform the product-specific selection and inspect dynamic clause entries that no fixed catalog assertion can name."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions",
+     "visible": true
+    },
+    "note": "Assert that the terms and conditions section remains present after the inspection."
    }
   ]
  }

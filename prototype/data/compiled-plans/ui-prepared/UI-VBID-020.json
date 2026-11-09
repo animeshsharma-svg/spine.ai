@@ -2,12 +2,14 @@
  "meta": {
   "caseId": "UI-VBID-020",
   "title": "Bidding on a withdrawn event is refused",
-  "compiledAt": "2026-11-09T19:12:02.353Z",
+  "compiledAt": "2026-11-09T20:02:41.417Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
@@ -18,90 +20,42 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Bidding on Withdrawn Event Refused",
+  "title": "Bidding on a Withdrawn Event Is Refused",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start a new event using the multi-stage create flow, whose default stage is Auction."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Withdrawn Event Bid Refusal"
-    },
-    "note": "Provide the required event title so the event can be published."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event",
     "args": {},
-    "note": "Apply the first available pricing template required for line items and publishing."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one product so the event has a valid bid sheet."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before publishing."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one QA vendor, making the later vendor bid attempt an invited-vendor scenario."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event so it can be withdrawn and exposed to the vendor portal."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a real published project page."
-   },
-   {
-    "step": "withdraw_event",
-    "args": {
-     "scope": "project",
-     "reason": "Testing bidding refusal after withdrawal"
-    },
-    "note": "Withdraw the entire project before any bid is submitted."
+    "note": "Open the prepared existing event under test."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Confirm Procol records the project as withdrawn."
+    "note": "Verify that the event is withdrawn before attempting the bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited vendor's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the withdrawn event's pricing round as the vendor."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "place_bid",
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
      "expect": "refused"
     },
-    "note": "As the invited vendor, attempt to submit a bid and require Procol to refuse it."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 0
-    },
-    "note": "Verify the buyer's Responses view contains no vendor response, proving no bid was created."
+    "note": "Attempt to submit a bid and require Procol to refuse it, proving no bid is created."
    }
   ]
  }

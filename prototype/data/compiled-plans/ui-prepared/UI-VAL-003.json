@@ -2,17 +2,17 @@
  "meta": {
   "caseId": "UI-VAL-003",
   "title": "HTML in a title is escaped, not rendered",
-  "compiledAt": "2026-11-09T19:11:07.954Z",
+  "compiledAt": "2026-11-09T20:02:25.779Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify the DOM contains escaped text rather than an actual HTML element.",
-   "Verify that no script executes or no console error is produced.",
-   "Verify browser-level dialogs are absent if script execution triggers one."
+   "Directly inspect the DOM to prove the payload was escaped into text rather than rendered as an HTML element.",
+   "Verify browser console errors or conclusively prove that no script executed or alert dialog was triggered."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the DOM contains escaped text rather than an actual HTML element.; Verify that no script executes or no console error is produced.; Verify browser-level dialogs are absent if script execution triggers one."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Directly inspect the DOM to prove the payload was escaped into text rather than rendered as an HTML element.; Verify browser console errors or conclusively prove that no script executed or alert dialog was triggered."
   ],
   "state": "none",
   "screen": "create",
@@ -24,38 +24,47 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "HTML Title Escaping Across Views",
+  "title": "UI-VAL-003 HTML title escaping",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a valid event creation flow."
+    "note": "Open the event creation flow."
    },
    {
     "step": "set_title",
     "args": {
      "title": "<img src=x onerror=alert(1)>"
     },
-    "note": "Set the potentially unsafe title payload under test."
+    "note": "Use the exact HTML payload as the event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Keep the default auction stage explicit before configuring it."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Configure the event with a pricing template."
+    "note": "Apply the first available pricing template so the event can be completed."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item for publishing."
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet so the event is publishable."
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
@@ -69,48 +78,77 @@
     "args": {
      "count": 1
     },
-    "note": "Add the vendor needed to publish and inspect the portal view."
+    "note": "Add the vendor needed for publishing and portal verification."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event containing the HTML payload."
+    "note": "Publish the event containing the HTML title payload."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm publication succeeded and the detail page is reached."
+    "note": "Assert that publishing reached a real event detail page."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "<img src=x onerror=alert(1)>"
+     "text": "<img src=x onerror=alert(1)>",
+     "present": true
     },
-    "note": "Verify the detail page visibly renders the title literally."
+    "note": "Check that the detail page displays the title literally."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check the detail page for visible crashes, server errors, or raw failure values."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list for the list-view check."
+    "note": "Navigate to the buyer's events list."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered without an application error."
+    "note": "Assert that the events list rendered successfully."
    },
    {
     "step": "expect_event_in_list",
     "args": {
      "title": "<img src=x onerror=alert(1)>"
     },
-    "note": "Verify the published title appears literally in the events list."
+    "note": "Assert that the list contains the literal title text."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check the list for visible crashes or errors."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to this plan's published event detail page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "<img src=x onerror=alert(1)>",
+     "present": true
+    },
+    "note": "Recheck the literal title on the detail page."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check the detail page for visible errors after reopening it."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's portal."
+    "note": "Switch to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
@@ -122,9 +160,15 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "<img src=x onerror=alert(1)>"
+     "text": "<img src=x onerror=alert(1)>",
+     "present": true
     },
-    "note": "Verify the vendor portal displays the title literally."
+    "note": "Assert that the vendor portal shows the title literally."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check the vendor view for visible crashes or errors."
    }
   ]
  }

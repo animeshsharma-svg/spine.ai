@@ -2,7 +2,7 @@
  "meta": {
   "caseId": "UI-FPUB-002",
   "title": "Missing participants is reported before a missing template",
-  "compiledAt": "2026-11-09T19:13:06.081Z",
+  "compiledAt": "2026-11-09T20:03:26.302Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
@@ -10,6 +10,7 @@
    "needs a different starting state than live (asked for invite_vendor)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(participants) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
@@ -25,7 +26,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Missing participants precedes missing template",
+  "title": "Missing participants precede missing template",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,34 +36,25 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "skip",
+    "step": "add_line_items",
     "args": {
-     "step": "select_template",
-     "reason": "The setup requires no template."
+     "count": 1
     },
-    "note": "Deliberately keep the project without a template."
-   },
-   {
-    "step": "skip",
-    "args": {
-     "step": "invite_vendor",
-     "reason": "The first publish attempt requires no participants."
-    },
-    "note": "Deliberately keep the audience empty for the first validation."
+    "note": "Add a line item without selecting a template, as permitted for the missing-template scenario."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add participants to proceed!"
     },
-    "note": "Press Publish and assert that the missing-participant message is reported first."
+    "note": "Assert that the missing-participants refusal is reported before the missing-template refusal."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
-     "because": "Savings"
+     "because": "Savings configuration is mandatory"
     },
-    "note": "Press Publish again and assert that the template-related savings refusal now follows the participant check."
+    "note": "Assert the next publish refusal after participants exist and the template is still missing."
    }
   ]
  }

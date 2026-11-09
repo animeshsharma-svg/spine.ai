@@ -2,21 +2,26 @@
  "meta": {
   "caseId": "UI-PUB-001",
   "title": "A complete single-stage RFQ publishes and lands on the project",
-  "compiledAt": "2026-10-05T13:47:23.490Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:55:26.611Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Execute the create, configure, schedule, invite, Publish and confirm flow: the prepared event is already published and those state-changing steps are unavailable.",
-   "Verify that Publish caused the redirect rather than opening an already-published project directly.",
-   "Explicitly assert the URL excludes quick-create, create, detail and new; the catalog provides no negative URL assertion.",
-   "Assert the event's Live status and exact invited-vendor count on the project screen using confirmed controls.",
-   "Check for no error toast specifically within one second after Publish.",
-   "Verify or enable the rfx_project_enabled tenant gate."
+   "Assert the browser URL with the exact negative pattern exclusion for quick-create|create|detail|new.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Execute the create, configure, schedule, invite, Publish and confirm flow: the prepared event is already published and those state-changing steps are unavailable.; Verify that Publish caused the redirect rather than opening an already-published project directly.; Explicitly assert the URL excludes quick-create, create, detail and new; the catalog provides no negative URL assertion.; Assert the event's Live status and exact invited-vendor count on the project screen using confirmed controls.; Check for no error toast specifically within one second after Publish.; Verify or enable the rfx_project_enabled tenant gate."
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Assert the browser URL with the exact negative pattern exclusion for quick-create|create|detail|new."
   ],
   "state": "live",
   "screen": "participants",
@@ -27,26 +32,64 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Prepared RFQ published-project checks",
+  "title": "UI-PUB-001 Complete RFQ Publish",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required Participants screen of the already-published RFQ."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project as RFQ-only."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Check for application errors during this inspection, not during the unavailable publication window."
+    "note": "Verify that no application error is shown after publishing."
    },
    {
-    "step": "expect_api_value",
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published event's participant list to verify the invited vendor count."
+   },
+   {
+    "step": "expect_participant_count",
     "args": {
-     "key": "vendorName"
+     "count": 1
     },
-    "note": "Verify the API's invited vendor appears; this does not assert the total invited count."
+    "note": "Assert that exactly one vendor is invited to the published event."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Assert that the newly published event is listed as Live."
    }
   ]
  }

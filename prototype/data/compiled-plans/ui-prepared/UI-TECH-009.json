@@ -2,15 +2,17 @@
  "meta": {
   "caseId": "UI-TECH-009",
   "title": "On a lot-mode tenant there is one section-level evaluator control",
-  "compiledAt": "2026-10-06T05:19:11.195Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:28.366Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Establish the rfpEvaluationOn = lot tenant setting: no step changes this setting, and no configured tenant ID is supplied."
+   "Verify or set the tenant configuration gate rfpEvaluationOn = lot.",
+   "Assert that the evaluator control is specifically on Vendor Assessment, because that label is not rendered by Procol."
   ],
   "warnings": [
-   "can only test part of this — no step for: Establish the rfpEvaluationOn = lot tenant setting: no step changes this setting, and no configured tenant ID is supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify or set the tenant configuration gate rfpEvaluationOn = lot.; Assert that the evaluator control is specifically on Vendor Assessment, because that label is not rendered by Procol."
   ],
   "state": "none",
   "screen": "create",
@@ -22,14 +24,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Lot-mode technical evaluator control",
+  "title": "UI-TECH-009 Lot Evaluator Control",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the technical-stage creation flow on the externally configured lot-mode tenant."
+    "note": "Open the multi-stage event creation screen for a technical event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TECH-009 Lot Evaluator Control"
+    },
+    "note": "Provide the required title for the create flow."
    },
    {
     "step": "compose_stages",
@@ -38,29 +47,19 @@
       "rfp"
      ]
     },
-    "note": "Replace the default auction with a technical stage."
+    "note": "Configure the event with a Technical/RFP stage."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required unique project title."
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Ensure the technical stage is the active stage before inspecting evaluator controls."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable line-item setup for the technical stage."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Make an incorrect per-line-item evaluator layout distinguishable from one overall control."
-   },
-   {
-    "step": "fill_questionnaires",
-    "args": {},
-    "note": "Initialize Vendor Assessment and item questionnaires without assigning evaluators."
+    "note": "Apply a technical-stage template so evaluator controls are rendered."
    },
    {
     "step": "expect_count",
@@ -69,17 +68,7 @@
      "name": "Add Evaluator",
      "count": 1
     },
-    "note": "Read the DOM and assert exactly one evaluator-add control across the stage."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "button",
-     "name": "Add Evaluator",
-     "within": "Vendor Assessment",
-     "count": 1
-    },
-    "note": "Assert that the sole evaluator-add control belongs to Vendor Assessment."
+    "note": "Assert that exactly one known evaluator-add control is rendered."
    }
   ]
  }

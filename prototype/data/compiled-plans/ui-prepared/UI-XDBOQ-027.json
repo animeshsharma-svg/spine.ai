@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-XDBOQ-027",
   "title": "Editing the sheet of a live BOQ event respects the limit",
-  "compiledAt": "2026-10-06T06:28:09.694Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:54.866Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure or verify boq_in_erfx_allowed ON and the 500-line limit.",
-   "Establish or verify the existing live BOQ event's initial 499 sheet lines.",
-   "Edit the live BOQ sheet, add two lines, and save; add_line_items only supports the create flow.",
-   "Trigger the refusal and assert \"You can have at max 500 line-items in an event\", then verify that nothing was saved and the stage remains unchanged."
+   "Enable or verify the tenant setting boq_in_erfx_allowed and default limit 500",
+   "Guarantee selection of a live BOQ event with exactly 499 lines",
+   "Directly perform and assert live BOQ sheet editing and saving through a dedicated catalog step"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure or verify boq_in_erfx_allowed ON and the 500-line limit.; Establish or verify the existing live BOQ event's initial 499 sheet lines.; Edit the live BOQ sheet, add two lines, and save; add_line_items only supports the create flow.; Trigger the refusal and assert \"You can have at max 500 line-items in an event\", then verify that nothing was saved and the stage remains unchanged."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Enable or verify the tenant setting boq_in_erfx_allowed and default limit 500; Guarantee selection of a live BOQ event with exactly 499 lines; Directly perform and assert live BOQ sheet editing and saving through a dedicated catalog step"
   ],
   "state": "none",
   "screen": "create",
@@ -25,34 +25,27 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Live BOQ sheet rejects 501 lines",
+  "title": "Live BOQ Line Limit Enforcement",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing BOQ event; do not substitute a newly created event."
+    "note": "Open the closest existing event page for the live-event operation."
    },
    {
-    "step": "go_to",
+    "step": "do_on_screen",
     "args": {
-     "screen": "overview"
+     "goal": "On the current live BOQ event with 499 lines, edit the event sheet, add two lines, attempt to save, and stop with the sheet unchanged after Procol refuses the save."
     },
-    "note": "Reach the existing event's sheet-related controls."
+    "note": "Perform the unsupported live BOQ edit and verify that no changes are saved."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_message",
     "args": {
-     "role": "button",
-     "name": "Product Sheet"
+     "kind": "error",
+     "text": "You can have at max 500 line-items in an event"
     },
-    "note": "Check only that the sheet control is available, not that the line limit is enforced."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "live-boq-sheet-edit-controls"
-    },
-    "note": "Record evidence for implementing the missing live BOQ row-edit and save flow."
+    "note": "Assert the required line-limit refusal message."
    }
   ]
  }

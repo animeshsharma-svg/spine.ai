@@ -2,19 +2,17 @@
  "meta": {
   "caseId": "UI-PART-016",
   "title": "A vendor self-participates on an open tender",
-  "compiledAt": "2026-10-05T13:47:07.253Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:31.414Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish or verify the open_tenders gate and an active event listed in the vendor's open events; the prepared state provides only default settings.",
-   "Sign into the vendor portal as an uninvited vendor, find the open tender, and participate.",
-   "Assert Joined in the vendor's view after self-participation.",
-   "Assert the joined event appears in the vendor's Live list; the prepared events list is buyer-side.",
-   "Verify the buyer's participant list records that vendor with source self-registered; no self-registration can be established with this fixed invited-vendor state."
+   "Verify source as 'self-registered' in the buyer's participant list (step catalog has expect_participant but cannot explicitly assert the 'self-registered' source badge)."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish or verify the open_tenders gate and an active event listed in the vendor's open events; the prepared state provides only default settings.; Sign into the vendor portal as an uninvited vendor, find the open tender, and participate.; Assert Joined in the vendor's view after self-participation.; Assert the joined event appears in the vendor's Live list; the prepared events list is buyer-side.; Verify the buyer's participant list records that vendor with source self-registered; no self-registration can be established with this fixed invited-vendor state."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(events_list) — the API built this case's state",
+   "can only test part of this — no step for: Verify source as 'self-registered' in the buyer's participant list (step catalog has expect_participant but cannot explicitly assert the 'self-registered' source badge)."
   ],
   "state": "live",
   "screen": "events_list",
@@ -23,21 +21,55 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor self-participation on an open tender",
+  "title": "A vendor self-participates on an open tender",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "events_list"
     },
-    "note": "Open the mandatory prepared starting screen without changing the fixed event."
+    "note": "the API built this case's state"
    },
    {
-    "step": "capture_screen",
+    "step": "switch_portal",
     "args": {
-     "label": "self-participation-unavailable-buyer-list"
+     "to": "vendor"
     },
-    "note": "Record the available screen for review, not as proof of vendor joining or vendor-side Live-list membership."
+    "note": "Sign in to the vendor portal"
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the open tender event in the vendor portal"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participate"
+    },
+    "note": "Vendor self-participates in the open tender"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console"
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the event's participants list on the buyer side"
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "present": true
+    },
+    "note": "Assert the vendor appears in the buyer's participant list"
    }
   ]
  }

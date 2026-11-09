@@ -2,16 +2,18 @@
  "meta": {
   "caseId": "UI-TPL-009",
   "title": "Leaving a creator column blank is refused as a partially filled sheet",
-  "compiledAt": "2026-10-06T05:26:53.383Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:37.674Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Fill every pricing-sheet cell except delivery location: fill_sheet fills the whole sheet, and no catalog step reliably targets an individual grid cell for clearing.",
-   "Assert that no publish request received any 5xx response: expect_request matches a specified status or successful response, rather than excluding the entire 5xx range."
+   "Assert that the publish request returned a non-5xx status or inspect the absence of a 5xx response directly."
   ],
   "warnings": [
-   "can only test part of this — no step for: Fill every pricing-sheet cell except delivery location: fill_sheet fills the whole sheet, and no catalog step reliably targets an individual grid cell for clearing.; Assert that no publish request received any 5xx response: expect_request matches a specified status or successful response, rather than excluding the entire 5xx range."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "can only test part of this — no step for: Assert that the publish request returned a non-5xx status or inspect the absence of a 5xx response directly."
   ],
   "state": "none",
   "screen": "create",
@@ -23,14 +25,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Blank delivery location publish validation",
+  "title": "UI-TPL-009 Partial Pricing Sheet",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the pricing-stage creation screen."
+    "note": "Open the multi-stage creator for the pricing event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-009 Partial Pricing Sheet"
+    },
+    "note": "Provide the required event title so the test reaches sheet validation rather than title validation."
    },
    {
     "step": "compose_stages",
@@ -39,65 +48,70 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ pricing stage."
+    "note": "Configure the event with an RFQ pricing stage."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Satisfy the unrelated title requirement."
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Apply the template and sheet operations to the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available pricing template."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "buyer_hub"
-     ]
-    },
-    "note": "Require the delivery-location column rather than silently testing a template without it."
+    "note": "Select the first available pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide a pricing row."
+    "note": "Add one line item for the pricing sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the sheet so the delivery-location cell is the only field left blank."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Delivery location"
+     ]
+    },
+    "note": "Verify that the selected template provides the creator delivery-location column under test."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": ""
+    },
+    "note": "Explicitly leave the first line item's delivery location blank."
    },
    {
     "step": "set_schedule",
-    "args": {},
-    "note": "Satisfy the scheduling prerequisite."
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule so publication reaches sheet completeness validation."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Avoid a missing-participants refusal."
-   },
-   {
-    "step": "skip",
-    "args": {
-     "step": "fill_sheet",
-     "reason": "Keep buyer cells blank for the closest expressible negative check; this does not isolate delivery location."
-    },
-    "note": "Prevent automatic completion from removing the negative condition."
+    "note": "Add the required participant so publication is not blocked for an unrelated reason."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Sheet partially filled, please check again."
     },
-    "note": "Require the specific validation refusal, not merely an unsuccessful publish."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check for a visible server error or crash; this does not replace the missing network-status assertion."
+    "note": "Attempt publication and require Procol's partial-sheet refusal message."
    }
   ]
  }

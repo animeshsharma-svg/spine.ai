@@ -2,68 +2,93 @@
  "meta": {
   "caseId": "UI-VAL-011",
   "title": "More decimal places than the template allows are rounded visibly",
-  "compiledAt": "2026-10-05T09:43:51.354Z",
+  "compiledAt": "2026-11-09T19:58:23.382Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "configure exact column decimal precision of 2 places in the template"
+   "Independently verify that the rounded displayed value and the backend-stored unsent value agree."
   ],
   "warnings": [
-   "can only test part of this — no step for: configure exact column decimal precision of 2 places in the template"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Independently verify that the rounded displayed value and the backend-stored unsent value agree."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-XDBOQ-020",
-   "UI-SS-007"
+   "UI-VAL-009",
+   "UI-XDBOQ-020"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "ui_val_011_decimal_rounding",
+  "title": "UI-VAL-011 Decimal Rounding",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create event screen"
+    "note": "Open the multi-stage create flow for an RFQ pricing sheet."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Decimal Rounding Test"
+     "title": "UI-VAL-011 Decimal Rounding"
     },
-    "note": "Provide a mandatory title"
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with an RFQ stage so a pricing template and price cell are available."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its sheet."
    },
    {
     "step": "select_template",
-    "note": "Pick the stage template"
+    "args": {},
+    "note": "Apply the first available pricing template, whose decimal precision controls the rounding behavior."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to populate the pricing sheet"
+    "note": "Add one line item so the pricing sheet renders a price cell."
    },
    {
-    "step": "fill",
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the sheet prerequisites before editing the price cell."
+   },
+   {
+    "step": "set_sheet_cell",
     "args": {
-     "label": "Price",
+     "row": 1,
+     "column": "Price",
      "value": "100.999"
     },
-    "note": "Enter a value with 3 decimal places where fewer are allowed"
+    "note": "Enter the value with more decimal places than the configured two-decimal precision."
    },
    {
-    "step": "expect_value",
+    "step": "expect_sheet_cell",
     "args": {
-     "label": "Price",
-     "value": "101.00"
+     "row": 1,
+     "column": "Price",
+     "equals": "101.00"
     },
-    "note": "Assert the value is visibly rounded before submission"
+    "note": "Verify that the price is visibly rounded to 101.00 before submission."
    }
   ]
  }

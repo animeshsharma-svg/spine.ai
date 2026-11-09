@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "UI-FUPL-003",
   "title": "Failed rows are counted and can be viewed",
-  "compiledAt": "2026-11-09T19:18:26.004Z",
+  "compiledAt": "2026-11-09T20:05:42.277Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Upload a filled template containing two bad rows: one with an unknown product and one with text in a numeric cell",
-   "Assert the exact message \"Failed to upload 2 entries.\"",
-   "Open and inspect \"View failed entries\" to verify both rows and their reasons",
-   "Verify that the good rows are added to the sheet",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Upload a filled template containing exactly two bad rows: an unknown product and text in a number cell",
+   "Assert the message \"Failed to upload 2 entries.\"",
+   "Assert a \"View failed entries\" control or equivalent failed-row viewer, because that label is not rendered by Procol",
+   "Assert the two failed rows and their individual reasons",
+   "Assert that the good rows from the same upload were added"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Upload a filled template containing exactly two bad rows: an unknown product and text in a number cell; Assert the message \"Failed to upload 2 entries.\"; Assert a \"View failed entries\" control or equivalent failed-row viewer, because that label is not rendered by Procol; Assert the two failed rows and their individual reasons; Assert that the good rows from the same upload were added"
   ],
   "state": "live",
   "screen": "summary",
@@ -23,14 +24,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FUPL-003 Failed upload rows",
+  "title": "Failed upload rows are counted and viewable",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Required first step for the prepared event state, but this screen does not provide a catalog step to upload the specified spreadsheet."
+    "note": "Start from the prepared event state required for this case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Navigate toward the create screen where a template upload would occur."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Perform the closest available upload action; the catalog cannot provide the specified filled template with the two invalid rows."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert only that the screen remains free of crashes or raw error artifacts; this does not verify the requested failed-row outcome."
    }
   ]
  }

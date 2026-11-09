@@ -2,12 +2,17 @@
  "meta": {
   "caseId": "UI-FCOL-004",
   "title": "A bid quantity below Min Quantity is refused",
-  "compiledAt": "2026-11-09T19:12:53.434Z",
+  "compiledAt": "2026-11-09T20:03:20.992Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly configure the RFQ's Min Quantity column to Q and enter a vendor-offered quantity below Q through the catalog's vendor bidding step."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Directly configure the RFQ's Min Quantity column to Q and enter a vendor-offered quantity below Q through the catalog's vendor bidding step."
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
@@ -18,19 +23,19 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "RFQ minimum quantity bid refusal",
+  "title": "UI-FCOL-004 Min Quantity Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event create flow."
+    "note": "Open the multi-stage event creation flow."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "RFQ Minimum Quantity Validation"
+     "title": "UI-FCOL-004 Min Quantity Validation"
     },
     "note": "Provide the required event title."
    },
@@ -41,45 +46,45 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ rather than the default auction stage."
+    "note": "Create an RFQ-only event so the pricing sheet can be configured."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the line to which the minimum quantity rule applies."
+    "note": "Add the line item on which the minimum quantity rule will be tested."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the RFQ pricing sheet so the event can be published."
+    "note": "Populate the required RFQ sheet before publishing."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ create screen, add or configure the Min Quantity column for the first line item and set its value to 10, leaving the RFQ create screen ready to publish"
+     "goal": "on the RFQ create screen, add a Min Quantity column for the line item, set its value to Q, and stop with the configured sheet visible"
     },
-    "note": "Configure the minimum quantity, which has no dedicated catalog step."
+    "note": "Configure the Min Quantity prerequisite, which has no dedicated catalog step."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the vendor who will submit the below-minimum offer."
+    "note": "Invite the QA vendor needed to submit the quote."
    },
    {
     "step": "publish",
@@ -89,50 +94,36 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached its published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as the invited vendor."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ bid sheet in the supplier portal."
+    "note": "Open the event's RFQ bid sheet."
    },
    {
-    "step": "fill",
+    "step": "ask_tester",
     "args": {
-     "label": "Quantity Available",
-     "value": "9"
+     "need": "enter and submit a vendor-offered quantity below the configured Min Quantity Q on the open RFQ bid sheet"
     },
-    "note": "Offer quantity 9, below the configured minimum quantity of 10."
+    "note": "The vendor quantity field and below-minimum submission are not expressible by the catalog."
    },
    {
-    "step": "fill",
+    "step": "expect_message",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "kind": "error",
+     "text": "Quantity should be greater than"
     },
-    "note": "Provide the required bid price so quantity validation is exercised."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "expect": "refused",
-     "because": "Quantity should be greater than Q"
-    },
-    "note": "Submit the below-minimum offer and require Procol to refuse it with the quantity validation message."
+    "note": "Assert the refusal message identifies the minimum quantity rule."
    }
   ]
  }

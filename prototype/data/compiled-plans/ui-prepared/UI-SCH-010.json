@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "UI-SCH-010",
   "title": "Extending a live event's window works and is visible to vendors",
-  "compiledAt": "2026-10-06T05:03:38.336Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:53.587Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Set the existing live event's end time exactly 30 minutes later: no domain step or confirmed extension-dialog field labels are supplied.",
-   "Verify the buyer's saved end time equals the previous end time plus 30 minutes.",
-   "Open and reload the vendor's event view and assert its countdown reflects the extended end time.",
-   "Prove bidding continues after the extension; a baseline bid without the extension does not establish this."
+   "Directly assert that the vendor's countdown reflects the buyer's new end time after reload."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Set the existing live event's end time exactly 30 minutes later: no domain step or confirmed extension-dialog field labels are supplied.; Verify the buyer's saved end time equals the previous end time plus 30 minutes.; Open and reload the vendor's event view and assert its countdown reflects the extended end time.; Prove bidding continues after the extension; a baseline bid without the extension does not establish this."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Directly assert that the vendor's countdown reflects the buyer's new end time after reload."
   ],
   "state": "none",
   "screen": "create",
@@ -25,7 +23,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Live event extension and vendor countdown",
+  "title": "Extend live event window for vendor visibility",
   "steps": [
    {
     "step": "open_event",
@@ -33,41 +31,59 @@
     "note": "Open the existing live event with an invited vendor."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Expose the published event's available actions."
-   },
-   {
-    "step": "click",
+    "step": "switch_portal",
     "args": {
-     "role": "menuitem",
-     "name": "Extend Submission Time"
+     "to": "vendor"
     },
-    "note": "Open the available extension interface."
+    "note": "Open the invited vendor's supplier session so its bidding view can be checked before and after the extension."
    },
    {
-    "step": "capture_screen",
+    "step": "vendor_open_event",
     "args": {
-     "label": "live-event-extension-dialog"
+     "stage": "pricing"
     },
-    "note": "Record the extension controls for inspection; this does not assert an extension was saved."
+    "note": "Open the vendor's live pricing round."
    },
    {
-    "step": "press",
+    "step": "switch_portal",
     "args": {
-     "key": "Escape"
+     "to": "buyer"
     },
-    "note": "Dismiss the inspection dialog without claiming to change the end time."
+    "note": "Return to the buyer's event page to extend the submission window."
    },
    {
-    "step": "place_bid",
-    "args": {},
-    "note": "Check baseline bidding using the configured vendor account, which must already be invited."
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "amount": 30,
+     "unit": "minutes",
+     "expect": "saved"
+    },
+    "note": "Extend the live event's submission end by exactly 30 minutes and assert Procol saves the new end time."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert the baseline bid landed, not that bidding continued after an extension."
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Return to the vendor session after the buyer-side extension."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reload the vendor's pricing round so the post-extension state is displayed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert the vendor can still submit a quote after the window extension, which verifies bidding remains available."
    }
   ]
  }

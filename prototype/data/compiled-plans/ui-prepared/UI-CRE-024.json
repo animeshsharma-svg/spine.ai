@@ -2,20 +2,22 @@
  "meta": {
   "caseId": "UI-CRE-024",
   "title": "Leaving the create screen mid-way warns, and abandons nothing published",
-  "compiledAt": "2026-10-05T13:29:24.076Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:41:03.568Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Reliably observe and confirm the navigation-away warning: no confirmation control has a known label, and the catalog has no native browser-dialog handling step.",
-   "Complete the post-confirmation oracle: verify zero Live rows for the title and that any remaining event exists strictly as a draft; the required confirmed-leaving transition cannot be expressed."
+   "Assert that the title is either absent from every status or, if present, exists strictly as a Draft."
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "go_to events_list → open_events_list — a domain step owns that screen",
    "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
-   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
-   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "cannot test this case yet — no step can observe: Reliably observe and confirm the navigation-away warning: no confirmation control has a known label, and the catalog has no native browser-dialog handling step.; Complete the post-confirmation oracle: verify zero Live rows for the title and that any remaining event exists strictly as a draft; the required confirmed-leaving transition cannot be expressed."
+   "go_to events_list → open_events_list — a domain step owns that screen",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Assert that the title is either absent from every status or, if present, exists strictly as a Draft."
   ],
   "state": "none",
   "screen": "create",
@@ -27,46 +29,80 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Leaving an unfinished event safely",
+  "title": "UI-CRE-024 Midway Navigation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start on the create screen, where the behavior under test originates."
+    "note": "Open the create screen for the partially filled event."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Generate a unique title and leave the event partially configured without saving or publishing."
+    "args": {
+     "title": "UI-CRE-024 Midway Navigation"
+    },
+    "note": "Set the title that will be checked after leaving."
    },
    {
-    "step": "select_template"
+    "step": "select_template",
+    "args": {},
+    "note": "Partially configure the create screen without publishing."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    }
+    },
+    "note": "Leave the create screen with partial event data entered."
    },
    {
     "step": "fill_sheet"
+   },
+   {
+    "step": "dialog",
+    "args": {
+     "action": "accept"
+    },
+    "note": "Prepare to confirm the leave warning when navigating away."
    },
    {
     "step": "save_draft"
    },
    {
     "step": "open_events_list",
-    "args": {},
-    "note": "Attempt to navigate away; this does not express acceptance of any leave confirmation."
+    "note": "Navigate away from the partially filled create screen."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_dialog",
+    "args": {},
+    "note": "Assert that a browser leave-warning dialog was offered and accepted."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Ensure the events list is loaded for the persistence check."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered without an error."
+   },
+   {
+    "step": "filter_events",
     "args": {
-     "label": "unfinished-event-navigation-away"
+     "tab": "Live"
     },
-    "note": "Record the resulting screen for inspection without treating it as proof that a warning appeared or leaving was confirmed."
+    "note": "Limit the check to published/live events."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "row": "UI-CRE-024 Midway Navigation",
+     "present": false
+    },
+    "note": "Assert that the abandoned title does not appear as a Live event."
    }
   ]
  }

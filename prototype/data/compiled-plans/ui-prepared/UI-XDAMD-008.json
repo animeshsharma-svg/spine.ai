@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-XDAMD-008",
   "title": "The version dropdown lists every version, newest labelled Latest",
-  "compiledAt": "2026-10-06T06:10:48.351Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:49:34.825Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The prepared event is not established as amended once with two published versions, and no catalog step prepares that state.",
-   "The version dropdown and older-version entry have no confirmed control labels for opening and selecting them.",
-   "Cannot assert entries equal item_versions[].label, including the actual reference labels '<ref>.1 (Latest)' and '<ref>': these API values are not supported by expect_api_value.",
-   "Cannot verify navigation to the selected older version's details and compare the URL event id before and after selection; the version ids are unavailable and no catalog step captures and compares URL ids."
+   "automatic setup of an amended event with exactly two specific version labels in the header",
+   "unconfirmed label \"1\" (click) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The prepared event is not established as amended once with two published versions, and no catalog step prepares that state.; The version dropdown and older-version entry have no confirmed control labels for opening and selecting them.; Cannot assert entries equal item_versions[].label, including the actual reference labels '<ref>.1 (Latest)' and '<ref>': these API values are not supported by expect_api_value.; Cannot verify navigation to the selected older version's details and compare the URL event id before and after selection; the version ids are unavailable and no catalog step captures and compares URL ids."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"1\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: automatic setup of an amended event with exactly two specific version labels in the header"
   ],
   "state": "live",
   "screen": "summary",
@@ -22,21 +22,45 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Version dropdown labels and navigation",
+  "title": "Version dropdown lists all versions with newest labelled Latest and navigates on pick",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the required prepared event summary."
+    "note": "Open the prepared event summary screen where version controls reside."
    },
    {
-    "step": "capture_screen",
+    "step": "click",
     "args": {
-     "label": "version-dropdown-starting-state"
+     "role": "button",
+     "name": "Latest"
     },
-    "note": "Record available version controls for inspection; this is evidence only, not an assertion of labels or version navigation."
+    "note": "Open the version dropdown menu."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "options": [
+      "Latest"
+     ]
+    },
+    "note": "Assert the dropdown offers the version options."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "1"
+    },
+    "note": "Pick the older version from the dropdown."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Assert that picking the version navigates to that version's details/summary view."
    }
   ]
  }

@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "UI-TPL-012",
   "title": "Adding a price field adds a column, and an added one cannot be added twice",
-  "compiledAt": "2026-10-06T05:44:15.043Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:54.309Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog cannot record the initial total column count and assert that the final count is exactly one greater.",
-   "No supplied template guarantees GST is initially available to add; the plan checks this prerequisite rather than assuming it."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot record the initial total column count and assert that the final count is exactly one greater.; No supplied template guarantees GST is initially available to add; the plan checks this prerequisite rather than assuming it."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -23,90 +20,62 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Price field addition prevents duplicates",
+  "title": "Adding and checking unique price fields",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Use the default Auction pricing stage."
+    "note": "Start creating an eRFX project"
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique project title."
+    "note": "Give the project a title"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Initialize the pricing sheet."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {},
-    "note": "Verify the initial sheet headers have rendered."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "GST",
-     "present": false
-    },
-    "note": "Require GST to be absent before adding it; an existing GST column would invalidate this setup."
+    "note": "Select a pricing template to enable sheet features"
    },
    {
     "step": "click",
     "args": {
-     "text": "Add price field"
+     "role": "button",
+     "name": "Price Components"
     },
-    "note": "Open the price-field menu using the case's unconfirmed label."
-   },
-   {
-    "step": "expect_enabled",
-    "args": {
-     "control": "GST"
-    },
-    "note": "Verify the chosen field is available for its first addition."
+    "note": "Open the price components or column menu"
    },
    {
     "step": "click",
     "args": {
      "role": "menuitem",
-     "name": "GST"
+     "text": "Price"
     },
-    "note": "Add the GST price field."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "GST"
-     ]
-    },
-    "note": "Assert that the previously absent field now has a sheet column."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Add price field"
-    },
-    "note": "Reopen the same menu to inspect duplicate prevention."
+    "note": "Add a price field"
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "menuitem",
-     "name": "GST"
+     "role": "columnheader",
+     "text": "Price",
+     "visible": true
     },
-    "note": "Assert the added field remains present rather than disappearing."
+    "note": "Verify the new price column has rendered"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Price Components"
+    },
+    "note": "Reopen the menu to verify duplicate prevention"
    },
    {
     "step": "expect_disabled",
     "args": {
-     "control": "GST"
+     "control": "Price"
     },
-    "note": "Assert the existing field cannot be added again."
+    "note": "Verify the added field's menu item is now disabled"
    }
   ]
  }

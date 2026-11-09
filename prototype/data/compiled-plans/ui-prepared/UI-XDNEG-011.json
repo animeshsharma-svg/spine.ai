@@ -2,18 +2,21 @@
  "meta": {
   "caseId": "UI-XDNEG-011",
   "title": "Bulk Counter Offer is offered only in live or evaluation time with at least two bids",
-  "compiledAt": "2026-10-06T06:32:37.424Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:50.277Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Cannot verify the enabled action with at least two bids: the fixed event has only one vendor and one bid.",
-   "Cannot verify availability during evaluation time or absence on closed rounds: the prepared pricing round remains live.",
-   "Cannot verify disabled behavior in view-only mode, on an old version, or on a held project: these states are not provided and cannot be established with the available steps.",
-   "Cannot verify that clicking with a pending bid justification shows the justification-pending prompt: the prepared state does not supply a pending justification."
+   "Clicking Bulk Counter Offer when a bid justification is pending and asserting the justification-pending prompt"
   ],
   "warnings": [
-   "can only test part of this — no step for: Cannot verify the enabled action with at least two bids: the fixed event has only one vendor and one bid.; Cannot verify availability during evaluation time or absence on closed rounds: the prepared pricing round remains live.; Cannot verify disabled behavior in view-only mode, on an old version, or on a held project: these states are not provided and cannot be established with the available steps.; Cannot verify that clicking with a pending bid justification shows the justification-pending prompt: the prepared state does not supply a pending justification."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Inspecting the menu item on the separately configured two-bid live or evaluation round where it should be enabled” — expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+   "resolved: “Inspecting the menu item on a closed round” — expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+   "resolved: “Inspecting the menu item in view-only mode” — expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+   "resolved: “Inspecting the menu item on an old event version” — expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+   "resolved: “Inspecting the menu item on a held project” — expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+   "can only test part of this — no step for: Clicking Bulk Counter Offer when a bid justification is pending and asserting the justification-pending prompt"
   ],
   "state": "bid",
   "screen": "responses",
@@ -22,48 +25,32 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Bulk Counter Offer menu gating",
+  "title": "Bulk Counter Offer menu state",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with exactly one bid."
+    "note": "Open the prepared event's pricing-round Responses screen without creating or searching for another event."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Expose the pricing round's action menu."
-   },
-   {
-    "step": "expect_disabled",
+    "step": "expect_menu_item",
     "args": {
-     "control": "Send Bulk Counter Offer"
+     "item": "Send Bulk Counter Offer",
+     "enabled": false,
+     "stage": "rfq"
     },
-    "note": "Assert the action is present but disabled with one bid."
+    "note": "Assert Bulk Counter Offer is present but disabled on the pricing round with one bid."
    },
    {
-    "step": "go_to",
+    "step": "expect_menu_item",
     "args": {
-     "screen": "stage",
+     "item": "Send Bulk Counter Offer",
+     "present": false,
      "stage": "rfp"
     },
-    "note": "Navigate to the existing technical round to check the stage-type restriction."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Expose the technical round's action menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "menuitem",
-     "name": "Send Bulk Counter Offer",
-     "visible": false
-    },
-    "note": "Assert Bulk Counter Offer is absent on the RFP round."
+    "note": "Assert Bulk Counter Offer is absent from the technical/RFP round."
    }
   ]
  }

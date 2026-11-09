@@ -2,15 +2,13 @@
  "meta": {
   "caseId": "UI-VBID-004",
   "title": "The stage tab exposes the bid sheet",
-  "compiledAt": "2026-11-09T19:09:30.613Z",
+  "compiledAt": "2026-11-09T20:01:47.287Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Assert that at least one price cell is non-disabled and editable on the vendor bid sheet"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Assert that at least one price cell is non-disabled and editable on the vendor bid sheet"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -22,52 +20,38 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor bid sheet exposes editable price cells",
+  "title": "Stage Tab Bid Sheet",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event create flow with a pricing stage."
+    "note": "Start a new multi-stage event with the default auction stage."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Every publishable event needs a title."
-   },
-   {
-    "step": "compose_stages",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "title": "UI-VBID-004 Bid Sheet"
     },
-    "note": "Use an RFQ stage so the event exposes a vendor pricing bid sheet."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the pricing stage before selecting its template."
+    "note": "Provide the required event title before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply a pricing template so the bid sheet can render."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a buyer line item that should appear on the vendor's bid sheet."
+    "note": "Add the buyer's line item that should appear in the vendor sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the buyer-side pricing sheet so the event can be published."
+    "note": "Complete the pricing sheet required for publication."
    },
    {
     "step": "set_schedule",
@@ -81,7 +65,7 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose portal will expose the bid sheet."
+    "note": "Invite the QA vendor who will view the bid sheet."
    },
    {
     "step": "publish",
@@ -98,14 +82,34 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor portal, which is the subject of this test."
+    "note": "Move to the supplier portal to test the vendor-facing stage tab."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round and verify the vendor pricing bid sheet is rendered."
+    "note": "Open the pricing stage and its bid form, equivalent to pressing Add bid or Place bid when offered."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Price"
+     ]
+    },
+    "note": "Verify the bid sheet contains the buyer's line-item and price columns."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "editable": [
+      "Price"
+     ]
+    },
+    "note": "Verify that at least one rendered Price cell is non-disabled and editable."
    }
   ]
  }

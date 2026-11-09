@@ -2,12 +2,13 @@
  "meta": {
   "caseId": "UI-FTNC-006",
   "title": "Payment Terms and Incoterms are mandatory on the payment-terms form",
-  "compiledAt": "2026-11-09T19:22:50.286Z",
+  "compiledAt": "2026-11-09T20:08:01.897Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
@@ -23,7 +24,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Payment Terms Mandatory Validation",
+  "title": "Payment Terms and Incoterms validation",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,14 +36,19 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template so the payment-terms form is available."
+    "note": "Apply a template so the create form and payment-terms controls can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the minimum line item required for the configured create screen."
+    "note": "Add the minimum line item needed to enable the payment-terms form."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the form is in a usable configured state."
    },
    {
     "step": "click",
@@ -50,7 +56,7 @@
      "role": "button",
      "name": "Payment Terms"
     },
-    "note": "Open the payment-terms form."
+    "note": "Open the payment-terms form without entering either mandatory value."
    },
    {
     "step": "click",
@@ -58,7 +64,7 @@
      "role": "button",
      "name": "Save"
     },
-    "note": "Attempt to save with Payment Terms and Incoterms left empty."
+    "note": "Attempt to save the empty payment-terms form."
    },
    {
     "step": "expect_field_error",
@@ -66,7 +72,7 @@
      "field": "Payment Terms",
      "message": "Payment Terms is mandatory"
     },
-    "note": "Assert the required validation for the empty Payment Terms field."
+    "note": "Assert the required validation for Payment Terms."
    },
    {
     "step": "expect_field_error",
@@ -74,7 +80,7 @@
      "field": "Incoterms",
      "message": "Incoterms is mandatory"
     },
-    "note": "Assert the required validation for the empty Incoterms field."
+    "note": "Assert the required validation for Incoterms."
    }
   ]
  }

@@ -2,19 +2,13 @@
  "meta": {
   "caseId": "UI-XDBOQ-025",
   "title": "BOQ PRs cannot be put in the cart with other PRs",
-  "compiledAt": "2026-10-05T10:42:22.240Z",
+  "compiledAt": "2026-11-09T19:52:39.377Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Selecting two BOQ purchase requests and purchasing them",
-   "Verifying the message \"Multiple BOQ-based PR cannot be purchased together\"",
-   "Selecting one BOQ purchase request with one material purchase request and purchasing them",
-   "Verifying the message \"BOQ-based PR cannot pe purchased along with <type> PR\", including the typo \"pe\"",
-   "Verifying the boq_in_erfx_allowed gate and the configured QA BOQ/material purchase requests"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Selecting two BOQ purchase requests and purchasing them; Verifying the message \"Multiple BOQ-based PR cannot be purchased together\"; Selecting one BOQ purchase request with one material purchase request and purchasing them; Verifying the message \"BOQ-based PR cannot pe purchased along with <type> PR\", including the typo \"pe\"; Verifying the boq_in_erfx_allowed gate and the configured QA BOQ/material purchase requests"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -26,7 +20,48 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ PR Cart Combination Validation",
-  "steps": []
+  "title": "BOQ PR cart exclusivity validation",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen where the PR combinations are selected."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use only open PRs, which are eligible for purchase."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Select both QA BOQ purchase requisitions, click Purchase Items and purchase them, and stop with the validation message 'Multiple BOQ-based PR cannot be purchased together' visible."
+    },
+    "note": "Perform the first multi-BOQ selection and observe the product validation."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Multiple BOQ-based PR cannot be purchased together"
+    },
+    "note": "Assert the first validation message."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Select one QA BOQ purchase requisition and the QA material purchase requisition, click Purchase Items and purchase them, and stop with the validation message 'BOQ-based PR cannot pe purchased along with' visible, preserving the product's 'pe' typo."
+    },
+    "note": "Perform the mixed BOQ and material PR selection and observe the exact validation wording."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "BOQ-based PR cannot pe purchased along with"
+    },
+    "note": "Assert the second validation message, including the expected typo."
+   }
+  ]
  }
 }

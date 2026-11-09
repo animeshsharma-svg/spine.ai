@@ -2,18 +2,16 @@
  "meta": {
   "caseId": "UI-XDNEG-010",
   "title": "The bulk counter-offer note is silently dropped",
-  "compiledAt": "2026-10-06T06:32:26.782Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:53:08.250Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The case requires two active bids; the fixed prepared event has only one and cannot be expanded.",
-   "Changing a bulk counter-offer price, entering a note and sending it cannot be reached while Send Bulk Counter Offer is disabled.",
-   "No catalog step opens vendor-side counter-offer details to assert that every vendor sees the note or that creator_counter_offer_remarks is empty.",
-   "The raise_bulk_counter_offer request cannot be triggered in this prepared state, so its missing remarks field cannot be checked with expect_request."
+   "Verify that the note is shown in the counter-offer details for every vendor, including a second vendor's own portal session."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The case requires two active bids; the fixed prepared event has only one and cannot be expanded.; Changing a bulk counter-offer price, entering a note and sending it cannot be reached while Send Bulk Counter Offer is disabled.; No catalog step opens vendor-side counter-offer details to assert that every vendor sees the note or that creator_counter_offer_remarks is empty.; The raise_bulk_counter_offer request cannot be triggered in this prepared state, so its missing remarks field cannot be checked with expect_request."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify that the note is shown in the counter-offer details for every vendor, including a second vendor's own portal session."
   ],
   "state": "bid",
   "screen": "responses",
@@ -24,26 +22,49 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Bulk counter-offer note delivery",
+  "title": "Bulk counter-offer note payload",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ with its single active bid."
+    "note": "Open the prepared live round with its existing vendor bid."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Locate the bulk counter-offer action."
-   },
-   {
-    "step": "expect_disabled",
+    "step": "place_surrogate_bid",
     "args": {
-     "control": "Send Bulk Counter Offer"
+     "price": 90
     },
-    "note": "Confirm the one-bid prerequisite blocks the requested flow; this does not verify note delivery."
+    "note": "Create the second active bid required by the setup."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second bid was accepted."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Send Bulk Counter Offer"
+    },
+    "note": "Open the bulk counter-offer drawer from Settings."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "change a counter-offer price, type the note \"Bulk counter-offer note\", send the bulk counter offer, and stop when the send result is shown"
+    },
+    "note": "Perform the price change, note entry, and send action in the open bulk counter-offer flow."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_bulk_counter_offer",
+     "method": "POST",
+     "bodyLacks": "remarks"
+    },
+    "note": "Verify the known defect: the bulk counter-offer request omits the remarks field."
    }
   ]
  }

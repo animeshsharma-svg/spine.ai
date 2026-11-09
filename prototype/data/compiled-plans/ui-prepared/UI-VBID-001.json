@@ -2,16 +2,18 @@
  "meta": {
   "caseId": "UI-VBID-001",
   "title": "An invited vendor sees the event in their Live list",
-  "compiledAt": "2026-11-09T19:09:06.596Z",
+  "compiledAt": "2026-11-09T20:01:39.857Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
-  "gaps": [
-   "Assert the event card's generated reference ID in the vendor's Live list.",
-   "Assert the exact matching-card count and Live-list card structure without opening the event."
-  ],
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Assert the event card's generated reference ID in the vendor's Live list.; Assert the exact matching-card count and Live-list card structure without opening the event."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "resolved: “Search the supplier portal Live list for the specific event title and verify that exactly one matching card shows the ev” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "state": "none",
   "screen": "create",
@@ -23,21 +25,13 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Invited vendor sees event in Live list",
+  "title": "Invited vendor Live-list visibility",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Create the live event required by the setup."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "UI-VBID-001 Invited Vendor Live Event"
-    },
-    "note": "Provide a known title so the vendor event can be identified without falling back to another event."
+    }
    },
    {
     "step": "compose_stages",
@@ -45,70 +39,62 @@
      "stages": [
       "rfq"
      ]
-    },
-    "note": "Use an RFQ stage for the bidding event."
+    }
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "step": "set_title"
+   },
+   {
+    "step": "select_template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    },
-    "note": "Add the required line item before filling the pricing sheet."
+    }
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
+    "step": "expect_line_items",
     "args": {
      "count": 1
-    },
-    "note": "Invite the configured QA vendor company for the vendor-portal check."
+    }
    },
    {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event so it appears in the vendor's Live list."
+    "step": "fill_sheet"
    },
    {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event was actually created as a published project."
+    "step": "set_schedule"
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "expect_published"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the supplier portal as the invited QA vendor."
+    "note": "Open the invited vendor's supplier-portal session without requiring a manual login."
    },
    {
-    "step": "vendor_open_event",
+    "step": "ask_tester",
     "args": {
-     "overview": true
+     "need": "search the supplier portal Live list for the invited event title and verify that exactly one matching card shows its ref id"
     },
-    "note": "Find this plan's event from the vendor's event list and open its overview; failure to find it demonstrates that the invitation did not reach the vendor portal."
+    "note": "The catalog has no step that searches or asserts a specific vendor Live-list card and its reference ID."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "UI-VBID-001 Invited Vendor Live Event"
+     "text": "Live",
+     "present": true
     },
-    "note": "Confirm the vendor portal opened the specifically created event rather than an arbitrary event."
+    "note": "Confirm the vendor-side screen still exposes the known Live-list context after the tester completes the missing check."
    }
   ]
  }

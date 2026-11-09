@@ -2,16 +2,24 @@
  "meta": {
   "caseId": "UI-FQCS-003",
   "title": "Ranks follow the amounts: lowest total is rank 1 on a buy event",
-  "compiledAt": "2026-10-19T11:49:09.712Z",
+  "compiledAt": "2026-11-09T19:55:02.201Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The prepared event has only one QA vendor, so a second vendor with a different total cannot be added or asserted.",
-   "The comparison that the lower total is Rank 1 and the other vendor is Rank 2 cannot be observed without two bids with different totals."
+   "needs a different starting state than bid (asked for set_schedule, invite_vendor, place_bid, close_event)"
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has only one QA vendor, so a second vendor with a different total cannot be added or asserted.; The comparison that the lower total is Rank 1 and the other vendor is Rank 2 cannot be observed without two bids with different totals."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
   ],
   "state": "bid",
   "screen": "master_qcs",
@@ -25,41 +33,78 @@
   ]
  },
  "plan": {
-  "title": "Master QCS ranks lowest amount first",
+  "title": "Master QCS ranks vendors by lowest total",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the API-prepared event as required."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create a buy-side RFQ so ranks are based on the lowest amount."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for comparing the two vendor totals."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet before scheduling."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor's bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor's bid was accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Verify that the Master QCS comparison grid renders with the available bid."
+    "note": "Open the comparison grid containing both bids."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1,
-     "realNames": true
+     "count": 2
     },
-    "note": "Assert the prepared grid has exactly its one real vendor column."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify the displayed line amount and total are calculated from the available bid and quantity."
+    "note": "Confirm both bidding vendors appear in the Master QCS."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "by": "RFQ Amount",
      "order": "lowest",
-     "atLeast": 1
+     "atLeast": 2
     },
-    "note": "Verify the available vendor is ranked consistently with the lowest-amount rule; the second rank cannot be checked in this state."
+    "note": "Assert that the lower total is Rank 1 and the higher total is Rank 2."
    },
    {
     "step": "expect_api_value",

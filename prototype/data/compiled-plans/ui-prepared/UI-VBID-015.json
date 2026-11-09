@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-VBID-015",
   "title": "Offering in a different unit is refused",
-  "compiledAt": "2026-11-09T19:19:42.244Z",
+  "compiledAt": "2026-11-09T20:06:24.708Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The exact vendor-side unit control and valid alternative unit option are not defined in the catalog.",
-   "The submitted bid's persisted unit cannot be compared with the requested unit through a dedicated assertion."
+   "Changing the unit on the vendor's offer and observing whether the field is editable or the change is refused",
+   "Verifying that the submitted bid's unit equals the requested unit"
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact vendor-side unit control and valid alternative unit option are not defined in the catalog.; The submitted bid's persisted unit cannot be compared with the requested unit through a dedicated assertion."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Changing the unit on the vendor's offer and observing whether the field is editable or the change is refused; Verifying that the submitted bid's unit equals the requested unit"
   ],
   "state": "none",
   "screen": "create",
@@ -23,21 +24,19 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-VBID-015 Different Offer Unit Refused",
+  "title": "Different Offer Unit Refusal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage project create flow suitable for an RFQ."
+    "note": "Create an RFQ event for the vendor-side offer test."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "UI-VBID-015 Different Unit Test"
-    },
-    "note": "Give the event the required title before publishing."
+    "args": {},
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -46,7 +45,7 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ pricing stage for the vendor offer."
+    "note": "Use an RFQ stage so the event has a pricing offer."
    },
    {
     "step": "select_template",
@@ -58,12 +57,12 @@
     "args": {
      "count": 1
     },
-    "note": "Add one product so the vendor has an offer row."
+    "note": "Add one product to receive an offer."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the buyer pricing sheet for the line item."
+    "note": "Complete the pricing sheet before scheduling."
    },
    {
     "step": "set_schedule",
@@ -77,43 +76,52 @@
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor to submit the offer."
+    "note": "Invite the QA vendor who will submit the offer."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor portal can access it."
+    "note": "Publish the event so the vendor can bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a real published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal."
+    "note": "Open the supplier portal for the invited vendor."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing offer form in the vendor portal."
+    "note": "Open the event's RFQ offer sheet."
    },
    {
-    "step": "attempt",
+    "step": "ask_tester",
     "args": {
-     "step": "fill",
-     "args": {
-      "label": "Unit",
-      "value": "different unit"
-     },
-     "expect": "refused"
+     "need": "change the unit on the vendor offer, submit the bid, and verify that the unit change is refused or the submitted bid keeps the requested unit"
     },
-    "note": "Attempt to change the offer unit; this uses the unconfirmed generic Unit label because no domain step exposes the vendor unit control."
+    "note": "No catalog step can edit or assert the offer unit."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console after the vendor interaction."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the vendor submission is visible to the buyer if the tester submitted it."
    }
   ]
  }

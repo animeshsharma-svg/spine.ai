@@ -2,19 +2,19 @@
  "meta": {
   "caseId": "UI-FTNC-005",
   "title": "Event-wise clauses show on every stage; stage-wise clauses only on theirs",
-  "compiledAt": "2026-11-09T19:25:52.836Z",
+  "compiledAt": "2026-11-09T20:09:20.234Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Configure distinct event-wise and RFQ stage-wise clauses with their required text because no catalog step exposes the clause editor.",
-   "Open and inspect the vendor's Terms and Conditions for both stages and verify event-wise clauses appear on both while the RFQ-only clause appears only on RFQ.",
-   "Assert the case-specific clause labels because \"EVENT-WISE CLAUSE\" and \"RFQ-ONLY CLAUSE\" are not rendered labels."
+   "The specific event-group and RFQ-only clause text is not provided, so their presence and stage-specific exclusivity cannot be asserted.",
+   "There is no dedicated catalog step to configure event-group and stage-wise clauses; do_on_screen is used for the buyer-side setup."
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "can only test part of this — no step for: Configure distinct event-wise and RFQ stage-wise clauses with their required text because no catalog step exposes the clause editor.; Open and inspect the vendor's Terms and Conditions for both stages and verify event-wise clauses appear on both while the RFQ-only clause appears only on RFQ.; Assert the case-specific clause labels because \"EVENT-WISE CLAUSE\" and \"RFQ-ONLY CLAUSE\" are not rendered labels."
+   "can only test part of this — no step for: The specific event-group and RFQ-only clause text is not provided, so their presence and stage-specific exclusivity cannot be asserted.; There is no dedicated catalog step to configure event-group and stage-wise clauses; do_on_screen is used for the buyer-side setup."
   ],
   "state": "none",
   "screen": "create",
@@ -26,7 +26,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FTNC-005 Terms Visibility",
+  "title": "Event and Stage Clause Visibility",
   "steps": [
    {
     "step": "open_create",
@@ -38,7 +38,7 @@
    {
     "step": "set_title",
     "args": {
-     "title": "UI-FTNC-005 Terms Visibility"
+     "title": "Event and Stage Clause Visibility Test"
     },
     "note": "Provide the mandatory event title."
    },
@@ -68,7 +68,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add a pricing line item to the RFQ."
+    "note": "Add the pricing line item required by the RFQ stage."
    },
    {
     "step": "fill_questionnaires"
@@ -95,45 +95,75 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid schedule before publishing."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor so the event can be published and viewed in the supplier portal."
+    "note": "Invite the QA vendor who will inspect the clauses."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured two-stage event."
+    "note": "Publish the configured event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the event reached its published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supplier portal for the vendor-side portion."
+    "note": "Open the invited vendor's separate supplier session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the vendor's Technical-stage view."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Terms and Conditions"
+    },
+    "note": "Open the Technical stage's terms section."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Confirm the vendor can reach the Technical-stage terms section; exact clause content cannot be checked without supplied clause text."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ pricing round in the vendor portal before the unsupported terms inspection."
+    "note": "Open the vendor's RFQ pricing-stage view."
    },
    {
-    "step": "ask_tester",
+    "step": "click",
     "args": {
-     "need": "open the vendor's Terms and Conditions for both the Technical and RFQ stages and verify that the event-wise clause appears on both while the RFQ-only clause appears only on the RFQ stage"
+     "text": "Terms and Conditions"
     },
-    "note": "No catalog assertion can read or compare the vendor-facing clause content and stage-specific visibility."
+    "note": "Open the RFQ stage's terms section."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Confirm the vendor can reach the RFQ-stage terms section, where event and RFQ-specific clauses should be shown."
    }
   ]
  }

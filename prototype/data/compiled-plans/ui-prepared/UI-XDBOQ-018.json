@@ -2,20 +2,25 @@
  "meta": {
   "caseId": "UI-XDBOQ-018",
   "title": "A partial surrogate BOQ bid is allowed unless the stage closes as a lot",
-  "compiledAt": "2026-11-09T19:23:51.221Z",
+  "compiledAt": "2026-11-09T20:08:43.688Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Create or upload a five-line BOQ and price exactly two selected rows in a surrogate bid",
-   "Configure or verify the boq_in_erfx_allowed tenant gate",
-   "Prepare or select separate live BOQ events with line-item closing and lot closing modes",
-   "Observe the drawer validation message and bid-created outcome for both closing modes"
+   "Enable the boq_in_erfx_allowed tenant setting.",
+   "Create two live BOQ stages with line-item closing and lot closing modes.",
+   "Upload or populate the five BOQ lines and price exactly two rows per stage.",
+   "Place and observe partial surrogate BOQ bids on both stages, including the required-row validation message and whether each bid is created or blocked."
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added place_surrogate_bid — the test is about bidding and no bid step was planned",
    "added publish — a bid needs a published event to bid on",
+   "inserted add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added place_surrogate_bid — the test is about bidding and no bid step was planned",
    "added publish — a bid needs a published event to bid on",
-   "can only test part of this — no step for: Create or upload a five-line BOQ and price exactly two selected rows in a surrogate bid; Configure or verify the boq_in_erfx_allowed tenant gate; Prepare or select separate live BOQ events with line-item closing and lot closing modes; Observe the drawer validation message and bid-created outcome for both closing modes"
+   "inserted add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "can only test part of this — no step for: Enable the boq_in_erfx_allowed tenant setting.; Create two live BOQ stages with line-item closing and lot closing modes.; Upload or populate the five BOQ lines and price exactly two rows per stage.; Place and observe partial surrogate BOQ bids on both stages, including the required-row validation message and whether each bid is created or blocked."
   ],
   "state": "none",
   "screen": "create",
@@ -27,32 +32,58 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-XDBOQ-018 Partial surrogate BOQ bid validation",
+  "title": "Partial surrogate BOQ bid closing validation",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Open the closest supported BOQ creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Partial surrogate BOQ bid validation"
+    },
+    "note": "Provide the mandatory event title for the closest create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select a BOQ template so the BOQ sheet controls become available."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Upload Sheet",
+     "visible": true
+    },
+    "note": "Confirm the BOQ screen exposes its sheet upload control, while not claiming that the required BOQ data has been loaded."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide or open the two live prepared BOQ events configured for line-item closing and lot closing, then identify the two BOQ rows to price in each surrogate-bid drawer"
+     "need": "enable the boq_in_erfx_allowed tenant setting, create the two live BOQ stages with line-item and lot closing, load five BOQ lines, and place the partial surrogate bids so their acceptance, blocking validation message, and bid creation outcome can be observed"
     },
-    "note": "The catalog has no reliable way to prepare or select the required BOQ states and closing modes."
+    "note": "The required tenant configuration, multi-stage BOQ setup, data loading, and partial surrogate bid oracle are not expressible by catalog steps."
    },
    {
-    "step": "open_participants",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Closest available navigation to the published event's surrogate-bid controls."
+    "note": "Assert that the current screen remains usable after the tester's setup or action."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
    },
    {
     "step": "publish"
    },
    {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Closest available action for attempting a buyer-side surrogate bid, though it cannot select only two of five BOQ rows."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Checks only whether the surrogate bid was accepted; it does not establish the required partial-BOQ validation behavior."
+    "step": "place_surrogate_bid"
    }
   ]
  }

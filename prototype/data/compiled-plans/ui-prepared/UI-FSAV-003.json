@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "UI-FSAV-003",
   "title": "A custom reference shows as its own savings row and in the report",
-  "compiledAt": "2026-11-09T19:25:04.108Z",
+  "compiledAt": "2026-11-09T20:09:25.997Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Configure custom savings reference named 'Last year'",
-   "Verify custom savings reference in the downloaded Master QCS report",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Create a Savings custom reference named \"Last year\".",
+   "Observe a \"Last year\" savings row or figure in Overview; the label is not rendered by Procol.",
+   "Verify that the \"Last year\" figure is present in the downloaded Master QCS report.",
+   "Compare the Overview savings figure with the report figure using the same formula."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Create a Savings custom reference named \"Last year\".; Observe a \"Last year\" savings row or figure in Overview; the label is not rendered by Procol.; Verify that the \"Last year\" figure is present in the downloaded Master QCS report.; Compare the Overview savings figure with the report figure using the same formula."
   ],
   "state": "bid",
   "screen": "master_qcs",
@@ -23,21 +25,46 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-FSAV-003",
+  "title": "Custom reference savings in overview and report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS screen"
+    "note": "Open the prepared event's Master QCS screen."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "overview"
     },
-    "note": "Navigate to the Overview screen to check savings"
+    "note": "Navigate to the Overview screen where savings would be displayed."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the Overview renders without a crash or visible application error."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to Master QCS to access its report download control."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Report"
+    },
+    "note": "Attempt to download the Master QCS report."
+   },
+   {
+    "step": "expect_download",
+    "args": {},
+    "note": "Assert that a report file was downloaded, without claiming it contains the unavailable custom-reference value."
    }
   ]
  }

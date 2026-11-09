@@ -255,6 +255,22 @@ NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
 - Follow either with expect_bid_submitted when the test asserts the bid landed.
 - Awarding comes AFTER bidding and needs at least one bid: award_event, then expect_awarded. There is nothing to award on an event nobody has bid on.
 - Assertions go immediately after the step they check.
+
+WHAT THE VOCABULARY CAN ALREADY SAY (10 Nov 2026 — these were listed as gaps for weeks; none of them is one):
+- THE VENDOR IN A SEPARATE SESSION ("Vendor A logs in in a separate browser session / window", "as the vendor, in the supplier portal", "switch to the vendor portal", "the vendor opens the event"): switch_portal{to:"vendor"} — the run opens a SECOND browser signed in as the event's invited QA vendor, beside the buyer's — then vendor_open_event{} (its bid sheet; overview:true for the Event Overview; stage:"technical" for the questionnaire). Every generic step then acts on the vendor's screen; switch_portal{to:"buyer"} returns to the buyer's page, and switch_portal{to:"vendor"} again to the vendor's. The vendor's own bid there is vendor_bid{price} (any value the case gives: -100, 0, abc, above the cap; submit:false to only type); a bid the portal must refuse is attempt{step:"vendor_bid", args:{price:-100}, expect:"refused"}. Never place_bid after switch_portal. ONE QA vendor can sign in: a SECOND vendor's own session (Vendor B, an uninvited vendor) is the only part that is a gap — say "a second vendor session" and keep the rest.
+- OPTION LISTS — what a dropdown, select, picker, duration preset list, strategy tabs or a menu OFFERS ("the presets are 30 Mins, 1 Hour, 4 Hours, 24 Hours", "the menu offers only X, Y, Z", "Book Building is not offered", "template T is offered but greyed out"): expect_options{name|label:<the control that opens it>, options, absent, disabled, enabled, count, only}. It opens the list, reads it, judges and closes it; it never chooses.
+- TABLES AND LISTS — rows and cells ("the list has 25 rows", "the row for X shows Y under Z", "no row for X", "every row shows a status"): expect_table{within, rows|min|max, row, present, cells:{header: value}, eachRow}. A count that must RISE or FALL by one: remember{key, …} the figure, act, then expect_remembered{key, delta:"+1"}.
+- COMPARING TWO VALUES ON SCREEN ("the footer chip's end equals the drawer's", "the vendor's total equals the buyer's grid", "the title on the list is the title on the detail page", "the savings on Responses equal the Overview's"): remember{key, <target>} on the first, navigate (go_to, switch_portal …), then expect_remembered{key, <the second target>, as:"number"|"text", contains}. A value the API holds is expect_api_value{key} / expect_qcs_cell{key}.
+- A GREYED-OUT CONTROL WITH A TOOLTIP ("X is disabled and its tooltip says T"): expect_disabled{control:"X"} then expect_message{kind:"tooltip", on:"X", text:"T"}. A greyed-out MENU ITEM: expect_menu_item{item, enabled:false} (Settings / ⋮ menus) or expect_options{…, disabled:["X"]} (dropdowns).
+- THE EVENT MENUS — the project's ⋮ menu and a stage's Settings (gear) menu: expect_menu_item{item, present:true|false, enabled:true|false} reads one item's state (offered / absent / greyed out); event_menu{item} chooses one; withdraw_event, extend_submission_time, add_price_cap, reschedule_event, convert_to_auction, create_new_version are their own steps; open_event_settings + expect_options{options, only:true} reads the whole gear menu.
+- MESSAGES ("a readable refusal", "the message names the field", "a toast confirms it"): expect_message{kind:"error"|"success"|"any", text} / expect_toast / expect_field_error{field} — quote the words only when the case quotes them (an unquoted guess is a label guess).
+- ONE CELL OF THE PRICE / BOQ SHEET on the create screen ("letters in the price", "a negative quantity", "999999999.99", "blank the second row's quantity"): set_sheet_cell{row, column, value} then expect_sheet_cell{row, column, kept|refused|equals|empty} — fill_sheet fills the whole sheet and is not that.
+- DOWNLOADS ("download the report / the template", "the file name is …"): click the download control (a known label), then expect_download{name, contains, rows}. A workbook's cells beyond text / CSV, and a file over 10 MB, are gaps.
+- A SECOND VENDOR'S BID when only one QA vendor can sign in: place_surrogate_bid{vendor|price} — the buyer bids for another invited vendor; two bids = one place_bid (or vendor_bid) + one place_surrogate_bid, or two place_surrogate_bid. Then the two-column Master QCS steps (expect_qcs_vendors, expect_qcs_ranks, expect_qcs_cell{vendor:2}) and expect_responses read the comparison.
+- A VALUE THE CASE DOES NOT STATE BUT THE SCREEN DOES ("the title reads <product> - <location>", "the published title equals the typed title", "the total equals quantity × price for whatever was quoted", "the card shows the event's ref id"): read it first with remember{key, <where it stands>} (the product cell, the typed title, the ref id), then expect_remembered{key, <where it must appear>, contains:true} (or as:"number") — a dynamic value is never a gap when both places are on screen in this plan.
+- EVERY PLAN ENDS IN AN ASSERTION. ask_tester and do_on_screen are not assertions: a plan whose last step is one of them has coverage "none". The smallest honest check is expect_visible / expect_text on a KNOWN LABEL of the screen the case ends on (e.g. the sign-in screen's "Continue with email"), or expect_message for a message the case quotes.
+- EXACT LABELS: the schedule drawer's duration presets read "30 Mins", "1 Hrs", "4 Hrs", "1 Days" (getReadableDuration — never "30 minutes" / "1 hour" / "24 hours"); the Settings menu's items and the create screen's controls are in KNOWN LABELS — copy them letter for letter.
+- STILL GAPS (say so, do not substitute): a tenant SETTING flipped, a second vendor's own session, an approver's or another buyer's sign-in, a network payload's structure, absolute start / end times on the create screen's schedule (set_schedule takes a duration; reschedule_event moves a published upcoming event), a knockout / dutch strategy on a fresh create screen.
 `.trim();
 
 /**
@@ -269,7 +285,7 @@ GENERIC STEPS — reading, verifying, navigating and acting on any screen:
 - Controls: role + name (button / tab / menuitem / switch / checkbox / radio). Fields: label (or placeholder). Messages and plain words: text.
 - ABSENCE ("X does not render", "zero Add Bid controls", "no price drawer"): expect_visible{visible:false}, expect_text{present:false} or expect_count{count:0} — only with a KNOWN label, and only after navigating to the screen where X would appear (the step waits for that screen to be ready before it believes an absence).
 - A VENDOR REVISING ITS BID ("bids 120 then 110", "submits a revised bid", "bids again") is place_bid again with the SAME vendor and the new price — place_bid{vendor:1, price:120} then place_bid{vendor:1, price:110}. Never ask_tester for it; never a second vendor.
-- THE VENDOR'S SIDE (the case is about what the vendor / supplier sees or does: their Live list, the bid sheet, line items and quantities as the vendor sees them, a hidden rank, a refused over-cap price): build and publish the event first (open_create … invite_vendor, publish, expect_published), then switch_portal{to:"vendor"} — a second browser signed in to the SUPPLIER portal as the invited QA vendor — then vendor_open_event{} (its bid sheet; overview:true for the Event Overview; stage:"technical" for the questionnaire). From there every generic step acts on the vendor's screen: expect_text / expect_visible / expect_count / expect_value for what it shows, fill{label:<line item or column>, value:<price>} + click{role:"button", name:"Submit"} to bid, attempt{step:"click", args:{role:"button", name:"Submit"}, expect:"refused"} for a bid the portal must refuse. switch_portal{to:"buyer"} returns to the buyer's event page (then go_to responses / open_master_qcs to read the buyer's side). Never place_bid after switch_portal — the vendor is already signed in.
+- THE VENDOR'S SIDE (the case is about what the vendor / supplier sees or does: their Live list, the bid sheet, line items and quantities as the vendor sees them, a hidden rank, a refused over-cap price): build and publish the event first (open_create … invite_vendor, publish, expect_published), then switch_portal{to:"vendor"} — a second browser signed in to the SUPPLIER portal as the invited QA vendor — then vendor_open_event{} (its bid sheet; overview:true for the Event Overview; stage:"technical" for the questionnaire). From there every generic step acts on the vendor's screen: expect_text / expect_visible / expect_count / expect_value for what it shows, vendor_bid{price} to bid (it types the price into every price cell and presses Submit Quote; submit:false only types), attempt{step:"vendor_bid", args:{price}, expect:"refused"} for a bid the portal must refuse (a negative price, letters, a price above the cap, a bid after the window). switch_portal{to:"buyer"} returns to the buyer's event page (then go_to responses / open_master_qcs to read the buyer's side). Never place_bid after switch_portal — the vendor is already signed in.
 - NEGATIVE TESTS (the case says the app must REFUSE / BLOCK / NOT ALLOW something): leave the enabling step out and mark it skip{step, reason}; then assert the block — expect_publish_blocked{because} for a refused publish, attempt{step, args, because} for any other refused action (attempt passes only on visible evidence: a message, a disabled control, or with expect:"nothing_opens" no drawer/dialog opening). Several refusals in one case = several skip → block pairs in order; put the left-out step back after its block before testing the next. NEVER use skip in a case that expects success.
 - A message the case quotes ("Please add participants to proceed!") belongs in expect_message{kind, text} or in the block step's because.
 - Tooltip: expect_message{kind:"tooltip", on:"<control>", text}. Before/after comparisons: remember{key, target} … expect_remembered{key, same}.
@@ -390,7 +406,7 @@ function fallbackPlan(testCase: string): TestPlan {
  * improving.
  */
 /** The case says the VENDOR bids (places / submits a bid, quote, price) — not merely looks at the bid sheet. */
-const VENDOR_BIDS = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b/i;
+const VENDOR_BIDS = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b|\bas (the |an? )?(invited )?vendor\b[^.]{0,80}\b(enters?|types?|submits?|bids?|quotes?|offers?|revis\w*)\b|\b(enter|type|offer)s?\s+`?-?\d|\b(revise|revising|revised)\b[^.]{0,30}\b(bid|quote|price)/i;
 
 export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repairs: string[] } {
   const steps = [...plan.steps];
@@ -680,12 +696,37 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // …and the vendor's bid is the case's to ask for: "as the vendor, open the event and check the line items"
   // got a place_bid before the switch (2 Nov) — a bid the case never mentioned, which also turns the bid
   // sheet the vendor then sees into "Revise Quote".
+  // A bid on the OPEN portal is vendor_bid, never a second sign-in (10 Nov): place_bid after switch_portal
+  // / vendor_open_event becomes vendor_bid with the same price; an attempt{place_bid} there likewise.
+  {
+    const firstPortal = steps.findIndex((s) => (s.step === "switch_portal" && !/^buyer$/i.test(String(s.args?.to ?? "vendor"))) || s.step === "vendor_open_event" || (s.step === "open_prepared" && /^vendor/i.test(String(s.args?.screen ?? ""))));
+    if (firstPortal >= 0) {
+      for (let k = firstPortal + 1; k < steps.length; k++) {
+        const st = steps[k];
+        if (st.step === "switch_portal" && /^buyer$/i.test(String(st.args?.to ?? ""))) break;
+        if (st.step === "place_bid") {
+          steps[k] = { step: "vendor_bid", args: st.args?.price !== undefined ? { price: st.args.price } : {}, note: st.note };
+          repairs.push("place_bid → vendor_bid — the vendor is already signed in on the open portal; vendor_bid types the price there");
+        } else if (st.step === "attempt" && String(st.args?.step ?? "") === "place_bid") {
+          const inner = (st.args?.args ?? {}) as Record<string, unknown>;
+          steps[k] = { ...st, args: { ...(st.args ?? {}), step: "vendor_bid", args: inner.price !== undefined ? { price: inner.price } : {} } };
+          repairs.push("attempt{place_bid} → attempt{vendor_bid} — the refused bid is typed on the open portal");
+        }
+      }
+    }
+    // vendor_bid with no portal open before it: the switch and the event go in front of it.
+    const vb = steps.findIndex((s) => s.step === "vendor_bid" || (s.step === "attempt" && String(s.args?.step ?? "") === "vendor_bid"));
+    if (vb >= 0 && !steps.slice(0, vb).some((s) => s.step === "switch_portal" || s.step === "vendor_open_event" || (s.step === "open_prepared" && /^vendor/i.test(String(s.args?.screen ?? ""))))) {
+      steps.splice(vb, 0, { step: "switch_portal", args: { to: "vendor" } }, { step: "vendor_open_event" });
+      repairs.push("added switch_portal{vendor} + vendor_open_event before vendor_bid — the bid is typed on the vendor's own screen");
+    }
+  }
   const vendorBids = VENDOR_BIDS.test(testCase);
   if (steps.some((s) => s.step === "switch_portal" || s.step === "vendor_open_event") && !vendorBids) {
     for (let k = steps.length - 1; k >= 0; k--) {
-      if (steps[k].step === "place_bid") {
+      if (steps[k].step === "place_bid" || steps[k].step === "vendor_bid") {
+        repairs.push(`dropped ${steps[k].step} — the case switches to the vendor's side to look, and never says the vendor bids`);
         steps.splice(k, 1);
-        repairs.push("dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids");
       }
     }
   }
@@ -1234,7 +1275,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   const triesOnly = steps.some((st) => (st.step === "attempt" && /^place_(surrogate_)?bid$/.test(String(st.args?.step ?? ""))) || (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? st.args?.text ?? "")) && Number(st.args?.count ?? st.args?.max ?? 1) === 0) || (st.step === "expect_participant" && st.args?.addBid === false && !/\b(then|after)\b/i.test(testCase)));
   // A plan that switches to the supplier portal does its vendor work THERE — a look at the bid sheet, or a
   // bid with fill + Submit — never through a second place_bid sign-in (2 Nov).
-  const looksOnly = has("switch_portal") || has("vendor_open_event");
+  const looksOnly = has("switch_portal") || has("vendor_open_event") || has("vendor_bid");
   if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly && !looksOnly) {
     const step = wantsSurrogate ? "place_surrogate_bid" : "place_bid";
     const at = has("expect_published") ? indexOf("expect_published") + 1 : has("publish") ? indexOf("publish") + 1 : steps.length;
@@ -1601,7 +1642,7 @@ function screenRules(sc: NonNullable<CompileOptions["screen"]>): string {
  * expect_disabled / expect_enabled name a control the same way, so they are
  * held to the same standard.
  */
-const LABELLED_STEPS = new Set(["click", "hover", "fill", "select", "toggle", "upload", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "remember", "attempt", "expect_disabled", "expect_enabled"]);
+const LABELLED_STEPS = new Set(["click", "hover", "fill", "select", "toggle", "upload", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "remember", "attempt", "expect_disabled", "expect_enabled", "expect_options", "expect_remembered"]);
 
 /** Is this step an ABSENCE check (passes when something is not there)? */
 function isAbsenceCheck(st: PlanStep): boolean {
@@ -1671,11 +1712,12 @@ export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record
 function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
   return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
 - Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted).
-- The built event has exactly ONE line item, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings. A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
+- The built event has exactly ONE line item, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings.${qaVendorsOnly() ? "" : `
+- A SECOND VENDOR'S BID on a live / bid state ("two vendors bid", "a second bid with a lower total", "Vendor B bids 90", "two bids with the same total", "a surrogate bid beside the vendor's own"): place_surrogate_bid{price} — the buyer enters it on the Participants tab for another invited vendor (its Add Bid row; the run picks a vendor who has not bid; a third bid is another place_surrogate_bid). After it, Master QCS / Responses show two vendor columns, so expect_qcs_vendors{count:2}, expect_qcs_ranks, expect_qcs_cell{vendor:2,…}, expect_responses{count:2, surrogate:1} and a counter offer on the vendor's own bid are all expressible — never list "a second vendor" as a gap on these states. Only a second vendor's OWN portal session (its sign-in, its view) stays a gap. Not on closed / proposal / awarded (bidding is over) and not on a technical stage.`} A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
 - The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".
 - After a click that opens a proposal, the URL is /project/<id>/proposal/<id>; the awarding screen is /awarding/<id>.
 - The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event.${p.screen === "vendor" ? `
-- THE SUPPLIER PORTAL: after open_prepared the browser is the VENDOR's — signed in as the invited QA vendor, on this event's bid sheet (the pricing round, with the bid form opened when the round offers one). The buyer's screens (summary, Responses, Master QCS, Participants) are NOT there. Read and act with the generic steps on what the vendor sees: expect_text / expect_visible / expect_count / expect_value for line items, quantities, units, locations, prices, ranks, the bid total, a disabled Submit; fill a price cell with fill{label:<the line item or column>, value}; press Submit with click{role:"button", name:"Submit"}; a refusal the vendor must get (a price above the cap, a bid after the deadline) is attempt{step:"click", args:{role:"button", name:"Submit"}, expect:"refused", because:<the message>}. vendor_open_event{overview:true} shows the Event Overview; vendor_open_event{stage:"technical"} the questionnaire. switch_portal{to:"buyer"} goes back to the buyer's event page when the case then checks the buyer's side (its Responses / Master QCS via go_to), and switch_portal{to:"vendor"} returns. Never place_bid here — the vendor is already signed in; bid with fill + click. The vendor's name and the title are ${p.valueKeys.includes("vendorName") ? "expect_api_value{key:\"vendorName\"} / {key:\"title\"}" : "expect_api_value on the keys above"}.` : ""} Do NOT open_create, set_title, compose_stages, publish, invite_vendor or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
+- THE SUPPLIER PORTAL: after open_prepared the browser is the VENDOR's — signed in as the invited QA vendor, on this event's bid sheet (the pricing round, with the bid form opened when the round offers one). The buyer's screens (summary, Responses, Master QCS, Participants) are NOT there. Read and act with the generic steps on what the vendor sees: expect_text / expect_visible / expect_count / expect_value for line items, quantities, units, locations, prices, ranks, the bid total, a disabled Submit; bid with vendor_bid{price} (types the price into every price cell and presses Submit Quote; submit:false only types, so the sheet can be read with expect_text / expect_value / expect_remembered); a refusal the vendor must get (a negative price, letters, a price above the cap, a bid after the deadline) is attempt{step:"vendor_bid", args:{price:<what the case types>}, expect:"refused", because:<the message, only if the case quotes it>}. vendor_open_event{overview:true} shows the Event Overview; vendor_open_event{stage:"technical"} the questionnaire. switch_portal{to:"buyer"} goes back to the buyer's event page when the case then checks the buyer's side (its Responses / Master QCS via go_to), and switch_portal{to:"vendor"} returns. Never place_bid here — the vendor is already signed in; bid with vendor_bid. The vendor's name and the title are ${p.valueKeys.includes("vendorName") ? "expect_api_value{key:\"vendorName\"} / {key:\"title\"}" : "expect_api_value on the keys above"}.` : ""} Do NOT open_create, set_title, compose_stages, publish, invite_vendor or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
 - Write ONLY the steps the case is about, then an assertion for EACH screen expectation${p.screenAssertions?.length ? ` — these are the ones a screen must show:\n${p.screenAssertions.map((a) => `  • ${a}`).join("\n")}` : "."}
 - A value the API holds and the screen must show (title, vendor name, quantity, bid price…) → expect_api_value{key} with key one of: ${p.valueKeys.join(", ") || "(none for this state)"}.
 - On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
@@ -1716,6 +1758,80 @@ export function quickOutline(testCase: string): { title: string; steps: PlanStep
   } catch {
     return none;
   }
+}
+
+/**
+ * Declared gaps the plan's own steps already cover (10 Nov 2026). Each rule names the gap's words, the step
+ * that does it, and the condition under which the plan holds that step. Deliberately narrow: a gap about a
+ * SECOND vendor, an uninvited vendor or another buyer is never resolved by the one QA vendor's session.
+ */
+export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: string[]; resolved: string[] } {
+  const has = (name: string, pred: (st: PlanStep) => boolean = () => true) => steps.some((st) => st.step === name && pred(st));
+  const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
+  const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
+    {
+      gap: /separate (browser )?(session|window|tab|login)|second (browser|session|window)|(log|sign)(ging|ing|s)? ?in(to)? (as|to) (the |a |an )?(vendor|supplier)|\bas (the |a )?vendor\b|vendor('s)? (portal|side|view|session|login|screen)|supplier (portal|hub|side)/i,
+      covered: (g) => !otherVendor.test(g) && (has("switch_portal", (st) => !/^buyer$/i.test(String(st.args?.to ?? "vendor"))) || has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
+      by: "switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+    },
+    {
+      gap: /\b(vendor|supplier)\b[^.]{0,60}\b(bid|quote|price)s?\b[^.]{0,40}\b(type|enter|submit|place|refus|reject)|\b(negative|invalid|letters?|text|zero|0|above the cap|over the cap)\b[^.]{0,40}\b(price|bid|quote)\b/i,
+      covered: (g) => !otherVendor.test(g) && (has("vendor_bid") || has("attempt", (st) => String(st.args?.step ?? "") === "vendor_bid")),
+      by: "vendor_bid types the price on the open portal and reports what the sheet and Submit did (attempt{vendor_bid} for a refusal)",
+    },
+    {
+      // "the prepared state has only one vendor / one bid" — a second bid IS expressible as a surrogate bid; the
+      // second vendor's own portal session, view or sign-in is not.
+      gap: /\b(second|another|other|two|2|b)\b[^.]{0,40}\b(vendor|bidder|bid|total|quote)s?\b|\bvendor b\b|\bonly one (invited )?(vendor|bid)\b|\bone (vendor|bid)\b[^.]{0,30}\b(cannot|not|no)\b/i,
+      covered: (g) => !/\b(portal|session|sign|log|login|view|sees?|screen)\b/i.test(g) && has("place_surrogate_bid"),
+      by: "place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
+    },
+    {
+      // "the event is in the vendor's Live list" — vendor_open_event finds THIS event in the vendor's list and fails as
+      // NOT INVITED when it is not there; open_prepared{vendor} does the same.
+      gap: /\b(vendor|supplier)('s)?\b[^.]{0,40}\b(live )?(list|events)\b[^.]{0,60}\b(contain|list|show|has|includes?|appears?|present|visible|find|search)/i,
+      covered: (g) => !otherVendor.test(g) && (has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
+      by: "vendor_open_event opens THIS event from the vendor's list and fails as NOT INVITED when it is not listed",
+    },
+    {
+      gap: /tooltip|hover/i,
+      covered: () => has("expect_message", (st) => String(st.args?.kind ?? "") === "tooltip"),
+      by: "expect_message{kind:\"tooltip\", on} hovers the control and reads its tooltip",
+    },
+    {
+      gap: /(dropdown|select|picker|menu|list|presets?|options?|strategy tabs?)\b[^.]{0,60}\b(offer|option|contain|list|item|enumerat|absent|present|greyed|grayed|disabled)|\b(offer|option)s?\b[^.]{0,40}\b(dropdown|select|picker|menu|list)/i,
+      covered: () => has("expect_options"),
+      by: "expect_options opens the list and reads what it offers, with greyed-out items",
+    },
+    {
+      gap: /\b(rows?|table|grid|list)\b[^.]{0,50}\b(count|number|how many|exactly|at least|equal|match|show|read)|\bcount\b[^.]{0,40}\b(rows?|cards?|entries|items|vendors?|participants?)\b/i,
+      covered: () => has("expect_table") || has("expect_remembered", (st) => st.args?.delta !== undefined),
+      by: "expect_table reads the rows and cells; expect_remembered{delta} checks a count that rises or falls",
+    },
+    {
+      gap: /\b(compar|equal|same as|matches?|identical|unchanged|rises? by|increases? by|decreases? by|drops? by|cross[- ]?(check|region|screen|target))/i,
+      covered: () => has("expect_remembered", (st) => stepLabelWords(st).length > 0 || st.args?.delta !== undefined || st.args?.as !== undefined) || has("expect_api_value") || has("expect_qcs_cell", (st) => st.args?.key !== undefined),
+      by: "remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+    },
+    {
+      gap: /\b(⋮|kebab|three[- ]dots?|settings menu|gear|overflow menu)\b[^.]{0,60}\b(item|offer|absent|present|greyed|disabled|enabled)|\bmenu item\b/i,
+      covered: () => has("expect_menu_item") || has("event_menu"),
+      by: "expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+    },
+    {
+      gap: /\b(sheet|grid) cell\b|\b(type|enter|put|key)\w*\b[^.]{0,40}\b(into|in) (a|one|the) (price|quantity|numeric|sheet|grid)[^.]{0,20}cell/i,
+      covered: () => has("set_sheet_cell"),
+      by: "set_sheet_cell types into one cell of the price / BOQ sheet; expect_sheet_cell judges what it kept",
+    },
+  ];
+  const kept: string[] = [];
+  const resolved: string[] = [];
+  for (const g of gaps) {
+    const rule = RULES.find((r) => r.gap.test(g) && r.covered(g));
+    if (rule) resolved.push(`“${g.slice(0, 120)}” — ${rule.by}`);
+    else kept.push(g);
+  }
+  return { gaps: kept, resolved };
 }
 
 export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
@@ -1877,6 +1993,14 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
+  if (opts.prepared && /^vendor/i.test(opts.prepared.screen)) {
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].step === "place_bid") {
+        steps[i] = { step: "vendor_bid", args: steps[i].args?.price !== undefined ? { price: steps[i].args!.price } : {}, note: steps[i].note };
+        warnings.push("place_bid → vendor_bid — on the prepared vendor screen the vendor is already signed in; vendor_bid types the price there");
+      }
+    }
+  }
   if (opts.prepared && !steps.some((st) => st.step === "open_prepared")) {
     steps.unshift({ step: "open_prepared", args: { screen: opts.prepared.screen }, note: "the API built this case's state" });
     warnings.push(`added open_prepared(${opts.prepared.screen}) — the API built this case's state`);
@@ -1930,11 +2054,28 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
       warnings.push("reschedule_event reads the refusal from the dialog field's own help text — that is the message under the field");
     }
   }
+  // GAPS A STEP IN THE PLAN ALREADY COVERS (10 Nov): the model kept writing "log in as Vendor A in a separate
+  // session" beside a switch_portal of its own, "assert the tooltip" beside an expect_message tooltip. A gap is
+  // dropped ONLY when the plan holds the very step that does it (and, for the vendor, the gap is not about a
+  // second vendor) — anything else stays a gap, and every drop is said out loud.
+  {
+    const r = resolveCoveredGaps(gaps, linted.plan.steps);
+    gaps = r.gaps;
+    warnings.push(...r.resolved.map((x) => `resolved: ${x}`));
+  }
   // The model's "partial" rests on the gaps it listed: when every one of them was resolved
   // above (a step that covers it was added or already present), its "partial" goes with them.
   const gapsAllResolved = declaredGapCount > 0 && gaps.length === 0;
   let coverage: CompileResult["coverage"] =
     parsed.coverage === "none" ? "none" : (parsed.coverage === "partial" && !gapsAllResolved) || gaps.length ? "partial" : "full";
+  // The model said "none" because it believed the SUBJECT had no step — and every gap it listed is done by a step
+  // that IS in the plan (resolveCoveredGaps fires only then). The subject is observed; "partial", never "full",
+  // because the model's own doubt is still on record (10 Nov, UI-VBID-001: "the vendor's list contains the event"
+  // beside its own vendor_open_event).
+  if (coverage === "none" && gapsAllResolved && linted.plan.steps.length) {
+    coverage = "partial";
+    warnings.push("the model judged coverage none, but every gap it named is done by a step in this plan — read as partial");
+  }
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";

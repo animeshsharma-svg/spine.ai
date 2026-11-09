@@ -2,15 +2,17 @@
  "meta": {
   "caseId": "UI-XDNEG-008",
   "title": "The drawer refuses a counter offer with no change or a zero total",
-  "compiledAt": "2026-10-06T06:30:39.602Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:39.073Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Edit a counter-offer row and then untick all rows: no catalog step or confirmed grid-row selector supports that selection change, so the resulting 'Please select atleast one product to send counter offer' refusal cannot be verified."
+   "Reliably untick all selected product rows after editing one because the catalog has no counter-offer drawer row-selection step with a stable product-independent target.",
+   "Set every counter-offer price field to zero and submit as a multi-row drawer operation; the available price-sheet step does not target counter-offer drawer fields."
   ],
   "warnings": [
-   "can only test part of this — no step for: Edit a counter-offer row and then untick all rows: no catalog step or confirmed grid-row selector supports that selection change, so the resulting 'Please select atleast one product to send counter offer' refusal cannot be verified."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Reliably untick all selected product rows after editing one because the catalog has no counter-offer drawer row-selection step with a stable product-independent target.; Set every counter-offer price field to zero and submit as a multi-row drawer operation; the available price-sheet step does not target counter-offer drawer fields."
   ],
   "state": "bid",
   "screen": "responses",
@@ -21,14 +23,14 @@
   ]
  },
  "plan": {
-  "title": "Counter-offer drawer validation",
+  "title": "Counter offer drawer rejects unchanged and zero-total submissions",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with its submitted vendor bid."
+    "note": "Open the prepared event's Responses screen with the counter-offer context."
    },
    {
     "step": "click",
@@ -36,67 +38,23 @@
      "role": "button",
      "name": "Counter Offer"
     },
-    "note": "Open the counter-offer drawer without changing any values."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Send"
-     },
-     "because": "You must change atleast one column to send counter offer"
-    },
-    "note": "Require visible refusal when sending an unchanged offer."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "any",
-     "text": "You must change atleast one column to send counter offer"
-    },
-    "note": "Verify the exact unchanged-offer validation message."
-   },
-   {
-    "step": "expect_request",
-    "args": {
-     "path": "raise_additional_request",
-     "absent": true
-    },
-    "note": "Verify the unchanged submission did not reach the counter-offer endpoint."
+    "note": "Open the counter-offer drawer."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Send"
     },
-    "note": "Dismiss the unchanged-offer drawer before testing a zero price."
+    "note": "Submit without changing any counter-offer value."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the comparison grid required by the domain counter-offer action."
-   },
-   {
-    "step": "attempt",
+    "step": "expect_message",
     "args": {
-     "step": "place_counter_offer",
-     "args": {
-      "price": 0
-     },
-     "because": "Gross total can't be 0, please check your entries."
+     "kind": "error",
+     "text": "You must change atleast one column to send counter offer"
     },
-    "note": "Use the domain action to enter zero for the prepared event's sole line and require refusal."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "any",
-     "text": "Gross total can't be 0, please check your entries."
-    },
-    "note": "Verify the exact zero-total validation message."
+    "note": "Verify the unchanged counter offer is refused with the expected message."
    },
    {
     "step": "expect_request",
@@ -104,7 +62,63 @@
      "path": "raise_additional_request",
      "absent": true
     },
-    "note": "Verify neither tested invalid submission sent a counter-offer request."
+    "note": "Verify the rejected unchanged submission sent no additional-request call."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send"
+    },
+    "note": "Attempt the no-selected-product submission using the drawer's Send action; the catalog cannot perform the required row unticking before this action."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please select atleast one product to send counter offer"
+    },
+    "note": "Verify submission with no selected products is refused."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_additional_request",
+     "absent": true
+    },
+    "note": "Verify the rejected no-selection submission sent no additional-request call."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "0"
+    },
+    "note": "Set the available counter-offer price field to zero as the closest expressible approximation of the zero-total case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send"
+    },
+    "note": "Submit the zero-price counter offer."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Gross total can't be 0, please check your entries."
+    },
+    "note": "Verify the zero-total counter offer is refused with the expected message."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_additional_request",
+     "absent": true
+    },
+    "note": "Verify the rejected zero-total submission sent no additional-request call."
    },
    {
     "step": "expect_api_value",

@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-VBID-022",
   "title": "A second bid without revising is refused as already placed",
-  "compiledAt": "2026-11-09T19:19:52.120Z",
+  "compiledAt": "2026-11-09T20:06:24.387Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create a fresh vendor bid rather than revising the existing bid and verify the refusal message that the bid was already placed, while confirming one active bid remains.",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "A distinct fresh-bid action after the vendor's first bid, separate from the supported bid-revision flow",
+   "The exact refusal message for attempting a second bid"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: A distinct fresh-bid action after the vendor's first bid, separate from the supported bid-revision flow; The exact refusal message for attempting a second bid"
   ],
   "state": "none",
   "screen": "create",
@@ -23,21 +24,120 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-VBID-022 Second Fresh Bid Refused",
+  "title": "UI-VBID-022 Duplicate bid refusal",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "vendor"
+     "path": "erfx"
     },
-    "note": "Open the prepared vendor-side state containing the vendor's existing active bid."
+    "note": "Start a new multi-stage event for the bidding scenario."
    },
    {
-    "step": "ask_tester",
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
     "args": {
-     "need": "attempt to create a fresh bid for the vendor without revising the existing bid, verify the refusal message that a bid has already been placed, and confirm that one active bid remains"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "The catalog has no distinct fresh-bid creation action or assertion for this refusal and active-bid oracle."
+    "note": "Configure the event with an RFQ pricing stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for the vendor bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule so the event can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor to place the active bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event before bidding."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Have the vendor submit the initial active bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor's first bid was accepted."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published stage's participant list to inspect whether a fresh Add Bid action remains."
+   },
+   {
+    "step": "search_participants",
+    "args": {},
+    "note": "Locate the vendor's participant row."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "present": true,
+     "addBid": false
+    },
+    "note": "Verify the vendor remains listed but no fresh Add Bid control is available after bidding."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Add Bid"
+     },
+     "expect": "nothing_opens"
+    },
+    "note": "Attempt the unavailable fresh-bid control; the refusal is represented by its absence rather than an exact message."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Confirm exactly one direct vendor response remains active."
    }
   ]
  }

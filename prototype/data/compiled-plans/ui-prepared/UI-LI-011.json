@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-LI-011",
   "title": "The drawer is read-only while editing a draft that forbids edits",
-  "compiledAt": "2026-10-05T13:39:03.787Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:07.148Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish or identify an existing draft with disableProjectEditInDraft enabled; no event identifier or supported gate-setting step is provided.",
-   "Enter the existing project's isAddNewStage flow; composing stages on a new event does not establish this state.",
-   "Assert Add and Remove are disabled in both entry paths: no domain assertion or confirmed control labels identify these drawer controls."
+   "Configure the tenant's disableProjectEditInDraft setting, which no catalog step can change."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish or identify an existing draft with disableProjectEditInDraft enabled; no event identifier or supported gate-setting step is provided.; Enter the existing project's isAddNewStage flow; composing stages on a new event does not establish this state.; Assert Add and Remove are disabled in both entry paths: no domain assertion or confirmed control labels identify these drawer controls."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Configure the tenant's disableProjectEditInDraft setting, which no catalog step can change."
   ],
   "state": "none",
   "screen": "create",
@@ -24,34 +23,112 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Read-only line items in locked draft and add-stage flows",
+  "title": "Draft line-item drawer read-only",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a draft event on the multi-stage create flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-LI-011 Read Only Draft"
+    },
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the line-item drawer can be configured."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Closest existing-event entry point; requires the executor's event context to resolve to the intended locked draft."
+    "note": "Apply a pricing template before adding line items."
    },
    {
-    "step": "click",
+    "step": "add_line_items",
     "args": {
-     "role": "button",
-     "name": "Items"
+     "count": 1
     },
-    "note": "Open the Manage Line Items drawer if the resolved event is on its draft-edit screen."
+    "note": "Create the draft with an existing line item."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Manage Line Items"
-    },
-    "note": "Verify only that the drawer opened, not that its editing controls are disabled."
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the draft can be saved."
    },
    {
-    "step": "capture_screen",
+    "step": "set_schedule",
     "args": {
-     "label": "draft-line-items-readonly-controls"
+     "minutes": 30
     },
-    "note": "Capture the drawer and accessibility tree for inspection of controls the catalog cannot yet assert."
+    "note": "Commit a schedule required for a valid draft."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Complete the draft prerequisites with one participant."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the event as a draft for the restricted-edit scenario."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save completed without an application error."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "configure the disableProjectEditInDraft tenant gate, then arrange the draft and add-new-stage entry states for the read-only drawer check"
+    },
+    "note": "The tenant gate and required entry-state setup cannot be configured by catalog steps."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to reopen the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show draft events."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the draft's editing screen."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the Manage Line Items drawer in the restricted draft and through the add-new-stage flow, verify that adding and removing line items are disabled in both situations, and stop with the read-only drawer visible"
+    },
+    "note": "Perform and verify the two drawer entry paths and their disabled add/remove controls on screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Manage Line Items",
+     "present": true
+    },
+    "note": "Assert that the line-item drawer remains open after the read-only checks."
    }
   ]
  }

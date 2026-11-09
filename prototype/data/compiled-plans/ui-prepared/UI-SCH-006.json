@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "UI-SCH-006",
   "title": "A window that has already closed at publish time",
-  "compiledAt": "2026-11-09T19:10:57.262Z",
+  "compiledAt": "2026-11-09T20:02:15.366Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "If publishing succeeds in a Closed state, conditionally attempt a vendor bid and assert it is refused with \"Order not active\"."
+   "Set and save an absolute end time in the past on the create-screen schedule.",
+   "Observe whether Publish itself refuses the past-end schedule or publishes directly in a Closed state.",
+   "Attempt the vendor bid immediately after publishing the past-end schedule."
   ],
   "warnings": [
-   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
-   "removed invite_vendor — the case is about publishing without participants, so including it would defeat the test",
-   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
-   "removed invite_vendor — the case is about publishing without participants, so including it would defeat the test",
-   "can only test part of this — no step for: If publishing succeeds in a Closed state, conditionally attempt a vendor bid and assert it is refused with \"Order not active\"."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "cannot test this case yet — no step can observe: Set and save an absolute end time in the past on the create-screen schedule.; Observe whether Publish itself refuses the past-end schedule or publishes directly in a Closed state.; Attempt the vendor bid immediately after publishing the past-end schedule."
   ],
   "state": "none",
   "screen": "create",
@@ -26,31 +27,33 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Past End Time Publish",
+  "title": "UI-SCH-006 Past-End Schedule Publish",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a valid event creation flow."
+    "note": "Create a comparable event context."
    },
    {
     "step": "set_title",
-    "args": {},
+    "args": {
+     "title": "UI-SCH-006 Past-End Schedule Test"
+    },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Configure the pricing stage so line items can be added."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Create a valid event with one line item."
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
@@ -60,21 +63,40 @@
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 30
+     "minutes": 3
     },
-    "note": "Commit an initially valid schedule so the event is otherwise publishable."
+    "note": "Set a valid schedule because the catalog cannot set an absolute past end time."
    },
    {
-    "step": "do_on_screen",
+    "step": "invite_vendor",
     "args": {
-     "goal": "On the create screen, change the event End time to a time already in the past, save the schedule, and stop on the create screen showing the saved past end time"
+     "count": 1
     },
-    "note": "No catalog domain step can set a past end time during creation, so perform this schedule edit directly on screen."
+    "note": "Add a vendor so a bid attempt is possible."
    },
    {
-    "step": "expect_publish_blocked",
+    "step": "publish",
     "args": {},
-    "note": "Verify the publish action is refused for the past closing time."
+    "note": "Publish the comparable event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached its published project page."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Approximate the closed-event branch by ending the published event before the bid attempt."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_bid",
+     "expect": "refused",
+     "because": "Order not active"
+    },
+    "note": "Verify that a vendor bid is refused after the event is closed."
    }
   ]
  }

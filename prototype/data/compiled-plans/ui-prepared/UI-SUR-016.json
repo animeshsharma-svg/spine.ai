@@ -2,16 +2,16 @@
  "meta": {
   "caseId": "UI-SUR-016",
   "title": "Surrogate bidding is refused when the company forbids it",
-  "compiledAt": "2026-10-06T05:16:26.297Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:57:12.740Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Set or establish is_buyer_not_allowed_to_add_surrogate_bid on the prepared event; no catalog step changes company settings.",
-   "Assert the refusal's backend business error code 10."
+   "Set or independently verify the company configuration that forbids buyer surrogate bids."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set or establish is_buyer_not_allowed_to_add_surrogate_bid on the prepared event; no catalog step changes company settings.; Assert the refusal's backend business error code 10."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Set or independently verify the company configuration that forbids buyer surrogate bids."
   ],
   "state": "live",
   "screen": "participants",
@@ -22,37 +22,28 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Company restriction on surrogate bidding",
+  "title": "Surrogate Bid Refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab."
+    "note": "Open the prepared event's Participants screen where surrogate bidding is attempted."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Ensure the published event's Participants list and surrogate-bid controls are loaded."
    },
    {
     "step": "attempt",
     "args": {
      "step": "place_surrogate_bid",
-     "args": {},
+     "expect": "refused",
      "because": "You are not allowed to use this functionality"
     },
-    "note": "Require positive evidence that the buyer's surrogate bid is refused; default settings may not enforce the required restriction."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Inspect the round's bids after the refused attempt."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "No bids received yet."
-    },
-    "note": "Assert that the attempt did not create a bid."
+    "note": "Attempt the surrogate bid and require Procol to refuse it with the expected authorization message."
    }
   ]
  }

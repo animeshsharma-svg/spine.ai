@@ -2,17 +2,18 @@
  "meta": {
   "caseId": "UI-CRE-025",
   "title": "Reopening a saved draft restores every field",
-  "compiledAt": "2026-10-05T13:29:54.795Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:54:34.342Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Compare each restored sheet cell with its originally entered value; fill_sheet does not expose its values and the catalog has no sheet-value snapshot assertion.",
-   "Compare the exact selected template, line-item identities, committed schedule and participant identities against their original values when the setup steps use executor-selected defaults.",
-   "Compare the restored title against an independently captured original input value; expect_api_value checks the saved API title rather than a pre-save input snapshot."
+   "Exact participant identity and selection state after reopening the draft",
+   "Complete field-by-field comparison of all saved schedule fields"
   ],
   "warnings": [
-   "can only test part of this — no step for: Compare each restored sheet cell with its originally entered value; fill_sheet does not expose its values and the catalog has no sheet-value snapshot assertion.; Compare the exact selected template, line-item identities, committed schedule and participant identities against their original values when the setup steps use executor-selected defaults.; Compare the restored title against an independently captured original input value; expect_api_value checks the saved API title rather than a pre-save input snapshot."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Complete field-by-field comparison of every sheet cell beyond the explicitly set Price cells” — set_sheet_cell types into one cell of the price / BOQ sheet; expect_sheet_cell judges what it kept",
+   "can only test part of this — no step for: Exact participant identity and selection state after reopening the draft; Complete field-by-field comparison of all saved schedule fields"
   ],
   "state": "none",
   "screen": "create",
@@ -24,138 +25,193 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Saved draft restoration",
+  "title": "Reopening a saved draft restores fields",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the draft whose saved state will be reopened."
+    "note": "Open the multi-stage create screen for the draft."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Assign a unique title for saving and locating the draft."
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Set the draft title so it can be found and checked after reopening."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Set the draft's stage configuration to RFQ."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template to the default Auction stage."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Establish the required two-item draft."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Verify the baseline line-item count."
+    "note": "Create the two line items required by the setup."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate sheet values before saving."
+    "note": "Populate the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "125"
+    },
+    "note": "Set a known sheet value that can be compared after reopening."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "125"
+    },
+    "note": "Confirm the first entered sheet value before saving."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "value": "250"
+    },
+    "note": "Set a second known sheet value for restoration checking."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "equals": "250"
+    },
+    "note": "Confirm the second entered sheet value before saving."
    },
    {
     "step": "set_schedule",
-    "args": {},
-    "note": "Commit a valid schedule as part of the saved state."
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the draft schedule."
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Include participants in the draft."
-   },
-   {
-    "step": "expect_stages",
     "args": {
-     "stages": [
-      "auction"
-     ]
+     "count": 1
     },
-    "note": "Verify the baseline stage set."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "draft-before-save"
-    },
-    "note": "Record visible baseline evidence without treating it as a value-comparison assertion."
+    "note": "Add the participant required by the setup."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Persist the configured event without publishing."
+    "note": "Save the fully configured event as a draft."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Leave the creation screen."
+    "note": "Leave the create screen and open the events list."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Find the saved event in the draft listing."
+    "note": "Navigate to the Drafts tab where the saved event should appear."
    },
    {
     "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert the saved draft is listed under its generated title."
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Verify the saved draft is listed with the expected title."
    },
    {
     "step": "open_event",
-    "args": {},
-    "note": "Search for this plan's title and reopen its draft through the events list."
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Reopen the named draft from the events list."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_value",
     "args": {
-     "screen": "draft"
+     "label": "Enter the title of the project",
+     "value": "UI-CRE-025 Draft Restore"
     },
-    "note": "Verify reopening reached a ready draft screen."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "title"
-    },
-    "note": "Verify the reopened title agrees with the saved event title."
+    "note": "Verify that the title was restored."
    },
    {
     "step": "expect_stages",
     "args": {
      "stages": [
-      "auction"
+      "rfq"
      ]
     },
-    "note": "Assert the original stage set was restored."
+    "note": "Verify that the saved stage set was restored."
    },
    {
     "step": "expect_template_selected",
     "args": {},
-    "note": "Assert a template remains applied, without claiming exact template identity."
+    "note": "Verify that the pricing template remains applied."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 2
     },
-    "note": "Assert the restored toolbar badge matches the original two line items."
+    "note": "Verify that the line-item badge restored the expected count."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_sheet_columns",
     "args": {
-     "label": "draft-after-reopen"
+     "columns": [
+      "price",
+      "quantity"
+     ]
     },
-    "note": "Record reopened-screen evidence for the comparisons not automated by this catalog."
+    "note": "Verify that the pricing sheet rendered from the restored template."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "125"
+    },
+    "note": "Verify the first saved sheet value after reopening."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "equals": "250"
+    },
+    "note": "Verify the second saved sheet value after reopening."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 Mins",
+     "present": true
+    },
+    "note": "Verify that the saved schedule duration is visible after reopening."
    }
   ]
  }

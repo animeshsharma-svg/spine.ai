@@ -2,16 +2,16 @@
  "meta": {
   "caseId": "UI-VBID-016",
   "title": "A negative GST is refused",
-  "compiledAt": "2026-11-09T19:26:38.336Z",
+  "compiledAt": "2026-11-09T20:09:45.579Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enter a negative GST in the vendor portal (requires vendor side login or specific cell editing for GST which is not directly supported via buyer create sheet steps)",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Verify the negative GST entry in the vendor bid flow and assert that no bid was created."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the negative GST entry in the vendor bid flow and assert that no bid was created."
   ],
   "state": "none",
   "screen": "create",
@@ -23,21 +23,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "A negative GST is refused",
+  "title": "UI-VBID-016 Negative GST Refusal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open create screen for an eRFX event"
+    "note": "Open the event creation flow containing the pricing sheet."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Negative GST Test"
+     "title": "Negative GST Validation"
     },
-    "note": "Set event title"
+    "note": "Provide the required event title before configuring the sheet."
    },
    {
     "step": "compose_stages",
@@ -46,38 +46,42 @@
       "rfq"
      ]
     },
-    "note": "Set stages to RFQ"
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Switch to RFQ stage"
+    "note": "Use an RFQ pricing stage for the GST field."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select a pricing template"
+    "note": "Apply a pricing template so the sheet columns are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item"
+    "note": "Add one line item to create a data row for validation."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill pricing sheet"
+    "note": "Render and populate the pricing sheet before editing GST."
    },
    {
-    "step": "ask_tester",
+    "step": "set_sheet_cell",
     "args": {
-     "need": "sign in as the vendor and enter a negative GST on the bid sheet, then verify it is refused and no bid is created"
+     "row": 1,
+     "column": "GST",
+     "value": "-5"
     },
-    "note": "Handle vendor-side negative GST entry which cannot be done from the buyer console catalog steps"
+    "note": "Enter the negative GST value requested by the case."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "GST",
+     "refused": true
+    },
+    "note": "Assert that the sheet refuses to keep the negative GST value."
    }
   ]
  }

@@ -2,17 +2,20 @@
  "meta": {
   "caseId": "UI-SS-014",
   "title": "Stage tabs do not appear on a classic tenant",
-  "compiledAt": "2026-10-06T05:11:20.639Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:45:56.174Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Establish or verify that rfx_project_enabled is off; no configured classic tenant ID is supplied.",
-   "Assert zero stage tab strips: no name or label is supplied for the strip, and unnamed element assertions are prohibited.",
-   "Assert the icon-only '+' stage control is absent everywhere: it has no confirmed name or label, and 'Add Stages' names the menu title rather than the control."
+   "Select or verify a tenant whose rfx_project_enabled setting is off.",
+   "Assert the zero-element tab-strip oracle because the strip has no named catalog element.",
+   "Assert absence of the icon-only + stage control because it has no reliable named element in the catalog."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish or verify that rfx_project_enabled is off; no configured classic tenant ID is supplied.; Assert zero stage tab strips: no name or label is supplied for the strip, and unnamed element assertions are prohibited.; Assert the icon-only '+' stage control is absent everywhere: it has no confirmed name or label, and 'Add Stages' names the menu title rather than the control."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added set_title — publishing without a title is refused",
+   "added set_title — publishing without a title is refused",
+   "cannot test this case yet — no step can observe: Select or verify a tenant whose rfx_project_enabled setting is off.; Assert the zero-element tab-strip oracle because the strip has no named catalog element.; Assert absence of the icon-only + stage control because it has no reliable named element in the catalog."
   ],
   "state": "none",
   "screen": "create",
@@ -24,37 +27,17 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Classic tenant has no stage controls",
+  "title": "Classic tenant create screen has no stage tabs",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Open the closest supported classic creation screen; this does not verify the tenant configuration."
+    "note": "Open the create screen where tenant-specific stage-tab behavior would be observable."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Supply the required title for a create-screen plan."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "tab",
-     "name": "Auction",
-     "count": 0
-    },
-    "note": "Check absence of the known Auction stage tab, not the tab strip itself."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "tab",
-     "name": "RFQ",
-     "count": 0
-    },
-    "note": "Check absence of the known RFQ stage tab."
+    "step": "set_title"
    },
    {
     "step": "expect_count",
@@ -63,14 +46,25 @@
      "name": "Technical Stage",
      "count": 0
     },
-    "note": "Check absence of the known technical stage tab."
+    "note": "Closest available check for absence of a named stage tab."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_count",
     "args": {
-     "label": "classic-create-stage-controls"
+     "role": "tab",
+     "name": "RFQ",
+     "count": 0
     },
-    "note": "Record evidence for manual inspection of the tab strip and icon-only '+' control; this is not an assertion."
+    "note": "Check that the named RFQ stage tab is absent."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "tab",
+     "name": "Auction",
+     "count": 0
+    },
+    "note": "Check that the named Auction stage tab is absent."
    }
   ]
  }

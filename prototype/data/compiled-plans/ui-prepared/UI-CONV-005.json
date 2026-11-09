@@ -2,18 +2,20 @@
  "meta": {
   "caseId": "UI-CONV-005",
   "title": "\"All invited\" carries every RFQ participant, not just the bidders",
-  "compiledAt": "2026-10-05T13:20:42.538Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:40:09.185Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "The fixed prepared event has one invited vendor who has bid, rather than five invitees with two bidders; the required audience counts of 2 and 5 cannot be tested.",
-   "No catalog step controls the conversion audience toggle, and its exact UI label is unconfirmed: All invited.",
-   "No catalog assertion reads the carried participants' bid-placed flags or checks those flags against the original RFQ bidders.",
-   "The catalog provides no supported flow for two independent conversions of this prepared RFQ with opposite audience-toggle settings."
+   "Set the All invited toggle off during conversion and verify that only the 2 bidders carry forward.",
+   "Perform a second conversion with the All invited toggle on.",
+   "Verify that all 5 invited vendors carry forward when the toggle is on.",
+   "Verify participant counts of 2 and 5 after the two conversions.",
+   "Verify which carried participants have the bid-placed flag."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The fixed prepared event has one invited vendor who has bid, rather than five invitees with two bidders; the required audience counts of 2 and 5 cannot be tested.; No catalog step controls the conversion audience toggle, and its exact UI label is unconfirmed: All invited.; No catalog assertion reads the carried participants' bid-placed flags or checks those flags against the original RFQ bidders.; The catalog provides no supported flow for two independent conversions of this prepared RFQ with opposite audience-toggle settings."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Set the All invited toggle off during conversion and verify that only the 2 bidders carry forward.; Perform a second conversion with the All invited toggle on.; Verify that all 5 invited vendors carry forward when the toggle is on.; Verify participant counts of 2 and 5 after the two conversions.; Verify which carried participants have the bid-placed flag."
   ],
   "state": "bid",
   "screen": "summary",
@@ -25,42 +27,36 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "RFQ conversion audience: All invited",
+  "title": "RFQ conversion carries all invited participants",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the fixed RFQ that already has the QA vendor's bid."
+    "note": "Open the prepared RFQ event that can be converted."
    },
    {
-    "step": "open_event_settings",
+    "step": "convert_to_auction",
     "args": {},
-    "note": "Expose the RFQ conversion action."
+    "note": "Perform the supported RFQ-to-Auction conversion as the closest available action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_navigated",
     "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
+     "screen": "create"
     },
-    "note": "Check conversion entry-point availability only, not audience carry-forward."
+    "note": "Verify that conversion reaches the auction create screen."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
-    },
-    "note": "Open the conversion popover without automatically continuing with default options."
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that the converted auction has a template applied."
    },
    {
-    "step": "capture_screen",
-    "args": {
-     "label": "rfq-conversion-audience-options"
-    },
-    "note": "Record the available audience controls for inspection; this is evidence capture, not an assertion of counts or flags."
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify that the converted pricing sheet rendered."
    }
   ]
  }

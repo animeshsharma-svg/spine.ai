@@ -2,21 +2,19 @@
  "meta": {
   "caseId": "UI-FCAP-003",
   "title": "Editing a cap after a bid exists follows the increase/decrease rule (records current behaviour)",
-  "compiledAt": "2026-11-09T19:24:09.240Z",
+  "compiledAt": "2026-11-09T20:08:51.826Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Editing an existing price cap value in the participants drawer and asserting the specific increase/decrease validation error response",
-   "unconfirmed label \"Edit Price Cap\" (click) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"OK\" (click) — not among the labels known from the app nor in the case",
-   "expected message \"Price cap cannot be less than\" is neither a known product message nor quoted by the case"
+   "Edit an existing saved price cap after a bid exists",
+   "Raise the cap and observe whether the product allows it",
+   "Lower the cap below the existing bid and observe the product's refusal or acceptance rule",
+   "Compare the edited cap with the existing bid price and record the resulting behavior"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Edit Price Cap\" (click) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"OK\" (click) — not among the labels known from the app nor in the case",
-   "coverage partial: expected message \"Price cap cannot be less than\" is neither a known product message nor quoted by the case",
-   "can only test part of this — no step for: Editing an existing price cap value in the participants drawer and asserting the specific increase/decrease validation error response"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Edit an existing saved price cap after a bid exists; Raise the cap and observe whether the product allows it; Lower the cap below the existing bid and observe the product's refusal or acceptance rule; Compare the edited cap with the existing bid price and record the resulting behavior"
   ],
   "state": "bid",
   "screen": "summary",
@@ -28,79 +26,24 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Editing a cap after a bid exists follows the increase/decrease rule",
+  "title": "Edit Price Cap After Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary"
+    "note": "Open the prepared live RFQ containing the existing bid."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the participants list to view the price cap control"
+    "note": "Reach the participant list where the vendor's saved price cap can be inspected."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Edit Price Cap",
-     "within": "Participants"
-    },
-    "note": "Open the price cap drawer for the vendor"
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price cap",
-     "value": "150"
-    },
-    "note": "Raise the price cap above the existing bid"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "OK",
-     "within": "dialog"
-    },
-    "note": "Confirm raising the price cap"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Edit Price Cap",
-     "within": "Participants"
-    },
-    "note": "Open the price cap drawer again to lower it"
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price cap",
-     "value": "50"
-    },
-    "note": "Try lowering the price cap below the existing bid"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "OK",
-     "within": "dialog"
-    },
-    "note": "Confirm lowering the price cap"
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "inline",
-     "text": "Price cap cannot be less than"
-    },
-    "note": "Assert that lowering the price cap below the bid is refused"
+    "step": "expect_price_cap",
+    "args": {},
+    "note": "Assert and record the currently saved price cap, without pretending to test editing behavior."
    }
   ]
  }

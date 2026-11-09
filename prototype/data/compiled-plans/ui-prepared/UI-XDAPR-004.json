@@ -2,34 +2,36 @@
  "meta": {
   "caseId": "UI-XDAPR-004",
   "title": "The approval card shows Approve/Reject only to the person whose action is pending",
-  "compiledAt": "2026-10-06T07:07:30.071Z",
+  "compiledAt": "2026-11-09T19:59:17.678Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Open the proposal separately as the requester and step-2 approver to assert the buttons are absent for those roles",
-   "Verify that clicking Approve with an empty remark sends no network request because no request endpoint is specified"
+   "Sign in separately as the requester and as a step-2 approver and verify the Approve/Reject buttons are absent in both sessions.",
+   "Assert that no network request of any kind was sent after clicking Approve because no specific request path is provided."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the proposal separately as the requester and step-2 approver to assert the buttons are absent for those roles; Verify that clicking Approve with an empty remark sends no network request because no request endpoint is specified"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Sign in separately as the requester and as a step-2 approver and verify the Approve/Reject buttons are absent in both sessions.; Assert that no network request of any kind was sent after clicking Approve because no specific request path is provided."
   ],
   "state": "awarded",
   "screen": "proposal",
   "technical": false,
   "exemplars": [
+   "UI-XDNEG-002",
    "UI-AWD-004"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Approval actions require pending approver",
+  "title": "Approval action visibility and empty remark validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the already prepared award proposal, as required for this case."
+    "note": "Open the award proposal in approval state as the pending approver."
    },
    {
     "step": "expect_visible",
@@ -38,7 +40,7 @@
      "name": "Approve",
      "visible": true
     },
-    "note": "Assert the current session, intended to represent the pending approver, sees Approve."
+    "note": "Verify the pending approver sees the Approve action."
    },
    {
     "step": "expect_visible",
@@ -47,7 +49,7 @@
      "name": "Reject",
      "visible": true
     },
-    "note": "Assert the pending approver also sees Reject."
+    "note": "Verify the pending approver sees the Reject action."
    },
    {
     "step": "click",
@@ -62,7 +64,19 @@
     "args": {
      "field": "Enter remarks"
     },
-    "note": "Assert the empty remark is rejected inline at the remarks field."
+    "note": "Confirm the empty remark is rejected at the remark field."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in separately as the requester and as a step-2 approver, inspect each approval card, and verify whether Approve and Reject are absent"
+    },
+    "note": "The catalog cannot create or switch to these other approval identities."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the resulting approval screen remains free of application errors."
    }
   ]
  }

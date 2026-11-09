@@ -2,46 +2,81 @@
  "meta": {
   "caseId": "UI-XDAMD-014",
   "title": "Reschedule is offered only before the stage starts",
-  "compiledAt": "2026-10-06T06:11:26.063Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:59:14.594Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify Reschedule Event is absent from a live stage's Settings menu: only an upcoming RFQ is prepared, and its state cannot be changed."
+   "Establishing that the selected event has exactly one upcoming stage and one live stage",
+   "Dynamically identifying which stage tab is upcoming versus live"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify Reschedule Event is absent from a live stage's Settings menu: only an upcoming RFQ is prepared, and its state cannot be changed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Establishing that the selected event has exactly one upcoming stage and one live stage; Dynamically identifying which stage tab is upcoming versus live"
   ],
   "state": "upcoming",
   "screen": "summary",
   "technical": false,
   "exemplars": [
+   "UI-EVDTME-002",
    "UI-CONV-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reschedule offered before stage starts",
+  "title": "Reschedule availability by stage state",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Open the first named stage tab for menu inspection."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Inspect the upcoming stage's Settings menu."
+    "note": "Open the stage Settings menu."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_menu_item",
     "args": {
-     "role": "menuitem",
-     "name": "Reschedule Event"
+     "item": "Reschedule Event",
+     "present": true
     },
-    "note": "Assert Reschedule Event is offered before the stage starts."
+    "note": "Assert that Reschedule Event is offered on the stage expected to be upcoming."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the other named stage tab for comparison."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the other stage Settings menu."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Reschedule Event",
+     "present": false
+    },
+    "note": "Assert that Reschedule Event is not offered on the stage expected to be live."
    }
   ]
  }

@@ -2,19 +2,22 @@
  "meta": {
   "caseId": "UI-XDBOQ-021",
   "title": "Controls hidden on a BOQ event",
-  "compiledAt": "2026-10-06T06:24:51.730Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:07.097Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enable boq_in_erfx_allowed; the gate must already be ON.",
-   "Identify both existing events and compare against the ordinary event: neither event title nor ID was supplied, so the opened event must be configured externally as the live BOQ event.",
-   "Check the Savings footer on the corresponding BOQ creation screen: no supported transition from the existing live event to that screen is specified.",
-   "Check the bidding/default currency toggle: its exact control label is not supplied.",
-   "Check basket-auction configuration and auction strategy tabs, including the service-template exception: the relevant configuration navigation, control labels and template classification are not supplied."
+   "Open the specific unnamed live BOQ event and verify its header/action bar lacks View by, Price Trends, bidding/default currency toggle, and basket-auction configuration while the ordinary event contains them.",
+   "Compare the specific unnamed ordinary live event against the specific unnamed live BOQ event.",
+   "Verify the BOQ exception for auction strategy tabs when a service template is used."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable boq_in_erfx_allowed; the gate must already be ON.; Identify both existing events and compare against the ordinary event: neither event title nor ID was supplied, so the opened event must be configured externally as the live BOQ event.; Check the Savings footer on the corresponding BOQ creation screen: no supported transition from the existing live event to that screen is specified.; Check the bidding/default currency toggle: its exact control label is not supplied.; Check basket-auction configuration and auction strategy tabs, including the service-template exception: the relevant configuration navigation, control labels and template classification are not supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Open the specific unnamed live BOQ event and verify its header/action bar lacks View by, Price Trends, bidding/default currency toggle, and basket-auction configuration while the ordinary event contains them.; Compare the specific unnamed ordinary live event against the specific unnamed live BOQ event.; Verify the BOQ exception for auction strategy tabs when a service template is used."
   ],
   "state": "none",
   "screen": "create",
@@ -26,44 +29,64 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ event controls are hidden",
+  "title": "BOQ event hidden controls",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the existing event; execution requires the default event to be the live BOQ fixture."
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Open the BOQ create screen to inspect BOQ-specific footer and configuration controls."
    },
    {
-    "step": "capture_screen",
-    "args": {
-     "label": "boq-event-header-and-actions"
-    },
-    "note": "Record the header and action bar for the comparisons that cannot be automated here; this is evidence, not an assertion."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Reach the published-stage screen where the ordinary View by control appears."
+    "step": "set_title"
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "View by",
+     "text": "Savings",
      "visible": false
     },
-    "note": "Assert the View by dropdown trigger is absent on BOQ."
+    "note": "Verify that the Savings footer button is absent on BOQ creation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "tab",
-     "name": "Price Trends",
+     "text": "Choose a Strategy",
      "visible": false
     },
-    "note": "Assert the Price Trends tab is absent on BOQ."
+    "note": "Verify that the auction strategy configuration is absent on the BOQ create screen."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open an ordinary single-stage create screen to reach its auction configuration."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Choose a Strategy",
+     "options": [
+      "Price Based",
+      "Rank Based",
+      "Traffic Light"
+     ],
+     "absent": [
+      "Knockout",
+      "Dutch Auction"
+     ]
+    },
+    "note": "Verify that ordinary auction configuration exposes the standard auction strategies and not conversion-only strategies."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Savings",
+     "visible": true
+    },
+    "note": "Verify that the ordinary create screen exposes the Savings footer button."
    }
   ]
  }

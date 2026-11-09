@@ -2,42 +2,78 @@
  "meta": {
   "caseId": "UI-XDAPR-001",
   "title": "Bulk approve and reject both stay disabled until a remark is typed",
-  "compiledAt": "2026-10-06T06:12:09.886Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:49:10.603Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish a v2 company with two approvals pending for the caller; the fixed prepared state does not supply these prerequisites.",
-   "Reach the Approvals page's approver tab and select both pending approval rows: no confirmed navigation or row-selection targets are supplied.",
-   "Observe the bulk Add Response popover and assert both Approve and Reject are disabled with empty remarks and enabled after entering text; that popover is not reachable from the supplied state and confirmed controls."
+   "Switch to the v2 company because no numeric company ID is provided.",
+   "Select both pending approval rows and open the Add Response bulk action.",
+   "Verify that the disabled controls specifically apply to the bulk-selected approvals."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish a v2 company with two approvals pending for the caller; the fixed prepared state does not supply these prerequisites.; Reach the Approvals page's approver tab and select both pending approval rows: no confirmed navigation or row-selection targets are supplied.; Observe the bulk Add Response popover and assert both Approve and Reject are disabled with empty remarks and enabled after entering text; that popover is not reachable from the supplied state and confirmed controls."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Switch to the v2 company because no numeric company ID is provided.; Select both pending approval rows and open the Add Response bulk action.; Verify that the disabled controls specifically apply to the bulk-selected approvals."
   ],
   "state": "proposal",
   "screen": "master_qcs",
   "technical": false,
-  "exemplars": [
-   "UI-XDNEG-002"
-  ],
+  "exemplars": [],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Bulk approval buttons require remarks",
+  "title": "Bulk Approval Controls Require Remarks",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
+     "screen": "proposal"
     },
-    "note": "Open the mandatory prepared starting screen; this does not test bulk approval controls."
+    "note": "Open the prepared proposal screen that exposes approval controls and the remark field."
    },
    {
-    "step": "capture_screen",
+    "step": "click",
     "args": {
-     "label": "bulk-approvals-prerequisite-gap"
+     "role": "tab",
+     "name": "Approvals"
     },
-    "note": "Record the available screen for identifying the missing approval setup and navigation; this is evidence only, not a button-state assertion."
+    "note": "Navigate to the approvals tab."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Approve"
+    },
+    "note": "Verify Approve is disabled while the remark is empty."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Reject"
+    },
+    "note": "Verify Reject is disabled while the remark is empty."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": "Approval remark"
+    },
+    "note": "Enter a remark to test the controls' prerequisite."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "Approve"
+    },
+    "note": "Verify Approve becomes enabled after a remark is entered."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "Reject"
+    },
+    "note": "Verify Reject becomes enabled after a remark is entered."
    }
   ]
  }

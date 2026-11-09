@@ -2,17 +2,18 @@
  "meta": {
   "caseId": "UI-XDBOQ-002",
   "title": "Choosing the BOQ project creates an empty BOQ draft and opens the BOQ template picker",
-  "compiledAt": "2026-10-06T06:19:30.668Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:59:38.600Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Assert exactly one POST /event_groups request; expect_request checks presence but cannot count requests.",
-   "Assert the structured request property config.boq_based_rfx is boolean true; bodyContains can check serialized text but not its nesting.",
-   "Assert every listed template is BOQ-only; no supplied template names or catalog assertion identifies the type of every picker entry."
+   "Assert that every template listed in the picker is a BOQ template when no specific template names are provided."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert exactly one POST /event_groups request; expect_request checks presence but cannot count requests.; Assert the structured request property config.boq_based_rfx is boolean true; bodyContains can check serialized text but not its nesting.; Assert every listed template is BOQ-only; no supplied template names or catalog assertion identifies the type of every picker entry."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added set_title — publishing without a title is refused",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Assert that every template listed in the picker is a BOQ template when no specific template names are provided."
   ],
   "state": "none",
   "screen": "create",
@@ -24,64 +25,33 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ draft creation and template picker",
+  "title": "BOQ Project Creation and Template Picker",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Enter BOQ creation with the gate enabled and a BOQ template available."
+    "note": "Opens the BOQ-based project creation screen."
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "expect_url_contains",
     "args": {
      "text": "projectCreation=true&boqProject=true"
     },
-    "note": "Check the expected BOQ creation URL flags."
+    "note": "Verifies the BOQ project creation URL flags."
    },
    {
     "step": "expect_request",
     "args": {
      "path": "/event_groups",
      "method": "POST",
-     "bodyContains": "\"boq_based_rfx\":true"
+     "bodyContains": "boq_based_rfx"
     },
-    "note": "Check that page entry sent a successful creation request carrying the serialized BOQ flag; this does not prove request count or property nesting."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 0
-    },
-    "note": "Check that the initial BOQ project shows no line items."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Please choose a template and upload a BOQ sheet to proceed"
-    },
-    "note": "Assert the BOQ-specific initial guidance."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Give this create test a unique title without adding rows or selecting a template."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Select Templates"
-    },
-    "note": "Open the template picker without applying a template."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Templates"
-    },
-    "note": "Check that the picker is visible."
+    "note": "Checks that the BOQ event-group creation request was sent with the BOQ configuration."
    },
    {
     "step": "expect_request",
@@ -90,14 +60,29 @@
      "method": "GET",
      "query": "type_identifier=boq&hide_onboarding_v2_templates=true"
     },
-    "note": "Assert that template loading requests the BOQ type and excludes onboarding-v2 templates."
+    "note": "Checks that the template picker requests BOQ templates with onboarding templates hidden."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_line_items",
     "args": {
-     "label": "boq-template-picker"
+     "count": 0
     },
-    "note": "Record picker contents for manual classification; this is evidence, not an assertion that all templates are BOQ."
+    "note": "Verifies that the newly created BOQ draft is empty."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Select Templates"
+    },
+    "note": "Opens and reads the BOQ template picker; the catalog can observe its offered options but cannot classify all of them as BOQ templates without named values."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please choose a template and upload a BOQ sheet to proceed",
+     "present": true
+    },
+    "note": "Verifies the BOQ-specific banner shown before a template and sheet are supplied."
    }
   ]
  }

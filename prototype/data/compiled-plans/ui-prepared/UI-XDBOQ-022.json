@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-XDBOQ-022",
   "title": "The BOQ report is offered only for BOQ events",
-  "compiledAt": "2026-10-06T06:25:38.037Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:24.273Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Identify and assert the BOQ-specific report option: \"BOQ Report\" is explicitly not a rendered label, and no known replacement or domain assertion exists.",
-   "Identify the report's format selector and assert that it is disabled; no known label or domain assertion exists.",
-   "Target both the existing BOQ event and ordinary event reliably: their titles or IDs were not supplied.",
-   "Enable or verify the boq_in_erfx_allowed tenant gate; no catalog step manages or reads this setting."
+   "Reliably open the specific BOQ event and the specific ordinary event from the unnamed setup",
+   "Compare the report lists across those two event types",
+   "Assert the BOQ report format selector is disabled because its control label is not specified"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify and assert the BOQ-specific report option: \"BOQ Report\" is explicitly not a rendered label, and no known replacement or domain assertion exists.; Identify the report's format selector and assert that it is disabled; no known label or domain assertion exists.; Target both the existing BOQ event and ordinary event reliably: their titles or IDs were not supplied.; Enable or verify the boq_in_erfx_allowed tenant gate; no catalog step manages or reads this setting."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Reliably open the specific BOQ event and the specific ordinary event from the unnamed setup; Compare the report lists across those two event types; Assert the BOQ report format selector is disabled because its control label is not specified"
   ],
   "state": "none",
   "screen": "create",
@@ -25,12 +25,12 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ-only report availability",
+  "title": "BOQ Report Availability by Event Type",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing event using executor defaults; this does not establish its BOQ classification or cover both fixtures."
+    "note": "Open an existing event as the closest available navigation step."
    },
    {
     "step": "click",
@@ -38,14 +38,16 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Open the report control using its known rendered label."
+    "note": "Open the event's report options."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_options",
     "args": {
-     "label": "download-report-options"
+     "options": [
+      "BOQ Report"
+     ]
     },
-    "note": "Record the available report controls for inspection; this is evidence only, not an assertion of BOQ-only availability or selector state."
+    "note": "Check whether the currently opened event offers a BOQ Report option."
    }
   ]
  }

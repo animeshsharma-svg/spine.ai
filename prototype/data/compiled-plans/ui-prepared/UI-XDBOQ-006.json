@@ -2,19 +2,18 @@
  "meta": {
   "caseId": "UI-XDBOQ-006",
   "title": "A good BOQ upload builds the tabbed grid and saves the lines to the project",
-  "compiledAt": "2026-10-06T06:22:47.008Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:00.280Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable or verify the boq_in_erfx_allowed tenant gate; it must be supplied as a precondition.",
-   "Upload the valid two-tab BOQ workbook: upload supports only the listed PDF, PNG, CSV and TXT fixtures, and no domain step supplies this workbook.",
-   "Assert that POST /templates/product_sheet_params precedes PATCH /event_groups/<id>; expect_request can check individual requests but not their relative order.",
-   "Compare uploaded tabs, section numbers, section widgets, descriptions, A.1-style line numbers and note-row file icons against the required workbook; the fixture contents and supported icon targets are unavailable.",
-   "Call get_line_items after a stage exists and compare persisted project lines with the workbook; no catalog step performs this oracle."
+   "Uploading the valid two-tab BOQ sample workbook with its exact workbook structure",
+   "Proving the exact network request order and verifying the PATCH payload contains every uploaded line",
+   "Verifying the complete tabbed grid structure, section header contents, line-number formatting, notes-row file icons, and project line count from get_line_items"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable or verify the boq_in_erfx_allowed tenant gate; it must be supplied as a precondition.; Upload the valid two-tab BOQ workbook: upload supports only the listed PDF, PNG, CSV and TXT fixtures, and no domain step supplies this workbook.; Assert that POST /templates/product_sheet_params precedes PATCH /event_groups/<id>; expect_request can check individual requests but not their relative order.; Compare uploaded tabs, section numbers, section widgets, descriptions, A.1-style line numbers and note-row file icons against the required workbook; the fixture contents and supported icon targets are unavailable.; Call get_line_items after a stage exists and compare persisted project lines with the workbook; no catalog step performs this oracle."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Uploading the valid two-tab BOQ sample workbook with its exact workbook structure; Proving the exact network request order and verifying the PATCH payload contains every uploaded line; Verifying the complete tabbed grid structure, section header contents, line-number formatting, notes-row file icons, and project line count from get_line_items"
   ],
   "state": "none",
   "screen": "create",
@@ -26,36 +25,64 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ upload grid and persisted lines",
+  "title": "BOQ upload builds project grid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Reach BOQ creation, assuming the required tenant gate is already enabled."
+    "note": "Open the BOQ project creation screen."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Supply the mandatory project title."
+    "note": "Provide the required project title so the BOQ can proceed."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Prepare the template required before BOQ lines can be supplied."
+    "note": "Apply a BOQ template before uploading the product sheet."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify preparation only; this does not prove any upload or persistence."
-   },
-   {
-    "step": "capture_screen",
+    "step": "ask_tester",
     "args": {
-     "label": "boq-before-two-tab-upload"
+     "need": "upload the valid two-tab BOQ sample workbook and leave the resulting BOQ grid open"
     },
-    "note": "Record the upload-ready screen for completing the unsupported workbook upload and its network, toast, grid and persistence checks."
+    "note": "The catalog has no fixture or domain action for the required two-tab workbook upload."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/templates/product_sheet_params",
+     "method": "POST",
+     "bodyContains": "multistage"
+    },
+    "note": "Verify that processing the workbook requests multistage product-sheet parameters."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/event_groups/",
+     "method": "PATCH"
+    },
+    "note": "Verify that the project is patched after the product-sheet processing."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "A.1",
+     "present": true
+    },
+    "note": "Check for a representative uploaded line number in the resulting grid."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Product sheet updated"
+    },
+    "note": "Confirm the product sheet update succeeded."
    }
   ]
  }

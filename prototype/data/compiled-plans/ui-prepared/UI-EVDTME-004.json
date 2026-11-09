@@ -2,51 +2,48 @@
  "meta": {
   "caseId": "UI-EVDTME-004",
   "title": "\"Reopen Line Items\" is offered only on staggered rounds and only after a line has expired",
-  "compiledAt": "2026-10-05T13:34:35.843Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:54:55.098Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Check a live staggered auction before any line expires: Reopen Line Items must be disabled with tooltip \"Line items can only be reopened if at least one line item has expired\"; the prepared event is a fixed RFQ.",
-   "Check that Reopen Line Items becomes enabled after line 1 expires in the same staggered auction.",
-   "Verify visibility on eligible staggered auctions in live and buffer (evaluation) status and absence outside those statuses."
+   "Switching dynamically between live staggered auction before line expiry, after line 1 expiry, and a standard RFQ within a single prepared state run"
   ],
   "warnings": [
-   "can only test part of this — no step for: Check a live staggered auction before any line expires: Reopen Line Items must be disabled with tooltip \"Line items can only be reopened if at least one line item has expired\"; the prepared event is a fixed RFQ.; Check that Reopen Line Items becomes enabled after line 1 expires in the same staggered auction.; Verify visibility on eligible staggered auctions in live and buffer (evaluation) status and absence outside those statuses."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Switching dynamically between live staggered auction before line expiry, after line 1 expiry, and a standard RFQ within a single prepared state run"
   ],
   "state": "live",
   "screen": "summary",
   "technical": false,
   "exemplars": [
-   "UI-CONV-001",
-   "UI-CONV-002"
+   "UI-EVDTME-002",
+   "UI-CONV-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reopen Line Items menu eligibility",
+  "title": "Reopen Line Items menu item availability and state across event types and stages",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ."
+    "note": "Open the prepared event summary page"
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Expose the RFQ's event actions."
+    "note": "Open the event settings menu to inspect menu items"
    },
    {
-    "step": "expect_visible",
+    "step": "expect_menu_item",
     "args": {
-     "role": "menuitem",
-     "name": "Reopen Line Items",
-     "within": "menu",
-     "visible": false
+     "item": "Reopen Line Items",
+     "present": false
     },
-    "note": "Assert that Reopen Line Items is not offered on an RFQ."
+    "note": "Assert that Reopen Line Items is absent on non-staggered or standard RFQ rounds"
    }
   ]
  }

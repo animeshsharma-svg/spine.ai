@@ -2,23 +2,28 @@
  "meta": {
   "caseId": "UI-FSCH-007",
   "title": "Publishing with a later start lands the event under Upcoming",
-  "compiledAt": "2026-11-09T19:14:27.106Z",
+  "compiledAt": "2026-11-09T20:04:03.609Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Set the event start time to 30 minutes in the future before publishing.",
-   "Verify that the published event is Upcoming rather than Live under that future-start condition.",
-   "Verify that the vendor cannot bid before the scheduled start.",
-   "the plan has no assertion step — nothing the case checks can be observed",
-   "needs a different starting state than upcoming (asked for set_schedule, invite_vendor, publish)"
+   "The create-screen schedule's absolute Start time 30 minutes in the future cannot be set by a catalog domain step.",
+   "needs a different starting state than upcoming (asked for invite_vendor, publish)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The create-screen schedule's absolute Start time 30 minutes in the future cannot be set by a catalog domain step."
   ],
   "state": "upcoming",
   "screen": "summary",
@@ -30,7 +35,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Future-start event appears Upcoming",
+  "title": "Upcoming Event Blocks Early Bidding",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,7 +47,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template required for line items and publishing."
+    "note": "Apply a pricing template before adding items."
    },
    {
     "step": "add_line_items",
@@ -55,6 +60,45 @@
     "step": "fill_sheet",
     "args": {},
     "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "set the event Start time to 30 minutes from now in the Schedule Event drawer, commit the schedule, and stop on the create screen showing the saved future schedule"
+    },
+    "note": "Configure the future absolute start that no catalog schedule step can express."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Upcoming"
+    },
+    "note": "Verify the event is listed as Upcoming rather than Live."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round before its scheduled start."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Verify the vendor cannot submit a bid while the event is still Upcoming."
    }
   ]
  }

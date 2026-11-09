@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-CONV-006",
   "title": "TNA vendors are included or excluded per the flag",
-  "compiledAt": "2026-10-05T13:20:52.985Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:40:11.501Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish an RFQ audience containing a vendor who marked all line items TNA; the prepared state does not provide one.",
-   "Convert separately with allowTnaVendorsToBid off and on; no catalog step or confirmed UI label controls this flag.",
-   "Assert the same TNA vendor is absent from the bidding audience when the flag is off and present when it is on."
+   "Change the tenant TNA-vendor inclusion flag from off to on and verify that the TNA vendor is excluded when off and included when on in the converted auction audience."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish an RFQ audience containing a vendor who marked all line items TNA; the prepared state does not provide one.; Convert separately with allowTnaVendorsToBid off and on; no catalog step or confirmed UI label controls this flag.; Assert the same TNA vendor is absent from the bidding audience when the flag is off and present when it is on."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Change the tenant TNA-vendor inclusion flag from off to on and verify that the TNA vendor is excluded when off and included when on in the converted auction audience."
   ],
   "state": "bid",
   "screen": "summary",
@@ -24,33 +23,32 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "TNA audience gating during RFQ conversion",
+  "title": "TNA vendor audience conversion flag",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared published RFQ."
+    "note": "Open the prepared RFQ event that is the subject of the conversion."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Reach the closest available conversion flow using its existing defaults, not a controlled TNA flag."
+    "note": "Perform the conversion whose audience behavior is being tested."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify conversion reached the create screen; this does not verify TNA audience membership."
+    "note": "Confirm the conversion reached the auction create screen."
    },
    {
-    "step": "capture_screen",
+    "step": "ask_tester",
     "args": {
-     "label": "conversion-tna-gating-unverified"
-    },
-    "note": "Record the conversion screen for inspection of unsupported TNA controls."
+     "need": "change the tenant TNA-vendor inclusion flag off and on, then verify the TNA vendor is excluded from the converted auction audience when off and included when on"
+    }
    }
   ]
  }

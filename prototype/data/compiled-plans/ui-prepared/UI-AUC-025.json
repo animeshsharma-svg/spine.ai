@@ -2,18 +2,19 @@
  "meta": {
   "caseId": "UI-AUC-025",
   "title": "Awarding mode: partial award across multiple vendors",
-  "compiledAt": "2026-10-06T04:47:16.667Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:39:13.490Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Assert that the published event's awarding mode is line_item.",
-   "Assert that the award grid offers per-line allocation across multiple vendors; allocation counters alone do not establish this."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "cannot test this case yet — no step can observe: Assert that the published event's awarding mode is line_item.; Assert that the award grid offers per-line allocation across multiple vendors; allocation counters alone do not establish this."
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet"
   ],
   "state": "none",
   "screen": "create",
@@ -25,19 +26,21 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Partial-award mode and downstream allocation",
+  "title": "Partial Award Across Vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Use the supported configuration path for choosing awarding mode."
+    "note": "Open the single-stage creation flow where auction awarding mode is configurable."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a unique title."
+    "args": {
+     "title": "Partial Award Across Vendors"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "configure_single_stage",
@@ -48,83 +51,82 @@
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template before adding items."
+    "note": "Apply the auction pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Meet the two-or-more-line-items setup."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Verify both line items were added."
+    "note": "Create the required event with two line items."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the sheet required for publication."
+    "note": "Complete the pricing sheet for both line items."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit a short bidding window so awarding can be reached."
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Provide an audience with multiple eligible vendors."
+    "note": "Invite two vendors so the awarding grid can contain multiple vendors."
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the configured line-item awarding event."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Verify publication, without treating it as proof of awarding mode."
+    "note": "Assert that publishing reached a real project page."
    },
    {
     "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Add a bid from the buyer console to make the downstream awarding screen reachable."
+    "note": "Enter a bid for the first invited vendor so the event has a response."
    },
    {
     "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the prerequisite bid landed."
+    "note": "Assert that the first vendor bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "note": "Enter a bid for the second invited vendor to populate multiple vendor columns."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Assert that the second vendor bid was accepted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "End bidding before entering awarding."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Verify the comparison grid rendered with items and a bidding vendor."
+    "note": "Close the published event so awarding is available."
    },
    {
     "step": "start_awarding",
-    "args": {},
-    "note": "Reach the award grid for inspection."
+    "note": "Open the awarding grid for the closed event."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_visible",
     "args": {
-     "label": "partial-award-allocation-grid"
+     "role": "button",
+     "name": "Select for awarding",
+     "visible": true
     },
-    "note": "Record downstream controls for manual inspection; this is not an assertion of per-line allocation support."
+    "note": "Assert that the awarding grid exposes the per-line vendor allocation control."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "0/2",
+     "vendors": "0/2"
+    },
+    "note": "Assert that both line items and both vendors are available in the line-item awarding grid before allocation."
    }
   ]
  }

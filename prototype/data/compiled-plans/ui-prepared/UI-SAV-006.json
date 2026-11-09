@@ -2,17 +2,16 @@
  "meta": {
   "caseId": "UI-SAV-006",
   "title": "A savings reference price in the wrong currency is refused",
-  "compiledAt": "2026-10-06T04:57:47.779Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:07.690Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Establish or verify a multi-currency tenant with event currency INR.",
-   "Enter a savings reference price in another currency: no domain step or confirmed input labels identify the reference amount and its currency context.",
-   "Assert that the wrong-currency input triggers “Please enter price in INR” and that the reference value is not accepted; the required input cannot be performed."
+   "Configure or verify the tenant's multi-currency setting with event currency INR."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish or verify a multi-currency tenant with event currency INR.; Enter a savings reference price in another currency: no domain step or confirmed input labels identify the reference amount and its currency context.; Assert that the wrong-currency input triggers “Please enter price in INR” and that the reference value is not accepted; the required input cannot be performed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Configure or verify the tenant's multi-currency setting with event currency INR."
   ],
   "state": "none",
   "screen": "create",
@@ -24,53 +23,53 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject savings reference in the wrong currency",
+  "title": "UI-SAV-006 Wrong-Currency Savings Reference Price",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen containing the savings configuration."
+    "note": "Create an event so the Savings reference-price control can be reached."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required unique event title."
+    "args": {
+     "title": "Wrong Currency Savings Reference Test"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template before adding line items."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide the line item required to enable Savings."
+    "note": "Add the required line item for the savings configuration."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Savings"
-    },
-    "note": "Open the savings reference configuration."
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the Savings control is available."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "text": "Savings Calculation"
+     "goal": "Open the Savings Calculation drawer, enter a reference price in a currency other than INR, submit or save it, and stop with the screen showing that the value was refused."
     },
-    "note": "Verify only that the savings drawer opened, not that currency validation works."
+    "note": "Perform the currency-specific interaction that no catalog step can express directly."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_message",
     "args": {
-     "label": "savings-currency-reference-controls"
+     "kind": "error",
+     "text": "Please enter price in INR"
     },
-    "note": "Record the available controls for identifying the missing currency-specific input interaction."
+    "note": "Assert that the validation message names the event currency."
    }
   ]
  }

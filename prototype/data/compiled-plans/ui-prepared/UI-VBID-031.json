@@ -2,16 +2,20 @@
  "meta": {
   "caseId": "UI-VBID-031",
   "title": "A bid survives a portal reload before submission",
-  "compiledAt": "2026-11-09T19:21:19.765Z",
+  "compiledAt": "2026-11-09T20:07:18.102Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Asserting vendor warning dialog explicitly when reloading the page during an unsaved form state"
+  ],
   "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "can only test part of this — no step for: Asserting vendor warning dialog explicitly when reloading the page during an unsaved form state"
   ],
   "state": "none",
   "screen": "create",
@@ -23,98 +27,68 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Vendor bid draft survives reload",
+  "title": "A bid survives a portal reload before submission",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
-    },
-    "note": "Open a single-stage create screen for the RFQ used by the vendor test."
+     "path": "erfx"
+    }
    },
    {
-    "step": "set_title",
+    "step": "compose_stages",
     "args": {
-     "title": "Vendor Bid Reload Draft Test"
-    },
-    "note": "Provide the required event title."
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "rfq"
-    },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+    "step": "set_title"
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template so the bid sheet can be created."
+    "step": "select_template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    },
-    "note": "Add one line item for the vendor's bid sheet."
+    }
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the buyer-side pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
+    "step": "expect_line_items",
     "args": {
      "count": 1
-    },
-    "note": "Invite one QA vendor to the event."
+    }
    },
    {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event so the vendor can access its bid sheet."
+    "step": "fill_sheet"
    },
    {
-    "step": "expect_published",
-    "args": {},
-    "note": "Verify the event is available on its project page."
+    "step": "set_schedule"
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "expect_published"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor portal."
+    "note": "Switch to vendor portal"
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's vendor pricing sheet without submitting a bid."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "100"
-    },
-    "note": "Enter a partial bid value and leave the bid unsubmitted."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "reload the vendor portal and reopen this event's pricing sheet; verify that the partially entered Price value 100 is restored, or that Procol shows a warning before leaving, and stop on the screen proving one of those outcomes"
-    },
-    "note": "Perform and verify the reload-and-reopen behavior, including either draft restoration or a leave warning."
+    "note": "Open event pricing round"
    }
   ]
  }

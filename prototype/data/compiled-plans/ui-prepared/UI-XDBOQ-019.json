@@ -2,20 +2,20 @@
  "meta": {
   "caseId": "UI-XDBOQ-019",
   "title": "Awarding a BOQ is vendor-level only",
-  "compiledAt": "2026-10-06T06:24:18.900Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:06.783Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Establish or verify boq_in_erfx_allowed is ON; the supplied closed BOQ project with two vendors' bids must already exist.",
-   "Reliably attempt individual-line selection and prove no per-line selection controls exist: no catalog step identifies BOQ line-selection controls.",
-   "Verify the vendor-column transition from 'Select for awarding' to 'Awarded' without selecting a vendor before the empty-submission test.",
-   "Verify a successful POST /proposal/<id>/add_response?lot_no=… excludes line IDs: the case supplies no request-body field names, and the empty submission should be refused rather than produce a successful award request.",
+   "Verify that the prepared event is specifically a closed BOQ project with the boq_in_erfx_allowed tenant setting enabled.",
+   "Prove that line selection is unavailable specifically because the event is BOQ rather than another event type.",
+   "Inspect that the POST /proposal/<id>/add_response?lot_no=… request body contains no line ids.",
    "unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "coverage partial: unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Establish or verify boq_in_erfx_allowed is ON; the supplied closed BOQ project with two vendors' bids must already exist.; Reliably attempt individual-line selection and prove no per-line selection controls exist: no catalog step identifies BOQ line-selection controls.; Verify the vendor-column transition from 'Select for awarding' to 'Awarded' without selecting a vendor before the empty-submission test.; Verify a successful POST /proposal/<id>/add_response?lot_no=… excludes line IDs: the case supplies no request-body field names, and the empty submission should be refused rather than produce a successful award request."
+   "cannot test this case yet — no step can observe: Verify that the prepared event is specifically a closed BOQ project with the boq_in_erfx_allowed tenant setting enabled.; Prove that line selection is unavailable specifically because the event is BOQ rather than another event type.; Inspect that the POST /proposal/<id>/add_response?lot_no=… request body contains no line ids.; unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "state": "none",
   "screen": "create",
@@ -27,29 +27,28 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ manual awarding is vendor-level only",
+  "title": "BOQ Vendor-Level Awarding",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the supplied existing closed BOQ project; do not create a replacement."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Assert the comparison grid renders with line items and bidding vendors."
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the closest prepared bid comparison screen; the catalog has no prepared BOQ-specific screen."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the manual awarding screen without allocating a vendor."
+    "note": "Enter the manual awarding screen."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Select for awarding"
+     "role": "button",
+     "name": "Select for awarding",
+     "visible": true
     },
-    "note": "Check that the vendor-awarding action described by the case is offered."
+    "note": "Check that awarding is exposed at the vendor-column level."
    },
    {
     "step": "expect_text",
@@ -57,14 +56,15 @@
      "text": "Select All",
      "present": false
     },
-    "note": "Assert the prohibited bulk-selection label is absent."
+    "note": "Check that no Select All control is offered."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "boq-manual-awarding-selection-controls"
+     "text": "Awarded",
+     "present": true
     },
-    "note": "Record the vendor columns and line controls for inspection; this does not assert the absence of individual-line selection."
+    "note": "Check for vendor-level awarding status text."
    },
    {
     "step": "attempt",
@@ -74,9 +74,10 @@
       "role": "button",
       "name": "Create Proposal"
      },
-     "because": "Please award for at least one Vendor"
+     "because": "Please award for at least one Vendor",
+     "expect": "refused"
     },
-    "note": "With no vendor allocated, assert submission is refused with the required validation message."
+    "note": "Attempt submission with no vendor selected and require the application's refusal."
    }
   ]
  }

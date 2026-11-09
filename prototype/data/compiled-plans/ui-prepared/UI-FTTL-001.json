@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "UI-FTTL-001",
   "title": "One product at one location titles the event \"<product> - <location>\"",
-  "compiledAt": "2026-11-09T19:23:00.084Z",
+  "compiledAt": "2026-11-09T20:08:06.246Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify the exact generated title value using the runtime product name and delivery location.",
-   "Verify that the product name is cut at exactly 70 characters."
+   "Assert that the title value equals the product name followed by \" - \" and the delivery location.",
+   "Assert that the product name portion is truncated to 70 characters."
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify the exact generated title value using the runtime product name and delivery location.; Verify that the product name is cut at exactly 70 characters."
+   "can only test part of this — no step for: Assert that the title value equals the product name followed by \" - \" and the delivery location.; Assert that the product name portion is truncated to 70 characters."
   ],
   "state": "live",
   "screen": "summary",
@@ -25,7 +26,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Auto-generated title for one product",
+  "title": "Auto-generated title from product and location",
   "steps": [
    {
     "step": "open_prepared",
@@ -37,14 +38,19 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the default priced template before adding the line item."
+    "note": "Apply the first available priced template so products can be added."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add exactly one product; the create flow supplies the line item's delivery-location setup."
+    "note": "Add exactly one product line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet, including the product's delivery-location data."
    },
    {
     "step": "expect_visible",
@@ -52,7 +58,7 @@
      "label": "Enter the title of the project",
      "visible": true
     },
-    "note": "Observe that the title field is present after the product is added, although the catalog cannot assert its dynamic generated value."
+    "note": "Confirm the title field is present after the product and location are added."
    }
   ]
  }

@@ -2,19 +2,18 @@
  "meta": {
   "caseId": "UI-XDBOQ-008",
   "title": "A section-numbering error from the server is shown as a toast",
-  "compiledAt": "2026-10-06T06:23:13.146Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:05.778Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable boq_in_erfx_allowed; the catalog cannot change tenant settings, so the gate must already be ON.",
-   "Upload a BOQ sheet starting at section B: upload supports only fixed sample fixtures and cannot construct or select this malformed BOQ sheet.",
-   "Trigger and verify the toast \"Invalid section, current section B, expected section A, Please Add Valid one\"; the required invalid upload is unavailable.",
-   "Assert exact equality between the toast and the API response message; the catalog has no response-message comparison assertion.",
-   "Verify that the BOQ grid remains unchanged after this rejected upload; the required upload cannot be performed."
+   "Enable the boq_in_erfx_allowed tenant setting.",
+   "Upload a sheet specifically starting at section B; no catalog fixture guarantees that content.",
+   "Verify the BOQ grid is unchanged after this specific server error."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable boq_in_erfx_allowed; the catalog cannot change tenant settings, so the gate must already be ON.; Upload a BOQ sheet starting at section B: upload supports only fixed sample fixtures and cannot construct or select this malformed BOQ sheet.; Trigger and verify the toast \"Invalid section, current section B, expected section A, Please Add Valid one\"; the required invalid upload is unavailable.; Assert exact equality between the toast and the API response message; the catalog has no response-message comparison assertion.; Verify that the BOQ grid remains unchanged after this rejected upload; the required upload cannot be performed."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Enable the boq_in_erfx_allowed tenant setting.; Upload a sheet specifically starting at section B; no catalog fixture guarantees that content.; Verify the BOQ grid is unchanged after this specific server error."
   ],
   "state": "none",
   "screen": "create",
@@ -26,36 +25,42 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ section-numbering error toast",
+  "title": "BOQ Invalid Section Toast",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Open the BOQ creation screen, assuming the required gate is already enabled."
+    "note": "Open the BOQ create screen where the sheet upload control is available."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the mandatory create-test title."
+    "args": {
+     "title": "Invalid Section BOQ Test"
+    },
+    "note": "Provide the required event title before configuring the BOQ."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Prepare the template prerequisite for a BOQ upload."
+    "note": "Select a BOQ template so the upload area is configured."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify preparation only; this does not assert section validation."
-   },
-   {
-    "step": "capture_screen",
+    "step": "upload",
     "args": {
-     "label": "boq-before-invalid-section-upload"
+     "label": "Upload Sheet",
+     "file": "sample.csv"
     },
-    "note": "Record the screen for follow-up with the unavailable section-B fixture."
+    "note": "Attempt the BOQ sheet upload using the closest available fixture."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Invalid section, current section B, expected section A, Please Add Valid one"
+    },
+    "note": "Assert that the server's exact invalid-section message is shown as an error toast."
    }
   ]
  }

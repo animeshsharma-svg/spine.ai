@@ -2,16 +2,16 @@
  "meta": {
   "caseId": "UI-SAV-012",
   "title": "A malformed terms attachment is refused cleanly",
-  "compiledAt": "2026-10-06T04:58:15.987Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:44:35.335Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Craft or inject a terms attachment with its type key omitted.",
-   "Publish with that malformed attachment and verify the resulting readable 4xx rejection rather than a 500."
+   "crafted terms attachment without type API structure"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Craft or inject a terms attachment with its type key omitted.; Publish with that malformed attachment and verify the resulting readable 4xx rejection rather than a 500."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: crafted terms attachment without type API structure"
   ],
   "state": "none",
   "screen": "create",
@@ -23,46 +23,52 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Malformed terms attachment rejection",
+  "title": "Malformed terms attachment is refused cleanly",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the closest supported event creation flow."
+    "note": "Start creating an eRFX project"
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the required event title."
+    "note": "Give the project a title"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Select a template to enable line-item setup."
+    "note": "Choose a template for the stage"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Enable the Terms & Conditions control."
+    "note": "Add a line item"
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Terms & Conditions"
-    },
-    "note": "Reach the terms interface; its supported controls cannot omit an attachment's type key."
+    "step": "fill_sheet",
+    "note": "Fill the pricing sheet"
    },
    {
-    "step": "capture_screen",
+    "step": "set_schedule",
+    "note": "Set the schedule"
+   },
+   {
+    "step": "invite_vendor",
+    "note": "Invite a vendor"
+   },
+   {
+    "step": "publish",
+    "note": "Publish the event and check for refusal"
+   },
+   {
+    "step": "expect_error",
     "args": {
-     "label": "terms-malformed-attachment-unsupported"
+     "contains": "error"
     },
-    "note": "Record the available interface for follow-up; this is evidence only, not an assertion of malformed-payload rejection."
+    "note": "Assert a clean 4xx / readable error message is shown instead of a 500"
    }
   ]
  }

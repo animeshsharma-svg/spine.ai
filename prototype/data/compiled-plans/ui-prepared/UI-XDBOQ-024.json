@@ -2,18 +2,23 @@
  "meta": {
   "caseId": "UI-XDBOQ-024",
   "title": "Convert to auction and new version keep the BOQ context",
-  "compiledAt": "2026-10-06T06:26:11.173Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:17.349Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Provide the required closed BOQ RFQ: the fixed prepared event is a live RFQ with a bid and does not establish BOQ configuration.",
-   "Enable or verify the boq_in_erfx_allowed tenant gate.",
-   "Assert that both destination screens contain the BOQ-specific tabbed grid: no BOQ-tab assertion or confirmed tab labels are supplied.",
-   "Reproduce browser Back from the conversion's new tab; reopening the prepared summary is the available substitute."
+   "Verify that the rendered grid is specifically the BOQ grid with BOQ tabs rather than the standard line-item form.",
+   "needs a different starting state than bid (asked for set_schedule)"
   ],
   "warnings": [
-   "can only test part of this — no step for: Provide the required closed BOQ RFQ: the fixed prepared event is a live RFQ with a bid and does not establish BOQ configuration.; Enable or verify the boq_in_erfx_allowed tenant gate.; Assert that both destination screens contain the BOQ-specific tabbed grid: no BOQ-tab assertion or confirmed tab labels are supplied.; Reproduce browser Back from the conversion's new tab; reopening the prepared summary is the available substitute."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the rendered grid is specifically the BOQ grid with BOQ tabs rather than the standard line-item form."
   ],
   "state": "bid",
   "screen": "summary",
@@ -25,94 +30,55 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ context across conversion and new version",
+  "title": "BOQ context survives conversion and versioning",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the fixed prepared RFQ."
+    "note": "Open the prepared closed BOQ RFQ project."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the RFQ and follow the newly opened creation screen."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Assert that conversion reaches a ready creation screen."
+    "note": "Convert the RFQ to an auction."
    },
    {
     "step": "expect_url_contains",
     "args": {
      "text": "boqProject=true"
     },
-    "note": "Check the required BOQ URL contract; the supplied non-BOQ-confirmed fixture may fail this prerequisite-dependent assertion."
+    "note": "Verify the converted auction URL preserves BOQ context."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Items",
-     "visible": false
-    },
-    "note": "Check that the ordinary line-item management control is absent; this alone does not prove a BOQ grid exists."
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify the converted auction create screen rendered a sheet grid."
    },
    {
-    "step": "capture_screen",
+    "step": "go_to",
     "args": {
-     "label": "converted-boq-grid"
+     "screen": "back"
     },
-    "note": "Record the destination grid for manual BOQ-tab verification."
+    "note": "Return to the original project before creating a new version."
    },
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "summary"
-    },
-    "note": "Return to the original prepared event rather than act on the converted event."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create New Version"
-    },
-    "note": "Start the original RFQ's new-version flow."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Assert that new-version creation reaches a ready creation screen."
+    "step": "create_new_version",
+    "args": {},
+    "note": "Create a new version of the BOQ project."
    },
    {
     "step": "expect_url_contains",
     "args": {
      "text": "boqProject=true"
     },
-    "note": "Check that the new-version destination retains the required BOQ URL parameter."
+    "note": "Verify the new-version URL preserves BOQ context."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Items",
-     "visible": false
-    },
-    "note": "Check that ordinary line-item management is not offered on the new-version screen."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "new-version-boq-grid"
-    },
-    "note": "Record the second destination for manual verification of BOQ grid tabs."
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify the new-version screen rendered a sheet grid."
    }
   ]
  }

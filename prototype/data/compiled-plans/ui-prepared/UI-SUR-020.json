@@ -2,18 +2,18 @@
  "meta": {
   "caseId": "UI-SUR-020",
   "title": "A surrogate bid may require approval before it counts",
-  "compiledAt": "2026-10-06T05:18:09.308Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:46:22.867Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Place a surrogate bid in an eligible open round: the prepared RFQ is closed and cannot be reopened using the available steps.",
-   "Establish the required surrogate-bid approval configuration; the prepared event has default settings and no step changes that configuration.",
-   "Assert that the new surrogate bid has approval-requested status and does not yet count as active.",
-   "Access the approver's task list and assert that it contains the surrogate-bid approval task."
+   "The exact bid status label \"approval-requested\" because \"Approval Requested\" is not rendered by Procol",
+   "The approver's task list and whether it contains this surrogate bid",
+   "Verifying or changing the configured surrogate-bid approval gate"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Place a surrogate bid in an eligible open round: the prepared RFQ is closed and cannot be reopened using the available steps.; Establish the required surrogate-bid approval configuration; the prepared event has default settings and no step changes that configuration.; Assert that the new surrogate bid has approval-requested status and does not yet count as active.; Access the approver's task list and assert that it contains the surrogate-bid approval task."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The exact bid status label \"approval-requested\" because \"Approval Requested\" is not rendered by Procol; The approver's task list and whether it contains this surrogate bid; Verifying or changing the configured surrogate-bid approval gate"
   ],
   "state": "proposal",
   "screen": "master_qcs",
@@ -22,26 +22,32 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Surrogate bid approval routing",
+  "title": "UI-SUR-020 Surrogate Bid Approval",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the fixed prepared event as required."
+    "note": "Open the prepared event's Master QCS as required for this state."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Reach the screen that hosts surrogate bidding; this does not verify approval routing."
+    "note": "Open the published stage's Participants list where surrogate bids can be entered."
    },
    {
-    "step": "capture_screen",
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Place the surrogate bid that should trigger approval."
+   },
+   {
+    "step": "expect_text",
     "args": {
-     "label": "surrogate-approval-prepared-participants"
+     "text": "Approval in Progress",
+     "present": true
     },
-    "note": "Record the available controls for inspection without claiming the approval expectations were checked."
+    "note": "Check the closest known rendered indicator of an approval-pending state; this does not verify the exact bid status or approver task."
    }
   ]
  }

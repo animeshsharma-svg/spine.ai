@@ -2,19 +2,28 @@
  "meta": {
   "caseId": "UI-XDBOQ-004",
   "title": "A BOQ project hides the line-item controls an ordinary project has",
-  "compiledAt": "2026-10-06T06:21:30.296Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:59:49.626Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enable or verify the boq_in_erfx_allowed tenant gate; it must already be ON.",
-   "Establish a saved BOQ draft through a BOQ-sheet upload; the catalog provides no BOQ-sheet fixture or dedicated upload flow.",
-   "Open the BOQ technical stage configuration: no domain step or confirmed configuration control label is supplied.",
-   "Verify evaluation offers only \"I'll do vendor wise evaluation\" and excludes line-item-wise evaluation; configuration navigation and the alternative option's exact label are unavailable.",
-   "Verify absence of the AI RFP generator and fast-bidding option; their exact control labels are not supplied."
+   "Open the technical (RFP) stage form and its stage configuration for a BOQ project",
+   "Verify that evaluation offers only \"I'll do vendor wise evaluation\" and excludes the line-item-wise option",
+   "Verify the absence of the AI RFP generator and fast-bidding option on the technical RFP form"
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable or verify the boq_in_erfx_allowed tenant gate; it must already be ON.; Establish a saved BOQ draft through a BOQ-sheet upload; the catalog provides no BOQ-sheet fixture or dedicated upload flow.; Open the BOQ technical stage configuration: no domain step or confirmed configuration control label is supplied.; Verify evaluation offers only \"I'll do vendor wise evaluation\" and excludes line-item-wise evaluation; configuration navigation and the alternative option's exact label are unavailable.; Verify absence of the AI RFP generator and fast-bidding option; their exact control labels are not supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added fill_questionnaires — a technical stage will not publish with empty questionnaires",
+   "added assign_evaluator — a technical stage needs one",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added fill_questionnaires — a technical stage will not publish with empty questionnaires",
+   "added assign_evaluator — a technical stage needs one",
+   "can only test part of this — no step for: Open the technical (RFP) stage form and its stage configuration for a BOQ project; Verify that evaluation offers only \"I'll do vendor wise evaluation\" and excludes the line-item-wise option; Verify the absence of the AI RFP generator and fast-bidding option on the technical RFP form"
   ],
   "state": "none",
   "screen": "create",
@@ -26,14 +35,14 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ hides ordinary line-item controls",
+  "title": "BOQ draft hides ordinary line-item controls",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Open the BOQ creation screen with the tenant gate already enabled."
+    "note": "Open the BOQ project creation screen, the closest available path to a new BOQ draft."
    },
    {
     "step": "compose_stages",
@@ -41,13 +50,30 @@
      "stages": [
       "rfp"
      ]
-    },
-    "note": "Expose the technical stage form rather than inspecting the default auction."
+    }
    },
    {
     "step": "set_title",
+    "args": {
+     "title": "UI-XDBOQ-004 BOQ Draft"
+    },
+    "note": "Provide the required project title so the draft can be saved."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Name the new BOQ project."
+    "note": "Apply a BOQ template so the BOQ create form is in its configured state."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the new BOQ project draft requested by the setup."
    },
    {
     "step": "expect_visible",
@@ -56,7 +82,7 @@
      "name": "Items",
      "visible": false
     },
-    "note": "Assert the ordinary line-item toolbar control is absent."
+    "note": "Assert that the ordinary project Items control is absent from the BOQ screen."
    },
    {
     "step": "expect_text",
@@ -64,7 +90,7 @@
      "text": "Items 0",
      "present": false
     },
-    "note": "Assert the new project's ordinary zero-item count is not rendered."
+    "note": "Assert that the ordinary line-item count is not shown on the BOQ draft."
    },
    {
     "step": "expect_text",
@@ -72,14 +98,13 @@
      "text": "Line Items",
      "present": false
     },
-    "note": "Assert the technical form does not render the ordinary Line Items section."
+    "note": "Check the BOQ screen for absence of the ordinary Line Items section; this does not cover the unavailable RFP-stage form."
    },
    {
-    "step": "capture_screen",
-    "args": {
-     "label": "boq-technical-form"
-    },
-    "note": "Record the header and technical form for the unsupported configuration checks; this capture is not an assertion."
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
    }
   ]
  }

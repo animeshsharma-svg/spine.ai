@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-TECH-015",
   "title": "Evaluators can only be changed during evaluation time",
-  "compiledAt": "2026-10-06T05:23:43.792Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:47:15.845Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Verify that the existing published RFP stage is outside extra-closing/evaluation time.",
-   "Locate the published RFP evaluator-change control and assert it is unavailable, or attempt a change and verify refusal with 'You can update evaluators only in evaluation time.'",
-   "Read the assigned evaluator before the attempt and verify it remains unchanged after reload."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify that the existing published RFP stage is outside extra-closing/evaluation time.; Locate the published RFP evaluator-change control and assert it is unavailable, or attempt a change and verify refusal with 'You can update evaluators only in evaluation time.'; Read the assigned evaluator before the attempt and verify it remains unchanged after reload."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -24,12 +20,12 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Evaluator changes outside evaluation time",
+  "title": "UI-TECH-015 Evaluator Change Blocked Outside Evaluation",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing event supplied by the test context; do not create a replacement."
+    "note": "Open a suitable existing published event for testing the technical-stage evaluator controls."
    },
    {
     "step": "go_to",
@@ -37,14 +33,22 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Navigate to the published technical stage whose evaluator restriction is under test."
+    "note": "Navigate to the published RFP stage, which is the subject of the test."
    },
    {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "published-rfp-evaluator-controls"
+     "goal": "on the published RFP stage outside evaluation time, try to change the evaluator; verify the evaluator-change control is unavailable or the attempt is refused with the app's message, reload the page, and prove the evaluator remains unchanged"
     },
-    "note": "Record the available controls for manual inspection; this is evidence only, not an assertion of the restriction."
+    "note": "Perform the unavailable/refused evaluator-change attempt and verify there is no silent change after reload."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Technical Stage",
+     "present": true
+    },
+    "note": "Confirm the final screen remains the technical-stage page after the reload and verification."
    }
   ]
  }

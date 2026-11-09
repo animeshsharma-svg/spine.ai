@@ -2,18 +2,28 @@
  "meta": {
   "caseId": "UI-BOQ-001",
   "title": "A BOQ project creates its draft event group exactly once on mount",
-  "compiledAt": "2026-10-05T13:15:36.693Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:39:56.550Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable boq_in_erfx_allowed if it is not already enabled; no catalog step changes tenant settings.",
-   "Assert exactly one draft-creation request across mount and subsequent re-renders; expect_request checks existence, not request count.",
-   "Trigger browser resizing or browser-tab switching with catalog steps.",
-   "Assert exactly one draft event group resulted from this mount, including any duplicate draft left behind before the title was entered."
+   "Triggering the specified screen re-render by resizing or switching tabs",
+   "Asserting exactly one create request was sent",
+   "Asserting the events list contains exactly one draft rather than merely containing this plan's draft"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable boq_in_erfx_allowed if it is not already enabled; no catalog step changes tenant settings.; Assert exactly one draft-creation request across mount and subsequent re-renders; expect_request checks existence, not request count.; Trigger browser resizing or browser-tab switching with catalog steps.; Assert exactly one draft event group resulted from this mount, including any duplicate draft left behind before the title was entered."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added set_title — publishing without a title is refused",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
+   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
+   "added set_title — publishing without a title is refused",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Triggering the specified screen re-render by resizing or switching tabs; Asserting exactly one create request was sent; Asserting the events list contains exactly one draft rather than merely containing this plan's draft"
   ],
   "state": "none",
   "screen": "create",
@@ -25,14 +35,17 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ mount creates exactly one draft",
+  "title": "BOQ draft event group creation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Mount BOQ creation, assuming the required tenant gate is already enabled."
+    "note": "Enter BOQ project creation, which should initiate the draft event-group creation."
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "expect_request",
@@ -40,19 +53,39 @@
      "path": "/event_groups",
      "method": "POST"
     },
-    "note": "Check that a successful creation request occurred; this does not check uniqueness."
+    "note": "Verify that the BOQ screen sent a draft event-group creation request."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Name the project and exercise a title-driven state update without explicitly saving another draft."
+    "step": "select_template"
    },
    {
-    "step": "capture_screen",
+    "step": "add_line_items",
     "args": {
-     "label": "boq-after-title-update"
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "save_draft"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to inspect the created draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
     },
-    "note": "Record the resulting screen for inspection; this is not evidence of exactly-once creation."
+    "note": "Show the Drafts tab where the newly created BOQ draft should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that the draft event created by this plan is present in the Drafts list."
    }
   ]
  }

@@ -2,17 +2,23 @@
  "meta": {
   "caseId": "UI-FVND-001",
   "title": "The suggestion banner counts the products' mapped vendors not yet added",
-  "compiledAt": "2026-11-09T19:15:02.149Z",
+  "compiledAt": "2026-11-09T20:04:17.100Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Configure or verify the client setting vendor_recommendation_on_product and the product's mapped or blocked vendors",
-   "Add the product in the requested setup state",
-   "Verify the exact N calculation against mapped, already-added, and blocked vendors or the audience endpoint"
+   "Enable or verify the client setting vendor_recommendation_on_product.",
+   "Control or inspect the product's mapped and blocked vendor lists to calculate N.",
+   "Assert the numeric N against suggestedVendors or the audience endpoint response."
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure or verify the client setting vendor_recommendation_on_product and the product's mapped or blocked vendors; Add the product in the requested setup state; Verify the exact N calculation against mapped, already-added, and blocked vendors or the audience endpoint"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Enable or verify the client setting vendor_recommendation_on_product.; Control or inspect the product's mapped and blocked vendor lists to calculate N.; Assert the numeric N against suggestedVendors or the audience endpoint response."
   ],
   "state": "live",
   "screen": "participants",
@@ -23,19 +29,34 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Suggested vendor banner count",
+  "title": "Vendor suggestion count after adding product",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's Participants screen, where the product-based suggestion banner is shown."
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_participants",
+    "step": "select_template",
     "args": {},
-    "note": "Ensure the published pricing round's Participants list and its suggestion area are rendered."
+    "note": "Select a pricing template before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product to trigger vendor recommendation behavior."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participants"
+    },
+    "note": "Open the participant selection area where the suggestion banner is expected."
    },
    {
     "step": "expect_text",
@@ -43,15 +64,7 @@
      "text": "Suggestion: Invite",
      "present": true
     },
-    "note": "Assert that the product-based vendor suggestion banner is present."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "based on the products",
-     "present": true
-    },
-    "note": "Assert that the banner identifies the suggestions as product-based."
+    "note": "Verify that the product-based vendor suggestion banner is shown, without claiming the unavailable numeric count."
    }
   ]
  }

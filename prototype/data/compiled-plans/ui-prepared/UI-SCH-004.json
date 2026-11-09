@@ -2,17 +2,19 @@
  "meta": {
   "caseId": "UI-SCH-004",
   "title": "A bid window in the future publishes as Upcoming",
-  "compiledAt": "2026-10-06T04:58:42.167Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:56:17.741Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Set the creation schedule's start to now + 2 hours: set_schedule supports duration only, and reschedule_event requires an already-published Upcoming event.",
-   "Open the invited vendor's pre-start bidding view, verify bidding is unavailable, and assert \"Kindly wait for the auction to start\"; place_bid only supports submitting a quote.",
-   "The closest plan below cannot establish the future-start prerequisite, so its Upcoming assertion must not be treated as a complete execution of this case."
+   "Set the schedule start time to now + 2 hours and save that absolute schedule on the create screen.",
+   "Assert that the published event is in the Upcoming state because of the future start time.",
+   "Verify that a vendor can see the Upcoming event but cannot bid before it starts.",
+   "Verify the vendor refusal message \"Kindly wait for the auction to start\"."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the creation schedule's start to now + 2 hours: set_schedule supports duration only, and reschedule_event requires an already-published Upcoming event.; Open the invited vendor's pre-start bidding view, verify bidding is unavailable, and assert \"Kindly wait for the auction to start\"; place_bid only supports submitting a quote.; The closest plan below cannot establish the future-start prerequisite, so its Upcoming assertion must not be treated as a complete execution of this case."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Set the schedule start time to now + 2 hours and save that absolute schedule on the create screen.; Assert that the published event is in the Upcoming state because of the future start time.; Verify that a vendor can see the Upcoming event but cannot bid before it starts.; Verify the vendor refusal message \"Kindly wait for the auction to start\"."
   ],
   "state": "none",
   "screen": "create",
@@ -24,70 +26,62 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Future bid window publishes as Upcoming",
+  "title": "Future Bid Window Publishes as Upcoming",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Use the default Auction stage for the auction-specific waiting message."
+    "note": "Open the event creation screen for the closest valid-event setup."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a unique title for subsequent status lookup."
+    "args": {
+     "title": "UI-SCH-004 Upcoming Bid Window"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Prepare a valid pricing sheet."
+    "note": "Apply the first available pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Supply the minimum line-item prerequisite."
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete required buyer sheet values."
+    "note": "Complete the pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
-    "args": {},
-    "note": "Commit a schedule using supported defaults; this step cannot establish the required now + 2 hours start."
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid duration-based schedule; the catalog cannot set the requested absolute future start."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Include an invited vendor without inventing an identity."
+    "note": "Add a participant so the event is publishable."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Exercise publication, subject to the unresolved future-start prerequisite."
+    "note": "Publish the valid baseline event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Navigate to the buyer's event status display."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Upcoming"
-    },
-    "note": "Assert the required buyer outcome without substituting Live; this may fail because future-start scheduling is unsupported."
+    "note": "Assert that publication succeeded, without claiming the event is Upcoming."
    }
   ]
  }

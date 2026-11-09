@@ -2,21 +2,23 @@
  "meta": {
   "caseId": "UI-FPUB-004",
   "title": "An end time already in the past is refused at publish",
-  "compiledAt": "2026-11-09T19:18:17.661Z",
+  "compiledAt": "2026-11-09T20:05:28.260Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The exact backend oracle trade_controller_helper.rb:331 cannot be inspected directly.",
-   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+   "Set an absolute end time earlier than now on the create screen.",
+   "Verify that the publish refusal is specifically caused by an already-past end time rather than by a missing or uncommitted schedule.",
+   "needs a different starting state than live (asked for invite_vendor)"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The exact backend oracle trade_controller_helper.rb:331 cannot be inspected directly."
+   "cannot test this case yet — no step can observe: Set an absolute end time earlier than now on the create screen.; Verify that the publish refusal is specifically caused by an already-past end time rather than by a missing or uncommitted schedule."
   ],
   "state": "live",
   "screen": "summary",
@@ -28,7 +30,7 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Past end time is refused at publish",
+  "title": "Past End Time Publish Refusal",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,7 +42,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Configure the default auction stage with a pricing template."
    },
    {
     "step": "add_line_items",
@@ -52,19 +54,14 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "edit the event's absolute end time to a time earlier than now, save the schedule, and stop on the create screen showing the past end time"
-    },
-    "note": "The catalog has no direct argument for setting a past absolute end time, so perform that setup on the schedule screen."
+    "note": "Complete the pricing sheet before publishing."
    },
    {
     "step": "expect_publish_blocked",
-    "args": {},
-    "note": "Assert that publishing is refused because the end time is already in the past and the schedule must be fixed."
+    "args": {
+     "because": "Please add end time for the event"
+    },
+    "note": "Closest available assertion for the schedule-related publish refusal; it does not prove the end time was in the past."
    }
   ]
  }

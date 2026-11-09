@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-PART-014",
   "title": "Rejecting a participant requires remarks",
-  "compiledAt": "2026-10-05T13:46:47.800Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:14.473Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "The prepared live state has an invited vendor but no submitted response; rejection requires a participant who has responded.",
-   "No catalog flow or confirmed participant-rejection controls can attempt rejection first with an empty remark and then with a real remark.",
-   "Cannot observe the required empty-remark refusal and subsequent rejected vendor state without reaching and executing the participant-rejection flow."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: The prepared live state has an invited vendor but no submitted response; rejection requires a participant who has responded.; No catalog flow or confirmed participant-rejection controls can attempt rejection first with an empty remark and then with a real remark.; Cannot observe the required empty-remark refusal and subsequent rejected vendor state without reaching and executing the participant-rejection flow."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,28 +19,29 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Participant rejection requires remarks",
+  "title": "Rejecting a participant requires remarks",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared event's Participants screen."
+    "note": "Open the prepared live event's Participants screen containing the participant."
    },
    {
-    "step": "expect_api_value",
+    "step": "do_on_screen",
     "args": {
-     "key": "vendorName"
+     "goal": "On the buyer's Participants screen, reject the participant with an empty remark and verify the application refuses it with a message; then enter a real remark, submit the rejection, and stop on the participant row showing it as rejected"
     },
-    "note": "Verify the prepared vendor is displayed; this checks setup only, not rejection."
+    "note": "Perform the rejection workflow, including both the required empty-remark refusal and the successful remarked rejection."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "participant-rejection-controls"
+     "text": "Rejected",
+     "present": true
     },
-    "note": "Record the available controls for inspection without asserting either rejection outcome."
+    "note": "Assert that the participant is shown as rejected after the successful attempt."
    }
   ]
  }

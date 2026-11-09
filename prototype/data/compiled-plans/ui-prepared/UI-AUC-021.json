@@ -2,15 +2,20 @@
  "meta": {
   "caseId": "UI-AUC-021",
   "title": "Basket auction fixes savings to line-item with an explanation",
-  "compiledAt": "2026-10-06T04:45:02.239Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:53:11.282Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Enable or establish isBasketAuction=true; no catalog step or confirmed basket-auction control label is provided."
+   "Enable or verify the tenant-level isBasketAuction setup gate."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable or establish isBasketAuction=true; no catalog step or confirmed basket-auction control label is provided."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Enable or verify the tenant-level isBasketAuction setup gate."
   ],
   "state": "none",
   "screen": "create",
@@ -22,31 +27,43 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Basket auction savings restriction",
+  "title": "Basket auction savings strategy restriction",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Open the create screen with its default Auction stage."
+    "note": "Open the single-stage event creation screen where auction savings strategy is configured."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Supply the required unique event title."
+    "note": "Provide the required event title so the create screen can be configured."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template before adding products."
+    "note": "Apply a pricing template so the auction form and savings controls are available."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 2
+     "count": 1
     },
-    "note": "Provide multiple products and unlock Savings; this does not itself enable basket auction."
+    "note": "Add a line item required for line-item savings configuration."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before opening the savings configuration."
    },
    {
     "step": "click",
@@ -54,14 +71,14 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the savings strategy drawer."
+    "note": "Open the savings strategy control."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Gross Total"
     },
-    "note": "Assert the gross-total strategy is disabled."
+    "note": "Assert that Gross Total cannot be selected for the basket-auction savings mode."
    },
    {
     "step": "expect_message",
@@ -70,7 +87,7 @@
      "on": "Gross Total",
      "text": "For basket auction, savings can only be on line item."
     },
-    "note": "Verify the explanation for the disabled strategy."
+    "note": "Verify the required explanation for the disabled Gross Total option."
    },
    {
     "step": "expect_value",
@@ -78,7 +95,7 @@
      "label": "How do you want to measure savings?",
      "value": "Line Item"
     },
-    "note": "Assert Line Item is selected, rather than merely offered."
+    "note": "Assert that Line Item is the selected savings strategy."
    }
   ]
  }

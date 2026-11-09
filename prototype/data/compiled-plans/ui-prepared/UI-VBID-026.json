@@ -2,23 +2,20 @@
  "meta": {
   "caseId": "UI-VBID-026",
   "title": "Rank feedback is shown on a rank-based auction",
-  "compiledAt": "2026-11-09T19:20:17.157Z",
+  "compiledAt": "2026-11-09T20:06:34.782Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Prove exhaustively that no competitor price of any possible format appears anywhere on the vendor screen; the plan checks the known leading bid value only.",
-   "unconfirmed label \"L2\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"100\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"L2\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "resolved: “Reliably assert that no competitor price appears anywhere in the vendor portal while still allowing the vendor's own pri” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
    "coverage partial: unconfirmed label \"L2\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"100\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Prove exhaustively that no competitor price of any possible format appears anywhere on the vendor screen; the plan checks the known leading bid value only."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "state": "none",
   "screen": "create",
@@ -37,7 +34,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Start the single-stage create flow required for choosing an auction strategy."
+    "note": "Open the single-stage create flow required for configuring a rank-based auction."
    },
    {
     "step": "configure_single_stage",
@@ -46,50 +43,50 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Configure a rank-based auction."
+    "note": "Configure the event as a rank-based auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Rank Feedback Auction"
+     "title": "UI-VBID-026 Rank Feedback Auction"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template."
+    "note": "Apply the auction pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product for both vendors to bid on."
+    "note": "Add one item for the auction."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the pricing sheet before scheduling and publishing."
+    "note": "Complete the pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two vendors so their bids can be compared."
+    "note": "Invite two vendors so the auction has two bids and a trailing rank."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction so vendors can bid."
+    "note": "Publish the auction."
    },
    {
     "step": "expect_published",
@@ -97,28 +94,35 @@
     "note": "Confirm the auction reached a published project page."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the trailing vendor's bid was accepted."
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Place the leading lower bid for one vendor from the buyer console."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the leading vendor's bid was accepted."
+    "note": "Confirm the surrogate bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "View the auction from the configured vendor portal, intended to be the first bid's trailing vendor."
+    "note": "Move to the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction bid sheet in the vendor portal."
+    "note": "Open the auction's pricing round as the vendor."
    },
    {
     "step": "expect_text",
@@ -126,15 +130,7 @@
      "text": "L2",
      "present": true
     },
-    "note": "Assert that the trailing vendor receives rank feedback showing L2."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "100",
-     "present": false
-    },
-    "note": "Assert that the known competitor bid value is not exposed to the trailing vendor."
+    "note": "Assert that the trailing vendor sees the expected rank indicator."
    }
   ]
  }

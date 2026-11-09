@@ -2,28 +2,28 @@
  "meta": {
   "caseId": "UI-LI-018",
   "title": "Deleting a line item that a proposal already references is refused",
-  "compiledAt": "2026-10-06T07:11:59.401Z",
+  "compiledAt": "2026-11-09T19:42:16.995Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Attempting to delete the referenced line item from the event UI",
-   "Asserting the refusal message or backend error code 711",
-   "Verifying the proposal remains untouched specifically after the delete attempt"
+   "The dedicated line-item deletion refusal action and refusal code 711 cannot be expressed by a catalog step."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Attempting to delete the referenced line item from the event UI; Asserting the refusal message or backend error code 711; Verifying the proposal remains untouched specifically after the delete attempt"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The dedicated line-item deletion refusal action and refusal code 711 cannot be expressed by a catalog step."
   ],
   "state": "awarded",
   "screen": "proposal",
   "technical": false,
   "exemplars": [
+   "UI-XDNEG-002",
    "UI-AWD-004"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-LI-018 Delete referenced line item refused",
+  "title": "Refuse deleting a proposal-referenced line item",
   "steps": [
    {
     "step": "open_prepared",
@@ -33,16 +33,19 @@
     "note": "Open the prepared draft proposal that references the line item."
    },
    {
-    "step": "expect_api_value",
+    "step": "do_on_screen",
     "args": {
-     "key": "quantity"
+     "goal": "on the proposal screen, try to delete the line item referenced by the proposal and stop when the application shows the refusal message; leave the proposal unchanged"
     },
-    "note": "Confirm the proposal still displays its referenced line item's quantity."
+    "note": "Perform the deletion attempt and observe the product's refusal on screen."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check that the proposal renders without errors or raw failure details."
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "proposal"
+    },
+    "note": "Verify the proposal still displays the referenced line item's quantity, indicating it remains listed."
    }
   ]
  }

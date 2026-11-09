@@ -2,17 +2,13 @@
  "meta": {
   "caseId": "UI-PART-005",
   "title": "At least one participant must be selected to continue",
-  "compiledAt": "2026-10-05T13:44:54.621Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:42:47.333Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Establish the required audience selection panel with everything deselected from the fixed live event.",
-   "Attempt the panel's Continue action: no confirmed control label or domain step is provided.",
-   "Verify that the attempted continuation shows the inline note 'Select atleast one participant in order to continue.' and leaves the panel open; asserting text on the published Participants tab would not test this behavior."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Establish the required audience selection panel with everything deselected from the fixed live event.; Attempt the panel's Continue action: no confirmed control label or domain step is provided.; Verify that the attempted continuation shows the inline note 'Select atleast one participant in order to continue.' and leaves the panel open; asserting text on the published Participants tab would not test this behavior."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,21 +19,36 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Participant selection required to continue",
+  "title": "Require Participant Selection to Continue",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the required prepared starting screen without recreating or changing the event."
+    "note": "Open the prepared participants panel where the validation case starts."
    },
    {
-    "step": "capture_screen",
+    "step": "do_on_screen",
     "args": {
-     "label": "participants-audience-validation-gap"
+     "goal": "deselect every participant in the participants panel, click Continue, and stop when the screen shows \"Select atleast one participant in order to continue.\""
     },
-    "note": "Document the available participant controls for the missing audience-panel flow; this is evidence only, not a validation assertion."
+    "note": "Perform the deselection and Continue attempt that no dedicated catalog step supports."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Select atleast one participant in order to continue.",
+     "present": true
+    },
+    "note": "Verify the exact validation note is shown."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Verify the validation prevents advancing away from the participants panel."
    }
   ]
  }

@@ -2,18 +2,19 @@
  "meta": {
   "caseId": "UI-XDNEG-001",
   "title": "Counter Offer appears only on a live, active, latest bid in a pricing round",
-  "compiledAt": "2026-10-06T06:28:47.859Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T20:00:23.221Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The prepared event has only one vendor and bid, so it cannot check the three-vendor comparison with a pending counter offer and an older revised bid.",
-   "The fixed live state cannot test Counter Offer visibility during evaluation time or its absence after the round closes.",
-   "The prepared RFQ cannot test Counter Offer absence on RFP/RFI rounds.",
-   "The prepared default settings cannot independently test the under-approval and pending lot-justification eligibility gates."
+   "Set up bids from three vendors with one active bid, one pending counter offer, and one revised older bid.",
+   "Open and compare the comparison view during submission time, evaluation time, and after the round is closed.",
+   "Verify Counter Offer is absent on RFP/RFI rounds.",
+   "Verify the internal conditions isCounterOfferAllowed, approval status, or pending lot justification."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has only one vendor and bid, so it cannot check the three-vendor comparison with a pending counter offer and an older revised bid.; The fixed live state cannot test Counter Offer visibility during evaluation time or its absence after the round closes.; The prepared RFQ cannot test Counter Offer absence on RFP/RFI rounds.; The prepared default settings cannot independently test the under-approval and pending lot-justification eligibility gates."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Set up bids from three vendors with one active bid, one pending counter offer, and one revised older bid.; Open and compare the comparison view during submission time, evaluation time, and after the round is closed.; Verify Counter Offer is absent on RFP/RFI rounds.; Verify the internal conditions isCounterOfferAllowed, approval status, or pending lot justification."
   ],
   "state": "bid",
   "screen": "responses",
@@ -22,22 +23,23 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Counter Offer eligibility on live RFQ bid",
+  "title": "Counter Offer availability on active live bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ comparison view containing the QA vendor's submitted bid."
+    "note": "Open the prepared event's pricing-round Responses comparison view in its available live bid state."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Counter Offer"
+     "name": "Counter Offer",
+     "visible": true
     },
-    "note": "Assert the Counter Offer entry is visible for the sole active, latest pricing bid during live submission time."
+    "note": "Assert that Counter Offer is available for the active bid in the live pricing round."
    }
   ]
  }

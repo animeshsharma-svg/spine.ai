@@ -2,17 +2,17 @@
  "meta": {
   "caseId": "UI-LI-005",
   "title": "A zero or blank quantity on any row is refused",
-  "compiledAt": "2026-10-05T13:36:41.306Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:41:50.600Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Blank only the second row's quantity: fill has no row index or region argument to distinguish the three Quantity fields.",
-   "Exercise the invalid save and verify its validation message and retained drawer state after that specific edit.",
-   "Compare the other two rows' quantity values before and after the refused save and verify that nothing was persisted."
+   "Blank only the second row's quantity in the Manage Line Items drawer and then save it.",
+   "Verify that the other two rows retain their original values after the rejected save."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Blank only the second row's quantity: fill has no row index or region argument to distinguish the three Quantity fields.; Exercise the invalid save and verify its validation message and retained drawer state after that specific edit.; Compare the other two rows' quantity values before and after the refused save and verify that nothing was persisted."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Blank only the second row's quantity in the Manage Line Items drawer and then save it.; Verify that the other two rows retain their original values after the rejected save."
   ],
   "state": "none",
   "screen": "create",
@@ -24,60 +24,50 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Reject a blank quantity on the second line item",
+  "title": "UI-LI-005 Invalid line-item quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the create screen for the line-item setup."
+    "note": "Open the event creation screen for line-item setup."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Supply the mandatory event title."
+    "args": {
+     "title": "UI-LI-005 Invalid Quantity"
+    },
+    "note": "Provide the required event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Enable Manage Line Items."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 3
+     "count": 3,
+     "quantity": "0"
     },
-    "note": "Prepare the three rows required by the case."
+    "note": "Attempt to add three line items with a zero quantity to exercise the supported invalid-quantity validation path."
    },
    {
-    "step": "expect_line_items",
+    "step": "expect_error",
     "args": {
-     "count": 3
+     "contains": "Please fill valid quantity on every line item"
     },
-    "note": "Verify the setup contains exactly three line items."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Items"
-    },
-    "note": "Reopen Manage Line Items for inspection."
+    "note": "Assert that Procol rejects the invalid quantity with the expected message."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Manage Line Items"
+     "role": "heading",
+     "name": "Manage Line Items",
+     "visible": true
     },
-    "note": "Confirm the setup drawer is open; this does not assert retention after a refused save."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "three-line-items-before-blank-second-quantity"
-    },
-    "note": "Record the rows and quantity controls for the unsupported row-specific edit."
+    "note": "Assert that the line-item drawer remains open after the validation failure."
    }
   ]
  }

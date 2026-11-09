@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "UI-XDBOQ-016",
   "title": "Switching tabs pages the quote by tab",
-  "compiledAt": "2026-10-06T06:23:44.019Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:16.486Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable or verify the boq_in_erfx_allowed gate, or provision the required three-tab BOQ fixture with an existing vendor bid.",
-   "Open the existing vendor's quote and select BOQ tab 3 using a supported flow or confirmed control labels.",
-   "Scroll the quote grid to trigger subsequent page requests.",
-   "Assert the triggered quote_details requests carry the selected tab's index and successive page numbers: request assertions exist, but the required interactions and tab-index mapping are unavailable.",
-   "Verify that all displayed row line numbers belong exclusively to tab 3; no tab-specific row oracle is supplied."
+   "Guarantee that the opened existing event is a BOQ stage in an eRFX project with exactly three tabs and one vendor bid",
+   "Assert that the rendered rows belong exclusively to tab 3 by their specific line numbers",
+   "Unconfirmed tab label: 3",
+   "unconfirmed label \"3\" (click) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable or verify the boq_in_erfx_allowed gate, or provision the required three-tab BOQ fixture with an existing vendor bid.; Open the existing vendor's quote and select BOQ tab 3 using a supported flow or confirmed control labels.; Scroll the quote grid to trigger subsequent page requests.; Assert the triggered quote_details requests carry the selected tab's index and successive page numbers: request assertions exist, but the required interactions and tab-index mapping are unavailable.; Verify that all displayed row line numbers belong exclusively to tab 3; no tab-specific row oracle is supplied."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"3\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Guarantee that the opened existing event is a BOQ stage in an eRFX project with exactly three tabs and one vendor bid; Assert that the rendered rows belong exclusively to tab 3 by their specific line numbers; Unconfirmed tab label: 3"
   ],
   "state": "none",
   "screen": "create",
@@ -26,33 +27,58 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ quote paging by selected tab",
+  "title": "BOQ Quote Tab Pagination",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing BOQ event; do not recreate an event that already has a bid."
+    "note": "Open an existing event with bids as the closest available starting point for the vendor quote."
    },
    {
-    "step": "go_to",
+    "step": "switch_portal",
     "args": {
-     "screen": "responses"
+     "to": "vendor"
     },
-    "note": "Reach the closest supported screen for inspecting vendor quotes."
+    "note": "Move to the supplier portal so the vendor's quote can be inspected."
    },
    {
-    "step": "expect_navigated",
+    "step": "vendor_open_event",
     "args": {
-     "screen": "responses"
+     "stage": "pricing"
     },
-    "note": "Assert only that Responses is ready, not that BOQ quote paging works."
+    "note": "Open the event's pricing quote in the vendor portal."
    },
    {
-    "step": "capture_screen",
+    "step": "click",
     "args": {
-     "label": "boq-responses-quote-entry"
+     "role": "tab",
+     "name": "3"
     },
-    "note": "Record the available quote controls for extending coverage."
+    "note": "Switch to the third quote tab; the tab label is not otherwise defined in the catalog."
+   },
+   {
+    "step": "scroll_to",
+    "args": {
+     "text": "Line",
+     "timeoutMs": 60000
+    },
+    "note": "Scroll the quote so its paged rows are rendered."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/v1/trade/",
+     "method": "GET",
+     "query": "tab=3&page="
+    },
+    "note": "Assert that loading tab 3 issued the quote-details request with the selected tab and a page parameter."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Assert that quote rows are rendered after switching tabs, without claiming their specific line-number ownership."
    }
   ]
  }

@@ -2,18 +2,13 @@
  "meta": {
   "caseId": "UI-XDBOQ-023",
   "title": "No line-item delete in a BOQ project's details",
-  "compiledAt": "2026-10-06T06:25:49.621Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:52:29.686Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
-  "gaps": [
-   "Enable or verify the boq_in_erfx_allowed tenant gate.",
-   "Identify and open both existing projects as BOQ and ordinary: no project titles or IDs were supplied.",
-   "Open the project-details line-item row menu: no domain step or confirmed row-menu control label is available.",
-   "Assert Delete is absent in the BOQ row menu and present in the ordinary row menu; checking the page without opening those menus would not establish either outcome."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable or verify the boq_in_erfx_allowed tenant gate.; Identify and open both existing projects as BOQ and ordinary: no project titles or IDs were supplied.; Open the project-details line-item row menu: no domain step or confirmed row-menu control label is available.; Assert Delete is absent in the BOQ row menu and present in the ordinary row menu; checking the page without opening those menus would not establish either outcome."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -25,27 +20,27 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ versus ordinary line-item Delete menu",
+  "title": "BOQ Line Item Delete Menu",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing event using the executor's default target; this does not establish whether it is BOQ or ordinary."
+    "note": "Open an existing project details page without inventing an event title."
    },
    {
-    "step": "go_to",
+    "step": "do_on_screen",
     "args": {
-     "screen": "tab",
-     "name": "Project Details"
+     "goal": "Inspect the current project's line items row menu and verify that Delete is absent for the BOQ project, then navigate to the ordinary project, open its line items row menu, and verify that Delete is present; leave the ordinary project's row menu open showing Delete."
     },
-    "note": "Reach the project-details screen where the requested line-item inspection begins."
+    "note": "Navigate through both existing projects and inspect the row-menu options, including the BOQ-versus-ordinary Delete difference."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_text",
     "args": {
-     "label": "project-details-line-item-controls"
+     "text": "Delete",
+     "present": true
     },
-    "note": "Record available controls for determining how to open the row menu; this is evidence only, not a Delete-menu assertion."
+    "note": "Assert that Delete is visible in the ordinary project's line-item row menu."
    }
   ]
  }

@@ -2,16 +2,28 @@
  "meta": {
   "caseId": "UI-PART-003",
   "title": "The audience auto-populates where the tenant does that",
-  "compiledAt": "2026-11-09T19:15:23.901Z",
+  "compiledAt": "2026-11-09T20:04:39.089Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that the pre-selected vendors specifically match the product's category.",
-   "Verify that the pre-selected vendor count matches the publish confirmation modal count."
+   "Verify that every pre-selected vendor matches the line item's product category.",
+   "Verify that the pre-selected vendor count matches the count shown in the confirmation modal.",
+   "Enable or verify the tenant's category-to-vendor mapping setting.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the pre-selected vendors specifically match the product's category.; Verify that the pre-selected vendor count matches the publish confirmation modal count."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that every pre-selected vendor matches the line item's product category.; Verify that the pre-selected vendor count matches the count shown in the confirmation modal.; Enable or verify the tenant's category-to-vendor mapping setting."
   ],
   "state": "live",
   "screen": "participants",
@@ -22,33 +34,43 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Category audience auto-population",
+  "title": "Category-Mapped Vendor Audience Auto-Population",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the existing event directly on its Participants screen."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding the line item."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the categorized product whose mapped audience should be populated."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event can be scheduled and published."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Ensure the published event's Participants panel is open."
+    "note": "Open the published event's Participants panel."
    },
    {
     "step": "expect_participant_count",
     "args": {
      "atLeast": 1
     },
-    "note": "Assert that the audience contains at least one pre-selected vendor without manual selection."
-   },
-   {
-    "step": "expect_participant",
-    "args": {
-     "selected": true
-    },
-    "note": "Assert the prepared event's vendor row is present and selected."
+    "note": "Assert that automatic audience population produced at least one selected participant."
    }
   ]
  }

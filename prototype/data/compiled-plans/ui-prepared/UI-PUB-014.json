@@ -2,16 +2,17 @@
  "meta": {
   "caseId": "UI-PUB-014",
   "title": "Publishing sends invitations to every invited vendor",
-  "compiledAt": "2026-10-06T04:54:12.103Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:43:49.688Z",
+  "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open each invited vendor's portal list and assert that the published event appears for both vendors.",
-   "Check both vendors' mailboxes for the event invitation; mail delivery requires manual verification."
+   "Verify the event appears in the second invited vendor's separate supplier-portal session",
+   "Verify invitation delivery in each vendor's mailbox"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open each invited vendor's portal list and assert that the published event appears for both vendors.; Check both vendors' mailboxes for the event invitation; mail delivery requires manual verification."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the event appears in the second invited vendor's separate supplier-portal session; Verify invitation delivery in each vendor's mailbox"
   ],
   "state": "none",
   "screen": "create",
@@ -23,40 +24,44 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Invitations reach both invited vendors",
+  "title": "Publish invitations to all vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the event setup."
+    "note": "Start a new multi-stage event."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Generate a unique title to identify the event during subsequent manual checks."
+    "args": {
+     "title": "UI-PUB-014 Invitation Delivery Test"
+    },
+    "note": "Give the event a known title for portal verification."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the template required to add line items."
+    "note": "Configure the default auction stage with a template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide the minimum line-item setup for publication."
+    "note": "Add the required line item before publishing."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete required sheet values."
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
-    "args": {},
+    "args": {
+     "minutes": 30
+    },
     "note": "Commit a valid event schedule."
    },
    {
@@ -64,17 +69,52 @@
     "args": {
      "count": 2
     },
-    "note": "Require at least two participants from the configured audience without inventing vendor identities."
+    "note": "Set up the two invited vendors required by the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Trigger publication and its expected invitation processing."
+    "note": "Publish the event, which triggers vendor invitations."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication succeeded, without treating it as proof of portal visibility or email delivery."
+    "note": "Confirm publishing completed and the project page exists."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the available invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event from the vendor's portal list to verify it is listed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Details",
+     "visible": true
+    },
+    "note": "Confirm the vendor portal opened the event overview."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "verify the event appears in the second invited vendor's supplier portal and check the invitation emails in both vendors' mailboxes"
+    },
+    "note": "These checks require a second vendor session and mailbox access unavailable to the catalog."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure the available browser session remains healthy after the manual checks."
    }
   ]
  }

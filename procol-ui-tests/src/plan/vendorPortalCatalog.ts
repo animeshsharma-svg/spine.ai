@@ -25,4 +25,13 @@ export const VENDOR_PORTAL_CATALOG: StepSpec[] = [
       "In the supplier portal (after switch_portal{to:\"vendor\"}), open THIS plan's event from the vendor's events list and land on its round: stage:\"pricing\" (default: the RFQ/auction bid sheet, with the Add Bid / bid form opened when the round offers it) or stage:\"technical\" (the RFP questionnaire), or overview:true to stay on the Event Overview. Fails as NOT INVITED when the event is not in the vendor's list — a finding, never covered by opening another event.",
     args: { stage: '"pricing" (default) | "technical"', overview: "true: stay on the event's overview instead of entering a round (optional)" },
   },
+  {
+    // 10 Nov 2026 — not yet exercised live. The bid sheet code is place_bid's (VendorPortalPage.fillBid / submitBid /
+    // bidSubmitted); this step only separates "type and submit on the OPEN portal" from the sign-in, so a case can say
+    // what the vendor types (-100, abc, 0, a price above the cap) and read what the portal did with it.
+    name: "vendor_bid",
+    purpose:
+      "On the supplier portal that is already open (after switch_portal{to:\"vendor\"} + vendor_open_event, or open_prepared{screen:\"vendor\"}), type a price into every price cell of the bid sheet and press Submit Quote — the vendor's own bid, typed as a person would. price may be anything the case says: -100, 0, abc, 999999999.99, a price above the cap. Reports what the sheet kept and what the portal answered; a second vendor_bid on the same sheet is a revision. submit:false types without submitting (then read the sheet with expect_text / expect_value / expect_remembered). For a bid the portal must REFUSE write attempt{step:\"vendor_bid\", args:{price:-100}, expect:\"refused\"}: it passes only on a refusal message or a Submit that stays disabled, and fails if the quote goes through. Never place_bid after switch_portal — the vendor is already signed in.",
+    args: { price: "what to type into the price cells (default 100)", submit: "false: fill the sheet only (optional)" },
+  },
 ];

@@ -2,17 +2,17 @@
  "meta": {
   "caseId": "UI-XDAUC-004",
   "title": "\"Use RFQ quotes as initial bids\" is disabled with no quotes and pre-ticked with quotes",
-  "compiledAt": "2026-10-06T06:14:00.073Z",
-  "tier": "reason",
+  "compiledAt": "2026-11-09T19:50:24.511Z",
+  "tier": "fast",
   "source": "llm",
   "coverage": "none",
   "gaps": [
-   "Verify the disabled checkbox on an RFQ without bids: the fixed prepared event already has a bid and a second no-bid event is unavailable.",
-   "Assert that 'Use RFQ quotes as initial bids' is checked by default: no catalog assertion explicitly reads checkbox checked state, and toggle would change the state being tested.",
-   "Verify 'Allow TNA vendors to bid' is shown only with eRFX and TNA filtering and is checked by default: the required configuration is not established or changeable, its label is unconfirmed, and checkbox checked-state assertions are unavailable."
+   "Create or open a second prepared RFQ with no bids for comparison",
+   "Open and inspect the conversion popover checkbox states for 'Use RFQ quotes as initial bids' and 'Allow TNA vendors to bid', including disabled, checked-by-default, visibility, and TNA-filtering conditions"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify the disabled checkbox on an RFQ without bids: the fixed prepared event already has a bid and a second no-bid event is unavailable.; Assert that 'Use RFQ quotes as initial bids' is checked by default: no catalog assertion explicitly reads checkbox checked state, and toggle would change the state being tested.; Verify 'Allow TNA vendors to bid' is shown only with eRFX and TNA filtering and is checked by default: the required configuration is not established or changeable, its label is unconfirmed, and checkbox checked-state assertions are unavailable."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Create or open a second prepared RFQ with no bids for comparison; Open and inspect the conversion popover checkbox states for 'Use RFQ quotes as initial bids' and 'Allow TNA vendors to bid', including disabled, checked-by-default, visibility, and TNA-filtering conditions"
   ],
   "state": "bid",
   "screen": "summary",
@@ -24,42 +24,40 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "RFQ conversion quote checkbox defaults",
+  "title": "Conversion Popover Initial Bid Options",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ that already has a submitted quote."
+    "note": "Open the prepared RFQ event that has a bid."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Expose the RFQ conversion action."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
-    },
-    "note": "Open the conversion popover without continuing to the create screen."
+    "note": "Open the event Settings menu to reach the available conversion action."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "checkbox",
-     "name": "Use RFQ quotes as initial bids"
+     "role": "menuitem",
+     "name": "Convert to Auction",
+     "visible": true
     },
-    "note": "Confirm the relevant checkbox is present; this does not prove its default checked state."
+    "note": "Assert that conversion is offered for the published RFQ."
    },
    {
-    "step": "capture_screen",
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Reach the closest available conversion flow, although this step does not expose the popover checkbox assertions."
+   },
+   {
+    "step": "expect_navigated",
     "args": {
-     "label": "conversion-checkboxes-with-quotes"
+     "screen": "create"
     },
-    "note": "Record the popover and accessibility tree for manual inspection of checkbox defaults."
+    "note": "Assert that the conversion flow reached the auction create screen."
    }
   ]
  }

@@ -2,15 +2,19 @@
  "meta": {
   "caseId": "UI-AUC-010",
   "title": "A knockout offer can be accepted by a vendor",
-  "compiledAt": "2026-11-09T19:16:56.078Z",
+  "compiledAt": "2026-11-09T20:05:23.175Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Accepting a knockout offer specifically via a dedicated vendor-side step (knockout and dutch auction bidding actions have no automated vendor-side click step yet)."
+   "Open or identify a live knockout auction with a vendor holding an offer",
+   "Observe the vendor state changing to accepted",
+   "Observe the buyer seeing the acceptance and the round advancing"
   ],
   "warnings": [
-   "can only test part of this — no step for: Accepting a knockout offer specifically via a dedicated vendor-side step (knockout and dutch auction bidding actions have no automated vendor-side click step yet)."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “As the vendor, accept a knockout auction offer” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "cannot test this case yet — no step can observe: Open or identify a live knockout auction with a vendor holding an offer; Observe the vendor state changing to accepted; Observe the buyer seeing the acceptance and the round advancing"
   ],
   "state": "none",
   "screen": "create",
@@ -22,93 +26,31 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Knockout offer acceptance by vendor",
+  "title": "UI-AUC-010 Knockout offer acceptance",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start creating an eRFX project to eventually convert to a knockout auction"
-   },
-   {
-    "step": "set_title",
+    "step": "open_event",
     "args": {},
-    "note": "Give the project a title"
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Set up an RFQ stage"
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Select a pricing template"
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item"
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Fill out the pricing sheet"
-   },
-   {
-    "step": "set_schedule",
-    "args": {},
-    "note": "Set event schedule and duration"
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite a vendor to the event"
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event to make it live"
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the project is published"
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Convert the published RFQ to an auction (which enables knockout/dutch auction paths)"
+    "note": "Open the closest fitting existing event, although the catalog cannot verify that it is a knockout auction with a held offer."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the supplier portal as the invited vendor"
+    "note": "Switch to the vendor portal, which is the required session for vendor-side actions."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction event from the vendor's list"
+    "note": "Open the event's vendor pricing round, the closest available vendor-side screen."
    },
    {
-    "step": "ask_tester",
-    "args": {
-     "need": "accept the knockout offer in the supplier portal and verify the round advances"
-    },
-    "note": "Vendor accepts the knockout offer since portal knockout actions require interactive vendor-side handling"
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert only that the vendor screen is rendered without errors; this does not verify knockout offer acceptance."
    }
   ]
  }
