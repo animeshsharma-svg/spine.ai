@@ -160,7 +160,8 @@ function defectsFor(subject: string, module: string, limit = 10): Defect[] {
   const want = words(subject);
   return all
     .map((d) => ({ d, s: score(`${d.title} ${d.symptom} ${d.rootCause}`, want) + (d.module === module ? 1 : 0) }))
-    .filter((x) => x.s >= 2)
+    // about THIS subject: several shared words, or the same module and a couple
+    .filter((x) => x.s >= 4 || (x.d.module === module && x.s >= 3))
     .sort((a, b) => b.s - a.s)
     .slice(0, limit)
     .map((x) => x.d);
@@ -264,7 +265,8 @@ WALK EVERY DIMENSION and write a case for each cell that MEANS SOMETHING for thi
 - visibility: who sees what (vendor sees nothing of other vendors; masking; History vs Live).
 TITLES read like the team's sheet: what is checked, as a short sentence — "Reject Bid is disabled while bidding is on", never "Buyer successfully rejects…" or "…works correctly". Every case must be about THIS subject's behaviour (not a general field check that happens nearby). Name only controls Procol has (Reject Bid, Rejected Bids, Master QCS, Participants, Settings menu…).
 GROUND every case: cite the rule ids (R-…), setting keys, RCA ticket ids or product feature ids given below that it rests on — only those; never invent an id. A case that rests on nothing given is grounded "screen".
-WHAT BROKE BEFORE (the RCA tickets) must each get at least one case that would have caught it.
+WHAT BROKE BEFORE (the RCA tickets listed) each get one case that would have caught it — only when the ticket is about THIS subject; a ticket about something else is ignored, never used to pad.
+STAY ON THE SUBJECT: every case exercises the behaviour under test itself. A case about a neighbouring screen, another feature or a general field check is not written.
 ${STYLE_GUIDE}
 Use the QA test vendors as "Vendor A", "Vendor B". Pre-conditions, when the case needs an existing event, must be one of exactly these phrases (the platform builds them): "A live RFQ published with QA vendors invited and no bid yet." / "A live RFQ with a vendor's bid." / "A closed RFQ with a vendor's bid, not awarded." / "An awarded RFQ whose proposal went into approval." / "A live eRFX project with a Technical stage and an RFQ stage, QA vendors invited." / "An RFQ already converted to an auction: the vendor bid 100 per unit in the RFQ, the auction is live and the vendor has bid in it." / "A draft RFQ saved and not published." / "The buyer can create events." — or describe the state in words when none fits.
 How the voice looks:
@@ -399,6 +401,16 @@ export async function deriveCases(input: { text: string; companyId?: number; max
     const expected = clean(d?.expected);
     if (!title || !steps.length || !expected || seenTitles.has(title.toLowerCase())) continue;
     seenTitles.add(title.toLowerCase());
+    // off the subject: a case that shares no significant word stem with the subject or its actions is dropped
+    const stemsOf = (t: string) => new Set([...words(t)].map((w) => w.slice(0, 5)));
+    const subjectStems = stemsOf(`${subject} ${actions.join(" ")}`);
+    const caseStems = stemsOf(`${title} ${steps.join(" ")} ${expected}`);
+    let shared = 0;
+    for (const w of subjectStems) if (caseStems.has(w)) shared++;
+    if (subjectStems.size && shared < Math.min(2, subjectStems.size)) {
+      say(`Dropped "${title.slice(0, 70)}" — it is not about the subject.`);
+      continue;
+    }
     const dimension = (DIMENSIONS as readonly string[]).includes(d?.dimension) ? (d.dimension as Dimension) : /refus|cannot|not allowed|blocked/i.test(expected) ? "negative" : "positive";
     const grounded = (Array.isArray(d?.grounded) ? d.grounded.map(clean) : []).filter((g: string) => allowed.has(g) || /^R-/.test(g) && rs.some((r) => r.id === g));
     const house = toHouseStyle({ title, steps, expected, setup: d?.preconditions, testData: d?.testData, priority: d?.priority, role: d?.role, portal: d?.portal, testType: d?.testType });
