@@ -849,7 +849,7 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
     const route = path.split("?")[0];
     if (/[<>]/.test(path)) errors.push(`${n}: the path "${path}" names a record by description (<…>) — use a {{placeholder}} the setup provides`);
     if (!REQUEST_DOMAIN.test(path)) errors.push(`${n}: ${method} ${route} is outside the sourcing-event area a plan may act on`);
-    if (/\/\d+(\/|$)/.test(route) || FORMATS.encodedId.test(route.split("/").pop() ?? "")) errors.push(`${n}: the path carries a fixed record id — a plan acts only on the records its own setup built`);
+    if (route.split("/").some((seg) => /^\d+$/.test(seg) || FORMATS.encodedId.test(seg) || /^WrongUuid|^QA00/.test(seg))) errors.push(`${n}: the path carries a fixed record id — a plan acts only on the records its own setup built`);
     const req: OwnRequest = { method: method as OwnRequest["method"], path, ...(r.body !== undefined && r.body !== null && method !== "GET" ? { body: r.body } : {}) };
     if (method === "GET" && r.body !== undefined && r.body !== null) warnings.push(`${n}: a GET sends no body; it was dropped`);
     if (req.body !== undefined && (typeof req.body !== "object")) errors.push(`${n}: request.body must be a JSON object or list`);
@@ -1828,6 +1828,10 @@ export function polarityOf(t: string): Outcome | null {
   if (/\bhttp\s*(?:2\d\d|2xx)\b/.test(s) && !/\b(cannot|can't|refus\w*|not allowed|is denied|must not|should not)\b/.test(s)) return "accept";
   // "code 33 'Order not active'" — an app error code with its message is a refusal
   if (/\bcode\s+\d{1,4}\b\s*['‘"“]/.test(s)) return "reject";
+  // "is not blocked", "no savings error", "publishes without error" — the absence of a refusal is acceptance
+  if (/\b(?:is|are|was|were)\s+not\s+(?:blocked|refused|rejected|denied|prevented|stopped)\b|\bno\s+(?:[a-z-]+\s+)?error\b|\bwithout\s+(?:an?\s+)?(?:[a-z-]+\s+)?error\b|\bnot\s+(?:blocked|refused|rejected|denied|prevented)\b/.test(s)) return "accept";
+  // "no second award can be started", "never lets a vendor…" — a negated ability is a refusal
+  if (/\bno\b[^.;]{0,40}\bcan\b|\bnever\s+(?:lets?|allows?|accepts?|permits?)\b|\bmust\s+(?:never|not)\b/.test(s)) return "reject";
   if (/\b(cannot|can't|can not|not allowed|refus\w*|reject\w*|block\w*|prevent\w*|disallow\w*|is denied|fails?|error|invalid|must not|should not|isn't allowed|not be able)\b/.test(s)) return "reject";
   // "check whether a vendor can bid…" is a question, not an expected outcome
   if (/\b(whether|check if|verify if|see if|find out if)\b|\?/.test(s)) return null;
@@ -1844,7 +1848,7 @@ function judgeCoverage(text: string, plan: ApiPlan, modelGaps: string[], extra: 
   const t = text.toLowerCase();
   // the title says what the case expects; the long prose (code notes) is noisy
   const pol = casePolarity({ text, heads });
-  if (pol && pol !== plan.expected.outcome && !(pol === "reject" && plan.expected.outcome === "no-5xx" && /should|must|ideally/.test(t)))
+  if (pol && pol !== plan.expected.outcome && !(pol === "reject" && plan.expected.outcome === "no-5xx" && /should|must|ideally/.test(t)) && !(pol === "no-5xx" && plan.expected.outcome === "reject"))
     gaps.push(`the case reads as “${OUTCOME_WORD[pol]}”, but the plan checks “${OUTCOME_WORD[plan.expected.outcome]}”`);
   if (STATE_WORDS.test(t) && !plan.verify.length) gaps.push("it does not read the record back to confirm what was kept or shown");
   if (plan.dependsOnSetting) gaps.push(`it depends on a company setting this run does not change (${plan.dependsOnSetting}) — a failure is reported as couldn't tell, not as a bug`);
@@ -1981,7 +1985,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       // the wrong thing (and a "failure" a false positive): the model may
       // arrange it with extra steps; without one, there is no plan.
       if (v.ok && unbuilt) libraryUnbuilt = `the starting state “${unbuilt}” is more specific than any recipe — library case ${usable.id} cannot run as written on a fresh record`;
-      else if (v.ok) return finish(v, [], [...gaps, ...v.soft.map((g) => g.split(" — ")[0])], { source: "library-case", candidates: [usable.id] });
+      else if (v.ok) return finish(v, [], gaps, { source: "library-case", candidates: [usable.id] });
     }
   }
 
@@ -2075,7 +2079,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     }
     if (kept) {
       const src = kept.tier === "reason" ? "llm-reason" : "llm-fast";
-      return finish(kept.v, kept.ans.gaps, [...libraryActProblems(kept.v.plan), ...kept.v.soft.map((g) => g.split(" — ")[0])], { source: src, candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
+      return finish(kept.v, kept.ans.gaps, libraryActProblems(kept.v.plan), { source: src, candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
     }
   }
 
@@ -2084,7 +2088,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     const r = rulesPlan(text);
     if (r) {
       const v = await validatePlan({ ...r.plan, title: text.split("\n")[0].slice(0, 140), ...(input.caseId ? { caseId: input.caseId } : {}) }, ctx);
-      if (v.ok) return finish(v, [], ["compiled by a fixed rule, not read in full — check the steps match the case", ...v.soft.map((g) => g.split(" — ")[0])], { source: "rules", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits) });
+      if (v.ok) return finish(v, [], ["compiled by a fixed rule, not read in full — check the steps match the case"], { source: "rules", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits) });
       lastErrors = [...lastErrors, ...v.errors.map((e) => `rule: ${e}`)];
     }
   }
@@ -2102,7 +2106,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
 }
 
 /** Gap sentences the compiler writes itself (re-derived on a re-check; the model's own gap words are kept). */
-const CODE_GAP = /^the case reads as |^it does not read the record back|^what the screen shows|^the part about “|^compiled by a fixed rule|^library case \S+ (needs a starting state|is written for)|^the plan has the |^the case needs a caller|^it depends on a company setting|^a read-back was added/;
+const CODE_GAP = /^the case reads as |^the decisive step tests something else than the case's point: the (?:case reads as|documented correct)|^it does not read the record back|^what the screen shows|^the part about “|^compiled by a fixed rule|^library case \S+ (needs a starting state|is written for)|^the plan has the |^the case needs a caller|^it depends on a company setting|^a read-back was added/;
 
 /**
  * RE-CHECK A STORED PLAN IN CODE (no model): the validator with the case's words (actors fixed from the
@@ -2121,7 +2125,7 @@ export async function recheckStoredPlan(raw: unknown, text: string, heads: strin
   const av = await autoVerify(v.plan);
   if (av.added) changed.push("read-back added");
   const kept = storedGaps.filter((g) => !CODE_GAP.test(g));
-  const cov = judgeCoverage(text, av.plan, kept, [...libraryActProblems(av.plan), ...v.soft.map((g) => g.split(" — ")[0])], heads);
+  const cov = judgeCoverage(text, av.plan, kept, libraryActProblems(av.plan), heads);
   return { ok: true, plan: av.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...v.warnings, ...(av.added ? [av.added] : [])], errors: [], changed };
 }
 

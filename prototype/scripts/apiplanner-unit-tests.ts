@@ -145,5 +145,16 @@ function check(name: string, ok: boolean, detail?: unknown) {
   check("request: an empty body the case itself sends is fine", emptyOk.ok, emptyOk.errors);
 }
 
+// ── 8 · polarity: negations and product words ──
+{
+  const { polarityOf } = await import("../src/agents/apiPlanner.js");
+  check("polarity: 'is not blocked' is acceptance", polarityOf("An RFQ-then-auction round next to an RFQ round on the same draft is not blocked") === "accept");
+  check("polarity: 'Publishes; no savings error' is acceptance", polarityOf("Publishes; no savings error.") === "accept");
+  check("polarity: 'No second award can be started' is a refusal", polarityOf("No second award can be started while one is in approval") === "reject");
+  check("polarity: 'the buyer rejects a submitted bid … HTTP 200' is acceptance", polarityOf("The bid is rejected and the reason is stored for the vendor. HTTP 200.") === "accept");
+  check("polarity: 'HTTP 422, code 258' is a refusal", polarityOf("Refused. HTTP 422, code 258 'You cannot re-schedule this event!'.") === "reject");
+  check("polarity: 'crashes' is no-5xx", polarityOf("A send without a reminder kind crashes") === "no-5xx");
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

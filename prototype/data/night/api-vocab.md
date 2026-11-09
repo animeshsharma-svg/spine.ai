@@ -68,3 +68,15 @@ starting state no recipe builds"; 22 "no read-back"; 20 "compiled by a fixed rul
 - Next: when the run ends → `compile-api-plans.ts --revalidate` (re-checks all stored plans in code:
   actors, outcome, codes, read-backs) → `--redo silent` for partial plans that still do not speak →
   stats → notes.
+
+## 01:35 IST — pass 1 done, in-code re-check done, pass 2 running
+
+- Pass 1 (`--redo none`, 883 cases, 41 min, 0 budget stops): 156 full, 293 partial (413 speak), 430 none,
+  4 not compiled (gateway — in fact cut-off JSON answers; fixed in f425c48 to retry with a repair).
+- `compile-api-plans.ts --revalidate` over 946 stored plans: 122 changed in code (actors fixed, no-5xx →
+  accept, read-backs added), 34 upgraded to full, 1 downgraded, 24 no longer valid (request steps with an
+  empty body — recompiled in pass 2).
+- Stats after that: **619 of 1,379 plans speak for their case** (was 293); stored 945 (242 full, 380
+  partial-speaks, 323 partial-silent); none 433; never compiled 1.
+- Pass 2 started 01:35: `--redo silent` (318 partial plans that do not speak), log `api-compile-2.log`.
+- Commits so far: 673d5ba, b01c0b6, cbb2628, f425c48, b6020cf.
