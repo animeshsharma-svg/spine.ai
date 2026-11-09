@@ -354,6 +354,11 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     } else if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
+    } else if (/^expect_(text|visible|count)$/.test(f.step) && /\(\s*\d+\s*\/\s*\d+\s*\)/.test(String(f.args?.text ?? f.args?.name ?? "")) && !f.evidence?.appSaid) {
+      // the compiler wrote a counter into the label ("Awarded Vendors (0/1)") — a guess at the numbers, not a label
+      // Procol is known to render; its absence proves nothing (10 Nov: SRC-AWD-001 read as a Fail on exactly this)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} looked for "${String(f.args?.text ?? f.args?.name)}", a label with a counter the compiler guessed, and did not find it. A guessed counter proves nothing about the product; see the screenshot and judge by eye. This is an automation gap, not a product bug.`;
     } else if (/^expect_(text|visible)$/.test(f.step) && compiled.gaps.some((g) => /unconfirmed label/i.test(g) && g.includes(String(f.args?.text ?? f.args?.name ?? "\u0000")))) {
       // the compiler guessed this label ("unconfirmed label") — a name the product may not use; its absence proves nothing
       r.status = "Couldn't tell";

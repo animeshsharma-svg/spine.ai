@@ -2302,6 +2302,12 @@ async function attempt(
   if (innerSaid?.startsWith("blocked:") && (!because || innerSaid.toLowerCase().includes(because.toLowerCase()))) {
     return { detail: innerSaid, strategy: controlStrategy ?? "the step's own check" };
   }
+  // The inner step WAS refused (a Submit that stays disabled, a value the sheet would not keep) but nothing on screen
+  // names the reason the case expects: still a refusal — the case's point held — with the missing words noted. Read as
+  // "the app allowed it" on 10 Nov (SRC-BID-007 "price -1", SRC-BID-010 "above the price cap"), which was wrong.
+  if (innerSaid?.startsWith("blocked:") && because) {
+    return { detail: `${innerSaid} — the app refused, but no message names "${because}"`, strategy: controlStrategy ?? "the step's own check" };
+  }
 
   // Evidence 2: a refusal message — new toast in the journal, or on screen.
   const r = await waitForMessage(page, "error", { want: because, mark, timeoutMs: 10_000 });
