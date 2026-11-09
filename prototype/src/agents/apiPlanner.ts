@@ -1836,7 +1836,7 @@ export function polarityOf(t: string): Outcome | null {
 }
 
 /** A model gap that admits the plan tests something else than the case ("…instead", "verifies only…"). */
-const SUBSTITUTE_SIGNAL = /\binstead\b|verifies only|checks only|tests only|only (?:verifies|checks|tests|exercises|covers) (?:that|the|whether)|substitut|as a proxy|approximat/i;
+const SUBSTITUTE_SIGNAL = /\binstead\b|verifies only|checks only|tests only|only (?:verifies|checks|tests|exercises|covers) (?:that|the|whether)|substitut|as a proxy|approximat|\b(?:setup|recipe)s?\b[^.;]{0,50}\b(?:cannot|can't|does not|do not|is unable|are unable)\b|\bno (?:setup )?recipe (?:creates|provides|builds|signs|gives)|\bcannot (?:create|build|arrange|set up|establish|prepare)\b/i;
 
 function judgeCoverage(text: string, plan: ApiPlan, modelGaps: string[], extra: string[], heads: string[] = []): { coverage: "full" | "partial"; gaps: string[] } {
   // a gap in which the model says the decisive step stands in for the case's point is named as such, so routing sees it is about the point
