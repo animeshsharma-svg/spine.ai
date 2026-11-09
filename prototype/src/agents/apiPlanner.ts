@@ -734,6 +734,8 @@ export interface ValidateContext {
 }
 
 const METHODS = new Set(["GET", "POST", "PATCH", "PUT"]);
+/** the library's probe ids: a well-formed id of a record that does not exist, and a garbled one */
+const BOGUS_IDS = new Set(["Z2dnWmdaUWtnZw==", "WrongUuid1="]);
 
 /** Would this actor's APP be refused this request at the gate? (appAccess.ts / actors.ts) */
 function appBar(actor: ActorId, method: string, path: string): string | undefined {
@@ -849,7 +851,8 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
     const route = path.split("?")[0];
     if (/[<>]/.test(path)) errors.push(`${n}: the path "${path}" names a record by description (<…>) — use a {{placeholder}} the setup provides`);
     if (!REQUEST_DOMAIN.test(path)) errors.push(`${n}: ${method} ${route} is outside the sourcing-event area a plan may act on`);
-    if (route.split("/").some((seg) => /^\d+$/.test(seg) || FORMATS.encodedId.test(seg) || /^WrongUuid|^QA00/.test(seg))) errors.push(`${n}: the path carries a fixed record id — a plan acts only on the records its own setup built`);
+    // The library's two probe ids are allowed: Z2dnWmdaUWtnZw== (a record that does not exist) and WrongUuid1= (a garbled id).
+    if (route.split("/").some((seg) => !BOGUS_IDS.has(seg) && (/^\d+$/.test(seg) || FORMATS.encodedId.test(seg) || /^WrongUuid|^QA00/.test(seg)))) errors.push(`${n}: the path carries a fixed record id — a plan acts only on the records its own setup built (for a record that does not exist use Z2dnWmdaUWtnZw==, for a garbled id WrongUuid1=)`);
     const req: OwnRequest = { method: method as OwnRequest["method"], path, ...(r.body !== undefined && r.body !== null && method !== "GET" ? { body: r.body } : {}) };
     if (method === "GET" && r.body !== undefined && r.body !== null) warnings.push(`${n}: a GET sends no body; it was dropped`);
     if (req.body !== undefined && (typeof req.body !== "object")) errors.push(`${n}: request.body must be a JSON object or list`);
@@ -1704,8 +1707,10 @@ OPERATIONS (act steps; reads are also verify steps):
 ${ops}
   request: the case's OWN request when it names METHOD /path (and a body) and no operation covers it —
     {"op":"request","as":"buyer|vendor","request":{"method":"PATCH","path":"/bids/{{bidUuid}}/reject","body":{"rejection_remarks":"QA_Platform_{{stamp}}","allow_rebidding":true}}}
-    routes allowed: /event_groups /trade /v1/trade /bids /v1/bids /template_responses /evaluations /proposal /item_versions /additional_request /reminders /v1/chats;
-    placeholders ONLY from the TOKENS list below (never a fixed id, never <description>); a verify step may be a GET request: {"op":"request","request":{"method":"GET","path":"/reminders/{{eventGroupUuid}}?resource_type=event_group"},"assert":[…]}
+    routes allowed: ANY path under /event_groups /trade /v1/trade /bids /v1/bids /template_responses /evaluations /proposal /item_versions /additional_request /reminders /v1/chats /templates/upload_attachment /v1/attachments
+      (e.g. /trade/upload_file, /trade/{{tradeId}}/edit_weight_parameters, /bids/{{bidUuid}}/reject, /v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}});
+    ids ONLY from the TOKENS list below (never <description>), except the two probe ids: Z2dnWmdaUWtnZw== = a record that does not exist, WrongUuid1= = a garbled id;
+    the body is the one the case writes (a write with no body is refused); a verify step may be a GET request: {"op":"request","request":{"method":"GET","path":"/reminders/{{eventGroupUuid}}?resource_type=event_group"},"assert":[…]}
   BODY FIELDS of each operation's working request (dotted paths you may set/remove with "change"; a path not listed needs add:true):
 ${bodyKeys}
   Notes: add_rfq_round / add_rfp_round "data" = the round template's line items (set [] for "a template with no line items");
@@ -1772,7 +1777,7 @@ async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "r
     `When the outcome hangs on a company setting or gate the plan cannot switch, still plan the steps and set "dependsOnSetting":"<the setting>" on the plan. ` +
     `Use no-5xx only when the case is about not crashing; a case that says something is REFUSED by the app (cannot / not allowed / HTTP 4xx / an error code) expects reject — but "the buyer rejects a bid", "the vendor regrets a line", "blocks the vendor" are product ACTIONS the app performs on request: plan them as accept unless the case says the app turns them away — and the setup + earlier acts must create the state that makes the app refuse it. A case that says something works or is kept expects accept, with a verify read-back of what was kept. ` +
     `Send each step as the actor whose app may call it: /v1/bids and bid submission are the vendor's (as "vendor"); event, round, audience, surrogate, award and indicator calls are the buyer's.\n\n` +
-    `TEST CASE:\n"""${text.slice(0, 1200)}"""\n\n` +
+    `TEST CASE:\n"""${text.slice(0, 2000)}"""\n\n` +
     (repair ? `Your previous answer:\n${repair.previous.slice(0, 1800)}\nIt failed validation:\n- ${repair.errors.slice(0, 8).join("\n- ")}\nFix it.\n\n` : "") +
     `Reply: {"plan":{"title":"…","setup":{"recipe":"…"},"act":[…],"verify":[…],"expected":{"outcome":"accept|reject|no-5xx","code":"…"}},"gaps":["what the plan does not check"]}`;
   const before = usageReport().byModel;
@@ -2020,6 +2025,9 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     }
   }
 
+  // "Same as the happy path (API-EVDWGT-013) with …": the case the words point at is shown to the model too
+  const pointedAt = [...new Set([...text.matchAll(/\b((?:API|UI|EVI)-[A-Z]+(?:-[A-Z])?-\d{2,3})\b/g)].map((m) => m[1]))].filter((id) => id !== input.caseId).map((id) => caseById(id)).filter((c): c is CatalogCase => !!c).slice(0, 2);
+  const modelText = pointedAt.length ? `${text}\n\nREFERENCED CASE${pointedAt.length > 1 ? "S" : ""} (the words above point at ${pointedAt.length > 1 ? "these" : "this"}):\n${pointedAt.map((c) => `[${c.id}] ${catalogCaseText(c).slice(0, 700)}`).join("\n")}` : text;
   const cited = [libCase, ...(cat?.refs ?? []).map((r) => lib.byId.get(r))].filter((c): c is TestCaseRecord => !!c && !libraryCaseProblem(c));
   // The exemplars' library requests are offered first after the cited ones: they were found by meaning, not only by words.
   const fromExemplars = exHits
@@ -2042,7 +2050,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     for (let i = 0; i < tiers.length; i++) {
       const tier = tiers[i];
       if (tier === "reason") reasonTried = true;
-      const ans = await askModel(text, cands, tier, previous && lastErrors.length ? { previous, errors: lastErrors } : undefined, worked);
+      const ans = await askModel(modelText, cands, tier, previous && lastErrors.length ? { previous, errors: lastErrors } : undefined, worked);
       if (ans?.gateway) gateway = ans.gateway;
       if (!ans || (ans.plan === null && !ans.gaps.length && ans.gateway)) {
         lastErrors = [`the model could not be reached: ${ans?.gateway ?? "no answer"}`];
