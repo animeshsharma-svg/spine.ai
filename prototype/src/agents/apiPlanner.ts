@@ -1744,6 +1744,8 @@ interface ModelAnswer {
   gaps: string[];
   /** the answer did not come from the gateway's model: "unreachable: …" or "fallback: <model>" */
   gateway?: string;
+  /** the model answered, but not with valid JSON (cut off, or prose around it) — a model problem, not the gateway's */
+  badJson?: string;
 }
 
 function parseModel(raw: string): ModelAnswer | null {
@@ -1781,7 +1783,7 @@ async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "r
         { role: "system", content: sys },
         { role: "user", content: user },
       ],
-      { tier, maxTokens: tier === "reason" ? 2400 : 2200 },
+      { tier, maxTokens: tier === "reason" ? 2400 : 3000 },
     );
   } catch (e) {
     return { plan: null, gaps: [], gateway: `unreachable: ${String((e as Error).message ?? e).slice(0, 160)}` };
@@ -1792,7 +1794,11 @@ async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "r
   const answered = Object.keys(after).filter((m) => (after[m]?.calls ?? 0) > (before[m]?.calls ?? 0));
   const fallback = answered.find((m) => m !== lastServedModel);
   const a = parseModel(raw);
-  if (!a) return { plan: null, gaps: [], gateway: fallback ? `fallback: ${fallback}` : `unreachable: the answer was not JSON (${raw.trim().slice(0, 80) || "empty"})` };
+  if (!a) {
+    // an answer that starts as JSON but does not parse was cut off or wrapped in prose: the model's doing, retried with a repair
+    if (/\{\s*"plan"/.test(raw) && !fallback) return { plan: null, gaps: [], badJson: `the answer was not valid JSON (${raw.length} chars, ${/\}\s*$/.test(raw.trim()) ? "malformed" : "cut off"})` };
+    return { plan: null, gaps: [], gateway: fallback ? `fallback: ${fallback}` : `unreachable: the answer was not JSON (${raw.trim().slice(0, 80) || "empty"})` };
+  }
   (a as any).raw = raw;
   if (fallback) a.gateway = `fallback: ${fallback}`;
   return a;
@@ -2036,6 +2042,11 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       if (ans?.gateway) gateway = ans.gateway;
       if (!ans || (ans.plan === null && !ans.gaps.length && ans.gateway)) {
         lastErrors = [`the model could not be reached: ${ans?.gateway ?? "no answer"}`];
+        continue;
+      }
+      if (ans.badJson) {
+        lastErrors = [`${ans.badJson} — answer with ONE compact JSON object and nothing else; keep "say" texts short`];
+        previous = undefined;
         continue;
       }
       previous = (ans as any).raw ?? JSON.stringify(ans.plan);
