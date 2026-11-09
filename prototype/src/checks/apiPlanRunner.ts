@@ -341,6 +341,7 @@ function bodyArgs(rc: RunCtx, inst: SetupInstance, vendorUuid: string): BodyArgs
     stamp: s("stamp") || String(Date.now()),
     proposalUuid: s("proposalUuid") || undefined,
     roundUuids: rounds.length ? rounds : undefined,
+    useRfqQuotes: typeof cat.useRfqQuotes === "boolean" ? cat.useRfqQuotes : undefined,
     nowSec: nowSec(),
   };
 }

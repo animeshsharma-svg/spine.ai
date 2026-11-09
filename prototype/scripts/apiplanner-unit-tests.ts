@@ -43,8 +43,8 @@ function check(name: string, ok: boolean, detail?: unknown) {
     const v = await validatePlan({ ...jm2.plan, version: PLAN_VERSION }, { text: t2 });
     check("mutation: price_bid plan validates", v.ok, v.errors);
   }
-  const t3 = "Convert the pricing round into a live auction: x is omitted\nSteps: Send `POST /trade/move_to_auction` exactly as the journey does. Remove `widgets.global_price_components[0].uuid` from the body.\nExpected: A clean refusal.";
-  const jm3 = journeyMutation(t3, "API-NCONVERT-001");
+  const t3 = "Verify the OTP: otp is omitted\nSteps: Send `POST /v1/verify_otp` exactly as the journey does. Remove `otp` from the body.\nExpected: A clean refusal.";
+  const jm3 = journeyMutation(t3, "API-NVLOGIN-001");
   check("mutation: an unknown journey step is an honest none", !!jm3 && "none" in jm3 && /not an operation/.test(jm3.none), jm3);
   const t4 = "Add the pricing round: configurations.title is omitted\nSteps: Send `POST /trade/template_input` exactly as the journey does. Remove `configurations.title` from the body.\nExpected: A clean refusal: HTTP 4xx.";
   const jm4 = journeyMutation(t4, "API-NRFPSTG-004");
@@ -126,6 +126,23 @@ function check(name: string, ok: boolean, detail?: unknown) {
   check("rules: the closed-window bid rule still compiles", c.plan?.setup.recipe === "closed_rfq" && c.plan.expected.outcome === "reject", { cov: c.coverage, gaps: c.gaps, plan: c.plan });
   const lib = await compileApiPlan({ caseId: "EDGE-PUB-076" }, { llm: false });
   check("library: a library case still compiles without a model", !!lib.plan && lib.plan.act.some((a) => a.op === "library"), { cov: lib.coverage, gaps: lib.gaps, errors: lib.errors });
+}
+
+// ── 7 · convert to auction; a request with no body is not the case's request ──
+{
+  const t = "Convert the pricing round into a live auction: x is omitted\nSteps: Send `POST /trade/move_to_auction` exactly as the journey does. Remove `widgets.global_price_components[0].uuid` from the body.\nExpected: A clean refusal: HTTP 4xx.";
+  const jm = journeyMutation(t, "API-NCONVERT-001");
+  check("convert: the journey's convert step is an op now", !!jm && "plan" in jm && jm.plan.act[0].op === "convert_to_auction" && jm.plan.setup.recipe === "rfq_with_bid", jm);
+  if (jm && "plan" in jm) {
+    const v = await validatePlan({ ...jm.plan, version: PLAN_VERSION }, { text: t });
+    check("convert: the mutated auction body validates (the path exists in the builder's body)", v.ok, v.errors);
+  }
+  const twice = await validatePlan({ setup: { recipe: "rfq_with_bid" }, act: [{ op: "convert_to_auction", expect: "accept" }, { op: "convert_to_auction", decisive: true }], verify: [], expected: { outcome: "reject", code: "93" } }, { text: "Converting an already-auctioning trade is refused. 422, code 93." });
+  check("convert: converting twice plans as arrange + decisive refusal", twice.ok && twice.plan.act.length === 2 && twice.plan.expected.code === "93", twice.errors);
+  const empty = await validatePlan({ setup: { recipe: "published_rfq" }, act: [{ op: "request", request: { method: "PATCH", path: "/trade/{{tradeId}}/edit_weight_parameters", body: {} } }], verify: [], expected: { outcome: "accept" } }, { text: "Saving weights with the happy-path body works. HTTP 200." });
+  check("request: a write with an empty body is refused by the validator", !empty.ok && empty.errors.some((e) => /sent with no body/.test(e)), empty.errors);
+  const emptyOk = await validatePlan({ setup: { recipe: "published_rfq" }, act: [{ op: "request", request: { method: "PATCH", path: "/trade/{{tradeId}}/edit_weight_parameters", body: {} } }], verify: [], expected: { outcome: "reject" } }, { text: "A request with an empty body {} is refused. HTTP 422 code 2." });
+  check("request: an empty body the case itself sends is fine", emptyOk.ok, emptyOk.errors);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -110,6 +110,7 @@ export type OpId =
   | "award_vendor"
   | "new_version"
   | "clone_event"
+  | "convert_to_auction"
   // vendor writes
   | "open_bid"
   | "price_bid"
@@ -374,6 +375,8 @@ export const OPS: Record<OpId, OpDef> = {
   open_proposal: { id: "open_proposal", kind: "write", method: "POST", path: "/proposal", actor: "buyer", actors: ["buyer", "vendor"], template: "bodies.buildProposalBody (journey step: open the award proposal)", needs: ["eventGroupUuid"], produces: ["proposalUuid"], does: "opens an award proposal" },
   award_vendor: { id: "award_vendor", kind: "write", method: "POST", path: "/proposal/{{proposalUuid}}/add_response?lot_no=", actor: "buyer", actors: ["buyer"], template: "bodies.buildAwardResponseBody (journey step: award the line)", needs: ["proposalUuid", "lineItemUuid"], produces: [], does: "awards the line to a vendor on the proposal" },
   new_version: { id: "new_version", kind: "write", method: "POST", path: "/item_versions", actor: "buyer", actors: ["buyer"], template: "bodies.buildItemVersionBody (journey step: new version)", needs: ["eventGroupUuid"], produces: [], does: "issues a new version of the event" },
+  // The journey's convert step (eventJourney convertAuction): the pricing round becomes a live auction round.
+  convert_to_auction: { id: "convert_to_auction", kind: "write", method: "POST", path: "/trade/move_to_auction", actor: "buyer", actors: ["buyer"], template: "bodies.buildAuctionBody (journey step: convert to auction)", needs: ["tradeId", "lineItemUuid"], produces: [], does: "converts the pricing round into a live auction" },
   clone_event: { id: "clone_event", kind: "write", method: "POST", path: "/event_groups/{{eventGroupUuid}}/create_clone", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-109 (clone an event)", needs: ["eventGroupUuid"], produces: ["cloneUuid"], does: "clones the event" },
 
   open_bid: { id: "open_bid", kind: "write", method: "POST", path: "/v1/bids", actor: "vendor", actors: ["vendor", "vendor2", "buyer"], template: "bodies.buildCreateBid (journey step: open a bid)", needs: ["tradeId"], produces: ["bidUuid"], does: "opens a bid on the pricing round" },
@@ -527,6 +530,8 @@ export interface BodyArgs {
   tradeProduct?: { trade_product_uuid: string; trade_product_id: number; trade_product_category_uuid: string; product_id: number; product_code: string };
   /** the bid total, from the pricing step (for submit) */
   total?: number;
+  /** the client's catalog says whether an auction starts from the RFQ quotes (convert_to_auction) */
+  useRfqQuotes?: boolean;
   /** existing draft rounds, in attach order, for publish */
   roundUuids?: string[];
   nowSec: number;
@@ -606,6 +611,12 @@ export function templateBody(B: any, op: OpId, a: BodyArgs): unknown {
     }
     case "new_version":
       return B.buildItemVersionBody({ eventGroupUuid: a.eventGroupUuid });
+    case "convert_to_auction":
+      return B.buildAuctionBody({
+        pricingTradeUuid: a.pricingTradeUuid, vendorCompanyUuid: a.vendorCompanyUuid, productUuid: a.productUuid, productQualityUuid: a.productQualityUuid,
+        locationUuid: a.locationUuid, lineItemUuid: a.lineItemUuid, pricingTemplateUuid: a.pricingTemplateUuid, quantityValue: a.qty, quantityUnit: a.unit,
+        useRfqQuotes: a.useRfqQuotes ?? true, timing,
+      });
     case "clone_event":
       return {};
     case "open_bid":
@@ -838,6 +849,9 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
     const req: OwnRequest = { method: method as OwnRequest["method"], path, ...(r.body !== undefined && r.body !== null && method !== "GET" ? { body: r.body } : {}) };
     if (method === "GET" && r.body !== undefined && r.body !== null) warnings.push(`${n}: a GET sends no body; it was dropped`);
     if (req.body !== undefined && (typeof req.body !== "object")) errors.push(`${n}: request.body must be a JSON object or list`);
+    // a write with no body (or {}) tests nothing the case describes — unless the case itself sends an empty body
+    if (!isVerify && method !== "GET" && (req.body === undefined || (typeof req.body === "object" && !Array.isArray(req.body) && !Object.keys(req.body as object).length)) && !/\{\s*\}|empty body|no body|without a body|body omitted/i.test(caseText))
+      errors.push(`${n}: ${method} ${route} is sent with no body — a request step carries the body the case writes (or a library/operation step has a working one)`);
     const toks = tokensIn({ p: path, b: req.body ?? null });
     const live = [...new Set(toks.filter((t) => LIVE_RECORD_PLACEHOLDERS.has(t)))];
     if (live.length) errors.push(`${n}: it needs ${live.map((t) => `{{${t}}}`).join(", ")}, a live business record a plan never touches`);
@@ -1591,6 +1605,7 @@ const JOURNEY_STEP_OPS: Record<string, { op: OpId; as: ActorId; recipe: RecipeId
   "POST /proposal": { op: "open_proposal", as: "buyer", recipe: "closed_rfq_with_bid", arrange: [] },
   "POST /proposal/:id/add_response": { op: "award_vendor", as: "buyer", recipe: "closed_rfq_with_bid", arrange: [{ op: "open_proposal", as: "buyer", expect: "accept", say: "The buyer opens the award proposal." }] },
   "POST /item_versions": { op: "new_version", as: "buyer", recipe: "awarded_rfq", arrange: [] },
+  "POST /trade/move_to_auction": { op: "convert_to_auction", as: "buyer", recipe: "rfq_with_bid", arrange: [] },
 };
 
 export function journeyMutation(text: string, caseId?: string): { plan: Omit<ApiPlan, "version">; note: string } | { none: string } | null {
@@ -1746,6 +1761,7 @@ async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "r
     `${await vocabularyPrompt(cands)}\n\n${EXAMPLES}\n\n${worked ? `${worked}\n\n` : ""}RULES: the setup must create the state the case starts from (closed_* = the window is over; *_short = still open but closing in ~2 min, so a wait can see it close). ` +
     `The decisive act is the one the case is about; earlier acts arrange (they must succeed; when an arrange act carries the case's own invalid input, give it "ifRefused":"pass"). Use verify read-backs when the case says something is kept, changed, shown or not changed. ` +
     `expected.code only when the app's error code is known (33 order not active/window over, 712 RFP ends after RFQ, 536 not allowed to view, 455/101 not authorised, 95 stage closed or withdrawn, 2 insufficient parameters, 801 proposal exists, 96 the vendor already bid themselves (surrogate refused), 99 a surrogate bid already exists for the vendor, 737 technical response pending, 512 cannot remove a vendor who already participated, 782 uninvited vendor cannot bid, 34 a bid already placed from your team, 875 revise locked after submission, 94 already converted to auction); otherwise leave it out. ` +
+    `When the outcome hangs on a company setting or gate the plan cannot switch, still plan the steps and set "dependsOnSetting":"<the setting>" on the plan. ` +
     `Use no-5xx only when the case is about not crashing; a case that says something is REFUSED by the app (cannot / not allowed / HTTP 4xx / an error code) expects reject — but "the buyer rejects a bid", "the vendor regrets a line", "blocks the vendor" are product ACTIONS the app performs on request: plan them as accept unless the case says the app turns them away — and the setup + earlier acts must create the state that makes the app refuse it. A case that says something works or is kept expects accept, with a verify read-back of what was kept. ` +
     `Send each step as the actor whose app may call it: /v1/bids and bid submission are the vendor's (as "vendor"); event, round, audience, surrogate, award and indicator calls are the buyer's.\n\n` +
     `TEST CASE:\n"""${text.slice(0, 1200)}"""\n\n` +
@@ -1815,6 +1831,7 @@ function judgeCoverage(text: string, plan: ApiPlan, modelGaps: string[], extra: 
   if (pol && pol !== plan.expected.outcome && !(pol === "reject" && plan.expected.outcome === "no-5xx" && /should|must|ideally/.test(t)))
     gaps.push(`the case reads as “${OUTCOME_WORD[pol]}”, but the plan checks “${OUTCOME_WORD[plan.expected.outcome]}”`);
   if (STATE_WORDS.test(t) && !plan.verify.length) gaps.push("it does not read the record back to confirm what was kept or shown");
+  if (plan.dependsOnSetting) gaps.push(`it depends on a company setting this run does not change (${plan.dependsOnSetting}) — a failure is reported as couldn't tell, not as a bug`);
   if (UI_WORDS.test(t)) gaps.push("what the screen shows (an API plan checks the data, not the page)");
   const oos = t.match(OUT_OF_SCOPE)?.[0];
   if (oos) gaps.push(`the part about “${oos}” is outside what an API plan on a sourcing event checks`);
@@ -1915,6 +1932,11 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
   if (!text && !libCase) return out({ plan: null, coverage: "none", gaps: ["nothing to compile — no text and no known case id"], source: "none" });
   /** a validated plan → its read-back (when none), then its coverage */
   const finish = async (v: Validation, modelGaps: string[], extra: string[], rest: Partial<CompiledApiPlan> & Pick<CompiledApiPlan, "source">): Promise<CompiledApiPlan> => {
+    // a company setting / gate the case names is one the run does not change: a failure is "couldn't tell", not a bug
+    if (!v.plan.dependsOnSetting) {
+      const gate = text.match(/\bgate:\s*`?([A-Za-z_][\w.]*)`?/i)?.[1] ?? text.match(/`([a-z_]{6,})`\s+(?:is|set|switched|turned)\s+(?:on|off)\b/i)?.[1] ?? text.match(/\b(?:setting|config(?:uration)?|flag)\s+`([a-z_]{6,})`/i)?.[1];
+      if (gate) v.plan.dependsOnSetting = gate.slice(0, 120);
+    }
     const av = await autoVerify(v.plan);
     const cov = judgeCoverage(text, av.plan, modelGaps, extra, heads);
     return out({ ...rest, plan: av.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...(rest.warnings ?? v.warnings), ...(av.added ? [av.added] : [])] });
@@ -2056,6 +2078,30 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     candidates: cands.map((c) => c.id),
     reasonTried,
   } as any);
+}
+
+/** Gap sentences the compiler writes itself (re-derived on a re-check; the model's own gap words are kept). */
+const CODE_GAP = /^the case reads as |^it does not read the record back|^what the screen shows|^the part about “|^compiled by a fixed rule|^library case \S+ (needs a starting state|is written for)|^the plan has the |^the case needs a caller|^it depends on a company setting|^a read-back was added/;
+
+/**
+ * RE-CHECK A STORED PLAN IN CODE (no model): the validator with the case's words (actors fixed from the
+ * app allow-lists, the outcome read against the words, the code the case names), a read-back added when
+ * the plan has none, and the coverage judged again. The model's own gap sentences survive; the compiler's
+ * are derived afresh. Used by `compile-api-plans.ts --revalidate` on every stored plan.
+ */
+export async function recheckStoredPlan(raw: unknown, text: string, heads: string[], storedGaps: string[]): Promise<{ ok: boolean; plan: ApiPlan; coverage: "full" | "partial"; gaps: string[]; warnings: string[]; errors: string[]; changed: string[] }> {
+  const v = await validatePlan(raw, { text, heads });
+  const changed: string[] = [];
+  if (!v.ok) return { ok: false, plan: v.plan, coverage: "partial", gaps: storedGaps, warnings: v.warnings, errors: v.errors, changed };
+  const before = JSON.stringify((raw as ApiPlan)?.act?.map((a) => a.as) ?? []);
+  if (JSON.stringify(v.plan.act.map((a) => a.as)) !== before) changed.push("actor");
+  if ((raw as ApiPlan)?.expected?.outcome !== v.plan.expected.outcome) changed.push(`outcome ${(raw as ApiPlan)?.expected?.outcome} → ${v.plan.expected.outcome}`);
+  if (!(raw as ApiPlan)?.expected?.code && v.plan.expected.code) changed.push(`code ${v.plan.expected.code}`);
+  const av = await autoVerify(v.plan);
+  if (av.added) changed.push("read-back added");
+  const kept = storedGaps.filter((g) => !CODE_GAP.test(g));
+  const cov = judgeCoverage(text, av.plan, kept, [...libraryActProblems(av.plan), ...v.soft.map((g) => g.split(" — ")[0])], heads);
+  return { ok: true, plan: av.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...v.warnings, ...(av.added ? [av.added] : [])], errors: [], changed };
 }
 
 /** The vocabulary, for the dashboard and for documentation. */
