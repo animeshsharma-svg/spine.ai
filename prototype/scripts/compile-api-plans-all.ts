@@ -10,6 +10,7 @@
  *     --concurrency 2          workers (default 2 — the gateway rate-limits bursts)
  *     --limit N                at most N cases
  *     --dry                    list what would be compiled
+ *     --rebuild-index          only rebuild index.json from the per-case files (no model)
  *
  * Which cases: every catalog case whose route is the API test compiler (caseRouting kind "api-plan"),
  * all priorities and verdicts. Each is compiled once with the fast tier (never the reason tier) and the
@@ -100,6 +101,12 @@ function rebuildIndex() {
   for (const [id, v] of Object.entries(oldIdx)) if (!cases[id]) cases[id] = v;
   writeAtomic(join(COMPILED_API_DIR, "index.json"), { updatedAt: new Date().toISOString(), planVersion: PLAN_VERSION, cases });
   return Object.keys(cases).length;
+}
+
+// --rebuild-index: only rebuild index.json from the per-case files (after a --revalidate), no model
+if (flag("rebuild-index")) {
+  log(`index rebuilt from the per-case files: ${rebuildIndex()} case(s)`);
+  process.exit(0);
 }
 
 // ── which cases ──
