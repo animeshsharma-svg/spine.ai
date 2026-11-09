@@ -45,7 +45,7 @@ def shot_path(file):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args = [a for a in sys.argv[1:] if not a.startswith("--") and not a.endswith(".json")]
     out = HERE / "RCA_Real_Bugs_Run_Report.xlsx"
     if "--out" in sys.argv:
         out = Path(sys.argv[sys.argv.index("--out") + 1])
@@ -59,12 +59,27 @@ def main():
     if not runs:
         print("give at least one run id (prototype/data/sheet-runs/<id>.json)")
         sys.exit(1)
-    # the latest verdict per case wins (a re-run replaces the earlier one)
+    # the latest verdict per case wins (a re-run replaces the earlier one); a case broken by the network is never "latest"
     latest = {}
     for r in sorted(runs, key=lambda r: r["startedAt"]):
         for c in r["cases"]:
+            if "ENETUNREACH" in c["why"] or "ETIMEDOUT" in c["why"]:
+                continue
             if c["status"] != "Not run" or c["id"] not in latest:
                 latest[c["id"]] = (r, c)
+    # a QA review of a run's own evidence (review.json: {case id: {status, note}}) — written into Actual Result, never silent
+    review = {}
+    if "--review" in sys.argv:
+        review = json.load(open(sys.argv[sys.argv.index("--review") + 1]))
+    for cid, rv in review.items():
+        if cid in latest:
+            r, c = latest[cid]
+            c = dict(c)
+            c["why"] = f"{rv['note']} [Reviewed by QA from the run's evidence; the automated verdict was {c['status']}: {c['why'][:300]}]"
+            c["status"] = rv["status"]
+            if rv["status"] != "Fail":
+                c.pop("bug", None)
+            latest[cid] = (r, c)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Test Cases"

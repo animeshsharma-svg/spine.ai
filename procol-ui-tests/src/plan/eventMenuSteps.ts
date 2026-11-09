@@ -116,7 +116,13 @@ export async function runEventMenuStep(x: { page: Page; state: EventMenuState },
         const uuid = x.page.url().match(/\/project\/([^/?#]+)/)?.[1];
         const eg = uuid ? decodeProcolId(uuid) : null;
         const mode = /technical|rfp/i.test(r.tab) ? 5 : /auction/i.test(r.tab) ? 0 : 1;
-        const rows = (eg ? await responsesOf(eg) : null)?.filter((row) => row.mode === mode) ?? null;
+        // a bid's record can lag the screen by seconds: a fresh surrogate bid read too early looked "from the vendor
+        // portal" (5 and 9 Nov, three times; read later the buyer was its author) — read again before concluding that
+        let rows = (eg ? await responsesOf(eg) : null)?.filter((row) => row.mode === mode) ?? null;
+        for (let tries = 0; rows && tries < 4 && a.surrogate !== undefined && rows.filter((row) => row.surrogate).length < Number(a.surrogate); tries++) {
+          await x.page.waitForTimeout(5_000);
+          rows = (eg ? await responsesOf(eg) : null)?.filter((row) => row.mode === mode) ?? rows;
+        }
         if (rows) {
           fromRecords = true;
           for (const c of r.columns) {
