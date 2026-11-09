@@ -515,7 +515,8 @@ const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
 const sameCellValue = (a: string, b: string) => {
   const num = (x: string) => {
     // "9,99,99,999 KG" (Indian grouping + unit) is 99999999
-    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z()]+$/, "");
+    // a unit may carry digits after its first letter: "10 M3", "5 CM2" (5 Nov)
+    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z][A-Za-z0-9()]*$/, "");
     return /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : null;
   };
   const na = num(a), nb = num(b);
