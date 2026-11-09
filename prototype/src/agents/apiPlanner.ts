@@ -1585,6 +1585,13 @@ export async function autoVerify(plan: ApiPlan): Promise<{ plan: ApiPlan; added?
     else if (recipe.id === "draft_event") v = readEvent([{ path: "stages", op: "count", value: 0, say: "the event still has no round (nothing was added)" }]);
   } else if (a.op === "place_bid" || a.op === "submit_bid" || a.op === "surrogate_bid") {
     v = readRound(accept ? [{ path: "bid_count", op: "gte", value: recipe.bids + 1, say: "the round counts the new bid" }] : [{ path: "bid_count", op: "equals", value: recipe.bids, say: "the round counts no new bid (the refused bid left nothing)" }]);
+  } else if ((a.op === "open_bid" || a.op === "price_bid") && !accept) {
+    // a refused opening/pricing leaves no submitted bid behind
+    v = readRound([{ path: "bid_count", op: "equals", value: recipe.bids, say: "the round counts no new bid (nothing was created)" }]);
+  } else if (a.op === "convert_to_auction") {
+    // the event's rounds: the auction round is added to the pricing round (accept), or nothing is (reject)
+    const rounds = recipe.steps.filter((st) => st === "add_stage_rfp" || st === "add_stage_pricing").length + plan.act.slice(0, di).filter((x) => x.op === "convert_to_auction" || x.op === "add_rfq_round" || x.op === "add_rfp_round").length;
+    v = readEvent(accept ? [{ path: "stages", op: "count_gte", value: rounds + 1, say: "the event carries the new auction round" }] : [{ path: "stages", op: "count", value: rounds, say: "the event has no new round (the conversion left nothing)" }]);
   } else if ((a.op === "open_proposal" || a.op === "award_vendor") && accept) {
     v = readEvent([{ path: "proposals", op: "non_empty", say: "the event carries the award proposal" }]);
   }

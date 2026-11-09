@@ -139,6 +139,11 @@ function check(name: string, ok: boolean, detail?: unknown) {
   }
   const twice = await validatePlan({ setup: { recipe: "rfq_with_bid" }, act: [{ op: "convert_to_auction", expect: "accept" }, { op: "convert_to_auction", decisive: true }], verify: [], expected: { outcome: "reject", code: "93" } }, { text: "Converting an already-auctioning trade is refused. 422, code 93." });
   check("convert: converting twice plans as arrange + decisive refusal", twice.ok && twice.plan.act.length === 2 && twice.plan.expected.code === "93", twice.errors);
+  const avc = await autoVerify(twice.plan);
+  check("read-back: a refused second conversion reads the event back with 2 rounds (RFQ + the first auction)", avc.plan.verify[0]?.assert[0].path === "stages" && avc.plan.verify[0]?.assert[0].op === "count" && avc.plan.verify[0]?.assert[0].value === 2, avc.plan.verify);
+  const ob = await validatePlan({ setup: { recipe: "closed_rfq" }, act: [{ op: "open_bid", as: "vendor" }], verify: [], expected: { outcome: "reject" } });
+  const avo = await autoVerify(ob.plan);
+  check("read-back: a refused bid opening reads the bid count as unchanged", avo.plan.verify[0]?.assert[0].path === "bid_count" && avo.plan.verify[0]?.assert[0].value === 0, avo.plan.verify);
   const empty = await validatePlan({ setup: { recipe: "published_rfq" }, act: [{ op: "request", request: { method: "PATCH", path: "/trade/{{tradeId}}/edit_weight_parameters", body: {} } }], verify: [], expected: { outcome: "accept" } }, { text: "Saving weights with the happy-path body works. HTTP 200." });
   check("request: a write with an empty body is refused by the validator", !empty.ok && empty.errors.some((e) => /sent with no body/.test(e)), empty.errors);
   const emptyOk = await validatePlan({ setup: { recipe: "published_rfq" }, act: [{ op: "request", request: { method: "PATCH", path: "/trade/{{tradeId}}/edit_weight_parameters", body: {} } }], verify: [], expected: { outcome: "reject" } }, { text: "A request with an empty body {} is refused. HTTP 422 code 2." });
