@@ -44,6 +44,15 @@ describe("gap resolver: a gap the plan's own steps cover is dropped, said out lo
     const c = resolveCoveredGaps(["Compare the audience count before and after"], [{ step: "expect_remembered", args: { key: "n" } }]);
     assert.equal(c.gaps.length, 1, "a plain same-element re-read is not a cross-target comparison");
   });
+  test("a second vendor's BID is covered by a surrogate bid; a second vendor's SESSION is not", async () => {
+    const { resolveCoveredGaps } = await import("../src/agents/planner.js");
+    const bid = resolveCoveredGaps(["The prepared event has only one QA vendor, so a second vendor with a different total cannot be added or asserted."], [{ step: "open_prepared", args: { screen: "master_qcs" } }, { step: "place_surrogate_bid", args: { price: 90 } }, { step: "expect_qcs_ranks" }]);
+    assert.deepEqual(bid.gaps, []);
+    const session = resolveCoveredGaps(["No catalog step can sign in as vendor B and assert the event is absent from B's portal list"], [{ step: "place_surrogate_bid", args: { price: 90 } }]);
+    assert.equal(session.gaps.length, 1);
+    const none = resolveCoveredGaps(["The prepared event has only one QA vendor, so a second vendor with a different total cannot be added."], [{ step: "open_prepared", args: { screen: "master_qcs" } }, { step: "expect_qcs_ranks" }]);
+    assert.equal(none.gaps.length, 1, "without a surrogate bid in the plan the gap stays");
+  });
   test("a gap no step covers stays a gap", async () => {
     const { resolveCoveredGaps } = await import("../src/agents/planner.js");
     const r = resolveCoveredGaps(["Enable the tenant setting rfpEvaluationOn = lot"], [{ step: "expect_options", args: { name: "x", options: ["y"] } }, { step: "switch_portal", args: { to: "vendor" } }]);
