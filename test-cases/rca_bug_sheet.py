@@ -82,6 +82,8 @@ def main():
             c = dict(c)
             c["why"] = f"{rv['note']} [Reviewed by QA from the run's evidence; the automated verdict was {c['status']}: {c['why'][:300]}]"
             c["status"] = rv["status"]
+            if rv.get("priority"):
+                c["case"] = dict(c["case"], priority=rv["priority"])
             if rv["status"] != "Fail":
                 c.pop("bug", None)
             latest[cid] = (r, c)
