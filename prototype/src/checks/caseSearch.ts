@@ -247,12 +247,13 @@ export async function searchCases(query: string, opts: { k?: number; groups?: nu
     const g = bySec.get(c.section) ?? { section: c.section, group: c.group, layer: c.layer, total: 0, shown: 0, score: 0, sum: 0, cases: [] };
     g.total++;
     if (g.cases.length < (opts.perGroup ?? 8)) g.cases.push(c);
-    if (g.cases.length <= 3) g.sum += c.score;
+    // the section is carried by its best three cases (scored is sorted), whatever the page shows
+    if (g.total <= 3) g.sum += c.score;
     if (g.layer !== c.layer) g.layer = "ui/api";
     bySec.set(c.section, g);
   }
   const groups = [...bySec.values()]
-    .map((g) => { const secHit = terms(g.section).filter((t) => q.includes(t)).length; g.score = g.sum / Math.min(3, Math.max(1, g.cases.length)) + 0.08 * Math.min(3, secHit) + 0.02 * Math.log1p(g.total); g.shown = g.cases.length; return g; })
+    .map((g) => { const secHit = terms(g.section).filter((t) => q.includes(t)).length; g.score = g.sum / Math.min(3, g.total) + 0.08 * Math.min(3, secHit) + 0.02 * Math.log1p(g.total); g.shown = g.cases.length; return g; })
     .sort((a, b) => b.score - a.score)
     .slice(0, opts.groups ?? 8)
     .map(({ sum: _s, ...g }) => g);
