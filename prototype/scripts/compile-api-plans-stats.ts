@@ -117,3 +117,19 @@ if (flag("mutations")) {
   console.log("EXPECTED"); for (const [k, v] of Object.entries(exp).sort((a, b) => b[1] - a[1])) console.log(`  ${v} ${k}`);
   process.exit(0);
 }
+
+// --by-group: per catalog group, how many plans speak for their case
+if (flag("by-group")) {
+  const by: Record<string, { n: number; speaks: number; full: number; none: number }> = {};
+  for (const c of cases) {
+    const g = c.group;
+    by[g] ??= { n: 0, speaks: 0, full: 0, none: 0 };
+    by[g].n += 1;
+    const sp = storedApiPlan(c.id);
+    if (planSpeaksForCase(c.id, catalogCaseText(c))) by[g].speaks += 1;
+    if (sp?.meta.coverage === "full" && sp.meta.validated) by[g].full += 1;
+    if (!sp) by[g].none += 1;
+  }
+  for (const [g, v] of Object.entries(by).sort((a, b) => b[1].n - a[1].n)) console.log(`${g.padEnd(16)} ${String(v.n).padStart(4)} cases  ${String(v.speaks).padStart(4)} speak  ${String(v.full).padStart(4)} full  ${String(v.none).padStart(4)} none`);
+  process.exit(0);
+}
