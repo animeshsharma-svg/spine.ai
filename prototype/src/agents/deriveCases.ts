@@ -351,8 +351,33 @@ export async function deriveCases(input: { text: string; companyId?: number; max
     existing.length ? `ALREADY WRITTEN (do not repeat these; write what they miss):\n${existing.map((e) => `${e.id} ${e.title}`).join("\n")}` : "",
     `Write at most ${max} cases.`,
   ].filter(Boolean).join("\n\n");
-  const raw = await chat([{ role: "system", content: MATRIX }, { role: "user", content: user }], { tier: "reason", temperature: 0.2, maxTokens: 12000 }).catch(() => "");
-  const drafts: any[] = Array.isArray(jsonOf(raw)) ? jsonOf(raw) : [];
+  // the model answers a JSON array, sometimes wrapped ({"cases":[…]}) or cut short: take what parses, and when
+  // nothing does, ask once more on the fast tier before giving up
+  const arrayOf = (raw: string): any[] => {
+    const j = jsonOf(raw);
+    if (Array.isArray(j)) return j;
+    if (j && typeof j === "object") for (const v of Object.values(j)) if (Array.isArray(v) && v.length && typeof v[0] === "object") return v as any[];
+    // a cut-short array: keep the complete objects before the break
+    const start = raw.indexOf("[");
+    if (start >= 0) {
+      const out: any[] = [];
+      let depth = 0, from = -1;
+      for (let i = start + 1; i < raw.length; i++) {
+        const ch = raw[i];
+        if (ch === "{") { if (depth === 0) from = i; depth++; }
+        else if (ch === "}") { depth--; if (depth === 0 && from >= 0) { try { out.push(JSON.parse(raw.slice(from, i + 1))); } catch { /* skip */ } from = -1; } }
+      }
+      return out;
+    }
+    return [];
+  };
+  let raw = await chat([{ role: "system", content: MATRIX }, { role: "user", content: user }], { tier: "reason", temperature: 0.2, maxTokens: 12000 }).catch((e) => (say(`The reasoning model could not answer (${String((e as Error).message).slice(0, 80)}).`), ""));
+  let drafts: any[] = arrayOf(raw);
+  if (!drafts.length) {
+    say(`The reasoning model's answer held no cases (${raw ? `${raw.length} characters, starts "${raw.slice(0, 60).replace(/\s+/g, " ")}"` : "empty"}); asking the fast model once.`);
+    raw = await chat([{ role: "system", content: MATRIX }, { role: "user", content: user }], { tier: "fast", temperature: 0.2, maxTokens: 8000 }).catch(() => "");
+    drafts = arrayOf(raw);
+  }
   say(`The model proposed ${drafts.length} cases; checking each against the catalog and the grounding…`);
 
   // 4 · keep what is grounded, mark what already exists
