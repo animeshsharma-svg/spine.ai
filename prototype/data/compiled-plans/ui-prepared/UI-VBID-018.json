@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-018",
+  "title": "Bidding before the window opens is refused",
+  "compiledAt": "2026-11-09T20:02:33.946Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-001",
+   "UI-XDBOQ-020"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject Bid Before Event Start",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event for the bidding test."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Reschedule Event"
+     ]
+    },
+    "note": "Verify the event is upcoming, before its bidding window has opened."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round before bidding starts."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to submit a bid and require the portal to refuse it or keep submission disabled."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify no response was created."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Assert that the buyer sees no vendor response after the refused bid."
+   }
+  ]
+ }
+}

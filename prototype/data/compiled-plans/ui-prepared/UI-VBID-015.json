@@ -1,0 +1,128 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-015",
+  "title": "Offering in a different unit is refused",
+  "compiledAt": "2026-11-09T20:06:24.708Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Changing the unit on the vendor's offer and observing whether the field is editable or the change is refused",
+   "Verifying that the submitted bid's unit equals the requested unit"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Changing the unit on the vendor's offer and observing whether the field is editable or the change is refused; Verifying that the submitted bid's unit equals the requested unit"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Different Offer Unit Refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an RFQ event for the vendor-side offer test."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the event has a pricing offer."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product to receive an offer."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before scheduling."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will submit the offer."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the supplier portal for the invited vendor."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ offer sheet."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "change the unit on the vendor offer, submit the bid, and verify that the unit change is refused or the submitted bid keeps the requested unit"
+    },
+    "note": "No catalog step can edit or assert the offer unit."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console after the vendor interaction."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the vendor submission is visible to the buyer if the tester submitted it."
+   }
+  ]
+ }
+}

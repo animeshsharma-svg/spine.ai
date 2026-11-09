@@ -2,16 +2,19 @@
  "meta": {
   "caseId": "UI-SUR-010",
   "title": "Add Bid is offered on an Upcoming event",
-  "compiledAt": "2026-10-19T11:49:46.542Z",
+  "compiledAt": "2026-11-09T19:57:06.556Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "The required Upcoming event state cannot be created or reached from the prepared live event; therefore the specific rule that surrogate bids are accepted before the event opens is not directly tested.",
-   "The contrast with vendor-side bidding being refused before the window opens cannot be tested because the prepared state does not provide an upcoming event or a vendor-side bid step."
+   "Deterministically selecting an existing event specifically in the Upcoming state when no event title or ID is provided"
   ],
   "warnings": [
-   "can only test part of this — no step for: The required Upcoming event state cannot be created or reached from the prepared live event; therefore the specific rule that surrogate bids are accepted before the event opens is not directly tested.; The contrast with vendor-side bidding being refused before the window opens cannot be tested because the prepared state does not provide an upcoming event or a vendor-side bid step."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Deterministically selecting an existing event specifically in the Upcoming state when no event title or ID is provided"
   ],
   "state": "live",
   "screen": "participants",
@@ -22,36 +25,36 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Surrogate Bid on Upcoming Event",
+  "title": "UI-SUR-010 Upcoming Event Add Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's Participants tab as required for prepared-state cases."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Upcoming"
+    },
+    "note": "Verify that the opened event is in the required Upcoming state."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Ensure the Participants list is rendered and eligible vendor rows are available."
-   },
-   {
-    "step": "expect_participant",
-    "args": {
-     "addBid": true
-    },
-    "note": "Assert that the configured invited vendor's row offers the Add Bid surrogate-bidding control."
+    "note": "Open the event's Participants screen where Add Bid is offered."
    },
    {
     "step": "place_surrogate_bid",
     "args": {},
-    "note": "Place a buyer-side bid for the eligible vendor."
+    "note": "Place a surrogate bid as the buyer."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the surrogate bid was accepted and recorded as submitted."
+    "note": "Assert that the surrogate bid was accepted and recorded."
    }
   ]
  }

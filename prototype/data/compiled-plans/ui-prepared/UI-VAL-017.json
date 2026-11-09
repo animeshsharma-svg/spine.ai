@@ -1,0 +1,183 @@
+{
+ "meta": {
+  "caseId": "UI-VAL-017",
+  "title": "Every validation message is readable and names the problem",
+  "compiledAt": "2026-11-09T20:04:39.328Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-VAL-009",
+   "UI-TPL-015"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VAL-017 Readable Validation Messages",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the RFQ needed for the refusal scenarios."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VAL-017 Validation Messages"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ so vendor pricing, surrogate bidding, and price-cap validations are available."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the line item required for pricing validations."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required to publish and bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so refusal paths on a live event can be exercised."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor session for the invalid vendor-price refusal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing sheet in the supplier portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": -100
+     },
+     "because": "price",
+     "expect": "refused"
+    },
+    "note": "Verify the negative price is refused with a message naming the price problem."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console for buyer-side refusal paths."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published participants list for surrogate bidding and price-cap validation."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_surrogate_bid",
+     "args": {
+      "noPrice": true
+     },
+     "because": "price",
+     "expect": "refused"
+    },
+    "note": "Verify submitting a surrogate bid without a price is refused with a price-related message."
+   },
+   {
+    "step": "add_price_cap",
+    "args": {
+     "noPrice": true
+    },
+    "note": "Attempt to save a vendor price cap without entering a value; the step checks Procol's refusal."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "price"
+    },
+    "note": "Confirm the price-cap refusal is an error message naming the price requirement."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "fixed",
+     "at": "-10m",
+     "expect": "refused",
+     "message": "time"
+    },
+    "note": "Verify a past submission end time is refused with a time-related message."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "project",
+     "noReason": true
+    },
+    "note": "Attempt withdrawal without the required remark."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "remark"
+    },
+    "note": "Confirm the withdrawal refusal names the missing remark requirement."
+   }
+  ]
+ }
+}

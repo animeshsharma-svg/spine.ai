@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-024",
+  "title": "Convert to auction and new version keep the BOQ context",
+  "compiledAt": "2026-11-09T20:00:17.349Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the rendered grid is specifically the BOQ grid with BOQ tabs rather than the standard line-item form.",
+   "needs a different starting state than bid (asked for set_schedule)"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the rendered grid is specifically the BOQ grid with BOQ tabs rather than the standard line-item form."
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ context survives conversion and versioning",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed BOQ RFQ project."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the RFQ to an auction."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "boqProject=true"
+    },
+    "note": "Verify the converted auction URL preserves BOQ context."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify the converted auction create screen rendered a sheet grid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "back"
+    },
+    "note": "Return to the original project before creating a new version."
+   },
+   {
+    "step": "create_new_version",
+    "args": {},
+    "note": "Create a new version of the BOQ project."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "boqProject=true"
+    },
+    "note": "Verify the new-version URL preserves BOQ context."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify the new-version screen rendered a sheet grid."
+   }
+  ]
+ }
+}

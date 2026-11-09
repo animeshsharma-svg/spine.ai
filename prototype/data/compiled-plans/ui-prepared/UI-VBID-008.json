@@ -1,0 +1,133 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-008",
+  "title": "Submitting the bid confirms it",
+  "compiledAt": "2026-11-09T20:02:01.843Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Vendor bid submission confirmation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage event create flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-008 Bid Submission Confirmation"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ pricing stage."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the pricing template required for the RFQ sheet."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the vendor to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor for the submission."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the event so the vendor can submit a bid."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify the buyer initially has no vendor response."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ bid sheet in the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Assert that the vendor portal shows the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Assert that the buyer now sees exactly one direct vendor response and the participation count increased to one."
+   }
+  ]
+ }
+}

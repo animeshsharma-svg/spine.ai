@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-006",
+  "title": "A window that has already closed at publish time",
+  "compiledAt": "2026-11-09T20:02:15.366Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Set and save an absolute end time in the past on the create-screen schedule.",
+   "Observe whether Publish itself refuses the past-end schedule or publishes directly in a Closed state.",
+   "Attempt the vendor bid immediately after publishing the past-end schedule."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "cannot test this case yet — no step can observe: Set and save an absolute end time in the past on the create-screen schedule.; Observe whether Publish itself refuses the past-end schedule or publishes directly in a Closed state.; Attempt the vendor bid immediately after publishing the past-end schedule."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-SCH-006 Past-End Schedule Publish",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create a comparable event context."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-SCH-006 Past-End Schedule Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the pricing stage so line items can be added."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Set a valid schedule because the catalog cannot set an absolute past end time."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a vendor so a bid attempt is possible."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the comparable event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached its published project page."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Approximate the closed-event branch by ending the published event before the bid attempt."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_bid",
+     "expect": "refused",
+     "because": "Order not active"
+    },
+    "note": "Verify that a vendor bid is refused after the event is closed."
+   }
+  ]
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-012",
+  "title": "Text in a price cell is refused, not coerced",
+  "compiledAt": "2026-11-09T20:02:15.471Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SS-007",
+   "UI-TPL-015"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject text in vendor price cell",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage event so the RFQ pricing sheet can be configured."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-012 Text Price Validation"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage because the case concerns a vendor price cell."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create one line item so the pricing sheet has a price cell."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the generated pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor needed to test the supplier portal."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its bid sheet."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is available as a real published project."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the supplier portal where the vendor price cell is shown."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ bid sheet."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": "abc"
+     },
+     "expect": "refused"
+    },
+    "note": "Type text into the price cell and submit; pass only if the portal refuses it, clears it, or leaves submission disabled rather than storing zero."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to inspect whether an invalid bid was created."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Assert that no vendor response, including a zero-priced bid, was created."
+   }
+  ]
+ }
+}

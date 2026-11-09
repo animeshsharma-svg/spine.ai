@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "UI-XDAUC-006",
+  "title": "In conversion mode only tick size, ceiling and floor can be edited in the sheet",
+  "compiledAt": "2026-11-09T19:59:20.797Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Conversion Mode Editable Sheet Controls",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared event summary before entering conversion mode."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Enter the conversion-mode create screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Confirm conversion landed on the create screen."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "editable": [
+      "Tick Size",
+      "Ceiling Price",
+      "Floor Price"
+     ],
+     "readonly": [
+      "Product",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Assert that only tick size, ceiling price, and floor price are editable while product and quantity are locked."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "RFQ"
+    },
+    "note": "Assert the RFQ event-type tab is disabled in conversion mode."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "RFQ",
+     "text": "already configured as an RFQ"
+    },
+    "note": "Verify the RFQ tab's disabled-state tooltip explains the restriction."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "RFP"
+    },
+    "note": "Assert the RFP event-type tab is disabled in conversion mode."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "RFP",
+     "text": "already configured as an RFQ"
+    },
+    "note": "Verify the RFP tab's disabled-state tooltip explains the restriction."
+   }
+  ]
+ }
+}

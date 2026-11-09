@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "UI-SUR-016",
   "title": "Surrogate bidding is refused when the company forbids it",
-  "compiledAt": "2026-10-04T11:41:24.884Z",
+  "compiledAt": "2026-11-09T19:57:12.740Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "An event whose config forbids buyer surrogate bids (company config setting cannot be changed via UI steps)"
+   "Set or independently verify the company configuration that forbids buyer surrogate bids."
   ],
   "warnings": [
-   "can only test part of this — no step for: An event whose config forbids buyer surrogate bids (company config setting cannot be changed via UI steps)"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Set or independently verify the company configuration that forbids buyer surrogate bids."
   ],
   "state": "live",
   "screen": "participants",
@@ -21,25 +22,28 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SUR-016 Surrogate bidding refused when company forbids it",
+  "title": "Surrogate Bid Refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
-    }
+    },
+    "note": "Open the prepared event's Participants screen where surrogate bidding is attempted."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Ensure the published event's Participants list and surrogate-bid controls are loaded."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Add Bid"
-     },
-     "because": "You are not allowed to use this functionality",
-     "expect": "refused"
-    }
+     "step": "place_surrogate_bid",
+     "expect": "refused",
+     "because": "You are not allowed to use this functionality"
+    },
+    "note": "Attempt the surrogate bid and require Procol to refuse it with the expected authorization message."
    }
   ]
  }

@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "UI-FSCH-006",
+  "title": "Evaluation time is added after the end",
+  "compiledAt": "2026-11-09T20:03:51.874Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Configure an explicit 30-minute evaluation time in the schedule drawer; set_schedule only accepts the event duration.",
+   "Read the API schedule and verify that evaluation ends at the event end plus 30 minutes, including any cost-breakdown window.",
+   "the plan has no assertion step — nothing the case checks can be observed",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-001",
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Evaluation time after event end",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Create a technical stage, which is the event type that has an evaluation window."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the technical stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available technical-stage template."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the technical questionnaire required for publication."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for a technical event."
+   }
+  ]
+ }
+}

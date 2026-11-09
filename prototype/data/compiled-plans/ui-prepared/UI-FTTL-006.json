@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "UI-FTTL-006",
+  "title": "A row without a delivery location does not count toward the auto title",
+  "compiledAt": "2026-11-09T20:10:16.042Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Auto Title Requires Delivery Location",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the pricing template required before adding a product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product while leaving its delivery location empty."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "auto_title_before",
+     "label": "Enter the title of the project"
+    },
+    "note": "Capture the title field before a location is set."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of the project",
+     "value": ""
+    },
+    "note": "Assert that no automatic title was produced without a delivery location."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Gurgaon"
+    },
+    "note": "Set a delivery location for the product."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "kept": true,
+     "equals": "Gurgaon"
+    },
+    "note": "Confirm the location value was accepted by the sheet."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "auto_title_before",
+     "label": "Enter the title of the project",
+     "same": false
+    },
+    "note": "Assert that the title changed from empty after the location was selected."
+   }
+  ]
+ }
+}

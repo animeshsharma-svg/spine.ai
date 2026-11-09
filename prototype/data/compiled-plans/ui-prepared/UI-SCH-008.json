@@ -2,15 +2,13 @@
  "meta": {
   "caseId": "UI-SCH-008",
   "title": "A blank end time cannot be saved",
-  "compiledAt": "2026-10-04T11:38:41.837Z",
+  "compiledAt": "2026-11-09T19:56:25.015Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Clearing the end time specifically via a schedule drawer input step"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Clearing the end time specifically via a schedule drawer input step"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
@@ -22,29 +20,38 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SCH-008 Blank end time cannot be saved",
+  "title": "Blank end time cannot be saved",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open create screen"
+    "note": "Open the event create screen to reach the schedule drawer."
    },
    {
     "step": "set_title",
-    "note": "Set mandatory title"
+    "args": {
+     "title": "UI-SCH-008 Blank End Time"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
-    "note": "Select template"
+    "args": {},
+    "note": "Apply a pricing template so scheduling becomes available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add line item to enable schedule"
+    "note": "Add the minimum line item required for the schedule controls."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the create form is valid enough to open scheduling."
    },
    {
     "step": "click",
@@ -52,19 +59,40 @@
      "role": "button",
      "name": "Schedule"
     },
-    "note": "Open schedule drawer"
+    "note": "Open the schedule drawer, matching the test setup."
    },
    {
-    "step": "attempt",
+    "step": "fill",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Save Schedule"
-     },
-     "because": "End time cannot be blank"
+     "label": "End time",
+     "value": ""
     },
-    "note": "Attempt to save schedule with blank end time"
+    "note": "Clear the end time field as required by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Attempt to save the blank end time."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "End time"
+    },
+    "note": "Assert that the app shows a field-level validation message for the blank end time."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "schedule",
+     "method": "POST",
+     "absent": true,
+     "bodyContains": "null"
+    },
+    "note": "Assert that saving was blocked client-side and no request containing a null end time was sent."
    }
   ]
  }

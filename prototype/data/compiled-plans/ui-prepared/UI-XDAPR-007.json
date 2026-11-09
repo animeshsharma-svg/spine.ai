@@ -1,0 +1,81 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-007",
+  "title": "Submitting an award picks the only flow automatically and asks for approvers where needed",
+  "compiledAt": "2026-11-09T19:49:56.351Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Compare automatic approval-flow selection between companies with one applicable flow and two applicable flows because the case does not provide switchable company IDs and the prepared state is fixed to one company.",
+   "Assert the exact selected flow and button-label behavior after flow selection because no domain step exposes the flow-choice contents.",
+   "Verify the request body carries the exact approval_flow_uuid and step_uuid_vs_user_uuid fields because the relevant request path and payload structure are not provided."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Compare automatic approval-flow selection between companies with one applicable flow and two applicable flows because the case does not provide switchable company IDs and the prepared state is fixed to one company.; Assert the exact selected flow and button-label behavior after flow selection because no domain step exposes the flow-choice contents.; Verify the request body carries the exact approval_flow_uuid and step_uuid_vs_user_uuid fields because the relevant request path and payload structure are not provided."
+  ],
+  "state": "proposal",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Submit Award Requires Approver",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared event's Master QCS as required for the award-ready state."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow for the prepared award."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create/open the award proposal so its submission controls are available."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal screen opened."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal",
+     "visible": true
+    },
+    "note": "Assert that the proposal exposes the expected submission button."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt submission without selecting an approver."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please select at least one approver to proceed.",
+     "present": true
+    },
+    "note": "Verify the required approver validation message."
+   }
+  ]
+ }
+}

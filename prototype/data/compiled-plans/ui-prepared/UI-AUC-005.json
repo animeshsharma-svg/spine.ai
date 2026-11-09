@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "UI-AUC-005",
+  "title": "Traffic Light with lower above upper is refused",
+  "compiledAt": "2026-10-06T04:40:37.294Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-AUC-024",
+   "UI-TPL-015"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject inverted Traffic Light range",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Use the supported auction strategy configuration path."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "traffic_light",
+     "awarding": "lot",
+     "rangeLower": 200,
+     "rangeUpper": 100
+    },
+    "note": "Select Traffic Light and deliberately set lower above upper."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Supply the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Satisfy the template prerequisite."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Provide one line item for an otherwise complete event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Avoid an unrelated incomplete-sheet refusal."
+   },
+   {
+    "step": "set_schedule",
+    "args": {},
+    "note": "Commit the required bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Avoid a missing-participants refusal."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "range"
+    },
+    "note": "Attempt publication and require refusal with a readable message naming the range."
+   }
+  ]
+ }
+}

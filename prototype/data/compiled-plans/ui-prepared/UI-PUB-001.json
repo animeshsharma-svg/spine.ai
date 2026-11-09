@@ -2,25 +2,37 @@
  "meta": {
   "caseId": "UI-PUB-001",
   "title": "A complete single-stage RFQ publishes and lands on the project",
-  "compiledAt": "2026-10-04T10:48:48.943Z",
+  "compiledAt": "2026-11-09T19:55:26.611Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert the browser URL with the exact negative pattern exclusion for quick-create|create|detail|new.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
+  ],
   "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
    "added open_prepared(participants) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen"
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Assert the browser URL with the exact negative pattern exclusion for quick-create|create|detail|new."
   ],
   "state": "live",
   "screen": "participants",
   "technical": false,
-  "exemplars": [],
+  "exemplars": [
+   "UI-SUR-001"
+  ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "A complete single-stage RFQ publishes and lands on the project",
+  "title": "UI-PUB-001 Complete RFQ Publish",
   "steps": [
    {
     "step": "open_prepared",
@@ -36,64 +48,48 @@
       "rfq"
      ]
     },
-    "note": "Set the stage to RFQ only"
-   },
-   {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Assert RFQ stage is present"
+    "note": "Configure the project as RFQ-only."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Pick the stage pricing template"
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item"
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Assert line items count is 1"
+    "note": "Add the required line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill the pricing sheet"
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 5
-    },
-    "note": "Set event schedule"
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite required participants"
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event"
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Assert no error message is shown"
+    "note": "Verify that no application error is shown after publishing."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published event's participant list to verify the invited vendor count."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "count": 1
+    },
+    "note": "Assert that exactly one vendor is invited to the published event."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Assert that the newly published event is listed as Live."
    }
   ]
  }

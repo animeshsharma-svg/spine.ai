@@ -1,0 +1,133 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-023",
+  "title": "Another user from the same vendor company cannot bid twice",
+  "compiledAt": "2026-11-09T20:06:32.727Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "A second user from the same vendor company attempting to bid and receiving the refusal in a separate vendor session"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "can only test part of this — no step for: A second user from the same vendor company attempting to bid and receiving the refusal in a separate vendor session"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Prevent duplicate bidding by same vendor company",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the RFQ event needed for the bidding scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ so it has a vendor pricing round."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one item for the vendor to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor company to the RFQ."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is a real published project."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the initial vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify the buyer sees exactly one direct response from the invited vendor company before the duplicate attempt."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the second user from the same vendor company in a separate vendor session, try to submit another bid for this event, and confirm Procol refuses it because an existing bid is already present"
+    },
+    "note": "A second user session from the same vendor company is required to exercise the duplicate-bid restriction."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer view to inspect the final response state."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify the oracle: the company still has exactly one direct bid after the second user's attempted submission."
+   }
+  ]
+ }
+}

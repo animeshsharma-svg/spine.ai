@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-019",
+  "title": "Awarding a BOQ is vendor-level only",
+  "compiledAt": "2026-11-09T20:00:06.783Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Verify that the prepared event is specifically a closed BOQ project with the boq_in_erfx_allowed tenant setting enabled.",
+   "Prove that line selection is unavailable specifically because the event is BOQ rather than another event type.",
+   "Inspect that the POST /proposal/<id>/add_response?lot_no=… request body contains no line ids.",
+   "unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "cannot test this case yet — no step can observe: Verify that the prepared event is specifically a closed BOQ project with the boq_in_erfx_allowed tenant setting enabled.; Prove that line selection is unavailable specifically because the event is BOQ rather than another event type.; Inspect that the POST /proposal/<id>/add_response?lot_no=… request body contains no line ids.; unconfirmed label \"Select All\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-SS-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ Vendor-Level Awarding",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the closest prepared bid comparison screen; the catalog has no prepared BOQ-specific screen."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the manual awarding screen."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Select for awarding",
+     "visible": true
+    },
+    "note": "Check that awarding is exposed at the vendor-column level."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Select All",
+     "present": false
+    },
+    "note": "Check that no Select All control is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Awarded",
+     "present": true
+    },
+    "note": "Check for vendor-level awarding status text."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Proposal"
+     },
+     "because": "Please award for at least one Vendor",
+     "expect": "refused"
+    },
+    "note": "Attempt submission with no vendor selected and require the application's refusal."
+   }
+  ]
+ }
+}

@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "UI-AWD-020",
+  "title": "The awarding report downloads and matches the screen",
+  "compiledAt": "2026-11-09T19:39:48.795Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Parse the downloaded awarding spreadsheet cell by cell and compare its vendors, line items, quantities, and prices against the rendered awarding grid"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Parse the downloaded awarding spreadsheet cell by cell and compare its vendors, line items, quantities, and prices against the rendered awarding grid"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [
+   "UI-AWD-001",
+   "UI-AWD-009"
+  ],
+  "crossCheckAdded": [
+   "quantity",
+   "bidPrice"
+  ]
+ },
+ "plan": {
+  "title": "Awarding sheet download matches grid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared awarded event on Master QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Assert that the comparison grid with the awarded event data is rendered."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen where the awarding-sheet download control is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download the Awarding sheet"
+    },
+    "note": "Download the awarding spreadsheet."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "name": "awarding_sheet.xlsx"
+    },
+    "note": "Verify that the awarding sheet was downloaded."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "cross-check: the screen must show the value the API holds"
+   }
+  ]
+ }
+}

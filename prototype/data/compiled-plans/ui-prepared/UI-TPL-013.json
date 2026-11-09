@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-013",
+  "title": "Freight charges only become available at three or more line items",
+  "compiledAt": "2026-11-09T19:47:55.427Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-014",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Freight Charges Threshold",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation screen for a pricing stage."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title for a create test."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with an RFQ pricing stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two-line-item setup required by the case."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "role": "button",
+     "name": "Price Components",
+     "absent": [
+      "freight_charges"
+     ]
+    },
+    "note": "Verify freight_charges is absent from the price-field menu at two line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the third line item that should cross the availability threshold."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "role": "button",
+     "name": "Price Components",
+     "options": [
+      "freight_charges"
+     ]
+    },
+    "note": "Reopen the price-field menu and verify freight_charges is now present."
+   }
+  ]
+ }
+}

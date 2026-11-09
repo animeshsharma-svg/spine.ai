@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-018",
+  "title": "Cancelling the drawer discards the draft counter offer",
+  "compiledAt": "2026-10-06T06:33:30.666Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "The fixed prepared state has only one vendor with a bid; opening vendor A's drawer and then a distinct vendor B's drawer requires a second vendor and active bid.",
+   "Vendor B's quoted values and empty remark after cancelling vendor A's edits cannot be observed in this state.",
+   "The no-raise-call oracle cannot be asserted without the counter-offer request path, which is not supplied by the catalog or case."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: The fixed prepared state has only one vendor with a bid; opening vendor A's drawer and then a distinct vendor B's drawer requires a second vendor and active bid.; Vendor B's quoted values and empty remark after cancelling vendor A's edits cannot be observed in this state.; The no-raise-call oracle cannot be asserted without the counter-offer request path, which is not supplied by the catalog or case."
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Cancel counter-offer draft isolation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the existing RFQ with its single active vendor bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer"
+    },
+    "note": "Open the available vendor's counter-offer drawer."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "90"
+    },
+    "note": "Enter a draft counter price without sending it."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Remark",
+     "value": "Cancellation isolation test"
+    },
+    "note": "Enter a recognizable draft remark."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel rather than send the counter offer."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer"
+    },
+    "note": "Reopen the same vendor's drawer as the closest available check; this is not vendor B."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Check the available vendor's quoted price against the prepared API value."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Remark",
+     "value": ""
+    },
+    "note": "Check the reopened remark field against an empty value; this does not establish cross-vendor isolation."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "same-vendor-counter-offer-after-cancel"
+    },
+    "note": "Record the reopened drawer for inspection, including whether the remark is truly empty."
+   }
+  ]
+ }
+}

@@ -2,40 +2,46 @@
  "meta": {
   "caseId": "UI-FQCS-001",
   "title": "Master QCS reads \"No bids are placed yet!\" until the first bid",
-  "compiledAt": "2026-10-19T11:49:15.635Z",
+  "compiledAt": "2026-11-09T19:41:39.338Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "A live RFQ with no bids is unavailable because the prepared event already has one QA vendor bid.",
-   "The exact empty message \"No bids are placed yet!\" and zero vendor columns cannot be asserted for the prepared event."
+   "A live RFQ with zero bids (the prepared state provides an event with one bid)"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: A live RFQ with no bids is unavailable because the prepared event already has one QA vendor bid.; The exact empty message \"No bids are placed yet!\" and zero vendor columns cannot be asserted for the prepared event."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: A live RFQ with zero bids (the prepared state provides an event with one bid)"
   ],
   "state": "bid",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
    "UI-AWD-001",
-   "UI-AWD-004"
+   "UI-AWD-009"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Master QCS empty state with no bids",
+  "title": "Master QCS reads no bids before bids are placed",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
-    },
-    "note": "Open the prepared event's Master QCS as required."
+    }
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Render the comparison grid for the prepared event; this is the closest available Master QCS observation, but it will reflect the existing bid rather than the requested empty state."
+    "step": "expect_text",
+    "args": {
+     "text": "No bids are placed yet!"
+    }
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 0
+    }
    }
   ]
  }

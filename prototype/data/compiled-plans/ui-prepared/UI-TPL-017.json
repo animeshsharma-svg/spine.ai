@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-017",
+  "title": "A very large numeric value is handled without precision loss",
+  "compiledAt": "2026-11-09T19:48:04.415Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-TPL-011"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Large Numeric Total Precision",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation screen containing the pricing sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-017 Large Numeric Precision"
+    },
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply a pricing template that supplies numeric price and total columns."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for the calculation."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Render and initialize the pricing sheet columns."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "1"
+    },
+    "note": "Set a deterministic quantity so the expected total is the entered price."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "kept": true,
+     "equals": "1"
+    },
+    "note": "Confirm the quantity used for the arithmetic is retained."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "999999999.99"
+    },
+    "note": "Enter the very large decimal value under test."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "kept": true,
+     "equals": "999999999.99"
+    },
+    "note": "Verify the large numeric value is preserved without precision loss."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Total Amount",
+     "equals": "999999999.99"
+    },
+    "note": "Verify the rendered total equals quantity 1 multiplied by the entered price at displayed precision."
+   }
+  ]
+ }
+}

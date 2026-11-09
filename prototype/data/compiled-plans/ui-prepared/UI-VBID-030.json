@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-030",
+  "title": "Attaching a document to a bid works and the buyer can open it",
+  "compiledAt": "2026-11-09T20:07:01.039Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Attach a PDF to the vendor's bid and submit it",
+   "Open the bid attachment from the buyer's side and verify it can be downloaded with its original filename"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Attach a PDF to the vendor's bid and submit it; Open the bid attachment from the buyer's side and verify it can be downloaded with its original filename"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-CRE-018"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Vendor Bid PDF Attachment",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the live event needed for the bid attachment scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Vendor Bid PDF Attachment Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will submit the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is live and has a project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing bid form in the vendor portal."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "attach sample.pdf to the bid, submit the bid, then switch to the buyer side, open the bid attachment, and download it"
+    },
+    "note": "The catalog has no step for attaching a document to a vendor bid or opening that attachment from the buyer side."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "name": "sample.pdf"
+    },
+    "note": "Verify that the buyer-side action downloaded the original PDF filename."
+   }
+  ]
+ }
+}

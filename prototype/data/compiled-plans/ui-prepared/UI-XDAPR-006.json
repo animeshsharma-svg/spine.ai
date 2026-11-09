@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-006",
+  "title": "Only the person who submitted the award can withdraw it, and must give a reason",
+  "compiledAt": "2026-11-09T19:50:06.957Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "A second buyer session for the colleague to verify that Withdraw Request is absent.",
+   "unconfirmed label \"Withdraw Request\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "checks that “Withdraw Request” is absent on proposal, where it is never shown — that proves nothing"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"Withdraw Request\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: A second buyer session for the colleague to verify that Withdraw Request is absent."
+  ],
+  "state": "awarded",
+  "screen": "proposal",
+  "technical": false,
+  "exemplars": [
+   "UI-XDNEG-002",
+   "UI-AWD-004"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Award withdrawal permission and reason",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the award proposal in approval, as required by the prepared state."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the award submitter, open Withdraw Request, verify the withdrawal confirmation is disabled when the reason is empty, enter a reason, submit the withdrawal, and stop on the resulting success toast, redirect, and banner showing the submitter name and withdrawal date"
+    },
+    "note": "The catalog has no dedicated award-withdrawal flow, so use the buyer-side screen automation for the submitter’s complete interaction and its visible outcomes."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the colleague, open the same award proposal, and verify that Withdraw Request is not offered"
+    },
+    "note": "A separate colleague buyer session is required to test the permission boundary."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Withdraw Request",
+     "count": 0
+    },
+    "note": "Assert that the colleague’s proposal screen has no Withdraw Request control."
+   }
+  ]
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-021",
+  "title": "Controls hidden on a BOQ event",
+  "compiledAt": "2026-11-09T20:00:07.097Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Open the specific unnamed live BOQ event and verify its header/action bar lacks View by, Price Trends, bidding/default currency toggle, and basket-auction configuration while the ordinary event contains them.",
+   "Compare the specific unnamed ordinary live event against the specific unnamed live BOQ event.",
+   "Verify the BOQ exception for auction strategy tabs when a service template is used."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Open the specific unnamed live BOQ event and verify its header/action bar lacks View by, Price Trends, bidding/default currency toggle, and basket-auction configuration while the ordinary event contains them.; Compare the specific unnamed ordinary live event against the specific unnamed live BOQ event.; Verify the BOQ exception for auction strategy tabs when a service template is used."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ event hidden controls",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Open the BOQ create screen to inspect BOQ-specific footer and configuration controls."
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Savings",
+     "visible": false
+    },
+    "note": "Verify that the Savings footer button is absent on BOQ creation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Choose a Strategy",
+     "visible": false
+    },
+    "note": "Verify that the auction strategy configuration is absent on the BOQ create screen."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open an ordinary single-stage create screen to reach its auction configuration."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Choose a Strategy",
+     "options": [
+      "Price Based",
+      "Rank Based",
+      "Traffic Light"
+     ],
+     "absent": [
+      "Knockout",
+      "Dutch Auction"
+     ]
+    },
+    "note": "Verify that ordinary auction configuration exposes the standard auction strategies and not conversion-only strategies."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Savings",
+     "visible": true
+    },
+    "note": "Verify that the ordinary create screen exposes the Savings footer button."
+   }
+  ]
+ }
+}

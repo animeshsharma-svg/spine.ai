@@ -2,80 +2,116 @@
  "meta": {
   "caseId": "UI-TPL-009",
   "title": "Leaving a creator column blank is refused as a partially filled sheet",
-  "compiledAt": "2026-10-04T11:01:39.615Z",
+  "compiledAt": "2026-11-09T19:57:37.674Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the publish request returned a non-5xx status or inspect the absence of a 5xx response directly."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "can only test part of this — no step for: Assert that the publish request returned a non-5xx status or inspect the absence of a 5xx response directly."
+  ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-TPL-001",
-   "UI-SCH-003"
+   "UI-TPL-008",
+   "UI-TPL-015"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-TPL-009 — Leaving a creator column blank is refused as a partially filled sheet",
+  "title": "UI-TPL-009 Partial Pricing Sheet",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start event creation via eRFX path"
+    "note": "Open the multi-stage creator for the pricing event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "UI-TPL-009 Test Event"
+     "title": "UI-TPL-009 Partial Pricing Sheet"
     },
-    "note": "Provide mandatory event title"
+    "note": "Provide the required event title so the test reaches sheet validation rather than title validation."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with an RFQ pricing stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Apply the template and sheet operations to the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Pick the stage pricing template"
+    "note": "Select the first available pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to populate the sheet"
+    "note": "Add one line item for the pricing sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill sheet cells, leaving creator columns blank as required by test setup"
+    "note": "Populate the sheet so the delivery-location cell is the only field left blank."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Delivery location"
+     ]
+    },
+    "note": "Verify that the selected template provides the creator delivery-location column under test."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": ""
+    },
+    "note": "Explicitly leave the first line item's delivery location blank."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule so publication reaches sheet completeness validation."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participant so publish is not blocked by missing participants"
+    "note": "Add the required participant so publication is not blocked for an unrelated reason."
    },
    {
-    "step": "set_schedule",
+    "step": "expect_publish_blocked",
     "args": {
-     "minutes": 5
+     "because": "Sheet partially filled, please check again."
     },
-    "note": "Set schedule so event has valid duration"
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Attempt to publish with incomplete pricing sheet"
-   },
-   {
-    "step": "expect_error",
-    "args": {
-     "contains": "Sheet partially filled, please check again."
-    },
-    "note": "Assert the app refuses publish with the exact validation message"
+    "note": "Attempt publication and require Procol's partial-sheet refusal message."
    }
   ]
  }

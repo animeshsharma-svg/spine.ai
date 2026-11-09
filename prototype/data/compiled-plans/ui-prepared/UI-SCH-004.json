@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-004",
+  "title": "A bid window in the future publishes as Upcoming",
+  "compiledAt": "2026-11-09T19:56:17.741Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Set the schedule start time to now + 2 hours and save that absolute schedule on the create screen.",
+   "Assert that the published event is in the Upcoming state because of the future start time.",
+   "Verify that a vendor can see the Upcoming event but cannot bid before it starts.",
+   "Verify the vendor refusal message \"Kindly wait for the auction to start\"."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "cannot test this case yet — no step can observe: Set the schedule start time to now + 2 hours and save that absolute schedule on the create screen.; Assert that the published event is in the Upcoming state because of the future start time.; Verify that a vendor can see the Upcoming event but cannot bid before it starts.; Verify the vendor refusal message \"Kindly wait for the auction to start\"."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Future Bid Window Publishes as Upcoming",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation screen for the closest valid-event setup."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-SCH-004 Upcoming Bid Window"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid duration-based schedule; the catalog cannot set the requested absolute future start."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so the event is publishable."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the valid baseline event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication succeeded, without claiming the event is Upcoming."
+   }
+  ]
+ }
+}

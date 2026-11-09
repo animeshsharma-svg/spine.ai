@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-024",
+  "title": "Leaving the create screen mid-way warns, and abandons nothing published",
+  "compiledAt": "2026-11-09T19:41:03.568Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the title is either absent from every status or, if present, exists strictly as a Draft."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "go_to events_list → open_events_list — a domain step owns that screen",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "go_to events_list → open_events_list — a domain step owns that screen",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Assert that the title is either absent from every status or, if present, exists strictly as a Draft."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-CRE-018"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-CRE-024 Midway Navigation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the create screen for the partially filled event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-CRE-024 Midway Navigation"
+    },
+    "note": "Set the title that will be checked after leaving."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Partially configure the create screen without publishing."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Leave the create screen with partial event data entered."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "dialog",
+    "args": {
+     "action": "accept"
+    },
+    "note": "Prepare to confirm the leave warning when navigating away."
+   },
+   {
+    "step": "save_draft"
+   },
+   {
+    "step": "open_events_list",
+    "note": "Navigate away from the partially filled create screen."
+   },
+   {
+    "step": "expect_dialog",
+    "args": {},
+    "note": "Assert that a browser leave-warning dialog was offered and accepted."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Ensure the events list is loaded for the persistence check."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered without an error."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Limit the check to published/live events."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "row": "UI-CRE-024 Midway Navigation",
+     "present": false
+    },
+    "note": "Assert that the abandoned title does not appear as a Live event."
+   }
+  ]
+ }
+}

@@ -1,0 +1,212 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-012",
+  "title": "Deleting a persisted stage queues it for server-side cleanup",
+  "compiledAt": "2026-11-09T19:40:45.454Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The exact persisted stage backend UUID appearing inside delete_draft_stage_uuids cannot be asserted because the UUID is dynamic and no catalog step exposes it for comparison."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "can only test part of this — no step for: The exact persisted stage backend UUID appearing inside delete_draft_stage_uuids cannot be asserted because the UUID is dynamic and no catalog step exposes it for comparison."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-010",
+   "UI-CRE-013"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-CRE-012 Persisted stage deletion cleanup",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the draft project used to establish persisted stages."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-CRE-012 Persisted Stage Cleanup"
+    },
+    "note": "Give the draft a searchable title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Create two stages so one persisted stage can be deleted while another remains."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "configure the rfp stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfp needs its own template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required project line item."
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule before saving the draft."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so the draft is fully configured."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Persist both stages so the deletion targets a server-persisted stage."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the initial draft save succeeded without an error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the drafts list to reopen the persisted project."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show saved drafts."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "UI-CRE-012 Persisted Stage Cleanup"
+    },
+    "note": "Reopen the created draft for editing."
+   },
+   {
+    "step": "open_stage_menu",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Open the persisted technical stage's overflow menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Delete"
+    },
+    "note": "Delete the persisted technical stage."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Delete"
+    },
+    "note": "Confirm the stage deletion if the confirmation dialog is shown."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Verify the deleted stage disappears before saving."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the draft so the server-side cleanup is queued."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/",
+     "bodyContains": "delete_draft_stage_uuids"
+    },
+    "note": "Verify the save request contains the cleanup field, though the exact dynamic UUID cannot be checked."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Leave the edited draft and reopen it from the list."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show the saved draft again."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "UI-CRE-012 Persisted Stage Cleanup"
+    },
+    "note": "Reload the saved draft after server-side cleanup."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Verify the deleted persisted stage does not return after reopening."
+   }
+  ]
+ }
+}

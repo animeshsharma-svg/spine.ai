@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "UI-EVDTME-005",
+  "title": "The Reopen drawer lists only expired lines and sends seconds",
+  "compiledAt": "2026-11-09T19:41:13.067Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the final network request body contains trade_product_uuids for lines 1 and 2 and reopen_time_extension: 600 seconds.",
+   "Verify the reopened lines appear after line 3 in the schedule.",
+   "Inspect the absence of a network request for each invalid submission."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the final network request body contains trade_product_uuids for lines 1 and 2 and reopen_time_extension: 600 seconds.; Verify the reopened lines appear after line 3 in the schedule.; Inspect the absence of a network request for each invalid submission."
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002",
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reopen expired auction lines",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared auction summary required for this case."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the Reopen drawer; verify that only expired lines 1 and 2 are listed with their bid counts and that the tooltip explains reopened lines move to the end; try OK with no lines selected and verify the no-selection error; try OK with an empty duration and verify the no-duration error; then select lines 1 and 2, keep the 10-minute duration, confirm the reopen, and stop when the success message says \"Line items reopened successfully\""
+    },
+    "note": "Perform and observe the drawer interactions and on-screen outcomes that have no dedicated catalog step."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Line items reopened successfully"
+    },
+    "note": "Assert the reported success message after reopening the two expired lines."
+   }
+  ]
+ }
+}

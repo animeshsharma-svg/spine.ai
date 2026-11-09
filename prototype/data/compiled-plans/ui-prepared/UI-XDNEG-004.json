@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-004",
+  "title": "No Counter Offer on a bid the buyer entered for the vendor",
+  "compiledAt": "2026-11-09T19:53:02.089Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": false,
+  "exemplars": [
+   "UI-XDNEG-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "No Counter Offer for Surrogate Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared comparison view containing the vendor's existing bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Enter the second bid on behalf of another invited vendor so the comparison includes a surrogate bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "surrogate": 1,
+     "direct": 1
+    },
+    "note": "Verify the comparison shows one direct vendor response and one surrogate response."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_counter_offer",
+     "expect": "refused"
+    },
+    "note": "Attempt a Counter Offer on the surrogate bid; the action must be refused because surrogate bids cannot receive counter offers."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Send Bulk Counter Offer",
+     "present": false,
+     "stage": "rfq"
+    },
+    "note": "Open Settings and verify Bulk Counter Offer is not offered when not all bids can receive counter offers."
+   }
+  ]
+ }
+}

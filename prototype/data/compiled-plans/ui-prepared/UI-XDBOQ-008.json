@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-008",
+  "title": "A section-numbering error from the server is shown as a toast",
+  "compiledAt": "2026-11-09T19:52:05.778Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Enable the boq_in_erfx_allowed tenant setting.",
+   "Upload a sheet specifically starting at section B; no catalog fixture guarantees that content.",
+   "Verify the BOQ grid is unchanged after this specific server error."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Enable the boq_in_erfx_allowed tenant setting.; Upload a sheet specifically starting at section B; no catalog fixture guarantees that content.; Verify the BOQ grid is unchanged after this specific server error."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ Invalid Section Toast",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "boq"
+    },
+    "note": "Open the BOQ create screen where the sheet upload control is available."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Invalid Section BOQ Test"
+    },
+    "note": "Provide the required event title before configuring the BOQ."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select a BOQ template so the upload area is configured."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Attempt the BOQ sheet upload using the closest available fixture."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Invalid section, current section B, expected section A, Please Add Valid one"
+    },
+    "note": "Assert that the server's exact invalid-section message is shown as an error toast."
+   }
+  ]
+ }
+}

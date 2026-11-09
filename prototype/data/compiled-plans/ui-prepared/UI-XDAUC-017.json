@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "UI-XDAUC-017",
+  "title": "The bidding-summary rank filter only offers sensible limits",
+  "compiledAt": "2026-11-09T19:59:28.751Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the Bidding Summary panel refreshes automatically every 30 seconds."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify that the Bidding Summary panel refreshes automatically every 30 seconds."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Bidding Summary Rank Filter Limits",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing auction event suitable for inspecting the bidding summary."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Bidding Summary"
+    },
+    "note": "Open the Bidding Summary panel from the event details page."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "All Vendors",
+     "options": [
+      "Top 1 Vendors",
+      "Top 2 Vendors",
+      "All Vendors"
+     ],
+     "only": true
+    },
+    "note": "Assert that the rank filter offers exactly Top 1 Vendors, Top 2 Vendors, and All Vendors."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "All Vendors",
+     "option": "All Vendors"
+    },
+    "note": "Choose All Vendors to verify the unbounded-rank request behavior."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/project",
+     "query": "rank_limit",
+     "absent": true
+    },
+    "note": "Assert that the refresh request after choosing All Vendors does not include a rank_limit query parameter."
+   }
+  ]
+ }
+}

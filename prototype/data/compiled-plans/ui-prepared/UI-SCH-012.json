@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-012",
+  "title": "A recurring schedule creates the series, not just one event",
+  "compiledAt": "2026-11-09T19:45:07.339Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Turn on the scheduled_events_enabled tenant setting.",
+   "Directly assert that the recurring template stores the requested cadence and occurrence count.",
+   "Directly assert the exact occurrence count in the created series."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "can only test part of this — no step for: Turn on the scheduled_events_enabled tenant setting.; Directly assert that the recurring template stores the requested cadence and occurrence count.; Directly assert the exact occurrence count in the created series."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Recurring Schedule Creates Series",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Use the product-generated unique title required for publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for the event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet generated from the template."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enable the scheduled_events_enabled tenant setting for this tenant"
+    },
+    "note": "The catalog cannot change tenant settings, but recurring scheduling requires this gate."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Open and commit the schedule before configuring the recurring series."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the event schedule screen, turn on recurring scheduling, set the cadence and occurrence count requested by the test, save the recurring schedule, and stop when the saved recurring schedule is visible"
+    },
+    "note": "Configure the recurring cadence and occurrence count through the schedule UI, which has no dedicated catalog step."
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured event or recurring series."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm publication completed successfully."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to inspect recurring entries."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Recurring"
+    },
+    "note": "Show the Recurring tab where the scheduled series should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's newly published recurring event is listed."
+   }
+  ]
+ }
+}

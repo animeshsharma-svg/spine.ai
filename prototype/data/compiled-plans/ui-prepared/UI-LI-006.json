@@ -1,0 +1,151 @@
+{
+ "meta": {
+  "caseId": "UI-LI-006",
+  "title": "A negative quantity is refused",
+  "compiledAt": "2026-10-05T13:37:04.069Z",
+  "tier": "reason",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-LI-002",
+   "UI-LI-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject negative line-item quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the test event a unique title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Enable the line-item drawer."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create one row so the Quantity field is unambiguous."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items"
+    },
+    "note": "Open Manage Line Items."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "1"
+    },
+    "note": "Establish a known positive baseline for the persistence check."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save",
+     "within": "Manage Line Items"
+    },
+    "note": "Save the valid baseline quantity."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items"
+    },
+    "note": "Reopen the drawer for the negative-quantity test."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Quantity",
+     "value": "1"
+    },
+    "note": "Verify the baseline was saved."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "-5"
+    },
+    "note": "Enter the negative quantity specified by the case."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Save",
+      "within": "Manage Line Items"
+     },
+     "expect": "refused"
+    },
+    "note": "Require positive evidence that saving the negative quantity is refused."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any",
+     "text": "Please fill valid quantity on every line item"
+    },
+    "note": "Assert the readable quantity-validation message."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Manage Line Items"
+    },
+    "note": "Verify the rejected save leaves the drawer open."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "Manage Line Items"
+    },
+    "note": "Discard the invalid working edit."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items"
+    },
+    "note": "Reopen the saved line item."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Quantity",
+     "value": "1"
+    },
+    "note": "Verify the saved quantity remains positive and was not overwritten by -5."
+   }
+  ]
+ }
+}

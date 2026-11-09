@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "UI-XDAUC-009",
+  "title": "Dynamic extension fields are required once the box is ticked",
+  "compiledAt": "2026-11-09T19:59:29.264Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added set_title — publishing without a title is refused",
+   "added set_title — publishing without a title is refused"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-XDBOQ-020"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Dynamic Event Extension Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage configuration screen for the auction setup."
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Set the initial auction strategy so the dynamic extension controls can be exercised."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the auction configuration drawer, tick Dynamic Event Extension, leave Extend time by, Trigger time extension on last, and Time extension on change in empty, save, verify Select one of the options appears under both select fields, enter 0.5 as the trigger time and verify Trigger time extension cannot be less than 1 min, verify the same minimum-time error occurs when the trigger time is empty, then switch to Knockout and Dutch Auction strategies and verify the Dynamic Event Extension block is absent; leave the screen showing the validation result."
+    },
+    "note": "No domain step exposes the dynamic extension fields, their save validation, or strategy-specific block visibility, so perform and observe these interactions directly on the configuration drawer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Trigger time extension cannot be less than 1 min",
+     "present": true
+    },
+    "note": "Assert the minimum trigger-time validation message is visible after the invalid and empty trigger checks."
+   }
+  ]
+ }
+}

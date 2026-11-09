@@ -2,54 +2,52 @@
  "meta": {
   "caseId": "UI-PUB-010",
   "title": "Publish is refused for a user without trade create permission",
-  "compiledAt": "2026-10-04T11:22:30.536Z",
+  "compiledAt": "2026-11-09T19:56:04.015Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Switching or simulating a user lacking 'trade: create_record' permission in the test context"
+   "Run the test as a user in a team without trade:create_record and verify the alternative outcomes: the Create Event entry point is absent, or publishing is refused with \"You are not allowed to perform this action\" and no event is created."
   ],
   "warnings": [
-   "can only test part of this — no step for: Switching or simulating a user lacking 'trade: create_record' permission in the test context"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "added expect_events_list — opening the list without asserting it rendered tests nothing",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "added expect_events_list — opening the list without asserting it rendered tests nothing",
+   "can only test part of this — no step for: Run the test as a user in a team without trade:create_record and verify the alternative outcomes: the Create Event entry point is absent, or publishing is refused with \"You are not allowed to perform this action\" and no event is created."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-SCH-003",
-   "UI-CRE-002"
+   "UI-PUB-023",
+   "UI-PUB-009"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Publish refused without trade create permission",
+  "title": "Publish Permission Denial",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Open the create screen to attempt project creation"
-   },
-   {
-    "step": "set_title",
+    "step": "open_events_list",
     "args": {},
-    "note": "Set a title to proceed with the draft/publish attempt"
+    "note": "Return to the events list after the tester's permission check."
    },
    {
-    "step": "skip",
+    "step": "ask_tester",
     "args": {
-     "step": "select_template",
-     "reason": "Simulating permission block"
+     "need": "sign in as a user in a team without trade:create_record, then try to reach the create screen and publish; verify either that the Create Event entry point is absent or that publishing is refused with \"You are not allowed to perform this action\""
     },
-    "note": "Deliberately testing blocked state"
+    "note": "The catalog cannot change to or authenticate as a user with the required permission restriction."
    },
    {
-    "step": "expect_publish_blocked",
-    "args": {
-     "because": "You are not allowed to perform this action"
-    },
-    "note": "Assert that publishing or creation is refused due to lack of permissions"
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen has no crash or server error."
+   },
+   {
+    "step": "expect_events_list"
    }
   ]
  }
