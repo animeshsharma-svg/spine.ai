@@ -53,6 +53,14 @@ describe("gap resolver: a gap the plan's own steps cover is dropped, said out lo
     const none = resolveCoveredGaps(["The prepared event has only one QA vendor, so a second vendor with a different total cannot be added."], [{ step: "open_prepared", args: { screen: "master_qcs" } }, { step: "expect_qcs_ranks" }]);
     assert.equal(none.gaps.length, 1, "without a surrogate bid in the plan the gap stays");
   });
+  test("'the event is in the vendor's Live list' is what vendor_open_event proves", async () => {
+    const { resolveCoveredGaps } = await import("../src/agents/planner.js");
+    const r = resolveCoveredGaps(["Assert that the invited vendor's Live list contains exactly this event after searching by title", "Assert that the matching card displays the event reference ID"], [{ step: "open_prepared", args: { screen: "vendor" } }, { step: "vendor_open_event", args: { overview: true } }]);
+    assert.equal(r.gaps.length, 1, "the ref id stays a gap");
+    assert.match(r.gaps[0], /reference ID/);
+    const b = resolveCoveredGaps(["assert the event is absent from vendor B's portal list"], [{ step: "vendor_open_event" }]);
+    assert.equal(b.gaps.length, 1);
+  });
   test("a gap no step covers stays a gap", async () => {
     const { resolveCoveredGaps } = await import("../src/agents/planner.js");
     const r = resolveCoveredGaps(["Enable the tenant setting rfpEvaluationOn = lot"], [{ step: "expect_options", args: { name: "x", options: ["y"] } }, { step: "switch_portal", args: { to: "vendor" } }]);

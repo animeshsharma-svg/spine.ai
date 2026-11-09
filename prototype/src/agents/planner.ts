@@ -1787,6 +1787,13 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
       by: "place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
     },
     {
+      // "the event is in the vendor's Live list" — vendor_open_event finds THIS event in the vendor's list and fails as
+      // NOT INVITED when it is not there; open_prepared{vendor} does the same.
+      gap: /\b(vendor|supplier)('s)?\b[^.]{0,40}\b(live )?(list|events)\b[^.]{0,60}\b(contain|list|show|has|includes?|appears?|present|visible|find|search)/i,
+      covered: (g) => !otherVendor.test(g) && (has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
+      by: "vendor_open_event opens THIS event from the vendor's list and fails as NOT INVITED when it is not listed",
+    },
+    {
       gap: /tooltip|hover/i,
       covered: () => has("expect_message", (st) => String(st.args?.kind ?? "") === "tooltip"),
       by: "expect_message{kind:\"tooltip\", on} hovers the control and reads its tooltip",
@@ -2061,6 +2068,14 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   const gapsAllResolved = declaredGapCount > 0 && gaps.length === 0;
   let coverage: CompileResult["coverage"] =
     parsed.coverage === "none" ? "none" : (parsed.coverage === "partial" && !gapsAllResolved) || gaps.length ? "partial" : "full";
+  // The model said "none" because it believed the SUBJECT had no step — and every gap it listed is done by a step
+  // that IS in the plan (resolveCoveredGaps fires only then). The subject is observed; "partial", never "full",
+  // because the model's own doubt is still on record (10 Nov, UI-VBID-001: "the vendor's list contains the event"
+  // beside its own vendor_open_event).
+  if (coverage === "none" && gapsAllResolved && linted.plan.steps.length) {
+    coverage = "partial";
+    warnings.push("the model judged coverage none, but every gap it named is done by a step in this plan — read as partial");
+  }
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
