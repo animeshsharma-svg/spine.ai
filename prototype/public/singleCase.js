@@ -92,5 +92,45 @@
     const t = String(text || "");
     return HEADINGS.test(t) || (NUMBERED.test(t) && CHECK.test(t)) || CHECK.test(t);
   };
-  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase };
+  /** Words that read as a FEATURE / PRD / FLOW to derive the permutations from, not one case and not a journey. */
+  const looksLikeDerivation = (text) => {
+    const t = String(text || "").trim();
+    if (/\b(prd|acceptance criteria|user stor(y|ies)|requirements?|feature:|scope:|overview:)\b/i.test(t)) return true;
+    if (t.length > 900 || t.split(/\n\s*\n/).length >= 3) return true;
+    const w = t.split(/\s+/);
+    return w.length <= 14 && /^(test|cover|derive|cases? for|feature|what (can|could) break|all (the )?cases)\b/i.test(t) && !/\b(and|then)\b/i.test(t);
+  };
+  const DIM_WORDS = { positive: "Main path", permission: "Permissions", state: "Event states", setting: "Company settings", "data-edge": "Awkward values", negative: "Refusals", timing: "Timing", channel: "API / other channels", calculation: "Numbers", visibility: "Who sees what" };
+  function deriveCard(g) {
+    const d = g.derivation;
+    const cases = g.cases || [];
+    const byDim = {};
+    cases.forEach((c) => (byDim[c.dimension] = (byDim[c.dimension] || 0) + 1));
+    const fresh = cases.filter((c) => !c.already).length;
+    return `<div class="sht-uc"><div class="sht-cchead"><b>${g.live ? "Deriving the test cases" : `${cases.length} test cases derived`}</b>${g.und ? `<span class="pill idle">${esc(g.und.kind)}</span><span class="pill idle">${esc(g.und.module)}</span>` : ""}${!g.live && d ? `<span class="pill ok">${fresh} new</span><span class="pill idle">${cases.length - fresh} already in the catalog</span><span class="pill ${g.questions?.length ? "warn" : "idle"}">${(g.questions || []).length} questions</span>` : ""}</div>
+      ${g.und ? `<div class="sht-grid"><div class="sht-f"><b>Under test</b><span>${esc(g.und.subject)}</span></div><div class="sht-f"><b>Who</b><span>${esc((g.und.actors || []).join(" · "))}</span></div><div class="sht-f"><b>Actions</b><span>${esc((g.und.actions || []).join(" · "))}</span></div><div class="sht-f"><b>States</b><span>${esc((g.und.states || []).join(" · "))}</span></div></div>` : ""}
+      ${g.grounding ? `<p class="sht-hint">Grounded in ${g.grounding.rules} code rules, ${g.grounding.settings} company settings, ${g.grounding.defects} past defects (RCA), ${g.grounding.product} product-sheet features, ${g.grounding.facts} memory facts; ${g.grounding.existing} cases already written were read first.</p>` : ""}
+      ${g.lines?.length && g.live ? `<ul class="sht-lines">${g.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : ""}
+      ${cases.length ? `<div class="sht-dims">${Object.entries(byDim).map(([k, v]) => `<span class="pill idle">${esc(DIM_WORDS[k] || k)}: ${v}</span>`).join(" ")}</div>
+      <ol class="sht-sugg">${cases.map((c) => `<li><div><span class="pill ${c.already ? "idle" : c.testType === "Negative" ? "warn" : "ok"}">${esc(DIM_WORDS[c.dimension] || c.dimension)}</span> <span class="sht-id">${esc(c.already ? c.already.id : c.id)}</span> <b>${esc(c.title)}</b>${c.already ? `<small>Already in the catalog as ${esc(c.already.id)}: ${esc(c.already.title)}</small>` : ""}<small>${esc(c.role)} · ${esc(c.portal)} · ${esc(c.runnable === "manual" ? `for a person — ${c.whyManual}` : c.runnable === "api" ? "runs through the API" : "runs in the browser")}${c.permission ? ` · hinges on: ${esc(c.permission)}` : ""}</small><small>Starts from: ${esc(c.preconditions)}${c.configs && c.configs !== "None" ? ` · Settings: ${esc(c.configs)}` : ""}</small><ol>${c.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><p class="sht-exp">${esc(c.expected)}</p><small>Grounded in: ${esc((c.grounded || []).join(", "))}</small></div></li>`).join("")}</ol>` : ""}
+      ${g.questions?.length ? `<div class="sht-cchead"><b>Questions this raised (not guessed)</b></div><ol class="sht-checks">${g.questions.map((q) => `<li><b>${esc(q.question)}</b><br><small>${esc(q.why)} Until answered: ${esc(q.assume)}</small></li>`).join("")}</ol>` : ""}
+      ${!g.live && d ? `<div class="sht-filters"><a class="btn primary" href="#/sheets" id="sht-derive-open" data-sheet="${esc(d.sheet)}">Open the sheet "${esc(d.sheet)}" — understand, then run</a><a class="btn" href="/api/sheets/questions?format=xlsx">Download all product questions</a></div>` : ""}
+      ${g.error ? `<p class="sht-msg bad">${esc(g.error)}</p>` : ""}</div>`;
+  }
+  function startDerive({ text, client, max, onState }) {
+    const g = { text, live: true, lines: [], und: null, grounding: null, cases: [], questions: [], derivation: null, error: null };
+    const tell = () => onState(g);
+    tell();
+    const es = new EventSource(`/api/sheets/derive?text=${encodeURIComponent(text)}&c=${client || 198678}&max=${max || 40}`);
+    es.addEventListener("line", (ev) => { g.lines.push(JSON.parse(ev.data).line); g.lines = g.lines.slice(-4); tell(); });
+    es.addEventListener("understanding", (ev) => { g.und = JSON.parse(ev.data); tell(); });
+    es.addEventListener("grounding", (ev) => { g.grounding = JSON.parse(ev.data).counts; tell(); });
+    es.addEventListener("cases", (ev) => { g.cases = JSON.parse(ev.data).cases || []; tell(); });
+    es.addEventListener("questions", (ev) => { g.questions = JSON.parse(ev.data).questions || []; tell(); });
+    es.addEventListener("done", (ev) => { g.derivation = JSON.parse(ev.data).derivation; g.live = false; es.close(); tell(); });
+    es.addEventListener("run-error", (ev) => { g.error = JSON.parse(ev.data).line; g.live = false; es.close(); tell(); });
+    es.onerror = () => { if (g.live) { g.live = false; g.error = g.error || "The live connection dropped. The derivation goes on on the server; its sheet appears under Test sheets."; es.close(); tell(); } };
+    return { stop: () => es.close() };
+  }
+  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive };
 })();

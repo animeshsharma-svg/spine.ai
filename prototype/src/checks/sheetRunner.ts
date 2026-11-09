@@ -353,6 +353,10 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // the value read is the run's own generated title: the label lookup landed on the title field, not the one named
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) read the event title the run itself typed, so it looked at the wrong field. The field the case names was never read: ${d.slice(0, 160)}. This is an automation gap, not a product bug.`;
+    } else if (/\(not evidence about the product\)|^not checked:/i.test(d)) {
+      // the step itself says the screen had nothing it could judge (no grid, no such column): an automation gap
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) found nothing it could judge: ${d.slice(0, 200)}. This is an automation gap, not a product bug.`;
     } else if (/automation needs update|observation pass is not installed/.test(d)) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be judged: ${d.slice(0, 200)}. The automation, not the product, fell short.`;

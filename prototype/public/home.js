@@ -768,10 +768,11 @@
   const HINT = { api: "Requests only · fastest", ui: "Real Chrome, watch it live", both: "API first, then a real browser" };
   const HINT_CASE = "Read as a test case (it has an expected result): understood, run, a verdict per check";
   const HINT_JOURNEY = "Read as a journey (no expected result): walked and photographed";
+  const HINT_DERIVE = "Read as a feature / PRD / flow: deriving the test cases — permissions, states, settings, awkward values, refusals, timing";
   // What the typed words are is read from the words themselves: steps with an expected result are a test
   // case; a flow with nothing to check is a journey. No switch — the hint says which it is.
   let asMode = "case";
-  const detectAs = (text) => (window.spineSingle?.looksLikeCase?.(text) ? "case" : "journey");
+  const detectAs = (text) => (window.spineSingle?.looksLikeDerivation?.(text) ? "derive" : window.spineSingle?.looksLikeCase?.(text) ? "case" : "journey");
   let via = { api: false, ui: true };
   const modeOf = () => (via.api && via.ui ? "both" : via.api ? "api" : "ui");
   /** A run already streaming in this tab: its session is where to type next. */
@@ -798,7 +799,7 @@
     }
     if (box?.value.trim()) asMode = detectAs(box.value);
     const typed = !!box?.value.trim();
-    const text = busy() ? "A run is in progress · open it from the sidebar" : !typed ? HINT[mode] : asMode === "case" ? HINT_CASE : `${HINT_JOURNEY} · ${HINT[mode]}`;
+    const text = busy() ? "A run is in progress · open it from the sidebar" : !typed ? HINT[mode] : asMode === "derive" ? HINT_DERIVE : asMode === "case" ? HINT_CASE : `${HINT_JOURNEY} · ${HINT[mode]}`;
     if (hint && hint.textContent !== text) hint.textContent = text;
     if (start) {
       const off = !box?.value.trim() || busy();
@@ -890,6 +891,13 @@
       const text = box.value.trim();
       const runBox = q$("#request");
       if (!text || busy() || !runBox || typeof runInstruction !== "function") return;
+      // A FEATURE / PRD / FLOW is derived into its permutation matrix of cases, here on Home.
+      if (asMode === "derive" && !looksLikeQuestion(text) && window.spineSingle?.startDerive) {
+        runDerivation(text);
+        box.value = "";
+        syncAsk();
+        return;
+      }
       // A TEST CASE runs here on Home through the sheet runner (single-case mode), never as a journey.
       if (asMode === "case" && !looksLikeQuestion(text) && window.spineSingle) {
         runTypedCase(text);
@@ -942,6 +950,22 @@
         q$("#home-case-stop")?.addEventListener("click", async () => { await fetch("/api/sheets/stop", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null); });
         q$("#home-case-close")?.addEventListener("click", () => { mount.hidden = true; mount.innerHTML = ""; });
         if (!g.live) renderRunNow();
+      },
+    });
+    mount.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  let deriveRun = null;
+  function runDerivation(text) {
+    const mount = q$("#home-case");
+    if (!mount) return;
+    deriveRun?.stop?.();
+    mount.hidden = false;
+    deriveRun = window.spineSingle.startDerive({
+      text, client: clientIdNow(), max: 40,
+      onState: (g) => {
+        mount.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases derived</h2>${g.live ? `<span class="pill warn">${g.cases?.length ? "checking against the catalog" : g.grounding ? "writing the permutations" : g.und ? "reading the rules" : "reading it"}</span>` : `<button type="button" class="btn" id="home-case-close">Close</button>`}</div>${window.spineSingle.deriveCard(g)}`;
+        q$("#home-case-close")?.addEventListener("click", () => { mount.hidden = true; mount.innerHTML = ""; });
+        q$("#sht-derive-open")?.addEventListener("click", () => { try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet: g.derivation?.sheet, tickAll: true })); } catch { /* ignore */ } });
       },
     });
     mount.scrollIntoView({ behavior: "smooth", block: "start" });

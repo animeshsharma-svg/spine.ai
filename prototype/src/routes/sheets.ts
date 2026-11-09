@@ -13,10 +13,15 @@
  *                                            events (case-start, line, frame, case-done), suggestions, done
  *   GET  /api/sheets/understand?sheet=&ids=  what the platform understood of each case before running it
  *   POST /api/sheets/add {cases:[…]}         add typed / suggested rows to the "Typed test cases" sheet
+ *   GET  /api/sheets/derive?text=&c=&max=    SSE, derive the permutation matrix of cases for a feature / flow / PRD /
+ *                                            case / ticket: understanding, grounding, cases, questions, done
+ *   GET  /api/sheets/questions[?format=xlsx] the product questions the derivations could not settle
  */
 import type { RouteHandler } from "./index.js";
 import { addSheetCases, importSheetBuffer, listSheets, sheetCaseById, sheetCases, sheetPrep, TYPED_SHEET } from "../checks/sheetCases.js";
 import { caseFromText, suggestEdgeCases, understandCase } from "../checks/singleCase.js";
+import { deriveCases, allQuestions } from "../agents/deriveCases.js";
+import * as XLSX from "xlsx";
 import { activeSheetRun, listSheetRuns, loadSheetRun, runSheetCases, stopSheetRun } from "../checks/sheetRunner.js";
 import { exportSheetRun, renderSheetReport } from "../report/sheetReport.js";
 import { activeCampaign, campaignFrame, campaignResults, listCampaigns, loadCampaign, planModules, renderCampaignReport, resumeCampaigns, startCampaign, stopCampaign } from "../checks/sheetCampaign.js";
@@ -201,6 +206,43 @@ export const handle: RouteHandler = async (ctx) => {
     }
     if (!closed) out.end();
     return true;
+  }
+  if (ctx.path === "/api/sheets/derive") {
+    const text = (sp.get("text") ?? "").trim();
+    const out = ctx.sse();
+    if (!text) {
+      out.send("run-error", { line: "Type the feature, flow, PRD or case to derive from first." });
+      out.end();
+      return true;
+    }
+    let closed = false;
+    ctx.req.on("close", () => {
+      closed = true;
+    });
+    try {
+      await deriveCases({ text, companyId: Number(sp.get("c")) || 198678, max: Number(sp.get("max")) || 40 }, (e) => {
+        if (closed) return;
+        if (e.type === "line") out.send("line", { id: "derive", line: e.line });
+        else out.send(e.type, e);
+      });
+    } catch (err) {
+      if (!closed) out.send("run-error", { line: (err as Error).message });
+    }
+    if (!closed) out.end();
+    return true;
+  }
+  if (ctx.path === "/api/sheets/questions") {
+    const qs = allQuestions();
+    if (sp.get("format") === "xlsx") {
+      const ws = XLSX.utils.json_to_sheet(qs.map((q) => ({ "#": q.id, Area: q.area, Question: q.question, "Why we ask": q.why, "What we assume now": q.assume, "Came from": q.from, Raised: q.at, Answer: "" })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Product questions");
+      const body = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+      ctx.res.writeHead(200, { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content-disposition": 'attachment; filename="Product_Questions.xlsx"', "cache-control": "no-store" });
+      ctx.res.end(body);
+      return true;
+    }
+    return ctx.json({ questions: qs }), true;
   }
   if (ctx.path === "/api/sheets/understand") {
     const sheet = sp.get("sheet") ?? "";
