@@ -1199,14 +1199,18 @@ async function goTo(ctx: GenericCtx, a: Record<string, unknown>): Promise<Generi
   const stageTab = async (stage?: string) => {
     await page.getByText(/loading your event details/i).first().waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
     const re = stage === "rfp" ? /technical|\brfp\b/i : stage === "rfq" ? /^\s*rfq\b/i : stage === "auction" ? /auction/i : /^\s*(rfq|auction|technical|rfp)\b/i;
+    // wait for the event's tabs to render before deciding (the first look came too early, 9 Nov)
+    await page.getByRole("tab").filter({ visible: true }).first().waitFor({ state: "visible", timeout: 45_000 }).catch(() => {});
+    await page.getByRole("tab", { name: re }).filter({ visible: true }).first().waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     if (await page.getByRole("tab", { name: re }).filter({ visible: true }).count().catch(() => 0)) return clickTab(re, stage ?? "first stage");
     // A single-stage event names its one stage tab after the event's title ("RCA-PUB-008 Rank Auc…"), not its kind:
     // when the only tabs are Project Details, that one and Master QCS, the stage is the one in between.
     const names = (await page.getByRole("tab").filter({ visible: true }).allTextContents().catch(() => [])).map((x) => x.trim()).filter(Boolean);
     const others = names.filter((n) => !/^(project details|master qcs|summary|overview|responses|participants|analytics|price trends|participant remarks)$/i.test(n));
     if (others.length === 1) {
-      const only = others[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return `${await clickTab(new RegExp(`^\\s*${only}\\s*$`), others[0])} (the single stage, named after the event)`;
+      const tab = page.getByRole("tab").filter({ visible: true, hasText: others[0] }).first();
+      if ((await tab.getAttribute("aria-selected").catch(() => null)) !== "true") await tab.click({ timeout: 10_000 });
+      return `tab "${others[0]}" (the single stage, named after the event)`;
     }
     return clickTab(re, stage ?? "first stage");
   };
