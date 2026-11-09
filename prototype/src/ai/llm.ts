@@ -151,7 +151,12 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
   if (process.env.SLINGRING_LOG_SIZE) console.log(`[llm] slingring ${model}: ${messages.reduce((n, m) => n + String(m.content ?? "").length, 0)} chars in, deadline ${deadline}ms`);
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // A batch (the night compile, several compiles in flight) trips the gateway's per-user rate limit
+  // (429 "Rate limit exceeded for user", 10 Nov) far more often than a person does; handing those to
+  // the next provider changes which model wrote the plan. SLINGRING_429_RETRIES raises the number of
+  // waits (backing off 3 s, 6 s, 12 s, 24 s…) before the chain moves on; one retry stays the default.
+  const retries429 = Math.max(1, Number(process.env.SLINGRING_429_RETRIES ?? 1));
+  for (let attempt = 0; attempt <= retries429; attempt++) {
     const stop = AbortSignal.timeout(deadline);
     let res: Response;
     try {
@@ -190,7 +195,7 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
       }
       return content;
     }
-    if ((res.status === 429 || res.status === 503) && attempt === 0) {
+    if ((res.status === 429 || res.status === 503) && attempt < retries429) {
       // An exhausted budget is also a 429 ("ExceededBudget … Spend=250.4, Budget=250.0", 31 Oct) — it
       // will not clear in six seconds. Remember it for ten minutes, so the next calls go straight to the
       // next provider instead of each waiting out a retry first.
@@ -200,7 +205,8 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
         throw new Error(`Slingring 429: ${text.slice(0, 200)} — budget exhausted; skipping Slingring for 10 minutes`);
       }
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
-      await sleep(Math.min(6000, retryAfter * 1000 || 2500));
+      // one retry: the old 2.5–6 s; a batch (SLINGRING_429_RETRIES > 1): 3 s, 6 s, 12 s, 24 s… up to 60 s
+      await sleep(retries429 > 1 ? Math.min(60_000, Math.max(retryAfter * 1000, 3000 * 2 ** attempt)) : Math.min(6000, retryAfter * 1000 || 2500));
       continue;
     }
     throw new Error(`Slingring ${res.status}: ${(await res.text()).slice(0, 300)}`);

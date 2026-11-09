@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sheetCaseProse, sheetPrep, type SheetCase } from "./sheetCases.js";
 import { compileTestCase } from "../agents/planner.js";
+import { storedTextPlan, textPlanIsFresh } from "./compiledUiText.js";
 import { compileApiPlan, applyLineItemCount } from "../agents/apiPlanner.js";
 import { runApiPlan } from "./apiPlanRunner.js";
 import { apiResultInWords, API_CHECK_GUIDE, isServerError, wrongPlaceOnly, type HumanApiStep } from "./humanApi.js";
@@ -270,10 +271,18 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
   const prose = sheetCaseProse(c);
   line(sp?.prepared ? `Starts from: ${sp.why} — built by API, opened on ${sp.screenWhat}.` : "Starts from scratch: the steps create what they need.");
-  const compiled = await compileTestCase(prose, "events", {
-    ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {}),
-    ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
-  });
+  // The night compile (scripts/night-compile.ts) stored this case's plan already: reuse it while it is
+  // newer than the compiler and the step catalog, and was compiled for the same start state. A repair
+  // (ground) or a stale plan compiles afresh, as before. Saves the 20–60 s and the model call per case.
+  const stored = !ground ? storedTextPlan(c.id) : undefined;
+  const reuse = stored && stored.meta.source !== "fallback" && textPlanIsFresh(stored) && (stored.meta.state ?? "none") === (sp?.prepared && !sp.unbuilt ? sp.state : "none") && stored.plan?.steps?.length;
+  if (reuse) line(`Plan reused from the stored compile (${stored!.meta.compiledAt.slice(0, 16).replace("T", " ")} UTC, ${stored!.meta.coverage}).`);
+  const compiled = reuse
+    ? { plan: structuredClone(stored!.plan), coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
+    : await compileTestCase(prose, "events", {
+        ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {}),
+        ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
+      });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
   if (compiled.source === "fallback") return { ...base(c, "Not run", "The steps could not be turned into browser actions (the model gave no usable plan). Nothing was run in its place.", 0), startedFrom: sp?.why };
   if (compiled.coverage === "none" || !plan.steps.length)
