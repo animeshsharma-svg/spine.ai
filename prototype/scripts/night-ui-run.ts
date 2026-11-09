@@ -32,7 +32,7 @@ process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
 process.env.SLINGRING_429_RETRIES ??= "5";
 
 import { sheetCaseById, type SheetCase } from "../src/checks/sheetCases.js";
-import { allStoredTextPlans, textPlanIsFresh } from "../src/checks/compiledUiText.js";
+import { allStoredTextPlans } from "../src/checks/compiledUiText.js";
 import { runSheetCases, listSheetRuns, loadSheetRun } from "../src/checks/sheetRunner.js";
 import { allCases } from "../src/checks/testCatalog.js";
 import { closeSpineDb } from "../src/db/spineDb.js";
@@ -90,7 +90,7 @@ for (const sp of allStoredTextPlans()) {
   if (GROUPS.length && !GROUPS.includes(prefix(m.caseId)) && !GROUPS.includes(m.group.toUpperCase())) continue;
   if (SKIP.length && (SKIP.includes(prefix(m.caseId)) || SKIP.includes(m.group.toUpperCase()))) { left["skipped group"] = (left["skipped group"] ?? 0) + 1; continue; }
   if (ran.has(m.caseId)) { left["ran already"] = (left["ran already"] ?? 0) + 1; continue; }
-  if (!textPlanIsFresh(sp)) { left["stale plan (compile again)"] = (left["stale plan (compile again)"] ?? 0) + 1; continue; }
+  // a plan older than the compiler still runs: the sheet runner compiles it afresh at run time (compiledUiText.textPlanIsFresh)
   const sc = sheetCaseById(m.caseId);
   if (!sc) { left["not a sheet case (product-sheet cases run from Run tests)"] = (left["not a sheet case (product-sheet cases run from Run tests)"] ?? 0) + 1; continue; }
   picks.push({ sheetCase: sc, coverage: m.coverage, priority: byId.get(m.caseId)?.priority ?? "P2" });
