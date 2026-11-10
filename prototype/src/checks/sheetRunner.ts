@@ -150,6 +150,15 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         // A case that needs a company set up a certain way: its "Configs Needed" names the settings (else they are
         // looked up from the pre-condition's words); switch them for this case, switch them back.
         const listed = parseConfigs(c.configs);
+        // The single-stage drawer re-renders when its event type is changed and loses the choice (the drawer
+        // "closed before Save"): 6 cases in a row on 10 Nov, 20 min each. The create screen opens with the
+        // company's default event type, so a case whose plan configures one (rfq / rfp / auction — the values
+        // of EVENT_TYPE in the dashboard) gets default_event_type switched to it for the case, and back.
+        if (c.layer === "ui" && !listed.some((n) => n.key === "default_event_type")) {
+          const planned = storedTextPlan(c.id)?.plan?.steps?.find((st: { step: string; args?: Record<string, unknown> }) => st.step === "configure_single_stage")?.args?.eventType;
+          if (typeof planned === "string" && ["rfq", "rfp", "auction"].includes(planned))
+            listed.push({ key: "default_event_type", value: planned, why: "the create screen must open with this event type (the drawer loses a changed type)" });
+        }
         const setting = listed.length ? `the settings in its "Configs Needed"` : companySetting(c.preconditions);
         if (setting) {
           const needed = listed.length ? listed.map((n) => ({ key: n.key, value: n.value, why: n.why ?? "named in the case" })) : await settingsFor(setting).catch(() => null);
@@ -354,6 +363,12 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     } else if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
+    } else if (f.step === "expect_sheet_cell" && /variant|delivery location|plant|uom|unit/i.test(String(f.args?.column ?? "")) && /\bshows "[^"]+", expected\b|expected it to contain\b/.test(d)) {
+      // Variant, delivery location and unit come from the COMPANY's master data, not from the case: a case written
+      // for another tenant names "Default Variant" / "Plant Name (LOC-0001)" that PROCOL DEMO does not have
+      // (7 "Fails" on 10 Nov were exactly this). The cell shows the company's own value — not a product bug.
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) compared "${String(f.args?.column)}" with the value the case's test data names, but that value comes from the company's own master data: ${d.slice(0, 180)}. The case's test data does not exist on this company; this is not a product bug.`;
     } else if (/^no control reading /i.test(d) && !f.evidence?.appSaid) {
       // the step's own words: the control it was told to judge is not on this screen — a label the compiler
       // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")
