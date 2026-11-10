@@ -354,6 +354,11 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     } else if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;
+    } else if (/^no control reading /i.test(d) && !f.evidence?.appSaid) {
+      // the step's own words: the control it was told to judge is not on this screen — a label the compiler
+      // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) found no control with that name on the screen: ${d.slice(0, 160)}. The automation looked for a name the product may not use; this is an automation gap, not a product bug.`;
     } else if (/^expect_(text|visible|count)$/.test(f.step) && /\(\s*\d+\s*\/\s*\d+\s*\)/.test(String(f.args?.text ?? f.args?.name ?? "")) && !f.evidence?.appSaid) {
       // the compiler wrote a counter into the label ("Awarded Vendors (0/1)") — a guess at the numbers, not a label
       // Procol is known to render; its absence proves nothing (10 Nov: SRC-AWD-001 read as a Fail on exactly this)

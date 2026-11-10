@@ -130,7 +130,13 @@ for (const r of runs) {
 }
 out(`${runs.length} run(s), ${ranCases} case(s): ${Object.entries(tally).map(([k, n]) => `${k} ${n}`).join(" · ") || "none yet"}`);
 out();
-if (fails.length) { out(`Fails to re-read against their evidence before anyone reports them:`); out(); for (const f of fails) out(`- ${f}`); out(); }
+const review: Record<string, { verdict: string; note: string }> = existsSync(join(NIGHT, "fail-review.json")) ? JSON.parse(readFileSync(join(NIGHT, "fail-review.json"), "utf8")) : {};
+if (fails.length) {
+  out(`Fails, each re-read against its evidence (the human verdict after the re-read, when there is one):`);
+  out();
+  for (const f of fails) { const id = f.split(" — ")[0]; const rv = review[id]; out(`- ${f}${rv ? `\n  → **${rv.verdict}** — ${rv.note}` : ""}`); }
+  out();
+}
 
 // ── the API batches ──────────────────────────────────────────────────────────
 for (const [file, title] of [["api-run-summary.json", "API batch — the exact-runner cases (run-all-runnable)"], ["api-plans-run-summary.json", "API batch — the stored API plans (run-all-runnable --plans-only)"]] as const) {
