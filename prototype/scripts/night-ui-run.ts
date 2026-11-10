@@ -31,6 +31,15 @@ delete process.env.SPINE_ALLOW_REAL_VENDORS;
 process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
 process.env.SLINGRING_429_RETRIES ??= "5";
 
+// An idle connection of a database pool timing out emits an unhandled socket 'error' (read EADDRNOTAVAIL /
+// ECONNRESET / ETIMEDOUT) that killed the whole night between two cases, twice on 10 Nov. A dropped idle
+// connection is not a verdict about anything: log it and keep going. Anything else still ends the run.
+process.on("uncaughtException", (e: any) => {
+  if (/EADDRNOTAVAIL|ECONNRESET|ETIMEDOUT|EPIPE|ENETUNREACH/.test(String(e?.code ?? e?.message))) { console.log(`[${new Date().toISOString().slice(11, 19)}] a dropped connection (${e.code ?? e.message}) — the run goes on`); return; }
+  console.error(e);
+  process.exit(1);
+});
+process.on("unhandledRejection", (e: any) => console.log(`[${new Date().toISOString().slice(11, 19)}] unhandled rejection (kept going): ${String(e?.message ?? e).slice(0, 200)}`));
 import { sheetCaseById, type SheetCase } from "../src/checks/sheetCases.js";
 import { allStoredTextPlans } from "../src/checks/compiledUiText.js";
 import { runSheetCases, listSheetRuns, loadSheetRun } from "../src/checks/sheetRunner.js";
