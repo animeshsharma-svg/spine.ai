@@ -4,111 +4,97 @@
   "title": "RFQ bid: Upload an attachment with the bid",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:36:39.923Z",
+  "compiledAt": "2026-11-10T07:12:54.024Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Use the exact quote.pdf file because the upload catalog exposes only sample fixtures or site-hosted paths/URLs.",
-   "Open the uploaded attachment from the buyer's view of Vendor A's bid and verify that the same file opens.",
-   "unconfirmed label \"Submitted\" (expect_text) — not among the labels known from the app nor in the case"
+   "Verify that the buyer can open the uploaded quote.pdf file; the catalog can only check that the filename is visible, not that the file opens successfully."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Submitted\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Use the exact quote.pdf file because the upload catalog exposes only sample fixtures or site-hosted paths/URLs.; Open the uploaded attachment from the buyer's view of Vendor A's bid and verify that the same file opens."
+   "resolved: “Attach quote.pdf in the vendor portal bid form because no catalog step targets vendor bid attachments.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Verify that the buyer can open the uploaded quote.pdf file; the catalog can only check that the filename is visible, not that the file opens successfully."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "upload",
-   "fill",
-   "click",
-   "expect_text",
+   "ask_tester",
+   "vendor_bid",
+   "expect_bid_submitted",
    "switch_portal",
    "go_to",
-   "ask_tester"
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13817
+  "ms": 12328
  },
  "plan": {
-  "title": "RFQ bid attachment upload",
+  "title": "SRC-BID-016 RFQ Bid Attachment",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ event without bids."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor portal while keeping the buyer session available."
+    "note": "Continue in Vendor A's separate supplier-portal session while keeping the buyer session open."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared live RFQ's pricing bid sheet as the invited vendor."
+    "note": "Open the live RFQ bid sheet in the vendor portal."
    },
    {
-    "step": "upload",
+    "step": "ask_tester",
     "args": {
-     "label": "Add Attachments",
-     "file": "sample.pdf"
+     "need": "attach quote.pdf to the open RFQ bid in the vendor portal, without submitting it"
     },
-    "note": "Upload the closest available PDF fixture in place of the requested quote.pdf."
+    "note": "The catalog has no vendor-bid attachment step, so the tester must perform the upload before the quote is submitted."
    },
    {
-    "step": "fill",
+    "step": "vendor_bid",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "price": 100
     },
-    "note": "Enter the requested quote amount."
+    "note": "Submit Vendor A's quote for 100 after the attachment has been added."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit"
-    },
-    "note": "Submit the vendor's RFQ bid."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted"
-    },
-    "note": "Confirm the vendor portal shows the bid as submitted."
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal accepted the bid."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's console to continue the buyer-side verification."
+    "note": "Return to the buyer's session to inspect the submitted response."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ responses view where the submitted bid and its attachment should be accessible."
+    "note": "Open the buyer's Responses view for the RFQ."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_text",
     "args": {
-     "need": "open Vendor A's uploaded attachment from the buyer's bid and verify that the same file opens"
+     "text": "quote.pdf",
+     "present": true
     },
-    "note": "The catalog has no domain step for opening and validating a bid attachment from the buyer's response view."
+    "note": "Assert that the buyer's response view exposes the uploaded attachment filename."
    }
   ]
  }

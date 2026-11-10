@@ -4,87 +4,99 @@
   "title": "Add Columns — Price Cap",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:05:25.306Z",
+  "compiledAt": "2026-11-10T07:19:37.041Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Picking a specific product variant 'CYLINDER WITH KEY & KNOB' from search via domain step",
-   "Selecting Plant Name (LOC-0001) via domain step"
+   "Select the exact CYLINDER WITH KEY & KNOB product variant in the product picker and verify that Product Variant becomes Default Variant"
   ],
   "warnings": [
-   "dropped \"set_ title\" — no such step exists",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
-   "added set_title — publishing without a title is refused",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
-   "added set_title — publishing without a title is refused",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Picking a specific product variant 'CYLINDER WITH KEY & KNOB' from search via domain step; Selecting Plant Name (LOC-0001) via domain step"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Select the exact CYLINDER WITH KEY & KNOB product variant in the product picker and verify that Product Variant becomes Default Variant"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 21,
   "stepNames": [
    "open_create",
-   "set_title",
-   "click",
    "configure_single_stage",
+   "set_title",
    "select_template",
    "add_line_items",
+   "fill_sheet",
+   "select",
    "click",
+   "expect_options",
    "click",
+   "toggle",
+   "expect_sheet_columns",
    "set_sheet_cell",
    "expect_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
    "set_sheet_cell",
-   "expect_sheet_cell"
+   "expect_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "expect_publish_blocked"
   ],
-  "ms": 58983
+  "ms": 21875
  },
  "plan": {
-  "title": "Add Columns — Price Cap",
+  "title": "Single-Stage RFQ Price Cap Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single stage create screen as required by the case"
-   },
-   {
-    "step": "set_title"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "RFQ"
-    },
-    "note": "Switch event type to RFQ"
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+    "note": "Switch the default event type to RFQ and retain whole-lot awarding."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Price Cap Validation Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Select the RFQ template to load the product sheet"
+    "note": "Apply the first available RFQ template so the pricing sheet can render."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER"
+     "search": "CYLINDER",
+     "quantity": "10"
     },
-    "note": "Add a product line item"
+    "note": "Add one line item using the named product search and requested quantity."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Populate the remaining required pricing-sheet fields."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Delivery location",
+     "option": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the delivery location named by the case."
    },
    {
     "step": "click",
@@ -92,70 +104,120 @@
      "role": "button",
      "name": "Add Columns"
     },
-    "note": "Open Add Columns menu"
+    "note": "Open the additional pricing-column controls."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "role": "button",
+     "name": "Add Columns",
+     "options": [
+      "Price Cap"
+     ]
+    },
+    "note": "Assert that Price Cap is offered as an additional column."
    },
    {
     "step": "click",
     "args": {
-     "role": "checkbox",
-     "name": "Price Cap"
+     "role": "button",
+     "name": "Add Columns"
     },
-    "note": "Tick Price Cap column"
+    "note": "Reopen the additional-column controls after the options assertion."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Price Cap",
+     "on": true
+    },
+    "note": "Add the Price Cap column to the pricing sheet."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "price_cap"
+     ]
+    },
+    "note": "Verify that the Price Cap header rendered."
    },
    {
     "step": "set_sheet_cell",
     "args": {
-     "column": "Price Cap",
      "row": 1,
+     "column": "Price Cap",
      "value": "100"
     },
-    "note": "Type a valid price cap of 100"
+    "note": "Enter the valid cap value."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
+     "row": 1,
      "column": "Price Cap",
-     "equals": "100",
      "kept": true,
-     "row": 1
+     "equals": "100"
     },
-    "note": "Assert 100 is kept"
+    "note": "Assert that 100 is retained without an error."
    },
    {
     "step": "set_sheet_cell",
     "args": {
-     "column": "Price Cap",
      "row": 1,
+     "column": "Price Cap",
      "value": "abc"
     },
-    "note": "Type letters into Price Cap"
+    "note": "Try entering letters into the Price Cap cell."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
+     "row": 1,
      "column": "Price Cap",
-     "refused": true,
-     "row": 1
+     "refused": true
     },
-    "note": "Assert letters are refused"
+    "note": "Assert that the nonnumeric cap is rejected."
    },
    {
     "step": "set_sheet_cell",
     "args": {
-     "column": "Price Cap",
      "row": 1,
+     "column": "Price Cap",
      "value": "-1"
     },
-    "note": "Type a negative value into Price Cap"
+    "note": "Try entering a negative cap."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
+     "row": 1,
      "column": "Price Cap",
      "refused": true,
-     "row": 1
+     "contains": "Price Cap cannot be negative"
     },
-    "note": "Assert negative cap is refused"
+    "note": "Assert that the negative cap is rejected with the required message."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule so publish validation reaches the price-cap rule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant before attempting publication."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please enter valid price cap values"
+    },
+    "note": "Assert that publication is blocked by invalid Price Cap values and shows the expected message."
    }
   ]
  }

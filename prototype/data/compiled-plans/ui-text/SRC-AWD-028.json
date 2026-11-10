@@ -4,51 +4,51 @@
   "title": "Two bids on two lines: award both lines to B; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:16:31.667Z",
+  "compiledAt": "2026-11-10T07:06:27.414Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared event cannot provide two lines with bids from vendors A and B, so allocating both lines specifically to B and verifying the 900 + 300 = 1,200 totals cannot be tested.",
-   "The catalog cannot sign in as the approver, reject the proposal with a remark, verify that no PO was created, or verify that the buyer can restart awarding from Master QCS."
+   "The prepared state has only one line item and one bid, so two lines with bids from vendors A and B cannot be tested.",
+   "Allocating both lines to Vendor B and verifying Awarded Vendors reads 1/2 cannot be tested in the one-line, one-vendor prepared state.",
+   "Filling and submitting the requested multi-line proposal cannot be tested for the stated allocation.",
+   "Signing in as the approver and rejecting the proposal with a remark requires another user session.",
+   "Verifying that no PO is created after rejection and that the buyer can restart awarding afterward cannot be tested because approver rejection is unavailable."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event cannot provide two lines with bids from vendors A and B, so allocating both lines specifically to B and verifying the 900 + 300 = 1,200 totals cannot be tested.; The catalog cannot sign in as the approver, reject the proposal with a remark, verify that no PO was created, or verify that the buyer can restart awarding from Master QCS."
+   "can only test part of this — no step for: The prepared state has only one line item and one bid, so two lines with bids from vendors A and B cannot be tested.; Allocating both lines to Vendor B and verifying Awarded Vendors reads 1/2 cannot be tested in the one-line, one-vendor prepared state.; Filling and submitting the requested multi-line proposal cannot be tested for the stated allocation.; Signing in as the approver and rejecting the proposal with a remark requires another user session.; Verifying that no PO is created after rejection and that the buyer can restart awarding afterward cannot be tested because approver rejection is unavailable."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "start_awarding",
    "allocate_award",
    "expect_award_counters",
-   "click",
-   "expect_navigated",
-   "do_on_screen",
-   "ask_tester"
+   "expect_visible"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 17356
+  "ms": 10090
  },
  "plan": {
-  "title": "SRC-AWD-028 — Two-line award rejection",
+  "title": "Two-line award and approver rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state cases."
+    "note": "Open the prepared closed event's Master QCS without searching or creating another event."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen for the available prepared bid."
+    "note": "Reach the awarding screen, which is the closest available screen for inspecting allocation controls."
    },
    {
     "step": "allocate_award",
     "args": {},
-    "note": "Allocate the available line to the available vendor; the prepared state cannot represent the requested two-line Vendor B allocation."
+    "note": "Allocate the available prepared line to the available vendor; this exercises the closest single-line allocation path, not the requested two-line Vendor B allocation."
    },
    {
     "step": "expect_award_counters",
@@ -56,36 +56,16 @@
      "items": "1/1",
      "vendors": "1/1"
     },
-    "note": "Assert the allocation counter for the single line and vendor available in the prepared state."
+    "note": "Assert the counters for the prepared one-line, one-vendor state so the available allocation is verified without inventing the requested 1/2 result."
    },
    {
-    "step": "click",
+    "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Create Proposal"
+     "name": "Create Proposal",
+     "visible": true
     },
-    "note": "Create the proposal from the available allocation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Assert that the proposal page opened."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "fill the required proposal fields and submit the proposal, stopping when the proposal submission is confirmed"
-    },
-    "note": "Complete and submit the proposal fields because no dedicated catalog step covers proposal-field completion and submission."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, verify that no purchase order was created, and verify that the buyer can start awarding again from Master QCS"
-    },
-    "note": "Approver authentication, proposal rejection, and the post-rejection checks are not available through catalog steps."
+    "note": "Confirm the awarding screen exposes the proposal-creation control."
    }
   ]
  }

@@ -4,28 +4,27 @@
   "title": "Award a service activity-wise",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:21:32.718Z",
+  "compiledAt": "2026-11-10T07:08:30.738Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign activity 1 to Vendor A and activity 2 to Vendor B on the awarding screen while verifying each uses that vendor's rate",
-   "Assert that the submitted proposal contains the two requested activity-to-vendor allocations",
-   "Assert that exactly one purchase order is created for each vendor"
+   "Submit a proposal assigning activity 1 to Vendor A and activity 2 to Vendor B at each vendor's rate",
+   "Verify that the split award creates exactly two purchase orders, one per vendor"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assign activity 1 to Vendor A and activity 2 to Vendor B on the awarding screen while verifying each uses that vendor's rate; Assert that the submitted proposal contains the two requested activity-to-vendor allocations; Assert that exactly one purchase order is created for each vendor"
+   "can only test part of this — no step for: Submit a proposal assigning activity 1 to Vendor A and activity 2 to Vendor B at each vendor's rate; Verify that the split award creates exactly two purchase orders, one per vendor"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_event",
    "start_awarding",
-   "ask_tester",
-   "create_po",
-   "expect_po_items"
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters"
   ],
   "unbuilt": "A service RFQ. the API set-up does not build service events yet",
-  "ms": 9796
+  "ms": 8403
  },
  "plan": {
   "title": "Award service activities to two vendors",
@@ -33,31 +32,34 @@
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event selected as a closed RFQ with bids, matching the required starting state."
+    "note": "Open an existing closed event with bids for awarding."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen for the closed event."
+    "note": "Enter the awarding screen for the closed RFQ."
    },
    {
-    "step": "ask_tester",
+    "step": "allocate_award",
     "args": {
-     "need": "assign activity 1 to Vendor A and activity 2 to Vendor B at their respective rates, create and submit the proposal, and confirm the split allocation"
+     "vendor": "A"
     },
-    "note": "The catalog has no step for assigning different activities to different vendors or verifying the submitted split proposal."
+    "note": "Attempt to allocate an activity to Vendor A."
    },
    {
-    "step": "create_po",
-    "args": {},
-    "note": "Complete the award workflow and create the purchase orders after the proposal has been submitted."
-   },
-   {
-    "step": "expect_po_items",
+    "step": "allocate_award",
     "args": {
-     "count": 2
+     "vendor": "B"
     },
-    "note": "Check that the resulting purchase orders contain two awarded activity lines, the closest available check for the expected two-vendor outcome."
+    "note": "Attempt to allocate the other activity to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "2/2",
+     "vendors": "2/2"
+    },
+    "note": "Verify that both activities and both vendors are represented in the allocation counters."
    }
   ]
  }

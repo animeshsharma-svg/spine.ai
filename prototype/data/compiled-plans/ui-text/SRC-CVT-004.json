@@ -4,51 +4,55 @@
   "title": "Starting price below the highest RFQ global charge",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:11:36.545Z",
+  "compiledAt": "2026-11-10T07:22:20.933Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The conversion pop-up's offered reuse options for RFQ quotes, participants and weights cannot be asserted as a specific option list."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The conversion pop-up's offered reuse options for RFQ quotes, participants and weights cannot be asserted as a specific option list."
+  ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
    "convert_to_auction",
-   "expect_navigated",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 9381
+  "ms": 11847
  },
  "plan": {
-  "title": "RFQ conversion rejects low starting price",
+  "title": "Reject Auction Start Price Below Maximum Global Charge",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on its summary page."
+    "note": "Open the prepared closed RFQ on the buyer's summary page."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Open the RFQ conversion flow and continue to the auction create screen."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Confirm the conversion landed on the auction creation screen."
+    "note": "Open the RFQ conversion flow and continue to the converted auction create screen."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the converted auction create screen, set the starting price to a value below the largest global charge among the RFQ bids, publish the auction, and stop when the screen shows the refusal message \"Starting price cannot be less than the maximum global charge of RFQ bids\""
+     "goal": "Set the converted auction's starting price below the largest global charge from the RFQ bids, publish the auction, and stop when the screen shows the refusal."
     },
-    "note": "Perform the starting-price negative case and verify the exact refusal on the buyer screen."
+    "note": "No dedicated catalog step can edit this conversion-specific starting-price control and submit the converted auction."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Starting price cannot be less than the maximum global charge of RFQ bids"
+    },
+    "note": "Assert that publishing is refused with the required validation message."
    }
   ]
  }

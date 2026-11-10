@@ -1,0 +1,138 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-357",
+  "title": "No line item may exceed its RFQ value in the breakdown",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:16:28.299Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vendor's CBD cost-breakdown screen, editing a line item above its RFQ value, submitting the breakdown, and verifying the specific refusal that the line price cannot exceed the RFQ value."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The vendor's CBD cost-breakdown screen, editing a line item above its RFQ value, submitting the breakdown, and verifying the specific refusal that the line price cannot exceed the RFQ value."
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_message"
+  ],
+  "ms": 16863
+ },
+ "plan": {
+  "title": "CBD Breakdown RFQ Value Limit",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the RFQ event needed for the setup."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the event has an RFQ value to constrain the breakdown."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the line item whose RFQ value will be used for the negative breakdown test."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the vendor who must perform the breakdown submission."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can access it."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the RFQ became a real published event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reach the vendor's RFQ pricing view as the closest available vendor-side setup."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the vendor's CBD cost-breakdown screen, edit one line item price above its RFQ value, submit the breakdown, and verify the system shows an error and refuses submission"
+    },
+    "note": "The catalog cannot enter or submit the CBD breakdown."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any"
+    },
+    "note": "Assert that the tester's attempted invalid submission produced a visible refusal or validation message."
+   }
+  ]
+ }
+}

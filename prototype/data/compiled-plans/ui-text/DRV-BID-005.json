@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-005",
+  "title": "Vendor from another company not in audience is refused when submitting a bid",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-09T22:57:51.540Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Log in to the Procol API with a buyer token that can view the stage but lacks reject permission",
+   "Send PATCH /bids/<bid_id>/reject using that token and verify HTTP 422 with error code 455 (R-BID-030-7) and message \"Not authorized to reject bid\""
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Log in to the Procol API with a buyer token that can view the stage but lacks reject permission; Send PATCH /bids/<bid_id>/reject using that token and verify HTTP 422 with error code 455 (R-BID-030-7) and message \"Not authorized to reject bid\""
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "expect_responses",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 8879
+ },
+ "plan": {
+  "title": "API Reject Bid Permission Check",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen containing the active vendor bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "participation": "1/1"
+    },
+    "note": "Confirm the prepared event has the expected single vendor response before the API attempt."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "log in to the Procol API with a buyer token that can view the stage but lacks reject permission, send PATCH /bids/<bid_id>/reject for the active bid, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\""
+    },
+    "note": "The API login, request execution, and response-body verification are not available as catalog actions."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the buyer screen remains rendered without a client-side error after the unavailable API verification step."
+   }
+  ]
+ }
+}

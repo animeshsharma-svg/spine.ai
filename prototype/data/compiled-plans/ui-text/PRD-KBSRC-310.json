@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-310",
+  "title": "Shaded vendor fields cannot be filled by the buyer",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:12:43.374Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "expect_sheet_cells",
+   "set_sheet_cell",
+   "expect_sheet_cell"
+  ],
+  "ms": 9101
+ },
+ "plan": {
+  "title": "Buyer Cannot Edit Shaded Vendor Fields",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage create screen, whose default stage is Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBSRC-310"
+    },
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an auction pricing template so the template table and its locked vendor columns render."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product to create a data row in the pricing sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Render and populate the pricing sheet before checking cell editability."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Price",
+      "Quantity Available",
+      "GST",
+      "Total Amount"
+     ]
+    },
+    "note": "Assert that the shaded vendor-owned fields in the first product row are read-only for the buyer."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "123"
+    },
+    "note": "Attempt to type into a representative shaded vendor field."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "refused": true
+    },
+    "note": "Verify the buyer's typed value is not accepted in the vendor-owned Price cell."
+   }
+  ]
+ }
+}

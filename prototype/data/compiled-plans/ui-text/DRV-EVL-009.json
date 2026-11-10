@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-009",
+  "title": "QCS shows correct landed price when freight is non‑zero",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:04:59.570Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Independently verify the separate freight value of 20 and that the displayed landed price was calculated as 80 + 20 rather than receiving the total from another source."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Independently verify the separate freight value of 20 and that the displayed landed price was calculated as 80 + 20 rather than receiving the total from another source."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "ms": 8895
+ },
+ "plan": {
+  "title": "QCS landed price with freight",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live RFQ directly on Master QCS."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Confirm the QCS contains Vendor A's bid column with a real vendor name."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": "Vendor A",
+     "key": "bidTotal"
+    },
+    "note": "Verify the QCS displays the API-held total for Vendor A, which represents the landed bid amount."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 1
+    },
+    "note": "Verify Vendor A is ranked L1 when it has the lowest landed amount."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "Sum Total",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Confirm ranking follows the displayed total amount."
+   }
+  ]
+ }
+}

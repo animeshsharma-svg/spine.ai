@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-002",
+  "title": "Counter offer while bidding is live: the vendor accepts",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:35:32.935Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Awarding Vendor A after bidding closes and verifying the award uses 90 × 10 = 900, because the prepared live state cannot be closed or awarded.",
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Awarding Vendor A after bidding closes and verifying the award uses 90 × 10 = 900, because the prepared live state cannot be closed or awarded."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_prepared",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "accept_counter_offer",
+   "switch_portal",
+   "go_to",
+   "expect_counter_offer_accepted",
+   "expect_text",
+   "expect_text",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell"
+  ],
+  "state": "two_bids",
+  "screen": "responses",
+  "ms": 15576
+ },
+ "plan": {
+  "title": "Live Counter Offer Acceptance",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen as required for this state."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Add the second bid at 90 to reproduce the two-bid setup without requiring a second vendor portal session."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid before initiating the counter offer."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send Vendor A's counter offer at 90 with the required remark."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Confirm the buyer's grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate vendor portal session while keeping the buyer session open."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live RFQ pricing round where the pending counter offer is available."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {},
+    "note": "Accept the pending counter offer as the vendor."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's session to verify the accepted counter offer."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the RFQ Responses tab."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {},
+    "note": "Confirm the buyer's Responses grid marks the vendor's counter offer as accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Accepted Counter Offers",
+     "present": true
+    },
+    "note": "Verify the accepted counter offer is counted in the corresponding panel."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90",
+     "present": true
+    },
+    "note": "Verify the accepted price 90 is visible in Responses."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to verify the accepted bid value in the comparison grid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "equals": "90"
+    },
+    "note": "Assert that Master QCS uses the accepted rate of 90."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "equals": "10"
+    },
+    "note": "Assert the bid quantity is 10 for the expected total calculation."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "equals": "900"
+    },
+    "note": "Verify Master QCS shows the expected 90 × 10 total of 900."
+   }
+  ]
+ }
+}

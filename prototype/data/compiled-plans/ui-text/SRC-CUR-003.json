@@ -4,75 +4,82 @@
   "title": "Exchange rate 0 or negative",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:09:24.601Z",
+  "compiledAt": "2026-11-10T07:21:33.330Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog has no dedicated step for selecting Plant Name (LOC-0001) or adding USD with exchange rate -1; this is delegated to do_on_screen."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The catalog has no dedicated step for selecting Plant Name (LOC-0001) or adding USD with exchange rate -1; this is delegated to do_on_screen."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_message"
   ],
-  "ms": 70719
+  "ms": 13297
  },
  "plan": {
-  "title": "Reject non-positive exchange rate",
+  "title": "SRC-CUR-003 Exchange Rate Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen from the Create Event flow."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the case."
+    "note": "Set the event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title required on create screens."
+    "args": {
+     "title": "SRC-CUR-003 Exchange Rate Validation"
+    },
+    "note": "Provide the required event title so the setup can proceed."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is available."
+    "note": "Select the first available RFQ template so the product sheet is created."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
+     "search": "CYLINDER"
     },
-    "note": "Add the CYLINDER line item with the requested quantity."
+    "note": "Add the requested CYLINDER line item."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ create screen, select the CYLINDER WITH KEY & KNOB product so Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), add USD with exchange rate -1, and verify the app refuses it with the message 'All exchange rates must be positive numbers'."
+     "goal": "on the RFQ create screen, select CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, select Plant Name (LOC-0001) for Delivery location, add USD as a currency with exchange rate -1, and stop when the screen shows the refusal"
     },
-    "note": "Perform and observe the product/location and currency-rate interactions that no dedicated catalog step can express."
+    "note": "Perform the product, location, and currency exchange-rate interactions that have no dedicated domain step."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "All exchange rates must be positive numbers"
+    },
+    "note": "Assert the required refusal message for the negative exchange rate."
    }
   ]
  }

@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "DRV-TPL-011",
+  "title": "Vendor removed from Technical Stage is blocked from quoting in the RFQ commercial stage",
+  "group": "DRV-TPL",
+  "sheet": "derived-provide-configurable-rfq-templates-line-",
+  "compiledAt": "2026-11-09T23:12:28.725Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly configure Vendor A as removed from or failed in the Technical Stage before attempting the RFQ quote."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Explicitly configure Vendor A as removed from or failed in the Technical Stage before attempting the RFQ quote."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt"
+  ],
+  "state": "live",
+  "screen": "technical",
+  "ms": 10440
+ },
+ "plan": {
+  "title": "Technical Stage Gate Blocks Vendor RFQ Quote",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "technical"
+    },
+    "note": "Open the prepared live eRFX event's Technical Stage, as required for prepared-state cases."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Attempt to open the commercial RFQ bid submission screen; the vendor portal should enforce the technical-stage gate."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to submit commercial quotation values and require a refusal from the portal."
+   }
+  ]
+ }
+}

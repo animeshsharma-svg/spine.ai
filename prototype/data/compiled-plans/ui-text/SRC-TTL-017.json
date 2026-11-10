@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "SRC-TTL-017",
+  "title": "RFQ: clearing a typed title brings the auto title back",
+  "group": "SRC-TTL",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:20:08.882Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select the exact product variant CYLINDER WITH KEY & KNOB and verify Product Variant fills with Default Variant",
+   "Add or change the product row to the exact Plant Name location after clearing the title"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Select the exact product variant CYLINDER WITH KEY & KNOB and verify Product Variant fills with Default Variant; Add or change the product row to the exact Plant Name location after clearing the title"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "set_title",
+   "fill",
+   "expect_value"
+  ],
+  "ms": 71484
+ },
+ "plan": {
+  "title": "RFQ auto title restored after clearing typed title",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow used by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the single-stage event type to RFQ."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the available RFQ template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add a product matching the case's CYLINDER product requirement as far as the catalog allows."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Typed RFQ title"
+    },
+    "note": "Enter the manual title that the case then clears."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter the title of this event",
+     "value": ""
+    },
+    "note": "Clear the typed title using the title field, as required for testing restoration of the automatic title."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of this event",
+     "value": "[RFQ] CYLINDER WITH KEY & KNOB - Plant Name"
+    },
+    "note": "Assert that the empty title field was repopulated with the expected automatic RFQ title."
+   }
+  ]
+ }
+}

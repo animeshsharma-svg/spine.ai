@@ -4,59 +4,58 @@
   "title": "Tech+RFQ: RFQ stage before the technical response",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:42:03.434Z",
+  "compiledAt": "2026-11-10T07:14:42.190Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Exact vendor-portal behavior and message shown when the RFQ stage is opened before the technical response, including whether the commercial stage is locked"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Exact vendor-portal behavior and message shown when the RFQ stage is opened before the technical response, including whether the commercial stage is locked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible"
+   "attempt"
   ],
   "state": "live",
   "screen": "technical",
-  "ms": 9339
+  "ms": 14737
  },
  "plan": {
-  "title": "Vendor cannot quote RFQ before technical response",
+  "title": "Vendor RFQ Lock Before Technical Response",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "technical"
     },
-    "note": "Open the prepared Tech+RFQ event on its technical round without creating or changing the event."
+    "note": "Open the prepared Tech+RFQ event's technical round as required for this prepared state."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as Vendor A in the supplier portal while leaving the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "stage": "pricing"
+     "stage": "technical"
     },
-    "note": "Attempt to open the commercial RFQ round before submitting the technical response; the step records whether the round opens or is unavailable."
+    "note": "Open the event in the vendor portal on the Technical Stage without submitting a technical response."
    },
    {
-    "step": "expect_visible",
+    "step": "attempt",
     "args": {
-     "role": "button",
-     "name": "Submit",
-     "visible": false
+     "step": "click",
+     "args": {
+      "role": "tab",
+      "name": "RFQ"
+     },
+     "expect": "refused"
     },
-    "note": "If the commercial round is correctly blocked, the vendor should not see a quote submission control."
+    "note": "Attempt to open the commercial RFQ stage and verify Procol blocks access before the technical response is submitted."
    }
   ]
  }

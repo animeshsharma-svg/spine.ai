@@ -1,0 +1,158 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-053",
+  "title": "Manage Line Items: Save fails when Quantity contains letters",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:45:26.460Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "open_first_event",
+   "click",
+   "fill",
+   "fill",
+   "click",
+   "expect_toast"
+  ],
+  "ms": 12948
+ },
+ "plan": {
+  "title": "Draft Line Item Letter Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the eRFX draft needed as the starting state."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-053 Quantity Letters"
+    },
+    "note": "Provide the mandatory draft title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the initial valid line item to the draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the draft can be saved."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule for the draft."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Complete the draft setup with a participant."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the valid eRFX draft so the Manage Line Items flow can be tested after reopening."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft was saved without an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to locate the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show saved drafts."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-053 Quantity Letters"
+    },
+    "note": "Open the draft created by this plan."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items"
+    },
+    "note": "Open the Manage Line Items window from the draft."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "abc",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter letters into the line item's Quantity field."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "1200",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter the specified price before attempting to save."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save",
+     "within": "Manage Line Items"
+    },
+    "note": "Attempt to save the invalid line item."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Please fill valid quantity on every line item"
+    },
+    "note": "Assert that the Manage Line Items save is rejected because the quantity is non-numeric."
+   }
+  ]
+ }
+}

@@ -4,30 +4,32 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:17:42.990Z",
+  "compiledAt": "2026-11-10T07:06:36.548Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The prepared event has only one invited vendor and one bid, so three bids from vendors A, B, and C cannot be tested.",
-   "Allocating quantities 4 to B, 3 to C, and 3 to A cannot be expressed because allocate_award has no quantity or multi-vendor allocation arguments.",
-   "The proposal's per-vendor calculations B 4 × 90 = 360, C 3 × 95 = 285, A 3 × 100 = 300, and total 945 cannot be asserted.",
-   "Filling required proposal fields and submitting the proposal is not expressible as a complete action with the required allocation.",
-   "Verifying one PO per awarded vendor and that the event moves to History is not expressible for this unavailable three-vendor award state.",
-   "Verifying that no approval flow occurs is not expressible."
+   "A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 cannot be created or selected from the prepared one-bid state.",
+   "Splitting one line into quantities 4 for B, 3 for C, and 3 for A cannot be performed or asserted by the catalog.",
+   "The allocation amounts 360, 285, 300, and total 945 cannot be verified for the requested three vendors.",
+   "Submitting a proposal with the requested split and required proposal fields cannot be performed for this three-way allocation.",
+   "Creating and verifying one purchase order per awarded vendor cannot be performed for the requested split.",
+   "Verifying the event moves to History after the three-way award cannot be performed from the fixed prepared state."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has only one invited vendor and one bid, so three bids from vendors A, B, and C cannot be tested.; Allocating quantities 4 to B, 3 to C, and 3 to A cannot be expressed because allocate_award has no quantity or multi-vendor allocation arguments.; The proposal's per-vendor calculations B 4 × 90 = 360, C 3 × 95 = 285, A 3 × 100 = 300, and total 945 cannot be asserted.; Filling required proposal fields and submitting the proposal is not expressible as a complete action with the required allocation.; Verifying one PO per awarded vendor and that the event moves to History is not expressible for this unavailable three-vendor award state.; Verifying that no approval flow occurs is not expressible."
+   "cannot test this case yet — no step can observe: A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 cannot be created or selected from the prepared one-bid state.; Splitting one line into quantities 4 for B, 3 for C, and 3 for A cannot be performed or asserted by the catalog.; The allocation amounts 360, 285, 300, and total 945 cannot be verified for the requested three vendors.; Submitting a proposal with the requested split and required proposal fields cannot be performed for this three-way allocation.; Creating and verifying one purchase order per awarded vendor cannot be performed for the requested split.; Verifying the event moves to History after the three-way award cannot be performed from the fixed prepared state."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "expect_qcs_vendors",
    "start_awarding",
+   "allocate_award",
    "expect_award_counters"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 71323
+  "ms": 12867
  },
  "plan": {
   "title": "SRC-AWD-029 Three-Way Split Award",
@@ -37,17 +39,33 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS, the available starting point for awarding checks."
+    "note": "Open the prepared event's Master QCS without searching the events list."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert the prepared state has only one real vendor column, exposing that the required three-vendor scenario is unavailable."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen to verify that the available bid can enter the award flow."
+    "note": "Open the closest available awarding screen for the closed prepared event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available line to the available vendor as the closest supported awarding action; this does not test the requested split."
    },
    {
     "step": "expect_award_counters",
-    "args": {},
-    "note": "Assert the awarding screen's current selection counters, without inventing the unavailable 3/3 split."
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Assert the supported single-vendor allocation counters."
    }
   ]
  }

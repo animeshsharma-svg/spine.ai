@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-004",
+  "title": "Counter offer while bidding is live: the vendor does not answer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:36:41.300Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "expect_visible",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "switch_portal",
+   "expect_visible",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "state": "two_bids",
+  "screen": "responses",
+  "ms": 73588
+ },
+ "plan": {
+  "title": "SRC-NEG-004 Live Counter Offer Pending",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen with the existing bids."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send a counter offer on the vendor's existing bid, changing the counter price to 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer grid records that the counter offer was initiated."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "visible": true
+    },
+    "note": "Confirm the counter offer remains pending and can be revoked by the buyer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session open."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live RFQ pricing round where the vendor's bid and pending counter offer are shown."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 90
+     },
+     "expect": "refused",
+     "because": "You have a counter offer pending on this bid"
+    },
+    "note": "Attempt a vendor price revision and require Procol to refuse it because a counter offer is pending."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's Responses screen."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "visible": true
+    },
+    "note": "Verify on the buyer side that the counter offer is still pending after the vendor does not revise it."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to inspect the comparison after the pending counter offer."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Confirm Vendor A's comparison rate remains the original 100 rather than the counter price."
+   }
+  ]
+ }
+}

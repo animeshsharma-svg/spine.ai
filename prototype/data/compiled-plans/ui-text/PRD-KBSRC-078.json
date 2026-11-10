@@ -1,0 +1,125 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-078",
+  "title": "Convert a concluded RFQ to an auction using RFQ quotations as starting bids",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:11:43.053Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly verify that the conversion prompt checkbox to use RFQ quotations as starting bids remains selected",
+   "Set and verify all available auction settings beyond the supported schedule duration",
+   "Click and verify the conversion setup screen's Save action and the detailed review-before-publish flow",
+   "Verify that the auction is linked to the same project rather than only reaching a published converted event",
+   "Verify that each auction starting bid exactly equals its corresponding RFQ quotation"
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "moved convert_to_auction after publish — only a published RFQ can be converted",
+   "added set_title — publishing without a title is refused",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "inserted select_template + add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "moved convert_to_auction after publish — only a published RFQ can be converted",
+   "added set_title — publishing without a title is refused",
+   "added invite_vendor — an event with no participants cannot be bid on",
+   "inserted select_template + add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "can only test part of this — no step for: Explicitly verify that the conversion prompt checkbox to use RFQ quotations as starting bids remains selected; Set and verify all available auction settings beyond the supported schedule duration; Click and verify the conversion setup screen's Save action and the detailed review-before-publish flow; Verify that the auction is linked to the same project rather than only reaching a published converted event; Verify that each auction starting bid exactly equals its corresponding RFQ quotation"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "open_event",
+   "expect_no_error",
+   "select_template",
+   "add_line_items",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "convert_to_auction",
+   "expect_responses"
+  ],
+  "ms": 18084
+ },
+ "plan": {
+  "title": "Convert concluded RFQ to auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event with bids and bidding concluded, matching the concluded RFQ setup."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the conversion reached the auction setup screen without an application error."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "a template comes first on the create screen"
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Set a supported auction duration before publishing."
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the converted auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that the converted auction reached a real published project page."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Use the supported RFQ-to-Auction conversion flow; this opens the converted auction setup screen."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "stage": "auction",
+     "atLeast": 1
+    },
+    "note": "Check that the auction exposes at least one vendor response, providing partial evidence that RFQ bidders and their carried-over bids are present."
+   }
+  ]
+ }
+}

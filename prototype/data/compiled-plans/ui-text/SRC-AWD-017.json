@@ -4,61 +4,61 @@
   "title": "Two bids: award only 6 of the 10 units to B (partial award); no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:12:53.933Z",
+  "compiledAt": "2026-11-10T07:05:38.625Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "A closed RFQ with two vendors and two bids priced A 100 and B 90; the prepared state contains exactly one vendor and one bid.",
-   "Entering a partial allocation of 6 units to Vendor B and leaving 4 units un-awarded; no catalog step accepts per-vendor allocation quantities.",
-   "Verifying Awarded Vendors reads 1/2.",
-   "Verifying Vendor B's exact calculation of 6 × 90 = 540 and the remaining 4 un-awarded units.",
-   "Verifying that no approval flow occurs and that the split award creates the requested vendor-specific PO and History result."
+   "The prepared event does not contain the required two bids, including Vendor B's bid of 90.",
+   "Selecting exactly 6 of 10 units for Vendor B while leaving 4 units unawarded.",
+   "Verifying Vendor B's calculation of 6 × 90 = 540.",
+   "Submitting a partial award proposal with the required proposal fields.",
+   "Verifying the award is final without approval, creates one PO per awarded vendor, and moves the event to History."
   ],
   "warnings": [
-   "can only test part of this — no step for: A closed RFQ with two vendors and two bids priced A 100 and B 90; the prepared state contains exactly one vendor and one bid.; Entering a partial allocation of 6 units to Vendor B and leaving 4 units un-awarded; no catalog step accepts per-vendor allocation quantities.; Verifying Awarded Vendors reads 1/2.; Verifying Vendor B's exact calculation of 6 × 90 = 540 and the remaining 4 un-awarded units.; Verifying that no approval flow occurs and that the split award creates the requested vendor-specific PO and History result."
+   "cannot test this case yet — no step can observe: The prepared event does not contain the required two bids, including Vendor B's bid of 90.; Selecting exactly 6 of 10 units for Vendor B while leaving 4 units unawarded.; Verifying Vendor B's calculation of 6 × 90 = 540.; Submitting a partial award proposal with the required proposal fields.; Verifying the award is final without approval, creates one PO per awarded vendor, and moves the event to History."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "award_event",
-   "expect_awarded",
-   "create_po",
-   "expect_po_items"
+   "expect_qcs_vendors",
+   "start_awarding",
+   "expect_award_counters"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 17822
+  "ms": 10319
  },
  "plan": {
-  "title": "Partial Award Across Two Vendors",
+  "title": "Partial Award of Two Bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state tests."
+    "note": "Open the prepared closed RFQ's Master QCS; the event already exists and must not be recreated."
    },
    {
-    "step": "award_event",
-    "args": {},
-    "note": "Exercise the supported closed-event award flow with the single available bid; this submits the award proposal but cannot perform the requested partial allocation."
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert the actual prepared state has only one real vendor column, exposing why the requested two-bid scenario cannot be tested."
    },
    {
-    "step": "expect_awarded",
+    "step": "start_awarding",
     "args": {},
-    "note": "Assert that the award proposal was created and submitted."
+    "note": "Open the available awarding screen as the closest observable part of the requested flow."
    },
    {
-    "step": "create_po",
-    "args": {},
-    "note": "Exercise the closest supported downstream PO creation flow after the award."
-   },
-   {
-    "step": "expect_po_items",
-    "args": {},
-    "note": "Assert that the created purchase order carries the awarded event line item and quantity."
+    "step": "expect_award_counters",
+    "args": {
+     "items": "0/1",
+     "vendors": "0/1"
+    },
+    "note": "Assert the current awarding screen counters for the single prepared line and vendor; this does not assert the requested 6-of-10 allocation."
    }
   ]
  }

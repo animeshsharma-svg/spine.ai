@@ -1,0 +1,101 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-059",
+  "title": "Withdrawing Order...: Withdrawing live RFQ is cancelled when the Cancel button is clicked",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:23:22.667Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Withdrawal Remarks\" (fill) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Withdrawal Remarks\" (fill) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "fill",
+   "click",
+   "expect_visible",
+   "expect_menu_item"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 9231
+ },
+ "plan": {
+  "title": "Cancel live RFQ withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage where its Settings menu is available."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab as specified."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ withdrawal dialog without confirming the withdrawal."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Withdrawal Remarks",
+     "value": "Changing mind"
+    },
+    "note": "Enter the test withdrawal reason before cancelling."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal instead of confirming it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Verify that the Withdrawing Order dialog closes."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq",
+     "enabled": true
+    },
+    "note": "Verify the RFQ remains live and its Withdraw action is still available."
+   }
+  ]
+ }
+}

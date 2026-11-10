@@ -1,0 +1,142 @@
+{
+ "meta": {
+  "caseId": "SRC-STR-011",
+  "title": "Dutch (price falls step by step) auction: what each side sees during bidding",
+  "group": "SRC-STR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:07:43.735Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Create a Dutch auction with a step-by-step falling price strategy; Dutch is unavailable on fresh single-stage creation and no catalog step configures it after conversion.",
+   "Have Vendor A accept at 90, observe Vendor B's vendor screen, and verify later accepts are refused and the first accept wins the lot."
+  ],
+  "warnings": [
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "can only test part of this — no step for: Create a Dutch auction with a step-by-step falling price strategy; Dutch is unavailable on fresh single-stage creation and no catalog step configures it after conversion.; Have Vendor A accept at 90, observe Vendor B's vendor screen, and verify later accepts are refused and the first accept wins the lot."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "convert_to_auction",
+   "expect_no_error",
+   "ask_tester",
+   "expect_no_error"
+  ],
+  "ms": 13331
+ },
+ "plan": {
+  "title": "Dutch auction bidding behavior",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start the closest supported event-creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ that can be converted to an auction; fresh Dutch creation is not supported."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product and quantity."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invite three QA vendors for the intended three-vendor scenario."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the prerequisite RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the event reached a published project page."
+   },
+   {
+    "step": "place_bid"
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Reach the supported RFQ-to-auction conversion flow, the closest catalog path to a Dutch auction."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the conversion screen opened without an application error."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "configure the converted auction as Dutch, have Vendor A accept at 90, inspect Vendor A and Vendor B screens and the buyer Responses, and verify later accepts are refused and the first accept wins the lot"
+    },
+    "note": "The Dutch configuration and vendor acceptance behavior are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the completed tester-driven flow did not leave an application error."
+   }
+  ]
+ }
+}

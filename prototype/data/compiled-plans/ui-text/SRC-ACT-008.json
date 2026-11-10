@@ -4,18 +4,18 @@
   "title": "Order Activity records a surrogate bid added",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:07:44.615Z",
+  "compiledAt": "2026-11-10T07:01:58.848Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the activity entry contains the exact buyer identity and date/time.",
-   "Verify no earlier activity is missing and that all activity entries are in chronological order."
+   "Verify the exact actor identity and date/time values on the surrogate-bid activity entry.",
+   "Prove that every earlier activity entry is present beyond the entries explicitly checked."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the activity entry contains the exact buyer identity and date/time.; Verify no earlier activity is missing and that all activity entries are in chronological order."
+   "can only test part of this — no step for: Verify the exact actor identity and date/time values on the surrogate-bid activity entry.; Prove that every earlier activity entry is present beyond the entries explicitly checked."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "set_title",
@@ -27,14 +27,13 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "open_participants",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "event_menu",
    "expect_text",
    "expect_text"
   ],
-  "ms": 14033
+  "ms": 12957
  },
  "plan": {
   "title": "Order Activity records surrogate bid",
@@ -44,14 +43,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage event so the RFQ stage can be published and used for surrogate bidding."
+    "note": "Start a fresh multi-stage event so the plan controls the event history."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-ACT-008 Surrogate Bid Activity"
+     "title": "SRC-ACT-008 Order Activity"
     },
-    "note": "Every create flow requires a title before publishing."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -60,43 +59,43 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage, which supports the required surrogate bid flow."
+    "note": "Use an RFQ stage that supports surrogate bidding."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide one product for the surrogate bid."
+    "note": "Add a line item required for the bid sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet before scheduling and publishing."
+    "note": "Complete the RFQ pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor so an Add Bid control is available."
+    "note": "Invite a QA vendor so a surrogate bid can be entered."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the buyer can place a surrogate bid."
+    "note": "Publish the event so the RFQ stage accepts bids."
    },
    {
     "step": "expect_published",
@@ -104,19 +103,14 @@
     "note": "Confirm the event reached a real published project page."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the published RFQ Participants list where surrogate bidding is initiated."
-   },
-   {
     "step": "place_surrogate_bid",
     "args": {},
-    "note": "Place the required buyer-side bid on behalf of the invited vendor."
+    "note": "Add the surrogate bid whose activity record is being tested."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the surrogate bid was accepted and submitted."
+    "note": "Confirm the surrogate bid was accepted before inspecting its history."
    },
    {
     "step": "event_menu",
@@ -124,22 +118,23 @@
      "item": "Order Activity",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and select Order Activity."
+    "note": "Open the RFQ stage's Order Activity drawer."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity"
+     "text": "You created the event",
+     "present": true
     },
-    "note": "Confirm the Order Activity drawer or activity section is displayed."
+    "note": "Verify the activity history retains the earlier event-creation entry."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "surrogate",
-     "within": "Activity"
+     "text": "surrogate bid",
+     "present": true
     },
-    "note": "Check that the activity history contains an entry identifying the surrogate bid."
+    "note": "Verify the drawer records the surrogate bid action."
    }
   ]
  }

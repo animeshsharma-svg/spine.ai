@@ -1,0 +1,99 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-048",
+  "title": "Vendor accepts, then tries to revise",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:41:01.099Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the accepted bid of 90 remains preserved in bid history after the vendor revises to 88, rather than being silently overwritten."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify that the accepted bid of 90 remains preserved in bid history after the vendor revises to 88, rather than being silently overwritten."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 11002
+ },
+ "plan": {
+  "title": "Vendor Accepts Counter Offer Then Revises",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ with Vendor A's existing normal bid on the buyer's Responses screen."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS, which is required before sending a counter offer."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Buyer sends Vendor A a counter offer at 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify that the buyer's counter offer was initiated for the vendor's bid."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {},
+    "note": "Have Vendor A accept the pending counter offer in the supplier portal."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {},
+    "note": "Verify on the buyer side that Vendor A's counter offer is marked accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in Vendor A's supplier-portal session to test the post-acceptance revision."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared RFQ pricing round for Vendor A."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 88
+    },
+    "note": "Have Vendor A attempt to revise the accepted bid to 88 while the round is still live."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify whether the revised vendor quote was accepted and submitted."
+   }
+  ]
+ }
+}

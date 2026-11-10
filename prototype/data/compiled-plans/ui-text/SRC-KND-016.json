@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-016",
+  "title": "eRFX Technical + RFQ project (RFQ stage): add a surrogate bid for Vendor A",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:30:24.849Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Entering or asserting a bid reference, because place_surrogate_bid has no reference argument or reference assertion."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Entering or asserting a bid reference, because place_surrogate_bid has no reference argument or reference assertion."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 8290
+ },
+ "plan": {
+  "title": "Surrogate bid on RFQ stage",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared project's RFQ Participants tab, which is the required starting screen for this case."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Enter and submit the buyer's surrogate bid for Vendor A on the pricing stage."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the surrogate bid submission was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open Master QCS and assert that Vendor A's bid is present in the comparison grid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "realNames": true
+    },
+    "note": "Verify the QCS grid contains one real vendor column for Vendor A."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Assert that the submitted RFQ bid is ranked according to its amount; with the prepared single-vendor state, it must be rank 1."
+   }
+  ]
+ }
+}

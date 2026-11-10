@@ -1,0 +1,149 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-317",
+  "title": "Price Based: vendors see the lowest bid price, not ranks",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:18.110Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 13122
+ },
+ "plan": {
+  "title": "Price-Based Auction Lowest Price Visibility",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation flow required for configuring auction strategy."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the auction as Price Based with lot awarding."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Price Based Lowest Bid Visibility"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one item so the vendor view has a per-item bid price to compare."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite at least two vendors so a lowest competing bid exists."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 120
+    },
+    "note": "Submit the first vendor's higher bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 100
+    },
+    "note": "Submit the second vendor's lower bid, establishing the lowest price."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor's bid was accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100",
+     "present": true
+    },
+    "note": "Verify the vendor bidding screen shows the lowest bid price for the item."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Verify the vendor bidding screen does not show a rank."
+   }
+  ]
+ }
+}

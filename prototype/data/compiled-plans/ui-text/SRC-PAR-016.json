@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "SRC-PAR-016",
+  "title": "Invite a new vendor with a bad phone number",
+  "group": "SRC-PAR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:57:19.608Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated invite-vendor form step that can enter phone number `12ab` and verify the vendor invitation validation flow."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: The catalog has no dedicated invite-vendor form step that can enter phone number `12ab` and verify the vendor invitation validation flow."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "do_on_screen",
+   "expect_error"
+  ],
+  "ms": 11708
+ },
+ "plan": {
+  "title": "SRC-PAR-016 — Reject invalid vendor phone number",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen required by the scenario."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the single-stage event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so the setup can proceed."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the first available RFQ template so the product sheet is available."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer-side RFQ create screen, add the CYLINDER product and choose CYLINDER WITH KEY & KNOB so Product Variant becomes Default Variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, open the vendor invitation flow, enter phone number 12ab, and stop when the screen shows the validation refusal 'Please enter a valid phone number'"
+    },
+    "note": "Perform the product setup and invalid phone-number invitation interaction that no catalog domain step can express."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Please enter a valid phone number"
+    },
+    "note": "Assert the expected invalid phone-number validation message."
+   }
+  ]
+ }
+}

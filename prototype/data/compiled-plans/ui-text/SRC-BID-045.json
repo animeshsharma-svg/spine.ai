@@ -4,61 +4,66 @@
   "title": "Download the bid template and upload it filled",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:48:38.853Z",
+  "compiledAt": "2026-11-10T07:15:22.253Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Download the bid template",
-   "Fill 100 for every line in the file",
-   "Upload it with Upload Sheet and submit"
+   "Fill 100 for every line in the downloaded file",
+   "Upload the filled file with Upload Sheet and verify that the uploaded prices populate the sheet exactly"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "can only test part of this — no step for: Download the bid template; Fill 100 for every line in the file; Upload it with Upload Sheet and submit"
+   "resolved: “Download the bid template from the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Fill 100 for every line in the downloaded file; Upload the filled file with Upload Sheet and verify that the uploaded prices populate the sheet exactly"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_text"
+   "ask_tester",
+   "expect_bid_submitted"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 193084
+  "ms": 12701
  },
  "plan": {
-  "title": "Download bid template and upload filled bid sheet",
+  "title": "Vendor upload bid template",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ summary as the required first step."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Sign in to the vendor portal as the invited vendor"
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ event in the vendor portal"
+    "note": "Open the live RFQ's pricing bid sheet in the vendor portal."
    },
    {
-    "step": "expect_text",
+    "step": "ask_tester",
     "args": {
-     "text": "Download",
-     "present": true
+     "need": "download the bid template, fill 100 for every line, upload it with Upload Sheet, and submit the bid"
     },
-    "note": "Assert download control is present"
+    "note": "The catalog has no step for the vendor bid-template download, file editing, or Upload Sheet workflow."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the vendor portal shows the bid as submitted after the tester completes the upload and submission."
    }
   ]
  }

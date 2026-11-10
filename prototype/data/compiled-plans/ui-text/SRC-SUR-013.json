@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-013",
+  "title": "Surrogate bid above the price cap",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:09:51.875Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "add_price_cap",
+   "expect_price_cap",
+   "attempt"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 6030
+ },
+ "plan": {
+  "title": "Surrogate bid above price cap",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared live RFQ's Participants tab."
+   },
+   {
+    "step": "add_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Set a price cap of 100 for the available vendor."
+   },
+   {
+    "step": "expect_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Verify that the cap was saved at 100."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_surrogate_bid",
+     "args": {
+      "price": 101
+     },
+     "expect": "refused",
+     "because": "Price cannot be more than the allowed price"
+    },
+    "note": "Attempt a surrogate bid above the cap and require Procol's refusal message."
+   }
+  ]
+ }
+}

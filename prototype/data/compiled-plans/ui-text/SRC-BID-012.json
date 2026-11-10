@@ -4,18 +4,17 @@
   "title": "RFQ bid: Quantity below the minimum quantity",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:36:11.212Z",
+  "compiledAt": "2026-11-10T07:12:41.694Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Configure a minimum quantity of 5 on the RFQ line or template",
-   "Verify the vendor's quantity-4 submission is refused specifically because it is below the configured minimum quantity"
-  ],
+  "coverage": "partial",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure a minimum quantity of 5 on the RFQ line or template; Verify the vendor's quantity-4 submission is refused specifically because it is below the configured minimum quantity"
+   "resolved: “Configure minimum quantity 5 on the RFQ line and submit quantity 4 at price 100 as Vendor A, verifying the refusal messa” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "set_title",
@@ -29,28 +28,27 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "fill",
-   "fill",
-   "attempt"
+   "ask_tester",
+   "expect_message"
   ],
-  "ms": 73840
+  "ms": 75198
  },
  "plan": {
-  "title": "SRC-BID-012 RFQ Minimum Quantity Refusal",
+  "title": "SRC-BID-012 RFQ Minimum Quantity Bid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an RFQ project."
+    "note": "Start an RFQ event creation flow."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-BID-012 Minimum Quantity"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -72,79 +70,65 @@
      "count": 1,
      "quantity": "5"
     },
-    "note": "Add one line with requested quantity 5; the catalog cannot set the separate minimum-quantity rule."
+    "note": "Create one line with requested quantity 5 as the closest available setup; the catalog cannot set a separate minimum quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the RFQ pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor for the portal bid."
+    "note": "Invite the QA vendor needed for the vendor-portal flow."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so it is available in the vendor portal."
+    "note": "Publish the RFQ before opening it from the vendor portal."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the RFQ reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Move to the vendor-side session while keeping the buyer session available."
+    "note": "Move to the separate supplier portal session while leaving the buyer session open."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ's pricing form in the vendor portal."
+    "note": "Open the published RFQ's pricing round from the vendor event list."
    },
    {
-    "step": "fill",
+    "step": "ask_tester",
     "args": {
-     "label": "Quantity",
-     "value": "4"
+     "need": "configure minimum quantity 5 on the RFQ line, enter quantity 4 at price 100 as Vendor A, submit the quote, and leave the refusal message visible"
     },
-    "note": "Enter the below-minimum quote quantity from the case."
+    "note": "The catalog has no step to configure a minimum-quantity column or enter and submit a vendor quantity."
    },
    {
-    "step": "fill",
+    "step": "expect_message",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "kind": "error",
+     "text": "Quantity"
     },
-    "note": "Enter the quoted price."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "expect": "refused"
-    },
-    "note": "Attempt submission and observe whether the portal refuses it; without a configured minimum quantity this cannot prove the requested rule."
+    "note": "Assert that the requested below-minimum quantity was refused with a quantity-related error."
    }
   ]
  }

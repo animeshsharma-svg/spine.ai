@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-030",
+  "title": "A closed RFQ: \"Withdrawing Order...\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:28:05.132Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Withdrawing Order...\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "resolved: “The catalog cannot compare the event's exact status and times before and after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “The catalog cannot fully prove that every vendor and bid record is unchanged across the cancellation, beyond checking th” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "coverage partial: unconfirmed label \"Withdrawing Order...\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "expect_api_value",
+   "expect_api_value",
+   "event_menu",
+   "expect_text",
+   "click",
+   "expect_text",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_screen_clean"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 10823
+ },
+ "plan": {
+  "title": "Cancel withdrawal on closed RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared closed RFQ rather than creating or searching for an event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the closed bid is shown."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Record that the prepared vendor bid is still represented before opening withdrawal."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Record the prepared bid price before opening withdrawal."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw"
+    },
+    "note": "Open the RFQ withdrawal window from Settings."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order..."
+    },
+    "note": "Verify the expected withdrawal window is open."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel withdrawal as required by the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify the withdrawal window closed after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the vendor record remains present after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the bid value remains unchanged after cancellation."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify the event screen has no error or rendering failure after cancelling."
+   }
+  ]
+ }
+}

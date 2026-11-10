@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-017",
+  "title": "Price cap cannot be lowered",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:10:14.950Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "open_participants",
+   "add_price_cap",
+   "expect_price_cap",
+   "attempt",
+   "expect_toast"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 10991
+ },
+ "plan": {
+  "title": "Price cap cannot be lowered",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the published stage's Participants list where vendor price caps are managed."
+   },
+   {
+    "step": "add_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Set the first eligible vendor's price cap to 100."
+   },
+   {
+    "step": "expect_price_cap",
+    "args": {
+     "price": 100
+    },
+    "note": "Verify the saved cap is 100 before attempting to lower it."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "add_price_cap",
+     "args": {
+      "price": 90
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to edit the same vendor's cap down to 90 and require Procol to refuse the change."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "You cannot decrease the Price Cap."
+    },
+    "note": "Assert the exact refusal message for lowering the cap."
+   }
+  ]
+ }
+}

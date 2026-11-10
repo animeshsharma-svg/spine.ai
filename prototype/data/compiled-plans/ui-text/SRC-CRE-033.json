@@ -4,11 +4,11 @@
   "title": "Reverse auction: delivery location must come from the list",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:04:06.916Z",
+  "compiledAt": "2026-11-10T07:18:44.100Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that no match is offered for free text 'Mars' specifically in the delivery location dropdown"
+   "The exact delivery-location dropdown options and the explicit absence of a “Mars” suggestion cannot be asserted while typing; the catalog can only verify that the entered value is not retained."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,7 +17,7 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Verify that no match is offered for free text 'Mars' specifically in the delivery location dropdown"
+   "can only test part of this — no step for: The exact delivery-location dropdown options and the explicit absence of a “Mars” suggestion cannot be asserted while typing; the catalog can only verify that the entered value is not retained."
   ],
   "source": "llm",
   "steps": 7,
@@ -30,44 +30,47 @@
    "set_sheet_cell",
    "expect_sheet_cell"
   ],
-  "ms": 194097
+  "ms": 11005
  },
  "plan": {
-  "title": "Delivery location must come from the list in reverse auction",
+  "title": "Reverse Auction Delivery Location Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single stage create screen"
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank",
+     "auctionSubtype": "price",
      "awarding": "lot"
     },
-    "note": "Set event type to auction"
+    "note": "Set the event type to a reverse auction using a price-based auction configuration."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide event title"
+    "args": {
+     "title": "SRC-CRE-033 Reverse Auction Location"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select an auction template"
+    "note": "Apply the available reverse-auction pricing template so the product sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the specified product"
+    "note": "Add the specified product with quantity 10."
    },
    {
     "step": "set_sheet_cell",
@@ -76,7 +79,7 @@
      "column": "Delivery location",
      "value": "Mars"
     },
-    "note": "Attempt to type free text into Delivery location"
+    "note": "Attempt to enter a location that is not a valid company plant."
    },
    {
     "step": "expect_sheet_cell",
@@ -85,7 +88,7 @@
      "column": "Delivery location",
      "refused": true
     },
-    "note": "Assert that free text delivery location was refused"
+    "note": "Assert that the invalid free-text location is not retained by the sheet."
    }
   ]
  }

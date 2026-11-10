@@ -4,36 +4,31 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:19:37.281Z",
+  "compiledAt": "2026-11-10T07:06:47.744Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Find or verify a closed RFQ with exactly three bids priced A 100, B 90, and C 95 for 10 units",
-   "Allocate exact quantities of 4 to B, 3 to C, and 3 to A",
-   "Verify the three-way allocation arithmetic of 360, 285, 300, and total 945",
-   "Fill and submit the required proposal fields",
-   "Sign in as the approver and reject the proposal with a remark",
-   "Verify that no purchase order is created after rejection",
-   "Verify that the buyer can restart awarding from Master QCS after rejection"
+   "The prepared event has exactly one bid rather than the requested three bids with A, B, and C at 100, 90, and 95 for 10 units.",
+   "Enter and verify the three-way allocation of 4 units to B, 3 to C, and 3 to A, including the per-vendor amounts and total 945.",
+   "Create and submit the proposal after filling its required fields; no catalog step independently performs this proposal workflow from the awarding screen.",
+   "Sign in as the approver and reject the proposal with a remark.",
+   "Assert that no purchase order is created after rejection.",
+   "Verify the buyer can start awarding again after the proposal is rejected."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Find or verify a closed RFQ with exactly three bids priced A 100, B 90, and C 95 for 10 units; Allocate exact quantities of 4 to B, 3 to C, and 3 to A; Verify the three-way allocation arithmetic of 360, 285, 300, and total 945; Fill and submit the required proposal fields; Sign in as the approver and reject the proposal with a remark; Verify that no purchase order is created after rejection; Verify that the buyer can restart awarding from Master QCS after rejection"
+   "can only test part of this — no step for: The prepared event has exactly one bid rather than the requested three bids with A, B, and C at 100, 90, and 95 for 10 units.; Enter and verify the three-way allocation of 4 units to B, 3 to C, and 3 to A, including the per-vendor amounts and total 945.; Create and submit the proposal after filling its required fields; no catalog step independently performs this proposal workflow from the awarding screen.; Sign in as the approver and reject the proposal with a remark.; Assert that no purchase order is created after rejection.; Verify the buyer can start awarding again after the proposal is rejected."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
    "start_awarding",
-   "allocate_award",
-   "expect_award_counters"
+   "ask_tester",
+   "expect_visible"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 11033
+  "ms": 11997
  },
  "plan": {
   "title": "Three-way split award rejection",
@@ -43,27 +38,27 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the comparison grid and verify that Master QCS is available for the selected event."
+    "note": "Open the prepared closed RFQ's Master QCS without searching the events list."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen, which is the closest available step to the requested manual allocation flow."
+    "note": "Reach the awarding screen where vendor allocation is performed."
    },
    {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Attempt the closest supported award allocation action, although this step cannot enter or verify the requested three-way quantities."
+    "step": "ask_tester",
+    "args": {
+     "need": "provide an event with three bids from A, B, and C, enter the 4/3/3 allocation and verify the 360, 285, 300, 945, and 3/3 values, create and submit the proposal, then sign in as the approver and reject it with a remark"
+    },
+    "note": "The catalog cannot create the requested three-bid split, submit the proposal from this screen, or perform the separate approver rejection."
    },
    {
-    "step": "expect_award_counters",
-    "args": {},
-    "note": "Read the awarding counters after the supported allocation action, without asserting the unavailable 3/3 split result."
+    "step": "expect_visible",
+    "args": {
+     "text": "Start Awarding",
+     "visible": true
+    },
+    "note": "After the tester completes the rejection flow, verify that the buyer view exposes the control to start awarding again."
    }
   ]
  }

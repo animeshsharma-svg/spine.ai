@@ -4,61 +4,59 @@
   "title": "Invalid schedule for the auction",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:11:59.048Z",
+  "compiledAt": "2026-11-10T07:22:40.793Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the converted auction schedule to start before the RFQ ended using a dedicated catalog step; this requires on-screen schedule interaction."
+   "Inspect the conversion pop-up options for reusing RFQ quotes, participants and weights",
+   "Set an absolute auction schedule start before the RFQ ended using a catalog scheduling step"
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure the converted auction schedule to start before the RFQ ended using a dedicated catalog step; this requires on-screen schedule interaction."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Inspect the conversion pop-up options for reusing RFQ quotes, participants and weights; Set an absolute auction schedule start before the RFQ ended using a catalog scheduling step"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "convert_to_auction",
    "do_on_screen",
-   "publish",
    "expect_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 11156
+  "ms": 9562
  },
  "plan": {
-  "title": "Invalid schedule when converting RFQ to auction",
+  "title": "Invalid Schedule for Auction Conversion",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ without searching the events list."
+    "note": "the API built this case's state"
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Open the RFQ-to-Auction conversion flow and continue to the converted auction create screen."
+    "note": "Open the RFQ-to-Auction conversion flow and continue to the auction create screen."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the converted auction create screen, configure a schedule whose start time is before the original RFQ ended, and stop with that invalid schedule selected"
+     "goal": "On the converted auction create screen, set a schedule whose start time is before the original RFQ ended, publish the auction, and stop when the screen shows the refusal message \"Please Select a Valid Schedule\""
     },
-    "note": "Set the invalid schedule that the catalog has no dedicated step for."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Attempt to publish the converted auction with the invalid schedule."
+    "note": "The catalog has no direct step for configuring this invalid absolute schedule or completing the conversion pop-up interaction."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Please Select a Valid Schedule"
     },
-    "note": "Verify Procol refuses publication with the expected schedule validation message."
+    "note": "Assert that publishing the auction is refused with the expected schedule validation message."
    }
   ]
  }

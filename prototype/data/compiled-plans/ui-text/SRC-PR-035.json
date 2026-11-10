@@ -1,0 +1,159 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-035",
+  "title": "Create a Single Stage reverse auction from an open material PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:31:41.578Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Choose the PR flow's Single Stage mode and configure the resulting event as a single-stage reverse auction; the PR flow only exposes choose_stages with an auction stage.",
+   "Directly verify that the selected PR line specifically moved to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Choose the PR flow's Single Stage mode and configure the resulting event as a single-stage reverse auction; the PR flow only exposes choose_stages with an auction stage.; Directly verify that the selected PR line specifically moved to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "expect_template_selected",
+   "expect_sheet_columns",
+   "expect_sheet_cells",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "open_event_settings",
+   "expect_menu_item",
+   "expect_table"
+  ],
+  "ms": 16870
+ },
+ "plan": {
+  "title": "Create reverse auction from material PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that an auction template is applied."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Verify that the auction pricing sheet rendered."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location"
+     ]
+    },
+    "note": "Check that the PR-derived line fields are locked against editing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Invite the two vendors named in the case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the published event's Settings menu to inspect PR restrictions."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Verify that Recreate Order is present but greyed out."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Assert that at least one in-progress PR row is rendered."
+   }
+  ]
+ }
+}

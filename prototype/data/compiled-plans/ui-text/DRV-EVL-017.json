@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-017",
+  "title": "QCS ranking shows all bidders as “Knocked Out” after conversion to auction (RCA 318540007159)",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:05:29.681Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the event was specifically converted from an RFQ lot with historical savings not copied.",
+   "Exhaustively assert the landed price for every bidder when the number and names of bidders are not provided.",
+   "unconfirmed label \"Knocked Out\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Knocked Out\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Verify that the event was specifically converted from an RFQ lot with historical savings not copied.; Exhaustively assert the landed price for every bidder when the number and names of bidders are not provided."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_text"
+  ],
+  "ms": 11621
+ },
+ "plan": {
+  "title": "Converted Auction QCS Ranking",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the existing event selected for a Master QCS evaluation with bids."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Navigate to the buyer's Master QCS and verify the comparison grid renders with bidder columns."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "realNames": true
+    },
+    "note": "Assert that the QCS has bidder columns headed by real vendor names rather than placeholders."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "Auction Landed",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Assert that bidder ranking follows the landed-price amounts."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Auction Landed",
+     "vendor": 1
+    },
+    "note": "Verify that a bidder's landed-price cell is populated in the QCS."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Knocked Out",
+     "present": false
+    },
+    "note": "Assert that no QCS row is marked Knocked Out."
+   }
+  ]
+ }
+}

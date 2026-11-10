@@ -1,0 +1,100 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-016",
+  "title": "Configuration for Event: Verify that vendor addition is locked during event creation",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:38:23.716Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable the tenant setting lock_vendors_addition_in_event_creation=true.",
+   "Assert the Add Vendor control is either disabled or absent as a single alternative condition."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Enable the tenant setting lock_vendors_addition_in_event_creation=true.; Assert the Add Vendor control is either disabled or absent as a single alternative condition."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "ask_tester",
+   "configure_single_stage",
+   "expect_disabled"
+  ],
+  "ms": 15143
+ },
+ "plan": {
+  "title": "Single-stage RFQ vendor addition lock",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage creation screen required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as an RFQ and open its configuration flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Vendor Addition Lock RFQ"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enable the tenant setting lock_vendors_addition_in_event_creation=true without changing any other setting"
+    },
+    "note": "The catalog cannot modify tenant configuration; this is the prerequisite for the lock behavior."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Reopen the RFQ Configuration for Event window after the setting is enabled."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Add Vendor"
+    },
+    "note": "Check the expected disabled state when the Add Vendor control is rendered."
+   }
+  ]
+ }
+}

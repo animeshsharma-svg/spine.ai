@@ -4,112 +4,70 @@
   "title": "Price Components",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:07:52.959Z",
+  "compiledAt": "2026-11-10T07:19:50.944Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "switched open_create to the single-stage screen — configure_single_stage is that screen's drawer",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "switched open_create to the single-stage screen — configure_single_stage is that screen's drawer",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 9,
   "stepNames": [
    "open_create",
-   "open_events_list",
-   "expect_events_list",
-   "expect_create_options",
-   "click",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_sheet_columns",
    "select",
-   "do_on_screen"
+   "expect_sheet_cell",
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 134849
+  "ms": 13207
  },
  "plan": {
-  "title": "SRC-CRE-049 Price Components",
+  "title": "Single-Stage RFQ Price Components",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
-    }
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list as required by the scenario."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the Events list rendered successfully."
-   },
-   {
-    "step": "expect_create_options",
-    "args": {
-     "options": [
-      "Single Stage"
-     ]
     },
-    "note": "Verify the Create Event menu offers the Single Stage path."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Single Stage"
-    },
-    "note": "Open the single-stage create screen."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Switch the initially selected event type to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Set the required event title using the product's automatic unique title."
+    "args": {
+     "title": "SRC-CRE-049 Price Components"
+    },
+    "note": "Provide the mandatory event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the RFQ template so the pricing sheet is generated."
+    "note": "Apply the first available RFQ template so the product sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER product with the requested quantity."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
-    },
-    "note": "Verify the RFQ product sheet rendered the expected columns."
+    "note": "Add the specified product and quantity to the sheet."
    },
    {
     "step": "select",
@@ -117,14 +75,31 @@
      "label": "Delivery location",
      "option": "Plant Name (LOC-0001)"
     },
-    "note": "Set the line item's delivery location to Plant Name (LOC-0001)."
+    "note": "Set the requested delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify the requested quantity was entered in the first product row."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ product sheet, add Freight in Price Components, save it, and stop when the screen proves Freight appears as an extra vendor-entered price component and is included in the displayed totals."
+     "goal": "On the current single-stage RFQ product sheet, open Price Components, add a component named Freight, save it, and verify on screen that Freight appears as an additional vendor-fillable price part and that the displayed totals include it."
     },
     "note": "Perform and verify the Price Components interaction, which has no dedicated catalog step."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Freight",
+     "present": true
+    },
+    "note": "Assert that the saved Freight component is visible on the sheet."
    }
   ]
  }

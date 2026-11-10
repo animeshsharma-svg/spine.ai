@@ -1,0 +1,153 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-318",
+  "title": "Traffic Light: vendors see a colour status only",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:16.864Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot reliably assert that no competitor price is shown as distinct from the vendor's own bid-sheet Price field; it can only check absence of the generic Price label."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog cannot reliably assert that no competitor price is shown as distinct from the vendor's own bid-sheet Price field; it can only check absence of the generic Price label."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 9649
+ },
+ "plan": {
+  "title": "Traffic Light Vendor Colour Status",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage flow required for traffic-light auction configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "traffic_light",
+     "awarding": "lot",
+     "rangeLower": 80,
+     "rangeUpper": 120
+    },
+    "note": "Configure the auction's traffic-light strategy and range."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Traffic Light Vendor Colour Status"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one item for the vendor to bid on."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor whose portal view will be checked."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured traffic-light auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's vendor bidding screen."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a bid within the configured traffic-light range."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Green",
+     "present": true
+    },
+    "note": "Verify that the vendor receives the expected green colour status."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Verify that the vendor view does not expose a rank."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": false
+    },
+    "note": "Check that the vendor view does not show the generic price label."
+   }
+  ]
+ }
+}

@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-006",
+  "title": "Attempt to split a line already in an active lot returns 422 error",
+  "group": "DRV-RFQ",
+  "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
+  "compiledAt": "2026-11-09T23:09:09.637Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify or configure the tenant setting restrict_unlock_bid_before_evaluation=true",
+   "Directly assert the commercials' sealed state after the rejected unlock attempt beyond the refusal message"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify or configure the tenant setting restrict_unlock_bid_before_evaluation=true; Directly assert the commercials' sealed state after the rejected unlock attempt beyond the refusal message"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "open_event_settings",
+   "click",
+   "do_on_screen",
+   "expect_message"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 17106
+ },
+ "plan": {
+  "title": "RFQ commercial unlock blocked before technical evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ on the buyer side."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the commercial RFQ stage where the unlock action is available."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the stage event settings menu to reach the commercial unlock action."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Unlock Bids"
+    },
+    "note": "Start the manual commercial unlock attempt."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "enter a valid OTP and password in the unlock dialog, submit the Open Commercials attempt, and stop when the screen shows the refusal that bids cannot be unlocked until technical evaluation is done"
+    },
+    "note": "Perform the unlock dialog interaction and capture the buyer-side refusal, which has no dedicated catalog action."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Bids can't be unlocked until technical evaluation is done"
+    },
+    "note": "Assert the expected rejection message."
+   }
+  ]
+ }
+}

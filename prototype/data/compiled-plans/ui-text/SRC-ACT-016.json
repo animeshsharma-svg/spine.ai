@@ -4,25 +4,26 @@
   "title": "Order Activity records Recreate Order (on the old event)",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:08:48.391Z",
+  "compiledAt": "2026-11-10T07:02:23.104Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the activity entry's exact actor and timestamp dynamically; the catalog can only assert visible text such as Recreate Order."
+   "Exact identity of the actor and exact timestamp values in the activity entry"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the activity entry's exact actor and timestamp dynamically; the catalog can only assert visible text such as Recreate Order."
+   "can only test part of this — no step for: Exact identity of the actor and exact timestamp values in the activity entry"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_event",
    "event_menu",
    "do_on_screen",
    "event_menu",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 12138
+  "ms": 9732
  },
  "plan": {
   "title": "Order Activity records Recreate Order",
@@ -30,28 +31,28 @@
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing test event to act on the old event."
+    "note": "Open the existing test event that will be used as the old event."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the event menu and start the Recreate Order flow."
+    "note": "Open the stage Settings menu and choose Recreate Order."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "confirm Recreate Order for the old event and return to the old event's stage page"
+     "goal": "complete the Recreate Order action in the open dialog or drawer, then remain on or return to the old event's stage page"
     },
-    "note": "Complete the on-screen confirmation because no dedicated Recreate Order confirmation step exists."
+    "note": "Complete the recreate action using the buyer-side screen because no dedicated catalog step performs its confirmation flow."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the old event's Activity drawer after recreation."
+    "note": "Open the stage's Order Activity drawer on the old event."
    },
    {
     "step": "expect_text",
@@ -59,7 +60,15 @@
      "text": "Recreate Order",
      "present": true
     },
-    "note": "Assert that the activity history contains the Recreate Order entry."
+    "note": "Verify that the activity history contains an entry for the Recreate Order action."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "You",
+     "present": true
+    },
+    "note": "Verify that the activity entry exposes the acting buyer identity in the visible history."
    }
   ]
  }

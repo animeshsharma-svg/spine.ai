@@ -4,62 +4,41 @@
   "title": "Vendor fills a date column \"Delivery by\": pick a date in the past",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:42:50.914Z",
+  "compiledAt": "2026-11-10T07:14:56.024Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog has no dedicated assertion that identifies and reports both possible outcomes of submitting a past date as a single pass condition; the generic toast check can record an error or success, but cannot assert the product's refusal policy without assuming the expected outcome."
+   "Conditionally verify that the buyer sees the exact picked Delivery by date when submission is accepted"
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog has no dedicated assertion that identifies and reports both possible outcomes of submitting a past date as a single pass condition; the generic toast check can record an error or success, but cannot assert the product's refusal policy without assuming the expected outcome."
+   "can only test part of this — no step for: Conditionally verify that the buyer sees the exact picked Delivery by date when submission is accepted"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 4,
   "stepNames": [
-   "open_event",
-   "switch_portal",
+   "open_prepared",
    "vendor_open_event",
-   "fill",
    "pick_date",
-   "remember",
-   "click",
-   "expect_toast",
-   "switch_portal",
-   "go_to",
-   "expect_remembered"
+   "attempt"
   ],
-  "ms": 16343
+  "ms": 13832
  },
  "plan": {
-  "title": "Vendor past delivery date bid",
+  "title": "Vendor past Delivery by date",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event suitable for the RFQ vendor-bidding flow while retaining the buyer session."
-   },
-   {
-    "step": "switch_portal",
+    "step": "open_prepared",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "screen": "vendor"
     },
-    "note": "Move to Vendor A's supplier portal without replacing the buyer session."
+    "note": "Open the prepared vendor-portal state for the live RFQ."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's live RFQ pricing sheet in the vendor portal."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "100"
-    },
-    "note": "Enter the requested quote amount."
+    "note": "Open the RFQ bid sheet as the invited vendor."
    },
    {
     "step": "pick_date",
@@ -67,52 +46,18 @@
      "label": "Delivery by",
      "date": "1 January 2020"
     },
-    "note": "Choose a date that is unambiguously in the past."
+    "note": "Enter a date in the past in the buyer-added Delivery by column."
    },
    {
-    "step": "remember",
+    "step": "attempt",
     "args": {
-     "key": "vendor_delivery_date",
-     "label": "Delivery by"
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
     },
-    "note": "Record the exact date displayed by the vendor portal before submission."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit"
-    },
-    "note": "Submit the vendor quote after entering the past delivery date."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "any"
-    },
-    "note": "Record whether submission produces a success or refusal response."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer's console to inspect the submitted response."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the buyer's RFQ Responses view where the vendor's submitted values are shown."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "vendor_delivery_date",
-     "same": true
-    },
-    "note": "Assert that the buyer view shows the same delivery date the vendor picked."
+    "note": "Submit the quote and assert that Procol refuses the bid because the Delivery by date is in the past."
    }
   ]
  }

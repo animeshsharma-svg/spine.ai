@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "DRV-AUC-002",
+  "title": "Dummy quotes are generated for vendors marked as TNA to maintain ranking completeness",
+  "group": "DRV-AUC",
+  "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
+  "compiledAt": "2026-11-09T22:46:00.472Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot verify or change the allow_tna_vendors_to_bid tenant setting.",
+   "Cannot ensure the prepared RFQ contains exactly QA_Platform_TNA and QA_Platform_Regular before conversion because the prepared state has a fixed vendor and bid configuration.",
+   "Cannot verify bid invitation behavior on a published converted auction; conversion lands on the auction create screen.",
+   "unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Cannot verify or change the allow_tna_vendors_to_bid tenant setting.; Cannot ensure the prepared RFQ contains exactly QA_Platform_TNA and QA_Platform_Regular before conversion because the prepared state has a fixed vendor and bid configuration.; Cannot verify bid invitation behavior on a published converted auction; conversion lands on the auction create screen."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "convert_to_auction",
+   "expect_navigated",
+   "click",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 62028
+ },
+ "plan": {
+  "title": "TNA vendors excluded during RFQ conversion",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without creating or searching for another event."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Perform the RFQ-to-Auction conversion under the current tenant configuration."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Verify that conversion reaches the new auction create screen."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participants"
+    },
+    "note": "Open the converted auction's participant control so the proposed audience can be inspected."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform_Regular",
+     "present": true
+    },
+    "note": "Assert that the regular vendor is shown in the converted auction audience."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform_TNA",
+     "present": false
+    },
+    "note": "Assert that the TNA vendor is not shown in the converted auction audience."
+   }
+  ]
+ }
+}

@@ -1,0 +1,125 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-057",
+  "title": "Withdrawing Order...: Withdraw event is cancelled when closing the window via alternative actions",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:49:27.876Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Dismissal of the withdrawal dialog specifically by clicking outside the modal",
+   "unconfirmed label \"Withdrawing Order...\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Withdrawing Order...\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Dismissal of the withdrawal dialog specifically by clicking outside the modal"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_text",
+   "press",
+   "expect_text",
+   "event_menu",
+   "expect_text",
+   "press",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 11390
+ },
+ "plan": {
+  "title": "Live RFQ Withdrawal Modal Cancellation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ summary without creating or searching for another event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the Responses tab before accessing the stage Settings menu."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage Settings menu and choose Withdraw to display the withdrawal dialog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": true
+    },
+    "note": "Verify the withdrawal dialog opened."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Cancel the withdrawal dialog using the supported keyboard alternative."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify the dialog was dismissed and no withdrawal was confirmed."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw Project"
+    },
+    "note": "Open the project-level menu and choose the project withdrawal action as the second withdrawal path."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": true
+    },
+    "note": "Verify the project-level withdrawal dialog opened."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Cancel the second withdrawal dialog with Escape."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify the second dialog was dismissed without confirming withdrawal."
+   }
+  ]
+ }
+}

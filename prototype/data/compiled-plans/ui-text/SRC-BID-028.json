@@ -4,59 +4,117 @@
   "title": "Forward auction: first bid outside the limit",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:39:07.741Z",
+  "compiledAt": "2026-11-10T07:14:35.756Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Configure the auction as a forward auction with a specific floor price before opening it."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Configure the auction as a forward auction with a specific floor price before opening it."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "switch_portal",
    "vendor_open_event",
-   "fill",
    "attempt"
   ],
-  "unbuilt": "A live forward auction. the API set-up does not build forward auctions yet",
-  "ms": 8973
+  "state": "forward",
+  "screen": "summary",
+  "ms": 72795
  },
  "plan": {
-  "title": "Forward auction floor-price rejection",
+  "title": "Forward Auction Rejects Bid Below Floor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "vendor"
+     "screen": "summary"
     },
-    "note": "Open the prepared vendor-portal state while preserving the buyer session."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a price-based auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the single line item required for bidding."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will submit the first bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate supplier portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live forward auction from the vendor event list and show its pricing bid form."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "0"
-    },
-    "note": "Enter a price below the configured floor."
+    "note": "Open the published auction from the vendor's event list at its pricing round."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "vendor_bid",
      "args": {
-      "role": "button",
-      "name": "Submit"
+      "price": 0
      },
      "expect": "refused",
      "because": "Quoted price must be more than the floor price"
     },
-    "note": "Submit the invalid first bid and require the forward-auction floor validation refusal."
+    "note": "Submit a first bid below the presumed floor and assert that the vendor portal refuses it with the forward-auction floor validation."
    }
   ]
  }

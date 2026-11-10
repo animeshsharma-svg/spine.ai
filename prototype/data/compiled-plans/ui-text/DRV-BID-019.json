@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-019",
+  "title": "Quote Mode disabled when is_alternate_bidding_allowed = false",
+  "group": "DRV-BID",
+  "sheet": "derived-vendors-can-submit-commercial-quotes-for",
+  "compiledAt": "2026-11-09T23:02:01.508Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Discount %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Discount %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_count",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 6952
+ },
+ "plan": {
+  "title": "Vendor quote mode disabled",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without changing its configured setting."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor B"
+    },
+    "note": "Continue in the specified vendor's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing sheet where the vendor's quote-mode controls are shown."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Price",
+     "count": 1
+    },
+    "note": "Assert that the pricing sheet exposes a single Price column."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Discount %",
+     "present": false
+    },
+    "note": "Assert that no Discount % selection option is available."
+   }
+  ]
+ }
+}

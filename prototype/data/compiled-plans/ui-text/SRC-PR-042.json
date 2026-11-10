@@ -1,0 +1,174 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-042",
+  "title": "Create an eRFX project, Auction only from an open service PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:32:31.029Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the selected PR line is specifically a service line with its activities rendered as separate rows.",
+   "Verify that the price column is a rate for each service activity.",
+   "Verify that the delivery location is filled from the PR and locked.",
+   "Verify that the PR moves to In Progress with this event number after publishing.",
+   "Verify that the published event visibly shows that it came from a PR."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify that the selected PR line is specifically a service line with its activities rendered as separate rows.; Verify that the price column is a rate for each service activity.; Verify that the delivery location is filled from the PR and locked.; Verify that the PR moves to In Progress with this event number after publishing.; Verify that the published event visibly shows that it came from a PR."
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "expect_template_selected",
+   "expect_sheet_columns",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_sheet_cells",
+   "set_title",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 19925
+ },
+ "plan": {
+  "title": "Create auction from open service PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirm the auction stage has a template applied."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "price",
+      "quantity_requested"
+     ]
+    },
+    "note": "Verify that the PR-derived pricing sheet exposes quantity and price columns."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "pricing sheet"
+    },
+    "note": "Verify the PR quantity is shown on the event sheet."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit",
+     "within": "pricing sheet"
+    },
+    "note": "Verify the PR unit is shown on the event sheet."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "editable": [
+      "Price"
+     ],
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Verify PR-derived product, variant, and quantity cells are locked while the price cell is editable."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required project title before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named by the test case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the default start-now, 30-minute schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed PR-derived auction project."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm publication reached a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "auction",
+     "enabled": false
+    },
+    "note": "Verify that Recreate Order is greyed out for the PR-derived event."
+   }
+  ]
+ }
+}

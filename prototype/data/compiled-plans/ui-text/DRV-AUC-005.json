@@ -1,0 +1,161 @@
+{
+ "meta": {
+  "caseId": "DRV-AUC-005",
+  "title": "A vendor with no score under the ranking key receives rank nil instead of last place",
+  "group": "DRV-AUC",
+  "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
+  "compiledAt": "2026-11-09T22:48:33.309Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Set Vendor A's quoted quantity to 2 and Vendor B's quoted quantity to 3 independently; place_bid and vendor_bid only provide prices, not per-vendor quantities.",
+   "Verify that the converted auction's starting total is exactly 440 from the specified per-vendor quantities and prices.",
+   "Verify the quantity-price mapping for each named vendor in the converted Overview.",
+   "unconfirmed label \"80\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "added open_prepared(overview) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "coverage partial: unconfirmed label \"80\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Set Vendor A's quoted quantity to 2 and Vendor B's quoted quantity to 3 independently; place_bid and vendor_bid only provide prices, not per-vendor quantities.; Verify that the converted auction's starting total is exactly 440 from the specified per-vendor quantities and prices.; Verify the quantity-price mapping for each named vendor in the converted Overview."
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "convert_to_auction",
+   "go_to",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "overview",
+  "ms": 61383
+ },
+ "plan": {
+  "title": "Auction starting total after RFQ conversion",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "overview"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so both RFQ bids can be submitted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid at the requested price value."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 80
+    },
+    "note": "Submit the second vendor bid at the requested price value."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the published RFQ with existing bids into an auction."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "tab",
+     "name": "Overview"
+    },
+    "note": "Open the new auction's Overview tab."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100",
+     "present": true
+    },
+    "note": "Check that the first RFQ bid price is visible in the converted auction Overview."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "80",
+     "present": true
+    },
+    "note": "Check that the second RFQ bid price is visible in the converted auction Overview."
+   }
+  ]
+ }
+}

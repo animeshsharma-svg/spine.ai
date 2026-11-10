@@ -4,207 +4,59 @@
   "title": "Two bids: award only 6 of the 10 units to B (partial award); approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:13:14.719Z",
+  "compiledAt": "2026-11-10T07:05:49.605Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Sign in as the approver, open the submitted proposal, reject it with a remark, and verify the rejected proposal creates no purchase order and allows the buyer to restart awarding."
+   "A closed RFQ with two bids, including Vendor B's bid at 90",
+   "Allocating exactly 6 of 10 units to Vendor B and verifying 6 × 90 = 540 with 4 units unawarded",
+   "Creating and submitting the proposal after filling its required fields",
+   "Signing in as the approver and rejecting the proposal with a remark",
+   "Verifying that no PO is created after rejection",
+   "Verifying that the buyer can restart awarding from Master QCS"
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Sign in as the approver, open the submitted proposal, reject it with a remark, and verify the rejected proposal creates no purchase order and allows the buyer to restart awarding."
+   "cannot test this case yet — no step can observe: A closed RFQ with two bids, including Vendor B's bid at 90; Allocating exactly 6 of 10 units to Vendor B and verifying 6 × 90 = 540 with 4 units unawarded; Creating and submitting the proposal after filling its required fields; Signing in as the approver and rejecting the proposal with a remark; Verifying that no PO is created after rejection; Verifying that the buyer can restart awarding from Master QCS"
   ],
   "source": "llm",
-  "steps": 23,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "configure_single_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "place_bid",
-   "expect_bid_submitted",
-   "place_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
    "start_awarding",
-   "do_on_screen",
-   "expect_award_counters",
-   "click",
-   "expect_navigated",
-   "do_on_screen",
-   "ask_tester"
+   "expect_award_counters"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 20785
+  "ms": 9874
  },
  "plan": {
-  "title": "SRC-AWD-020 Partial Award and Rejection",
+  "title": "Partial award rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "rfq",
-     "awarding": "line_item"
-    },
-    "note": "Configure an RFQ that supports allocation across vendors."
-   },
-   {
-    "step": "select_template",
-    "note": "Apply the pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "quantity": "10"
-    },
-    "note": "Create the requested single line with quantity 10."
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Complete the RFQ pricing sheet before scheduling."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a bidding window so the event can be published."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two vendors for the two competing bids."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": 1,
-     "price": 100
-    },
-    "note": "Submit the first vendor bid at 100."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "note": "Confirm the first vendor bid was accepted."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": 2,
-     "price": 90
-    },
-    "note": "Submit the second vendor bid at 90, representing vendor B."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "note": "Confirm the second vendor bid was accepted."
-   },
-   {
-    "step": "close_event",
-    "note": "Close bidding so awarding is available."
-   },
-   {
-    "step": "open_master_qcs",
-    "note": "Open the comparison grid containing both bids."
+    "note": "Open the prepared closed bidding event's Master QCS; prepared-state rules require this as the first step."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 2,
+     "count": 1,
      "realNames": true
     },
-    "note": "Verify both real vendor columns are present."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
-    },
-    "note": "Verify the first bid rate."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 2,
-     "number": 90
-    },
-    "note": "Verify vendor B's bid rate."
+    "note": "Assert the available prepared state has only one real vendor column, demonstrating why the requested two-bid allocation cannot be tested."
    },
    {
     "step": "start_awarding",
-    "note": "Open the awarding screen for the closed event."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "allocate exactly 6 of the 10 requested units to the vendor whose bid is 90, leave 4 units un-awarded, verify the screen shows the 6-unit allocation and its amount of 540, and stop on the awarding screen"
-    },
-    "note": "No catalog allocation step accepts a quantity, so perform and visually verify the required partial allocation on the buyer awarding screen."
+    "args": {},
+    "note": "Reach the awarding screen, the closest available screen for the requested allocation flow."
    },
    {
     "step": "expect_award_counters",
-    "args": {
-     "vendors": "1/2"
-    },
-    "note": "Verify only one of the two vendors is selected for the partial award."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the proposal from the verified awarding allocation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Confirm the proposal page opened."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "fill the required proposal fields and submit the proposal; stop when the proposal is shown as submitted"
-    },
-    "note": "Complete and submit the proposal fields that have no dedicated catalog step."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, and verify the rejected proposal creates no purchase order and allows the buyer to restart awarding"
-    },
-    "note": "The catalog has no second-user approver login or proposal-rejection step."
+    "args": {},
+    "note": "Assert that the awarding screen renders its allocation counters."
    }
   ]
  }

@@ -1,0 +1,193 @@
+{
+ "meta": {
+  "caseId": "SRC-RJB-005",
+  "title": "Reject a surrogate bid the buyer added without \"Allow seller to bid again\"",
+  "group": "SRC-RJB",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:49:29.118Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Prove from backend records that Vendor A is permanently blocked from rebidding after any future time extension and can never be awarded.",
+   "Verify the exact rank transition where Vendor B moves up after Vendor A's bid leaves Master QCS without a known prepared Vendor B response."
+  ],
+  "warnings": [
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Prove from backend records that Vendor A is permanently blocked from rebidding after any future time extension and can never be awarded.; Verify the exact rank transition where Vendor B moves up after Vendor A's bid leaves Master QCS without a known prepared Vendor B response."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "fill",
+   "toggle",
+   "expect_text",
+   "click",
+   "expect_toast",
+   "expect_text",
+   "event_menu",
+   "expect_text",
+   "expect_text",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "attempt"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 28991
+ },
+ "plan": {
+  "title": "Reject Surrogate Bid Without Rebid Permission",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab where the surrogate bid and Reject control are shown."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor A"
+    },
+    "note": "Open the rejection dialog for Vendor A's bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Reject Bid",
+     "visible": true
+    },
+    "note": "Assert that the rejection dialog opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to reject this bid by Vendor A"
+    },
+    "note": "Verify the dialog identifies the correct vendor and rejection action."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Reason for rejecting bid",
+     "value": "Price not valid — QA"
+    },
+    "note": "Enter the required rejection reason."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Allow seller to bid again",
+     "on": false
+    },
+    "note": "Leave rebidding permission disabled."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Supplier would not be allowed to bid again. This action cannot be undone."
+    },
+    "note": "Verify the warning for blocking the supplier from rebidding."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "dialog"
+    },
+    "note": "Confirm the rejection."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "You have blocked the supplier from bidding again."
+    },
+    "note": "Assert the confirmation that the supplier was blocked."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price not valid — QA",
+     "within": "Vendor A"
+    },
+    "note": "Verify the rejected bid displays the entered reason in the Responses view."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Rejected Bids view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected Bids"
+    },
+    "note": "Assert that the rejected-bids view opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejection Remark: Price not valid — QA"
+    },
+    "note": "Verify the rejected-bids record contains the rejection remark."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Switch to Vendor A's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price not valid — QA"
+    },
+    "note": "Verify Vendor A sees the rejection reason in the supplier portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt a new vendor quote and require visible refusal evidence, covering the immediate rebid block."
+   }
+  ]
+ }
+}

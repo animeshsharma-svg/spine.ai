@@ -4,49 +4,60 @@
   "title": "Award more than the line's quantity",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:19:45.379Z",
+  "compiledAt": "2026-11-10T07:06:45.716Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "A closed RFQ with two bids from vendors A and B and a 10-unit line, including allocating 6 units to B and 5 units to A.",
-   "Allocating explicit award quantities across vendors and observing the over-award refusal message such as \"You cannot select bid with more than requested quantity.\"",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "The required closed RFQ with bids from vendors A and B at 100 and 90 is not available in the prepared state, which has one bid and one vendor.",
+   "Allocate exactly 6 units to vendor B and 5 units to vendor A.",
+   "Observe the resulting refusal message that the awarded quantity exceeds the requested line quantity.",
+   "Open the event through the Events list and search its title; prepared-state cases must start with open_prepared."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "cannot test this case yet — no step can observe: The required closed RFQ with bids from vendors A and B at 100 and 90 is not available in the prepared state, which has one bid and one vendor.; Allocate exactly 6 units to vendor B and 5 units to vendor A.; Observe the resulting refusal message that the awarded quantity exceeds the requested line quantity.; Open the event through the Events list and search its title; prepared-state cases must start with open_prepared."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_prepared",
-   "start_awarding"
+   "open_master_qcs",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters"
   ],
   "state": "closed",
   "screen": "responses",
-  "ms": 8098
+  "ms": 8642
  },
  "plan": {
-  "title": "Awarding over line quantity refusal",
+  "title": "SRC-AWD-034 — Reject over-awarding line quantity",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "The prepared-state rules require opening the existing closed RFQ's Responses screen first."
+    "note": "Open the prepared closed RFQ's buyer Responses screen as required for prepared-state cases."
    },
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open the prepared event's Master QCS, the closest available route to awarding."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reach the comparison grid used to begin awarding and inspect the available bid."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen, but this does not create the two-vendor quantity allocation required by the case."
+    "note": "Open the awarding screen for the prepared closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Perform the closest supported allocation action; this cannot specify the required per-vendor quantities."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {},
+    "note": "Assert the awarding screen's counters as the available observable result, without treating it as proof of over-award refusal."
    }
   ]
  }

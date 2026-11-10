@@ -4,67 +4,85 @@
   "title": "Tech+RFQ: Edit the technical response before the stage ends",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:41:46.477Z",
+  "compiledAt": "2026-11-10T07:14:12.528Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Change an arbitrary technical questionnaire answer, submit the revised response, and verify that the buyer sees the latest answer.",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Verifying that the buyer sees the latest answer replacing the previous answer"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "resolved: “Changing one specific technical questionnaire answer as Vendor A and submitting it again” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Verifying that the buyer sees the latest answer replacing the previous answer"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
    "ask_tester",
-   "switch_portal"
+   "switch_portal",
+   "go_to",
+   "expect_responses"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13178
+  "ms": 9881
  },
  "plan": {
-  "title": "Tech+RFQ Vendor Technical Response Revision",
+  "title": "Tech+RFQ Vendor Technical Response Edit",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing Tech+RFQ project prepared by the setup case without recreating it."
+    "note": "Open the prepared Tech+RFQ project without recreating it."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Move to the vendor portal while keeping the buyer session available."
+    "note": "Move to the separate Vendor A supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the project directly on its technical response round."
+    "note": "Open the project's technical questionnaire in the vendor portal."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "change one technical questionnaire answer for Vendor A, submit the response again before the stage ends, and verify on the buyer side that the latest answer is shown"
+     "need": "as Vendor A, change one existing technical questionnaire answer and submit the technical response again before the stage ends"
     },
-    "note": "The catalog has no reliable step for selecting an arbitrary questionnaire answer, entering the requested revision, or asserting the buyer's displayed answer."
+    "note": "The catalog has no step that can target an unknown technical-question answer, edit it, and resubmit the existing response."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer session after the vendor revision attempt."
+    "note": "Return to the buyer session to inspect the technical-stage response after the vendor resubmission."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses",
+     "stage": "rfp"
+    },
+    "note": "Open the buyer's technical-stage Responses view."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfp"
+    },
+    "note": "Confirm the buyer still sees Vendor A's technical response, though this does not verify the changed answer content."
    }
   ]
  }

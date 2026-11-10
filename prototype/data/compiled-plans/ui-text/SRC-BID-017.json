@@ -4,75 +4,102 @@
   "title": "RFQ bid: Save the bid as a draft and submit later",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:36:44.812Z",
+  "compiledAt": "2026-11-10T07:12:57.448Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "A prepared live RFQ with no bids; the available prepared state already has one submitted bid.",
-   "Saving a vendor quote as a draft without submitting, checking the buyer Responses while it is a draft, and later submitting that saved draft."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: A prepared live RFQ with no bids; the available prepared state already has one submitted bid.; Saving a vendor quote as a draft without submitting, checking the buyer Responses while it is a draft, and later submitting that saved draft."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
+   "vendor_bid",
    "switch_portal",
-   "go_to",
-   "expect_responses"
+   "expect_responses",
+   "switch_portal",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "expect_responses",
+   "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 16806
+  "ms": 9293
  },
  "plan": {
-  "title": "RFQ vendor bid draft then submit",
+  "title": "RFQ bid draft then submit",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ's buyer Responses screen first, as required for prepared-state cases."
+    "note": "Open the prepared live RFQ's buyer Responses tab as required for this state."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal while keeping the buyer session available."
+    "note": "Move to the separate vendor portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared live RFQ's pricing bid form as the vendor."
+    "note": "Open the live RFQ's pricing round from the vendor event list."
    },
    {
-    "step": "ask_tester",
+    "step": "vendor_bid",
     "args": {
-     "need": "enter a quote of 100, save it as a draft without submitting, verify the buyer's Responses shows no bid while it is a draft, then submit the saved draft"
+     "price": 100,
+     "submit": false
     },
-    "note": "No catalog step can perform the vendor draft-save flow or its intermediate buyer-side visibility check."
+    "note": "Enter the 100 quote and save it as a vendor-side draft without submitting."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console after the vendor submits the saved draft."
+    "note": "Return to the buyer's Responses view to inspect the draft's visibility."
    },
    {
-    "step": "go_to",
+    "step": "expect_responses",
     "args": {
-     "screen": "responses"
+     "count": 0
     },
-    "note": "Return to the RFQ Responses screen to inspect the final buyer-side result."
+    "note": "Assert that the buyer sees no submitted response while the vendor quote is only a draft."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Return to the vendor's existing pricing sheet to submit the saved draft."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the previously drafted 100 quote."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal reports the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's Responses view after submission."
    },
    {
     "step": "expect_responses",
@@ -80,7 +107,14 @@
      "count": 1,
      "direct": 1
     },
-    "note": "Verify that the submitted vendor bid is now visible as the buyer's single direct response."
+    "note": "Assert that exactly one direct vendor response now appears for the buyer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Current Bid 1"
+    },
+    "note": "Assert the submitted response is labeled Current Bid 1 as expected."
    }
   ]
  }

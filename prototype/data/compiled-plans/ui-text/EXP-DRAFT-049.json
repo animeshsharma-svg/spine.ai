@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-049",
+  "title": "Manage Line Items: Save fails when Quantity is left empty",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:45:02.669Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_event",
+   "do_on_screen",
+   "expect_toast"
+  ],
+  "ms": 13071
+ },
+ "plan": {
+  "title": "Draft line item save rejects empty quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the saved eRFX draft used as the test fixture."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "A title is required before the draft can be saved."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding the line item."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the single line item needed for the Manage Line Items drawer."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the initial pricing sheet so the draft can be saved with a valid baseline item."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Persist the eRFX draft before reopening it from Drafts."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft setup completed without an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to Events to access the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab specified by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the draft created for this test is listed."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen this plan's saved draft so its Manage Line Items drawer can be tested."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On this saved eRFX draft, open the Items 1 Manage Line Items window, select the existing product or a product from its dropdown, clear the Quantity field so it is blank, enter 1200 in the price field, click Save, and stop only when the screen proves that saving was refused."
+    },
+    "note": "Perform the exact drawer-level interactions that the catalog has no dedicated step for."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Please fill valid quantity on every line item"
+    },
+    "note": "Assert the expected validation refusal when the blank quantity is saved."
+   }
+  ]
+ }
+}

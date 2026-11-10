@@ -1,0 +1,150 @@
+{
+ "meta": {
+  "caseId": "SRC-PUB-009",
+  "title": "Each invited vendor receives the invitation",
+  "group": "SRC-PUB",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:38:18.363Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open both QA vendor mailboxes and verify that each contains exactly one invitation with the event title and close time.",
+   "Verify that the invitation link in each email opens the event for both Vendor A and Vendor B, including a separate session for the second vendor."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open both QA vendor mailboxes and verify that each contains exactly one invitation with the event title and close time.; Verify that the invitation link in each email opens the event for both Vendor A and Vendor B, including a separate session for the second vendor."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "switch_portal",
+   "ask_tester",
+   "expect_published"
+  ],
+  "ms": 17571
+ },
+ "plan": {
+  "title": "RFQ invitation notification to invited vendors",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an RFQ event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PUB-009 Vendor Invitation Test"
+    },
+    "note": "Provide the required event title that the invitation should contain."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a close time that should be reflected in invitations."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite exactly two QA test vendors, corresponding to Vendors A and B."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ and trigger the product's vendor invitation process."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing succeeded and the event has a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Check the supplier-side event access for one invited QA vendor."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the plan's event from the invited vendor's supplier portal without asserting the email itself."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Details",
+     "visible": true
+    },
+    "note": "Assert that the invited vendor's event overview loaded in the supplier portal."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session before requesting the mailbox-only verification."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open both QA vendor mailboxes and verify that each has exactly one invitation for this event containing the title, close time, and a link that opens the event in that vendor's portal"
+    },
+    "note": "Mailbox contents, invitation counts, email fields, and opening both vendors' invitation links are not observable through the catalog."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert the buyer's published event remains available after the mailbox verification."
+   }
+  ]
+ }
+}

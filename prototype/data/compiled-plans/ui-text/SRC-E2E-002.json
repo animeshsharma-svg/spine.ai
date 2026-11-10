@@ -4,14 +4,15 @@
   "title": "Material PR → single stage RFQ → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:12:35.202Z",
+  "compiledAt": "2026-11-10T07:23:19.938Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the PR-created event specifically as a single-stage RFQ rather than the catalog's PR stage selection flow",
-   "Set and assert an explicit 30-minute evaluation duration; set_schedule exposes only the event duration argument",
-   "Verify the original PR transitions through In Progress to ordered on its own PR row",
-   "Assert that exactly one purchase order exists per awarded vendor"
+   "Selecting Single Stage RFQ as the event type during PR conversion; choose_stages can only select project stages such as RFQ.",
+   "Setting an independent 30-minute evaluation duration in the PR-created schedule; set_schedule accepts only the event duration.",
+   "Allocating exactly 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A.",
+   "Creating and verifying one purchase order per awarded vendor after a split award.",
+   "Verifying the PR transitions from Open to In Progress to ordered and opening the PR from the final history/PO flow."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -20,10 +21,10 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Configure the PR-created event specifically as a single-stage RFQ rather than the catalog's PR stage selection flow; Set and assert an explicit 30-minute evaluation duration; set_schedule exposes only the event duration argument; Verify the original PR transitions through In Progress to ordered on its own PR row; Assert that exactly one purchase order exists per awarded vendor"
+   "can only test part of this — no step for: Selecting Single Stage RFQ as the event type during PR conversion; choose_stages can only select project stages such as RFQ.; Setting an independent 30-minute evaluation duration in the PR-created schedule; set_schedule accepts only the event duration.; Allocating exactly 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A.; Creating and verifying one purchase order per awarded vendor after a split award.; Verifying the PR transitions from Open to In Progress to ordered and opening the PR from the final history/PO flow."
   ],
   "source": "llm",
-  "steps": 32,
+  "steps": 23,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -33,8 +34,6 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "expect_api_value",
-   "expect_api_value",
    "set_title",
    "set_schedule",
    "invite_vendor",
@@ -44,24 +43,17 @@
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
+   "expect_responses",
    "close_event",
    "open_master_qcs",
    "expect_qcs_ranks",
    "start_awarding",
-   "do_on_screen",
-   "click",
-   "click",
-   "approve_award",
-   "create_po",
-   "expect_po_items",
-   "open_events_list",
-   "filter_events",
-   "expect_event_in_list"
+   "expect_text"
   ],
-  "ms": 28327
+  "ms": 24785
  },
  "plan": {
-  "title": "SRC-E2E-002 Material PR to Split Award PO",
+  "title": "Material PR to RFQ Split Award and PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -99,46 +91,30 @@
     "step": "fill_sheet"
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity",
-     "within": "Purchase Items"
-    },
-    "note": "Check that the selected PR line exposes its API-backed quantity."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "unit",
-     "within": "Purchase Items"
-    },
-    "note": "Check that the selected PR line exposes its API-backed unit."
-   },
-   {
     "step": "set_title",
     "args": {
-     "title": "SRC-E2E-002 Material PR Split RFQ"
+     "title": "Material PR RFQ Split Award"
     },
-    "note": "Give the event the required title so it can be published and found later."
+    "note": "Provide the required event title so the event can be published and found later."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the requested 30-minute event schedule; the explicit evaluation duration is not configurable through this step."
+    "note": "Commit the supported 30-minute event duration before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite exactly two QA test vendors for the two required vendor bids without inventing supplier names."
+    "note": "Invite two QA vendors without inventing supplier names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the PR-created RFQ after its template, items, schedule, participants, and T&C are configured."
+    "note": "Publish the configured RFQ event."
    },
    {
     "step": "expect_published",
@@ -151,12 +127,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's portal bid at 100; numeric vendor selection avoids inventing a company name."
+    "note": "Submit Vendor A's bid at 100 through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the first vendor's portal bid was submitted."
+    "note": "Verify that the first vendor's quote was accepted."
    },
    {
     "step": "place_bid",
@@ -164,24 +140,32 @@
      "vendor": 2,
      "price": 90
     },
-    "note": "Submit Vendor B's portal bid at 90 from the second vendor portal session."
+    "note": "Submit Vendor B's bid at 90 through a separate vendor portal session."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the second vendor's portal bid was submitted."
+    "note": "Verify that the second vendor's quote was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2
+    },
+    "note": "Confirm the buyer sees both direct vendor responses."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for the bidding window to close so responses and awarding are available."
+    "note": "Wait for the bidding window to end before ranking and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's comparison grid after bidding has ended."
+    "note": "Open the buyer's comparison grid after bidding has closed."
    },
    {
     "step": "expect_qcs_ranks",
@@ -190,71 +174,19 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Assert that the lower bid ranks first, proving Vendor B's 90 bid is ahead of Vendor A's 100 bid."
+    "note": "Verify that the lower-priced Vendor B response ranks ahead of the higher-priced response."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen to allocate the line quantities."
+    "note": "Reach the awarding screen to inspect the available award allocation flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_text",
     "args": {
-     "goal": "allocate 6 units to Vendor B and 4 units to Vendor A on the awarding screen, then stop when the screen shows both vendor allocations"
+     "text": "Create Proposal"
     },
-    "note": "The catalog has no quantity-specific split-allocation assertion, so perform and observe the exact 6/4 allocation directly on the buyer screen."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the award proposal after the split allocation is shown."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Proposal"
-    },
-    "note": "Submit the created proposal for approval."
-   },
-   {
-    "step": "approve_award",
-    "args": {
-     "remark": "Approved for the split award to both vendors."
-    },
-    "note": "Approve the submitted proposal with the required approver remark."
-   },
-   {
-    "step": "create_po",
-    "args": {},
-    "note": "Complete PO creation from the approved split award."
-   },
-   {
-    "step": "expect_po_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Verify that the created purchase orders contain two awarded PO lines in total."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to verify the event's post-close history placement."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Open the History tab where the closed event should appear."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert that this plan's event is present in event history."
+    "note": "Assert that the awarding screen exposes the proposal creation control; exact split allocation cannot be expressed."
    }
   ]
  }

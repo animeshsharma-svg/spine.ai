@@ -4,125 +4,64 @@
   "title": "Reverse auction: bid for less than the auction quantity",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:43:16.345Z",
+  "compiledAt": "2026-11-10T07:15:01.130Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen"
+   "resolved: “Enter an offered quantity of 6 for an auction quantity of 10 in the vendor portal and submit the bid; vendor_bid only ac” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "configure_single_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
    "switch_portal",
    "vendor_open_event",
-   "fill",
-   "attempt"
+   "ask_tester",
+   "expect_message"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14358
+  "ms": 11389
  },
  "plan": {
-  "title": "Reverse auction under-quantity bid refusal",
+  "title": "Reverse auction rejects under-quantity bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
-    },
-    "note": "Configure a reverse auction with rank-based bidding."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply an auction pricing template before adding the line item."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "quantity": "10"
-    },
-    "note": "Create one auction line with the required auction quantity of 10."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the auction pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite the QA vendor to the auction."
+    "note": "Open the prepared live auction event required by the setup."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor portal while keeping the buyer session available."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published auction's vendor pricing round."
+    "note": "Open the live auction's pricing round in the vendor portal."
    },
    {
-    "step": "fill",
+    "step": "ask_tester",
     "args": {
-     "label": "Quantity",
-     "value": "6"
+     "need": "enter 6 as the offered quantity for the 10-unit auction and submit the bid"
     },
-    "note": "Enter an offered quantity below the auction quantity of 10."
+    "note": "The catalog has no step for editing the vendor's offered quantity."
    },
    {
-    "step": "attempt",
+    "step": "expect_message",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "because": "Bid Quantity should be equal to the Auction Quantity",
-     "expect": "refused"
+     "kind": "error",
+     "text": "Bid Quantity should be equal to the Auction Quantity"
     },
-    "note": "Attempt submission and require Procol's under-quantity refusal."
+    "note": "Assert the required refusal message after the under-quantity submission."
    }
   ]
  }

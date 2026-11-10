@@ -4,54 +4,61 @@
   "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:13:18.880Z",
+  "compiledAt": "2026-11-10T07:06:04.421Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "A closed RFQ with two line items, two vendor bids, and the specified per-line prices (A 100/50 and B 90/60)",
-   "Allocating line 1 entirely to vendor B and line 2 entirely to vendor A by entering quantities",
-   "Verifying Awarded Vendors is 2/2 for the requested two-vendor allocation",
-   "Verifying proposal amounts of 900 and 250 with a total of 1,150",
-   "Filling and submitting the required proposal fields for this split allocation",
-   "Verifying the award is final without approval, creates one purchase order per awarded vendor, and moves the event to History"
+   "A closed RFQ with two line items and two vendor bids at the specified prices",
+   "Allocating line 1 to Vendor B and line 2 to Vendor A with quantities",
+   "Verifying Awarded Vendors is 2/2 for the requested two-vendor split",
+   "Verifying proposal totals of 900, 250, and 1,150",
+   "Filling and submitting the required proposal fields for this two-line allocation",
+   "Verifying one purchase order per awarded vendor and the event moving to History without approval"
   ],
   "warnings": [
-   "can only test part of this — no step for: A closed RFQ with two line items, two vendor bids, and the specified per-line prices (A 100/50 and B 90/60); Allocating line 1 entirely to vendor B and line 2 entirely to vendor A by entering quantities; Verifying Awarded Vendors is 2/2 for the requested two-vendor allocation; Verifying proposal amounts of 900 and 250 with a total of 1,150; Filling and submitting the required proposal fields for this split allocation; Verifying the award is final without approval, creates one purchase order per awarded vendor, and moves the event to History"
+   "cannot test this case yet — no step can observe: A closed RFQ with two line items and two vendor bids at the specified prices; Allocating line 1 to Vendor B and line 2 to Vendor A with quantities; Verifying Awarded Vendors is 2/2 for the requested two-vendor split; Verifying proposal totals of 900, 250, and 1,150; Filling and submitting the required proposal fields for this two-line allocation; Verifying one purchase order per awarded vendor and the event moving to History without approval"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "expect_qcs_vendors",
    "start_awarding",
-   "expect_visible"
+   "expect_award_counters"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 16130
+  "ms": 14815
  },
  "plan": {
-  "title": "Line-wise award across two vendors",
+  "title": "Line-wise Award Across Two Vendors",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared Master QCS for the existing bid event."
+    "note": "Open the available prepared Master QCS state; this is the required starting point for prepared awarding cases."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1
+    },
+    "note": "Record the available state, which has one vendor column rather than the two bids required by the case."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen, which is the closest available step to the requested allocation flow."
+    "note": "Open the awarding screen to confirm that the awarding flow is reachable."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_award_counters",
     "args": {
-     "role": "button",
-     "name": "Create Proposal",
-     "visible": true
+     "items": "0/1",
+     "vendors": "0/1"
     },
-    "note": "Verify that the awarding screen exposes the Create Proposal control."
+    "note": "Assert the available awarding counters, documenting that this state has one line and one vendor and therefore cannot represent the requested 2/2 allocation."
    }
   ]
  }

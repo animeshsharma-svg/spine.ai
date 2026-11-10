@@ -1,0 +1,113 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-030",
+  "title": "Use more than the open quantity (12 of 10) of a PR line in the event",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:31:06.464Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_sheet_cell",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "expect_publish_blocked"
+  ],
+  "ms": 12458
+ },
+ "plan": {
+  "title": "PR Quantity Above Open Limit",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "12"
+    },
+    "note": "Set the PR-backed line quantity above its open quantity of 10."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title while keeping the test otherwise publishable."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Add the named vendor participant required before publication."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Quantity should be less than open quantity"
+    },
+    "note": "Attempt publication and assert Procol refuses it with the expected quantity-limit message."
+   }
+  ]
+ }
+}

@@ -4,7 +4,7 @@
   "title": "Reverse auction: Quantity Requested = -5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:54:50.479Z",
+  "compiledAt": "2026-11-10T07:17:21.010Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -24,36 +24,38 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_sheet_cell"
+   "expect_error"
   ],
-  "ms": 195468
+  "ms": 14070
  },
  "plan": {
-  "title": "Reverse auction negative quantity validation",
+  "title": "Reverse Auction Negative Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single stage create screen"
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction"
     },
-    "note": "Set event type to Auction"
+    "note": "Switch the event type to Auction."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide event title"
+    "note": "Provide the required event title so the create flow is otherwise valid."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Select auction template"
+    "args": {
+     "name": "reverse"
+    },
+    "note": "Apply the reverse/buy auction template so the product sheet is rendered."
    },
    {
     "step": "add_line_items",
@@ -62,16 +64,14 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "-5"
     },
-    "note": "Add line item with negative quantity -5"
+    "note": "Add the named product and enter the invalid negative quantity in the first row."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "expect_error",
     "args": {
-     "column": "Quantity Requested",
-     "row": 1,
-     "refused": true
+     "contains": "quantity"
     },
-    "note": "Assert that the negative quantity is refused"
+    "note": "Assert that Procol immediately rejects the negative quantity with a quantity-related validation error."
    }
   ]
  }

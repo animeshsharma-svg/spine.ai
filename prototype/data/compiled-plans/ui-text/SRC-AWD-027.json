@@ -4,66 +4,58 @@
   "title": "Two bids on two lines: award both lines to B; approver approves without a remark",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:16:14.310Z",
+  "compiledAt": "2026-11-10T07:06:23.679Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Guarantee selection of the specific closed RFQ with two lines and bids of A/B at the stated prices, because no event title or fixture-selection step is provided.",
-   "Verify the exact 1/2 awarded-vendor counter and proposal total of 1,200 for the specified two-line allocation, because prepared states expose only one line and one vendor.",
-   "Sign in as the approver, leave the approval remark empty, approve the proposal, and verify the refusal 'Remark is necessary for approval' with the proposal remaining pending."
+   "The required closed RFQ state with two line items and two vendor bids (A and B).",
+   "Allocating both lines to Vendor B and verifying the expected amounts and total of 1,200.",
+   "Creating and submitting the specified two-line award proposal.",
+   "Signing in as the approver and approving without a remark.",
+   "Verifying the refusal message \"Remark is necessary for approval\" and that the proposal remains pending."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Guarantee selection of the specific closed RFQ with two lines and bids of A/B at the stated prices, because no event title or fixture-selection step is provided.; Verify the exact 1/2 awarded-vendor counter and proposal total of 1,200 for the specified two-line allocation, because prepared states expose only one line and one vendor.; Sign in as the approver, leave the approval remark empty, approve the proposal, and verify the refusal 'Remark is necessary for approval' with the proposal remaining pending."
+   "cannot test this case yet — no step can observe: The required closed RFQ state with two line items and two vendor bids (A and B).; Allocating both lines to Vendor B and verifying the expected amounts and total of 1,200.; Creating and submitting the specified two-line award proposal.; Signing in as the approver and approving without a remark.; Verifying the refusal message \"Remark is necessary for approval\" and that the proposal remains pending."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
    "start_awarding",
-   "do_on_screen",
-   "ask_tester"
+   "allocate_award",
+   "expect_award_counters"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 20204
+  "ms": 8204
  },
  "plan": {
-  "title": "Award two lines to vendor B and reject approval without remark",
+  "title": "SRC-AWD-027 — Award approval without remark",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open Master QCS and confirm the bid comparison grid is available before awarding."
+    "note": "Open the available prepared Master QCS instead of searching for an event with the unavailable two-line, two-vendor state."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen, which is the subject of the allocation portion of the case."
+    "note": "Reach the awarding screen, which is the closest available screen to the requested allocation flow."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "allocate the available line items to the intended vendor, create the award proposal, fill the required proposal fields, submit it, and stop on the submitted proposal page showing its allocation and total"
-    },
-    "note": "Perform the buyer-side allocation and proposal submission that no dedicated catalog step can express for multiple lines and vendor-specific quantities."
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available line to a vendor in the prepared state."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_award_counters",
     "args": {
-     "need": "sign in as the approver, open the submitted proposal, leave the approval remark empty, attempt approval, and verify the refusal 'Remark is necessary for approval' while the proposal remains pending"
+     "items": "1/1",
+     "vendors": "1/1"
     },
-    "note": "The approver identity/session and the exact empty-remark approval refusal cannot be automated by the catalog."
+    "note": "Assert the allocation result for the available one-line, one-vendor state; this does not verify the requested 1/2 vendor allocation."
    }
   ]
  }

@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "PRA-MANY-002",
+  "title": "A user who can see only one of the selected PRs is not shown",
+  "group": "PRA-MANY",
+  "sheet": "pr-assignee",
+  "compiledAt": "2026-11-10T01:02:20.300Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Fruits Buyer (B)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Fruits Buyer (B)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 8065
+ },
+ "plan": {
+  "title": "PR assignee visibility across selected PRs",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions area as the buyer."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Stay on the Open tab, where PRs can be selected for assignment."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Search for PR-1 and PR-4, select one line item from each, click the Assign person control next to Upload PRs, scroll through the complete Search a user list, and verify Food Buyer (A) is listed while Fruits Buyer (B) is not listed."
+    },
+    "note": "Perform and observe the multi-PR selection and assignee visibility rule that no catalog step can express directly."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Food Buyer (A)",
+     "present": true
+    },
+    "note": "Assert that the user who can see both selected PRs is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Fruits Buyer (B)",
+     "present": false
+    },
+    "note": "Assert that the user who can see only PR-1 is excluded."
+   }
+  ]
+ }
+}

@@ -4,32 +4,31 @@
   "title": "Convert while vendors owe a bid justification",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:12:06.875Z",
+  "compiledAt": "2026-11-10T07:23:50.940Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Guarantee that the opened existing RFQ is the closed RFQ with bids A 100 and B 90 and a pending bid justification.",
-   "Verify the exact conversion-blocking pop-up behavior and its precise wording."
+   "Create or verify a vendor bid justification is pending on the closed RFQ.",
+   "Verify the exact A 100 and B 90 bid values and the specific pending-justification prompt text."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Guarantee that the opened existing RFQ is the closed RFQ with bids A 100 and B 90 and a pending bid justification.; Verify the exact conversion-blocking pop-up behavior and its precise wording."
+   "can only test part of this — no step for: Create or verify a vendor bid justification is pending on the closed RFQ.; Verify the exact A 100 and B 90 bid values and the specific pending-justification prompt text."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 2,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "expect_text"
+   "attempt"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 9636
+  "ms": 70851
  },
  "plan": {
-  "title": "Block RFQ conversion with pending justification",
+  "title": "Block RFQ-to-Auction Conversion for Pending Justification",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,18 +38,15 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "event_menu",
+    "step": "attempt",
     "args": {
-     "item": "Convert to Auction"
+     "step": "event_menu",
+     "args": {
+      "item": "Convert to Auction"
+     },
+     "expect": "refused"
     },
-    "note": "Attempt the conversion from the RFQ Settings menu; this is the catalog action for the conversion entry point."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "justification"
-    },
-    "note": "Check that the resulting screen or message refers to the pending bid justification rather than proceeding silently."
+    "note": "Attempt conversion and require the application to provide refusal evidence instead of opening the conversion pop-up."
    }
   ]
  }

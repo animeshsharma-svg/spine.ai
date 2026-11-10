@@ -1,0 +1,51 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-033",
+  "title": "A live RFQ with a vendor's bid: \"Withdrawing Order...\": \"Yes\" with the fields as they open is refused",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:20:45.685Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_prepared",
+   "withdraw_event",
+   "expect_message"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 69529
+ },
+ "plan": {
+  "title": "Reject withdrawal without reason",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared live RFQ that already has one vendor bid."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "project",
+     "noReason": true
+    },
+    "note": "Open the withdrawal flow and confirm without entering a reason, exercising the required-field refusal."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any",
+     "text": "Please enter reason for withdrawing this event"
+    },
+    "note": "Assert that Procol keeps the withdrawal open and reports the missing withdrawal reason."
+   }
+  ]
+ }
+}

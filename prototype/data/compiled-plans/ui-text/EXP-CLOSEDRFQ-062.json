@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-062",
+  "title": "Withdrawing Order...: Closing the window with Escape does not submit the withdrawal",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:32:57.366Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the withdrawal reason was not submitted through the Yes button or that the event remains non-withdrawn; the catalog only provides a positive expect_withdrawn assertion."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly assert that the withdrawal reason was not submitted through the Yes button or that the event remains non-withdrawn; the catalog only provides a positive expect_withdrawn assertion."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "open_event_settings",
+   "event_menu",
+   "fill",
+   "press",
+   "expect_visible",
+   "expect_menu_item"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 9687
+ },
+ "plan": {
+  "title": "Escape Cancels Withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary as the buyer."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the stage Settings menu containing Withdraw."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw"
+    },
+    "note": "Open the Withdrawing Order dialog without confirming it."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Please enter reason for withdrawing this event",
+     "value": "Escape test"
+    },
+    "note": "Enter the test withdrawal reason."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Dismiss the withdrawal dialog with Escape instead of pressing Yes."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Assert that the withdrawal dialog closed after Escape."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw",
+     "enabled": true,
+     "stage": "rfq"
+    },
+    "note": "Verify Withdraw remains available, indicating Escape did not complete the withdrawal."
+   }
+  ]
+ }
+}

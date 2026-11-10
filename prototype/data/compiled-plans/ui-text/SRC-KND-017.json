@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-017",
+  "title": "eRFX Technical + RFQ project (RFQ stage): award it after the close",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:30:40.823Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open the prepared Tech+RFQ project by searching its title from the Events list; prepared-state execution requires starting with open_prepared on the technical screen.",
+   "Verify that only vendors who passed the technical stage are eligible for award because the prepared state provides only one vendor and no failing vendor for comparison.",
+   "Verify that this prepared event moves to the History tab after PO creation without searching the Events list."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the prepared Tech+RFQ project by searching its title from the Events list; prepared-state execution requires starting with open_prepared on the technical screen.; Verify that only vendors who passed the technical stage are eligible for award because the prepared state provides only one vendor and no failing vendor for comparison.; Verify that this prepared event moves to the History tab after PO creation without searching the Events list."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "open_prepared",
+   "award_event",
+   "expect_awarded",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "live",
+  "screen": "technical",
+  "ms": 15973
+ },
+ "plan": {
+  "title": "Award closed Technical + RFQ project",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "technical"
+    },
+    "note": "Required first step for the prepared Technical + RFQ event and establishes the technical-stage context."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the closed event's Master QCS where the final bid and awarding action are available."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award all line items to the best final bid, represented by the lowest-ranked bidder, and submit the proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the post-award approval flow and create the purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {},
+    "note": "Assert that the created purchase order contains the awarded event line item with a quantity."
+   }
+  ]
+ }
+}

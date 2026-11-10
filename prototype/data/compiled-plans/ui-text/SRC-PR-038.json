@@ -1,0 +1,183 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-038",
+  "title": "Create a Single Stage RFQ from an open service PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:32:00.743Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting a specific open service PR line by service type; select_pr can select a named PR or line count but cannot filter by service type.",
+   "Choosing Single Stage during PR-to-event conversion is not directly expressed by the PR domain steps; do_on_screen is used for this buyer-side transition.",
+   "Asserting that the service's activities appear as separate rows and that the Price column is a rate per activity.",
+   "Asserting the delivery location value copied from the PR; sheet-cell locking can be checked, but the copied location value has no dedicated assertion.",
+   "Asserting that the PR moves to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting a specific open service PR line by service type; select_pr can select a named PR or line count but cannot filter by service type.; Choosing Single Stage during PR-to-event conversion is not directly expressed by the PR domain steps; do_on_screen is used for this buyer-side transition.; Asserting that the service's activities appear as separate rows and that the Price column is a rate per activity.; Asserting the delivery location value copied from the PR; sheet-cell locking can be checked, but the copied location value has no dedicated assertion.; Asserting that the PR moves to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "expect_template_selected",
+   "expect_sheet_columns",
+   "expect_sheet_cells",
+   "expect_api_value",
+   "expect_api_value",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_no_error",
+   "expect_menu_item"
+  ],
+  "ms": 19165
+ },
+ "plan": {
+  "title": "Create Single-Stage RFQ from Service PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-038 Service RFQ"
+    },
+    "note": "Provide the mandatory event title before publication."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that the RFQ template was applied."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price"
+     ]
+    },
+    "note": "Verify that the RFQ pricing sheet rendered the expected PR and pricing columns."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "editable": [
+      "Price",
+      "Delivery location"
+     ],
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Assert that PR-derived product, variant, and quantity fields are locked while pricing and delivery location remain editable."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify that the PR quantity is displayed in the created event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify that the PR unit is displayed in the created event."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the default Start now and 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named by the test case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed single-stage RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm that publication did not produce an application error."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq",
+     "enabled": false
+    },
+    "note": "Verify the PR-created event cannot use Recreate Order and that the menu item is greyed out."
+   }
+  ]
+ }
+}

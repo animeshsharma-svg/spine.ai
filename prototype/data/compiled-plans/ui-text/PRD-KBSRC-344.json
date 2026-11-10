@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-344",
+  "title": "View-Only Mode blocks counter offers, quote edits and surrogate bids",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:16:19.593Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable View-Only Mode from the Auction Responses Actions menu and verify that the tenant-level setting is active"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable View-Only Mode from the Auction Responses Actions menu and verify that the tenant-level setting is active"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_event",
+   "go_to",
+   "ask_tester",
+   "attempt",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "switch_portal",
+   "open_participants",
+   "attempt"
+  ],
+  "ms": 76056
+ },
+ "plan": {
+  "title": "View-Only Mode blocks auction actions",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing live auction event matching the setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses",
+     "stage": "auction"
+    },
+    "note": "Navigate to the auction Responses tab specified by the case."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enable View-Only Mode from the Auction Responses Actions menu and confirm it is active"
+    },
+    "note": "The catalog has no step for changing or verifying this tenant-level setting."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Counter Offer"
+     },
+     "expect": "refused"
+    },
+    "note": "Check that sending a counter offer is unavailable while View-Only Mode is active."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor session to test quote editing."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction pricing bid sheet in the vendor portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {},
+     "expect": "refused"
+    },
+    "note": "Attempt to revise the vendor's quote and require a refusal."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console for the surrogate-bid check."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the auction Participants list where surrogate bidding is performed."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_surrogate_bid",
+     "args": {},
+     "expect": "refused"
+    },
+    "note": "Attempt to place a buyer-entered surrogate bid and require a refusal."
+   }
+  ]
+ }
+}

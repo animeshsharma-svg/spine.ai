@@ -1,0 +1,175 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-337",
+  "title": "Reject a bid and allow the seller to bid again",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:14:52.520Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once"
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "go_to",
+   "do_on_screen",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_vendors"
+  ],
+  "ms": 14965
+ },
+ "plan": {
+  "title": "Reject Bid and Allow Rebid",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an auction event for the rejection and rebid flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Reject Bid Rebid Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the auction pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product that the seller will bid on."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite the seller whose bid will be rejected and resubmitted."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so the seller can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Have the seller submit the initial bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the initial seller bid was accepted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses",
+     "stage": "auction"
+    },
+    "note": "Open the buyer's Auction Responses tab where the vendor menu is available."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's Auction Responses tab, open the three-dot menu next to the vendor's name, choose Reject Bid, check the option allowing the seller to bid again, confirm the rejection, and leave the Responses view showing the rejected bid is removed."
+    },
+    "note": "Perform the catalog interaction for rejecting the bid and enabling re-bidding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid to verify the rejected bid was removed from the QCS."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 0,
+     "realNames": true
+    },
+    "note": "Assert that no vendor bid column remains after rejection."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 90
+    },
+    "note": "Have the same seller submit a new bid after re-bidding was enabled."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the seller was allowed to submit the new bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "auction"
+    },
+    "note": "Verify the buyer now sees the seller's replacement response."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Return to the QCS after the replacement bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert that the seller's new bid is present in the QCS."
+   }
+  ]
+ }
+}

@@ -1,0 +1,150 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-043",
+  "title": "Set up and publish an RFQ awarded at line-item level",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:09:53.119Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that every invited participant receives the RFQ invitation email in their email inbox."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "can only test part of this — no step for: Verify that every invited participant receives the RFQ invitation email in their email inbox."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_toast",
+   "expect_published",
+   "ask_tester",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status"
+  ],
+  "ms": 11003
+ },
+ "plan": {
+  "title": "Publish line-item RFQ",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the single-stage event setup screen described by the case."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Line-Item RFQ Award Test"
+    },
+    "note": "Provide the mandatory event title required before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the predefined pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product under the Products column; the default quantity and product fields are filled by the step."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill the pricing sheet's mandatory fields for the added product."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the event schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Invite the product-mapped vendors to the RFQ."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFQ and wait for Procol's publication result."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "You Have Successfully Published your RFQ Event"
+    },
+    "note": "Verify the publication confirmation described by the oracle."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the browser reached the published project page with an event id."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "check the invited participants' email inboxes and verify the RFQ invitation email was received"
+    },
+    "note": "Email delivery cannot be observed by the catalog and requires inbox access."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the newly published event is live."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Show the Live events tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Confirm this plan's published RFQ appears in the Live events list."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Verify the event row has Live status."
+   }
+  ]
+ }
+}

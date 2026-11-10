@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "PRD-KBAI-017",
+  "title": "Buyer generates Technical Stage questions with AI from PR line items",
+  "group": "PRD-KBAI",
+  "compiledAt": "2026-11-10T06:46:29.565Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 7 step(s) that would open a blank event or replace the PR's items"
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 11668
+ },
+ "plan": {
+  "title": "AI Generate Technical Questions from PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the event creation screen, open Event Type showing Technical Stage, choose Generate question using AI under How will you create a Technical Stage?, click Save, and stop when the generated technical questions are visible in the Vendor Assessment and Line Items sections."
+    },
+    "note": "Perform and verify the AI question-generation flow, which has no dedicated catalog action."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor Assessment",
+     "present": true
+    },
+    "note": "Assert that the vendor assessment section is present after AI generation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Line Items",
+     "present": true
+    },
+    "note": "Assert that the product line-item question section is present after AI generation."
+   }
+  ]
+ }
+}

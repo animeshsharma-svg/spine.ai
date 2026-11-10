@@ -1,0 +1,128 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-029",
+  "title": "Counter offer while bidding is live on one of the two lines; the vendor does not answer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:38:28.754Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event has only one line, so the second line quoted at 50 and the requirement to counter line 1 of a two-line event cannot be verified.",
+   "The exact two-line Master QCS totals cannot be verified."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared event has only one line, so the second line quoted at 50 and the requirement to counter line 1 of a two-line event cannot be verified.; The exact two-line Master QCS totals cannot be verified."
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_visible",
+   "attempt",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_amounts"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 12563
+ },
+ "plan": {
+  "title": "Live RFQ counter offer remains pending",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen with the vendor's normal bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send a buyer counter offer of 90 against the vendor's own live bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer-side grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the vendor's pending counter offer is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": true
+    },
+    "note": "Verify the vendor can see the pending counter offer."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Accept Counter Offer",
+     "visible": true
+    },
+    "note": "Verify the counter offer remains pending and has not been answered."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt a vendor revision while the counter offer is pending and require Procol to refuse it."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's session."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS to inspect the current comparison after the unanswered counter offer."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the vendor column is present with a real vendor name."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the visible Master QCS arithmetic remains internally consistent with the current prices."
+   }
+  ]
+ }
+}

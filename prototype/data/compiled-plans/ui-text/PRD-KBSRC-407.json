@@ -1,0 +1,156 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-407",
+  "title": "Ranked evaluation: T1, T2, T3",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:21:04.568Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure the technical stage to use ranked evaluation if that is a tenant setting or distinct setup requirement",
+   "Verify the exact Add Evaluation dialog and its OK action independently of evaluate_technical",
+   "unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "coverage partial: unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Configure the technical stage to use ranked evaluation if that is a tenant setting or distinct setup requirement; Verify the exact Add Evaluation dialog and its OK action independently of evaluate_technical"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "evaluate_technical",
+   "expect_text"
+  ],
+  "ms": 10791
+ },
+ "plan": {
+  "title": "Ranked Technical Evaluation T1",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage create flow that supports a technical stage."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Ranked Evaluation T1 Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Create a technical-only event so the evaluator acts on the technical response."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the technical stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a technical template before adding the line item."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the line item whose technical evaluation will receive the rank."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical questionnaire needed for a vendor response."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the technical evaluator required for scoring."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the technical-stage schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor to submit the technical response."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can respond."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the invited vendor submit the technical response."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor response was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the technical stage so evaluation becomes available."
+   },
+   {
+    "step": "evaluate_technical",
+    "args": {
+     "scores": [
+      "T1"
+     ],
+     "remark": "Technical response assigned rank T1."
+    },
+    "note": "Assign the requested T1 rank and remark and submit the evaluation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "T1"
+    },
+    "note": "Verify that the assigned T-rank is visible after saving the evaluation."
+   }
+  ]
+ }
+}

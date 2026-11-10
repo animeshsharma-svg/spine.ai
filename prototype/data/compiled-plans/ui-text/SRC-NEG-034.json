@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-034",
+  "title": "Counter offer during evaluation time on one of the two lines; the vendor rejects",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:40:02.903Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "An RFQ in evaluation with exactly two lines and Vendor A quotes of 100 and 50; the prepared state exposes one line.",
+   "The vendor rejecting a counter offer; no catalog step can perform or assert vendor rejection.",
+   "Verifying that both lines retain Vendor A's quotes and that the two-line Master QCS totals follow those prices."
+  ],
+  "warnings": [
+   "resolved: “Countering line 1 only while leaving line 2 unchanged; place_counter_offer cannot target a specific line.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: An RFQ in evaluation with exactly two lines and Vendor A quotes of 100 and 50; the prepared state exposes one line.; The vendor rejecting a counter offer; no catalog step can perform or assert vendor rejection.; Verifying that both lines retain Vendor A's quotes and that the two-line Master QCS totals follow those prices."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "ask_tester",
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 15844
+ },
+ "plan": {
+  "title": "Counter Offer Rejection During Evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen with the existing vendor bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send the closest supported counter offer against the vendor's own bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Assert that the buyer's Responses grid marks the counter offer as initiated."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "reject the pending counter offer in Vendor A's supplier portal"
+    },
+    "note": "No catalog step can reject a pending counter offer from the vendor portal."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to the prepared event's Master QCS after the rejection attempt."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert the available Master QCS has the real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Assert the supported single-line rate remains the bid price held by the prepared state."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Assert the supported Master QCS line amount and total arithmetic remain consistent."
+   }
+  ]
+ }
+}

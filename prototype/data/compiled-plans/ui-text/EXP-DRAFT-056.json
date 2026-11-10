@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-056",
+  "title": "Manage Line Items: Save fails when price contains special characters",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:45:40.317Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case does not provide a specific product, so selecting the intended product from the product dropdown cannot be verified."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The case does not provide a specific product, so selecting the intended product from the product dropdown cannot be verified."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_event",
+   "click",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "click",
+   "expect_error",
+   "expect_sheet_cell"
+  ],
+  "ms": 13856
+ },
+ "plan": {
+  "title": "Draft Price Special-Character Save",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the existing saved draft; the draft reopens on its create screen."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items 1"
+    },
+    "note": "Open the Manage Line Items window for the draft's existing line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity",
+     "value": "90"
+    },
+    "note": "Enter the requested quantity in the first line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "12$%"
+    },
+    "note": "Enter the special-character price value being tested."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Attempt to save the edited line item."
+   },
+   {
+    "step": "expect_error",
+    "args": {},
+    "note": "Assert that Procol refuses the invalid price or reports an error after the save attempt."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "refused": true
+    },
+    "note": "Verify that the special-character price was not accepted by the sheet."
+   }
+  ]
+ }
+}

@@ -1,0 +1,108 @@
+{
+ "meta": {
+  "caseId": "SRC-TTL-007",
+  "title": "Reverse auction: auto title for two products of the same family at one location",
+  "group": "SRC-TTL",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:18:20.961Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting Product X and Product Y specifically, proving they are from family F at Plant Name, and asserting the complete exact title including the resolved family and location.",
+   "Verifying the 70-character truncation with an ellipsis because the catalog cannot target a product family/name of the required length."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Selecting Product X and Product Y specifically, proving they are from family F at Plant Name, and asserting the complete exact title including the resolved family and location.; Verifying the 70-character truncation with an ellipsis because the catalog cannot target a product family/name of the required length."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "expect_value",
+   "remember",
+   "remove_line_items",
+   "expect_remembered"
+  ],
+  "ms": 11576
+ },
+ "plan": {
+  "title": "Reverse auction auto-title for two products",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen required for the reverse-auction configuration."
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a buy/reverse auction without entering a title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template so products can be added."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add two line items to exercise automatic title generation after multiple products are present."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of this event",
+     "value": "[Reverse Auction]"
+    },
+    "note": "Assert that the title field is automatically populated with the reverse-auction title marker."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "autoTitleWithTwoProducts",
+     "label": "Enter the title of this event"
+    },
+    "note": "Capture the generated title before removing a line item."
+   },
+   {
+    "step": "remove_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Remove one product while the title remains automatic, testing the required refresh behavior."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "autoTitleWithTwoProducts",
+     "same": false,
+     "label": "Enter the title of this event"
+    },
+    "note": "Assert that the automatic title updates after a row is removed."
+   }
+  ]
+ }
+}

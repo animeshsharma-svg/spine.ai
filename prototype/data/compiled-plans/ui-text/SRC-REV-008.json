@@ -1,0 +1,96 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-008",
+  "title": "Reverse auction (tick 1): lower by exactly 1 (one tick)",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:46:39.917Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 8384
+ },
+ "plan": {
+  "title": "Reverse Auction One-Tick Bid Revision",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live reverse auction on the buyer’s Responses view; this is the required starting state for the existing event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to Vendor A’s separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live reverse auction in Vendor A’s event list and enter the pricing bid sheet."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 99
+    },
+    "note": "Revise Vendor A’s existing bid from 100 to 99 and submit it, lowering the price by exactly one tick."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal shows the revised bid as submitted and accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer’s Responses screen to verify the revision from the buyer side."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Assert the buyer sees Vendor A’s direct response after the revision."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer’s Master QCS comparison for the revised bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 99
+    },
+    "note": "Verify the buyer’s Master QCS shows the revised rate of 99."
+   }
+  ]
+ }
+}

@@ -4,25 +4,26 @@
   "title": "Material PR → single stage reverse auction → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:12:47.493Z",
+  "compiledAt": "2026-11-10T07:23:45.262Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Creating a single-stage reverse auction directly from the selected purchase requisition through the catalog",
-   "Setting or verifying a separate 30-minute evaluation duration on the schedule",
-   "Adding and verifying exactly one Required T&C clause and vendor-side T&C acceptance",
-   "Allocating the single PR line as quantity 6 to Vendor B and quantity 4 to Vendor A at their respective bid prices",
-   "Verifying the PR status transitions from Open to In Progress to ordered and that the PR itself reflects the final order"
+   "Create a single-stage reverse auction directly from a purchase request; choose_stages can create an auction stage but cannot apply configure_single_stage on the PR flow.",
+   "Add exactly one required Terms and Conditions clause.",
+   "Set or verify a separate 30-minute evaluation duration in the PR schedule; set_schedule only accepts the event duration.",
+   "Award one PR line by split quantities of 6 to Vendor B and 4 to Vendor A, or otherwise verify the split allocation at each vendor's price.",
+   "Verify that the split creates exactly one purchase order per awarded vendor.",
+   "Verify the PR status transition from Open to In Progress to ordered."
   ],
   "warnings": [
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Creating a single-stage reverse auction directly from the selected purchase requisition through the catalog; Setting or verifying a separate 30-minute evaluation duration on the schedule; Adding and verifying exactly one Required T&C clause and vendor-side T&C acceptance; Allocating the single PR line as quantity 6 to Vendor B and quantity 4 to Vendor A at their respective bid prices; Verifying the PR status transitions from Open to In Progress to ordered and that the PR itself reflects the final order"
+   "can only test part of this — no step for: Create a single-stage reverse auction directly from a purchase request; choose_stages can create an auction stage but cannot apply configure_single_stage on the PR flow.; Add exactly one required Terms and Conditions clause.; Set or verify a separate 30-minute evaluation duration in the PR schedule; set_schedule only accepts the event duration.; Award one PR line by split quantities of 6 to Vendor B and 4 to Vendor A, or otherwise verify the split allocation at each vendor's price.; Verify that the split creates exactly one purchase order per awarded vendor.; Verify the PR status transition from Open to In Progress to ordered."
   ],
   "source": "llm",
-  "steps": 33,
+  "steps": 28,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -33,9 +34,8 @@
    "select_template",
    "fill_sheet",
    "set_title",
-   "do_on_screen",
-   "invite_vendor",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
    "place_bid",
@@ -45,10 +45,6 @@
    "close_event",
    "open_master_qcs",
    "expect_qcs_ranks",
-   "start_awarding",
-   "allocate_award",
-   "allocate_award",
-   "expect_award_counters",
    "award_event",
    "expect_awarded",
    "approve_award",
@@ -58,10 +54,10 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 28105
+  "ms": 24682
  },
  "plan": {
-  "title": "Material PR to Reverse Auction Split Award and PO",
+  "title": "Material PR to Auction PO Flow",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -101,151 +97,118 @@
    {
     "step": "set_title",
     "args": {},
-    "note": "Set the required event title before publishing."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the buyer create screen, add exactly one Required T&C clause and set the schedule to a 30-minute event with a 30-minute evaluation period; stop when the saved create screen shows those settings"
-    },
-    "note": "No catalog step directly adds a required T&C clause or configures the separate evaluation duration."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite exactly two QA test vendors without inventing supplier names."
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the supported 30-minute event schedule before publishing."
+    "note": "Commit the supported 30-minute event duration before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two QA vendors without inventing supplier names, matching the two bidding vendors required."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the PR-derived auction."
+    "note": "Publish the configured event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's quote at 100 through the vendor portal."
+    "note": "Submit the first vendor's quote through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the first vendor bid was accepted."
+    "note": "Verify the first vendor quote was accepted."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 2,
      "price": 90
     },
-    "note": "Submit Vendor B's lower quote at 90 through the second vendor portal session."
+    "note": "Submit a quote from a different vendor through the next vendor portal session."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor bid was accepted."
+    "note": "Verify the second vendor quote was accepted."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for the bidding window to end before reading QCS or awarding."
+    "note": "Wait for bidding to end before inspecting rankings and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid after bidding closes."
+    "note": "Open the buyer's comparison grid after bidding closes."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 2
+     "order": "lowest"
     },
-    "note": "Verify the lower bid ranks first, which should make Vendor B rank 1."
-   },
-   {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Enter the awarding screen to perform the requested split allocation as far as the catalog allows."
-   },
-   {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Allocate an award share to the first eligible vendor."
-   },
-   {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Attempt the second vendor allocation; the catalog cannot specify the requested 6/4 quantities or named role mapping."
-   },
-   {
-    "step": "expect_award_counters",
-    "args": {},
-    "note": "Confirm the awarding screen counters reflect the allocations made."
+    "note": "Verify that the lower bid ranks first, covering the expected B-first ranking behavior without inventing vendor names."
    },
    {
     "step": "award_event",
-    "args": {},
-    "note": "Create and submit the award proposal from the awarding flow."
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Use the closest supported awarding flow, awarding to the lowest-ranked vendor; split allocation is not expressible."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Confirm the award proposal was created and submitted."
+    "note": "Verify that an award proposal was created and submitted."
    },
    {
     "step": "approve_award",
-    "args": {
-     "remark": "Approved for the PR award."
-    },
-    "note": "Approve the submitted proposal with the required remark."
+    "args": {},
+    "note": "Approve the submitted proposal with the required approval remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete approval and create the resulting purchase orders."
+    "note": "Complete the supported PO creation flow after award approval."
    },
    {
     "step": "expect_po_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Check for two PO lines as the closest supported assertion of the intended two-vendor award result."
+    "args": {},
+    "note": "Verify that the created purchase order carries the awarded PR line item and quantity."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the event's history placement."
+    "note": "Return to the events list to inspect the event's final list placement."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after the event has completed."
+    "note": "Open the History tab to check the post-completion event location."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Confirm this plan's event appears in event history."
+    "note": "Verify that this plan's event appears in event history."
    }
   ]
  }

@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "caseId": "SRC-SAM-062",
+  "title": "Withdraw when the event moves from evaluation to awarded",
+  "group": "SRC-SAM",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:00:25.689Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact RFQ title search and transition from the specific setup case SRC-SET-003 cannot be selected because no event title is provided; open_event uses the prepared evaluation event instead."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The exact RFQ title search and transition from the specific setup case SRC-SET-003 cannot be selected because no event title is provided; open_event uses the prepared evaluation event instead."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "expect_settings_menu",
+   "go_to",
+   "evaluate_technical",
+   "award_event",
+   "expect_awarded",
+   "go_to",
+   "expect_settings_menu"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 17947
+ },
+ "plan": {
+  "title": "Withdraw availability from evaluation to awarded",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Show the RFQ stage whose Settings actions are under test."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify Withdraw is offered while the event is in evaluation."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Return to the technical stage so its pending evaluation can be completed before awarding."
+   },
+   {
+    "step": "evaluate_technical",
+    "args": {},
+    "note": "Complete the required technical evaluation so the event can proceed to award."
+   },
+   {
+    "step": "award_event",
+    "args": {},
+    "note": "Submit the award proposal for the closed event."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm that the award was submitted successfully."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Return to the RFQ stage Settings context after awarding."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "absent": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify that Withdraw is no longer offered for the awarded event."
+   }
+  ]
+ }
+}

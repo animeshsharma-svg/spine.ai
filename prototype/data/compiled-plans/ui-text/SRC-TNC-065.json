@@ -1,0 +1,153 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-065",
+  "title": "Single stage forward auction, one clause Required: the vendor accepts the Required clause only",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:17:12.939Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "resolved: “Directly make Vendor A accept only the Required clause while leaving the optional clause unaccepted, and assert that opt” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "ms": 21569
+ },
+ "plan": {
+  "title": "SRC-TNC-065 Required T&C on Forward Auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a single-stage forward auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-TNC-065 Required T&C Forward Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the product sheet so the event can be scheduled and published."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the single-stage auction create screen, set the first line's delivery location to Plant Name (LOC-0001), add two Terms & Conditions clauses, mark exactly one clause as Required and leave the other optional, then stop on the screen showing the configured terms"
+    },
+    "note": "Configure the two clauses and the requested plant location, which have no dedicated catalog step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA test vendor for the vendor-side bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event's auction bid sheet in the vendor portal."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "accept the Required clause only in the open vendor auction, leave the optional clause unaccepted, and return to the bid sheet"
+    },
+    "note": "The catalog cannot identify and selectively accept the unnamed required clause while proving the optional clause remains unaccepted."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's bid at 100 after the required clause interaction."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the vendor portal reports the bid as submitted."
+   }
+  ]
+ }
+}

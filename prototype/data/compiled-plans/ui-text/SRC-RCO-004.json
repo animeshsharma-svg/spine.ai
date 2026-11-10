@@ -1,0 +1,178 @@
+{
+ "meta": {
+  "caseId": "SRC-RCO-004",
+  "title": "Recreate with Event End Time Duration 60 Mins",
+  "group": "SRC-RCO",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:41:15.675Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the new event has a different RFX/stage code from the old event.",
+   "Verify the recreated event has the same product identity and delivery location as the old event.",
+   "Verify the recreated event has exactly the same participants as the old event."
+  ],
+  "warnings": [
+   "resolved: “Verify the old event remains unchanged after recreation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Verify Bidding Ends At equals the new start time plus exactly 60 minutes.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Verify that no schedule was selected in the recreate dialog beyond leaving the default unchanged.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: Verify the new event has a different RFX/stage code from the old event.; Verify the recreated event has the same product identity and delivery location as the old event.; Verify the recreated event has exactly the same participants as the old event."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_options",
+   "select",
+   "expect_value",
+   "click",
+   "expect_navigated",
+   "expect_text",
+   "expect_text",
+   "expect_api_value",
+   "expect_no_error"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 19037
+ },
+ "plan": {
+  "title": "Recreate Order with 60-Minute End Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ's project summary as required for prepared-state cases."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the Recreate Order dialog from the stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order pop-up opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify the recreate dialog includes Product Sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction Configurations",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify the recreate dialog includes Auction Configurations."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify the recreate dialog includes Delivery Date."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Schedule this event?",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify the scheduling choice is present."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Event End Time Duration",
+     "options": [
+      "60 Mins"
+     ]
+    },
+    "note": "Check that the requested 60-minute end-time duration is offered."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "60 Mins"
+    },
+    "note": "Set the recreated event's end-time duration to 60 minutes."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event End Time Duration",
+     "value": "60 Mins"
+    },
+    "note": "Confirm the duration control shows 60 Mins."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Create the recreated order while retaining the default 30-minute evaluation and no schedule selection."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "event"
+    },
+    "note": "Confirm the new event page opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live",
+     "present": true
+    },
+    "note": "Verify the recreated event is live immediately."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Ends At",
+     "present": true
+    },
+    "note": "Verify the live event page exposes its bidding end time."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify the recreated event retains the prepared RFQ's quantity."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm recreation completed without an application error."
+   }
+  ]
+ }
+}

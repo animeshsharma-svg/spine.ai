@@ -1,0 +1,110 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-056",
+  "title": "Withdrawing Order...: Withdraw event is cancelled when clicking the Cancel button",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:49:20.226Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "fill",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_menu_item"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 9746
+ },
+ "plan": {
+  "title": "Cancel RFQ Withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without creating or searching for another event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab before accessing Settings."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage withdrawal dialog."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter reason",
+     "value": "Temporary pause"
+    },
+    "note": "Enter the requested withdrawal reason before cancelling."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal instead of confirming it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Withdrawing Order...",
+     "visible": false
+    },
+    "note": "Verify the withdrawal dialog closed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live",
+     "present": true
+    },
+    "note": "Verify the RFQ remains live after cancellation."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq",
+     "enabled": true
+    },
+    "note": "Verify the event was not withdrawn and the withdrawal action remains available."
+   }
+  ]
+ }
+}

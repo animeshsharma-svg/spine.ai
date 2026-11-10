@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-007",
+  "title": "Vendor cannot submit discount percentage below 0",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-09T22:59:10.359Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Reject Bid\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "resolved: “Open the RFQ stage's Responses tab in the vendor portal; the catalog only exposes the vendor's event overview and pricin” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "coverage partial: unconfirmed label \"Reject Bid\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 61269
+ },
+ "plan": {
+  "title": "Vendor Portal Hides Reject Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ with Vendor A's active bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited vendor's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round where the vendor's submitted bid status is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Verify the vendor portal shows the vendor's own bid as submitted."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject Bid",
+     "visible": false
+    },
+    "note": "Verify the vendor portal does not expose a Reject Bid button."
+   }
+  ]
+ }
+}

@@ -4,23 +4,24 @@
   "title": "Order Activity records Extend Submission Time",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:07:28.750Z",
+  "compiledAt": "2026-11-10T07:01:41.604Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the entry includes the correct buyer identity who performed the action",
-   "Verify the entry includes the exact date and time",
-   "Verify all earlier activity entries are present and none are missing",
-   "Verify the activity lines are in chronological order"
+   "Verify the entry includes the specific buyer's identity.",
+   "Verify the entry includes the exact date and time.",
+   "Verify all activity lines are complete and ordered chronologically without missing earlier actions."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the entry includes the correct buyer identity who performed the action; Verify the entry includes the exact date and time; Verify all earlier activity entries are present and none are missing; Verify the activity lines are in chronological order"
+   "can only test part of this — no step for: Verify the entry includes the specific buyer's identity.; Verify the entry includes the exact date and time.; Verify all activity lines are complete and ordered chronologically without missing earlier actions."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -30,62 +31,77 @@
    "expect_published",
    "extend_submission_time",
    "event_menu",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 31024
+  "ms": 8017
  },
  "plan": {
-  "title": "Order Activity records submission-time extension",
+  "title": "Order Activity records Extend Submission Time",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a test event so the extension and resulting activity are isolated to this run."
+    "note": "Create a test event so the submission-time extension and its resulting activity are performed in this run."
    },
    {
     "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
     "args": {
-     "title": "Order Activity Extension Test"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "Provide the required event title."
+    "note": "Use an RFQ stage because the case exercises submission-time extension on a stage page."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template and adding items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required event line item."
+    "note": "Add the required line item for a publishable event."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before publishing."
+    "note": "Populate the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a published submission window that can be extended."
+    "note": "Commit a short submission window that can be extended."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participant required for publication."
+    "note": "Add the required QA vendor participant."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so Extend Submission Time is available."
+    "note": "Publish the event so Extend Submission Time and Order Activity are available."
    },
    {
     "step": "expect_published",
@@ -95,16 +111,26 @@
    {
     "step": "extend_submission_time",
     "args": {
-     "by": "15 minutes"
+     "by": "15 minutes",
+     "stage": "rfq"
     },
-    "note": "Perform the action whose activity record is being tested."
+    "note": "Perform the action whose audit entry is being tested."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "rfq"
     },
-    "note": "Open the stage activity drawer from Settings."
+    "note": "Open the RFQ stage's Activity drawer from Settings."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity",
+     "present": true
+    },
+    "note": "Confirm the Order Activity drawer is open."
    },
    {
     "step": "expect_text",
@@ -112,7 +138,7 @@
      "text": "Extend Submission Time",
      "present": true
     },
-    "note": "Assert that Order Activity contains a record for the extension action."
+    "note": "Verify the activity history records the submission-time extension action."
    }
   ]
  }

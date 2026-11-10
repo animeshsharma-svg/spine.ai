@@ -1,0 +1,132 @@
+{
+ "meta": {
+  "caseId": "PRD-KBVDB-031",
+  "title": "Sum Total reduced by a Percentage",
+  "group": "PRD-KBVDB",
+  "compiledAt": "2026-11-10T06:55:03.796Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Enable or verify Cost Breakdown Mode with a Sum Total on the auction bid sheet",
+   "Open the dropdown next to Fixed Value and select Percentage",
+   "Enter a percentage discount such as 10%",
+   "Click Revise Bid",
+   "Assert that the current bid equals the Sum Total reduced by the entered percentage"
+  ],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Enable or verify Cost Breakdown Mode with a Sum Total on the auction bid sheet; Open the dropdown next to Fixed Value and select Percentage; Enter a percentage discount such as 10%; Click Revise Bid; Assert that the current bid equals the Sum Total reduced by the entered percentage"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
+  ],
+  "ms": 10040
+ },
+ "plan": {
+  "title": "Auction Sum Total Percentage Discount",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Create the auction needed for the vendor-side bid-sheet setup."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Percentage Discount Sum Total Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the auction has a bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor whose portal will be opened."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so the vendor can access its live bid sheet."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reach the vendor's live auction pricing sheet, the closest available screen for the requested behavior."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert that the vendor bid sheet is rendered, while acknowledging that the catalog cannot observe the requested percentage-discount controls or revised current bid."
+   }
+  ]
+ }
+}

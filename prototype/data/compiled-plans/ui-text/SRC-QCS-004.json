@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-004",
+  "title": "Master QCS with three bids",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:38:37.711Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert the exact totals 900, 950, and 1,000 for those named vendors because the prepared event's real vendor-column mapping and quantity are not specified."
+  ],
+  "warnings": [
+   "resolved: “Map the shorthand vendors A, B, and C to real vendor identities and assert specifically that B is rank 1, C is rank 2, a” — place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
+   "can only test part of this — no step for: Assert the exact totals 900, 950, and 1,000 for those named vendors because the prepared event's real vendor-column mapping and quantity are not specified."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "open_prepared",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "expect_qcs_amounts"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 22682
+ },
+ "plan": {
+  "title": "Master QCS with Three Bids",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the existing prepared buyer-side event without searching the events list."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the event's Participants screen so additional surrogate bids can be entered."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Add a second bid at 90 for an invited vendor who has not bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the surrogate bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Add a third bid at 95 for another invited vendor who has not bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the third bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid after all three bids are present."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 3
+    },
+    "note": "Assert that Master QCS has three real vendor columns."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 3
+    },
+    "note": "Assert that the three vendors are ranked in ascending buy-event amount order."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Assert that each displayed line amount equals rate multiplied by quantity and that each vendor total equals its line amounts."
+   }
+  ]
+ }
+}

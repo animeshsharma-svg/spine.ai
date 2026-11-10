@@ -1,0 +1,117 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-051",
+  "title": "Edit the default terms for this event only",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:15:59.234Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the edited clause applies only to this event and that a subsequently created event shows the original default terms.",
+   "Assert the exact clause change because the case does not specify the clause text."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Verify that the edited clause applies only to this event and that a subsequently created event shows the original default terms.; Assert the exact clause change because the case does not specify the clause text."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "click",
+   "expect_visible",
+   "do_on_screen",
+   "expect_text"
+  ],
+  "ms": 16406
+ },
+ "plan": {
+  "title": "Edit event-specific terms for an RFP event",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow specified by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ as required before configuring the template."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so the create flow is valid."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose the first available RFQ template so the product sheet and event terms controls are available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the requested CYLINDER line item and enter the requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Attempt to set the requested delivery location on the first product row."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Open the event Terms & Conditions interface."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Edit event specific T&Cs",
+     "visible": true
+    },
+    "note": "Confirm that the event-specific terms editing option is available."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "edit one clause under Edit event specific T&Cs for this event, click Done, and stop on the create screen showing the event-specific terms change saved"
+    },
+    "note": "Perform the clause edit and completion action that no catalog domain step can express."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms & Conditions",
+     "present": true
+    },
+    "note": "Confirm the create screen still exposes the Terms & Conditions control after the edit."
+   }
+  ]
+ }
+}

@@ -1,0 +1,52 @@
+{
+ "meta": {
+  "caseId": "PRD-PR-102",
+  "title": "SAP MM (Purchase Requisition): on failure — PR held in 'Sync Pending' state",
+  "group": "PRD-PR",
+  "compiledAt": "2026-11-10T04:49:04.365Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure the SAP MM bidirectional integration and its CONF-INT-001 sync-mode dependency.",
+   "Make the external SAP/RFC/API endpoint fail or become unreachable.",
+   "Approve a Procol purchase requisition and cause the resulting purchase order synchronization to SAP.",
+   "Verify the PR is held in Sync Pending through integration state, alert, retry record, or log evidence, and verify nothing was silently dropped."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Configure the SAP MM bidirectional integration and its CONF-INT-001 sync-mode dependency.; Make the external SAP/RFC/API endpoint fail or become unreachable.; Approve a Procol purchase requisition and cause the resulting purchase order synchronization to SAP.; Verify the PR is held in Sync Pending through integration state, alert, retry record, or log evidence, and verify nothing was silently dropped."
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 11743
+ },
+ "plan": {
+  "title": "SAP PR Sync Pending on Failure",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the purchase requisitions area as the closest available starting point for the PR-based scenario."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "configure the SAP MM integration, make SAP unreachable, approve the Procol PR to trigger PO synchronization, and leave the resulting PR state or integration evidence visible"
+    },
+    "note": "The catalog has no integration configuration, external-failure simulation, SAP synchronization, approval, or retry/log inspection step."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Sync Pending",
+     "present": true
+    },
+    "note": "Check for the exact expected held state if the tester leaves the relevant PR or integration evidence screen visible."
+   }
+  ]
+ }
+}

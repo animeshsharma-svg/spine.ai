@@ -4,25 +4,24 @@
   "title": "RFQ bid: Price left empty",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:34:24.657Z",
+  "compiledAt": "2026-11-10T07:11:19.604Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
    "attempt",
    "switch_portal",
-   "go_to",
    "expect_responses"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 69189
+  "ms": 10416
  },
  "plan": {
   "title": "SRC-BID-005 — Empty RFQ price refused",
@@ -32,48 +31,41 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary; this is the required starting point for prepared-state cases."
+    "note": "Open the prepared live RFQ without creating or searching for another event."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's supplier portal while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared live RFQ and its pricing bid sheet without entering a price."
+    "note": "Open the live RFQ's pricing sheet in the vendor portal."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "vendor_bid",
      "args": {
-      "role": "button",
-      "name": "Submit"
+      "price": ""
      },
-     "because": "Please quote prices for all the products.",
-     "expect": "refused"
+     "expect": "refused",
+     "because": "Please quote prices for all the products."
     },
-    "note": "Attempt submission with the empty Price field and require the portal's refusal message or disabled-submit evidence."
+    "note": "Submit with no price entered and require Procol to refuse the bid with the expected validation message."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to verify that no bid reached the buyer."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses view for the prepared event."
+    "note": "Return to the buyer's session to verify that the refused submission created no response."
    },
    {
     "step": "expect_responses",
@@ -81,7 +73,7 @@
      "count": 0,
      "stage": "rfq"
     },
-    "note": "Assert that no vendor response was created after the refused empty submission."
+    "note": "Assert that the buyer sees no RFQ responses after the empty-price submission was refused."
    }
   ]
  }

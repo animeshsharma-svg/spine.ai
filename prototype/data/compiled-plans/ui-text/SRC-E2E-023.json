@@ -1,0 +1,255 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-023",
+  "title": "Material PR → eRFX Auction-only project → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:15:47.155Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end"
+  ],
+  "source": "llm",
+  "steps": 31,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 20354
+ },
+ "plan": {
+  "title": "Material PR Auction to PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Material PR Auction Award"
+    },
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the requested Start now, 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "names": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Invite both named vendors required to submit bids."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing produced a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 100
+    },
+    "note": "Submit Vendor A's initial bid of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's initial bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 85
+    },
+    "note": "Submit Vendor A's revised bid of 85."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's revised bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 88
+    },
+    "note": "Submit Vendor B's bid of 88."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor B's bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the bidding window before evaluating and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the comparison grid containing both bidding vendors."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "Auction Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that the lowest auction amount ranks first, making Vendor A the rank-1 bidder at 85."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": "Vendor A",
+     "equals": "850"
+    },
+    "note": "Verify Vendor A's total is 10 units multiplied by the revised bid of 85."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Allocate all PR line items to Vendor A and submit the award proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for Vendor A at the lowest evaluated bid."
+    },
+    "note": "Approve the award with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approved award and create the purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify the PO contains the awarded PR line with quantity 10."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the final event location."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where the completed event should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify this plan's event moved into History after award and PO creation."
+   }
+  ]
+ }
+}

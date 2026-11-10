@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-011",
+  "title": "Forward auction (tick 1): keep the same price",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:48:02.863Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "switch_portal",
+   "go_to",
+   "expect_responses",
+   "go_to",
+   "expect_qcs_vendors",
+   "expect_qcs_cell"
+  ],
+  "state": "forward",
+  "screen": "master_qcs",
+  "ms": 81721
+ },
+ "plan": {
+  "title": "Forward auction same-price revision",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live auction without recreating or searching for the event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate supplier session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live forward auction and its pricing bid sheet as the vendor."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused",
+     "because": "difference must be at least one tick"
+    },
+    "note": "Submit the same price as the existing 100 bid and require Procol to refuse the zero-difference revision."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session to verify that the rejected revision did not create another response or change the bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Confirm the buyer still sees exactly the original direct vendor response."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS for the final bid value check."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Confirm the comparison grid still contains the single real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Auction Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Verify the original 100 price remains after the refused same-price revision."
+   }
+  ]
+ }
+}

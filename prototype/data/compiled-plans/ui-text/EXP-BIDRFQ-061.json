@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-061",
+  "title": "Withdrawing Order...: Withdrawing live RFQ succeeds with special characters in the reason field",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:23:30.663Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot verify that the exact special-character reason was persisted safely or that the script-like text was escaped in audit records or vendor-facing views."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog cannot verify that the exact special-character reason was persisted safely or that the script-like text was escaped in audit records or vendor-facing views."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "withdraw_event",
+   "expect_withdrawn"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 7996
+ },
+ "plan": {
+  "title": "Withdraw live RFQ with special-character reason",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ that already has one vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab before accessing Settings, matching the requested flow."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "stage",
+     "stage": "rfq",
+     "reason": "Test #123 & <script> alert('test'); </script> - withdrawal!"
+    },
+    "note": "Withdraw the RFQ stage with the exact special-character reason."
+   },
+   {
+    "step": "expect_withdrawn",
+    "args": {},
+    "note": "Verify Procol records the RFQ stage as withdrawn."
+   }
+  ]
+ }
+}

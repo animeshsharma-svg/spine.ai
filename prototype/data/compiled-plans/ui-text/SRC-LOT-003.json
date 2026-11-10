@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-LOT-003",
+  "title": "Split lots on a closed RFQ",
+  "group": "SRC-LOT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:31:39.179Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end"
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "close_event",
+   "expect_settings_menu"
+  ],
+  "ms": 9533
+ },
+ "plan": {
+  "title": "Split lots disabled on closed RFQ",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX event creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ-only event so the lot-splitting control is applicable."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a short schedule so the event can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required QA vendor participant."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ before closing it."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the published RFQ so its closed-state Settings menu can be checked."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "greyed": [
+      "Split line items into lots"
+     ]
+    },
+    "note": "Assert that the lot-splitting menu item is present but disabled on the closed RFQ."
+   }
+  ]
+ }
+}

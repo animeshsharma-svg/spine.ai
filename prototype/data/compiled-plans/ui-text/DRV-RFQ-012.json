@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-012",
+  "title": "User without Buyer role cannot access lot splitting screen",
+  "group": "DRV-RFQ",
+  "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
+  "compiledAt": "2026-11-09T23:10:05.166Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that commercials remain sealed after the invalid OTP because no catalog assertion observes the commercial masking state.",
+   "Enter the correct password without its value being provided; the on-screen action must obtain or use it."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly assert that commercials remain sealed after the invalid OTP because no catalog assertion observes the commercial masking state.; Enter the correct password without its value being provided; the on-screen action must obtain or use it."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "open_event_settings",
+   "click",
+   "do_on_screen",
+   "expect_message"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 14729
+ },
+ "plan": {
+  "title": "DRV-RFQ-012 Invalid OTP for Commercials",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared live RFQ summary as the buyer."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where commercial unlocking is available."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the RFQ stage Settings menu containing the unlock action."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Unlock Bids"
+    },
+    "note": "Open the commercial-unlock flow."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Enter OTP 000000 and the correct buyer password in the commercial-unlock dialog, confirm the attempt, and stop when the screen shows the invalid OTP response while commercials remain sealed."
+    },
+    "note": "Complete the OTP and password interaction that cannot be parameterized without the correct password value."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Invalid OTP"
+    },
+    "note": "Assert that the invalid OTP error is displayed."
+   }
+  ]
+ }
+}

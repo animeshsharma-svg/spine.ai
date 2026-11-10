@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "SRC-WDR-009",
+  "title": "Withdraw an event that is live with two bids and press Cancel in the pop-up",
+  "group": "SRC-WDR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:22:47.108Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Start from a live RFQ with two bids, specifically bids A 100 and B 90; the prepared state is fixed with one bid and cannot be modified before this check."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Start from a live RFQ with two bids, specifically bids A 100 and B 90; the prepared state is fixed with one bid and cannot be modified before this check."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_text",
+   "expect_text",
+   "click",
+   "expect_visible",
+   "expect_event_status"
+  ],
+  "state": "two_bids",
+  "screen": "summary",
+  "ms": 9353
+ },
+ "plan": {
+  "title": "Cancel live event withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared event's buyer summary page; this is the required entry point for an existing prepared event."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw Project"
+    },
+    "note": "Open the project menu and choose Withdraw Project to display the confirmation pop-up without completing the withdrawal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order…"
+    },
+    "note": "Verify the withdrawal confirmation pop-up is open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to withdraw this event?"
+    },
+    "note": "Verify the pop-up asks for confirmation before withdrawal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal instead of confirming it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Verify the confirmation pop-up closes after cancellation."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Verify the event remains live and was not withdrawn."
+   }
+  ]
+ }
+}

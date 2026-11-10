@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-015",
+  "title": "Try to purchase a line whose PR is waiting for approval or was sent back",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:29:16.584Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select a PR specifically identified as approval in progress or send-back pending; select_pr has no status filter or assertion for that state."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Select a PR specifically identified as approval in progress or send-back pending; select_pr has no status filter or assertion for that state."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "expect_disabled",
+   "hover",
+   "expect_message",
+   "attempt"
+  ],
+  "ms": 9912
+ },
+ "plan": {
+  "title": "Block Purchase of Pending PR Line",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use the Open tab where the Purchase Items entry point is expected."
+   },
+   {
+    "step": "select_pr",
+    "args": {},
+    "note": "Tick the available PR line to expose the Purchase Items control."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Purchase Items"
+    },
+    "note": "Verify that Purchase Items remains disabled."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "text": "Purchase Items"
+    },
+    "note": "Reveal the disabled control's explanation."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Purchase Items",
+     "text": "Rejected or Send Back Pending PR cannot be purchased"
+    },
+    "note": "Verify the exact refusal reason shown to the buyer."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Purchase Items"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt the prohibited purchase action and verify it is refused."
+   }
+  ]
+ }
+}

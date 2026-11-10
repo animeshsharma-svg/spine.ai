@@ -4,101 +4,195 @@
   "title": "Auction with sealed bid auction, valid",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:09:37.668Z",
+  "compiledAt": "2026-11-10T07:04:15.887Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sealed bid strategy is not directly configurable via available single-stage step arguments",
-   "Vendor A and Vendor B specific name search cannot be expressed without specific named QA vendor strings"
+   "Configure and verify the sealed-bid auction strategy on the fresh single-stage auction screen.",
+   "Open a second invited vendor's own supplier-portal session and verify that it cannot see the other vendor's price or rank."
   ],
   "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Sealed bid strategy is not directly configurable via available single-stage step arguments; Vendor A and Vendor B specific name search cannot be expressed without specific named QA vendor strings"
+   "can only test part of this — no step for: Configure and verify the sealed-bid auction strategy on the fresh single-stage auction screen.; Open a second invited vendor's own supplier-portal session and verify that it cannot see the other vendor's price or rank."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 21,
   "stepNames": [
    "open_create",
    "configure_single_stage",
+   "do_on_screen",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "expect_bid_submitted",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "switch_portal",
+   "ask_tester",
+   "expect_no_error"
   ],
-  "ms": 16256
+  "ms": 26369
  },
  "plan": {
-  "title": "Auction with sealed bid auction, valid",
+  "title": "Sealed-bid auction configuration and visibility",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen"
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Configure the event type as auction"
+    "note": "Set the event type to Auction; sealed-bid strategy is not directly supported by this step."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "change the auction strategy to Sealed bid and leave the configuration showing the selected sealed-bid strategy"
+    },
+    "note": "Use the buyer screen to attempt the sealed-bid configuration that has no dedicated catalog step."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Set a unique event title"
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select a pricing template"
+    "note": "Select the first available auction template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the specified line item"
+    "note": "Add the requested product as the first line item with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill the price sheet for the line item"
+    "note": "Populate the pricing sheet after adding the line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first line item."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the requested location was retained in the sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set a 30-minute schedule"
+    "note": "Commit the 30-minute schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two vendors as participants"
+    "note": "Invite two QA vendors without inventing vendor names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event and verify success"
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert the event has successfully published"
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the first vendor's bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor's bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Inspect the invited vendor's supplier-portal view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Verify that the inspected vendor does not see a rank before the auction ends."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console before requesting the missing second-vendor check."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the second invited vendor's own supplier-portal session and verify that it cannot see the other vendor's price or rank before the auction ends"
+    },
+    "note": "A second vendor session is not available through the catalog."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm no application error was shown during the visibility checks."
    }
   ]
  }

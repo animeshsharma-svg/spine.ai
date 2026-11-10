@@ -4,70 +4,66 @@
   "title": "Vendor fills a dropdown column \"Make\": leave it unselected when it is required",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:43:01.986Z",
+  "compiledAt": "2026-11-10T07:14:52.493Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the Make column is configured as a required dropdown and inspect its available options."
+   "Explicitly verify that the selected event template has a required dropdown column named Make and that it is unselected before submission"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the Make column is configured as a required dropdown and inspect its available options."
+   "can only test part of this — no step for: Explicitly verify that the selected event template has a required dropdown column named Make and that it is unselected before submission"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
-   "open_prepared",
+   "open_event",
    "switch_portal",
    "vendor_open_event",
-   "fill",
+   "expect_text",
    "attempt"
   ],
-  "ms": 11068
+  "ms": 9681
  },
  "plan": {
-  "title": "Vendor bid requires Make dropdown",
+  "title": "Required Make dropdown blocks vendor bid",
   "steps": [
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "vendor"
-    },
-    "note": "Open the prepared event state for the vendor-side bid test."
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing live event suitable for vendor bidding."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as Vendor A in the supplier portal while keeping the buyer session separate."
+    "note": "Move to the vendor portal while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing sheet."
+    "note": "Open the event's RFQ bid sheet in the vendor portal."
    },
    {
-    "step": "fill",
+    "step": "expect_text",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "text": "Make",
+     "present": true
     },
-    "note": "Enter the valid quote while leaving the required Make field untouched."
+    "note": "Check that the bid sheet visibly includes the Make column named by the case."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "vendor_bid",
      "args": {
-      "role": "button",
-      "name": "Submit"
+      "price": 100
      },
-     "because": "Make",
      "expect": "refused"
     },
-    "note": "Verify submission is refused because the required Make dropdown has no selected value."
+    "note": "Submit a quote for 100 without selecting a Make option and require positive evidence that Procol refuses the bid."
    }
   ]
  }

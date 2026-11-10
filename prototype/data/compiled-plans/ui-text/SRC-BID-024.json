@@ -4,17 +4,17 @@
   "title": "Reverse auction: first bid",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:41:27.802Z",
+  "compiledAt": "2026-11-10T07:13:22.961Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Conditionally assert that the vendor sees the configured strategy's live rank or best-price value update."
+   "The exact live-updated rank or best-price value shown after submission, regardless of whether the auction uses rank or price strategy."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Conditionally assert that the vendor sees the configured strategy's live rank or best-price value update."
+   "can only test part of this — no step for: The exact live-updated rank or best-price value shown after submission, regardless of whether the auction uses rank or price strategy."
   ],
   "source": "llm",
   "steps": 6,
@@ -22,16 +22,16 @@
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "fill",
-   "click",
-   "expect_bid_submitted"
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 192428
+  "ms": 12061
  },
  "plan": {
-  "title": "SRC-BID-024 — Reverse auction first bid",
+  "title": "Reverse Auction First Bid",
   "steps": [
    {
     "step": "open_prepared",
@@ -45,35 +45,34 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supplier portal while keeping the buyer session available."
+    "note": "Move to the separate supplier-portal session for Vendor A."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live reverse auction from Vendor A's event list and enter its pricing bid sheet."
+    "note": "Open the live auction's pricing round from the vendor event list."
    },
    {
-    "step": "fill",
+    "step": "vendor_bid",
     "args": {
-     "label": "Price",
-     "value": "100"
+     "price": 100
     },
-    "note": "Enter Vendor A's first quote of 100."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit"
-    },
-    "note": "Submit the initial vendor bid."
+    "note": "Enter the first quote of 100 and submit it as Vendor A."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the vendor portal accepted the bid and shows the stage as Submitted."
+    "note": "Verify that the vendor portal accepted the submitted bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": true
+    },
+    "note": "Verify that the vendor view exposes the rank indicator used by the rank-strategy auction."
    }
   ]
  }

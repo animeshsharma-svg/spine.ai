@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "SRC-WDR-003",
+  "title": "Withdraw an event that is upcoming (not started) and press Cancel in the pop-up",
+  "group": "SRC-WDR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:22:12.069Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Withdrawing Order\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "coverage partial: unconfirmed label \"Withdrawing Order\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_visible",
+   "expect_text",
+   "click",
+   "expect_visible",
+   "expect_menu_item"
+  ],
+  "state": "upcoming",
+  "screen": "summary",
+  "ms": 12673
+ },
+ "plan": {
+  "title": "Cancel Upcoming Event Withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw Project"
+    },
+    "note": "Open the project menu and choose Withdraw Project to display the confirmation pop-up."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Withdrawing Order",
+     "visible": true
+    },
+    "note": "Verify the withdrawal confirmation pop-up is open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to withdraw this event?",
+     "present": true
+    },
+    "note": "Verify the pop-up asks for confirmation to withdraw the event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal instead of confirming it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Withdrawing Order",
+     "visible": false
+    },
+    "note": "Verify the confirmation pop-up closes."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw Project",
+     "enabled": true
+    },
+    "note": "Verify the event was not withdrawn because the withdrawal action is still available."
+   }
+  ]
+ }
+}

@@ -1,0 +1,136 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-032",
+  "title": "A live RFQ with a vendor's bid: \"Withdrawing Order...\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:20:38.416Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Direct before-and-after verification of the event's bidding times, vendor list, and status is not fully expressible from the available steps.",
+   "unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Direct before-and-after verification of the event's bidding times, vendor list, and status is not fully expressible from the available steps."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "expect_responses",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_settings_menu",
+   "go_to",
+   "expect_responses"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 71470
+ },
+ "plan": {
+  "title": "Cancel RFQ Withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Show the vendor response and bid before opening Settings."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Record that the existing vendor bid is visible before the withdrawal attempt."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ withdrawal window without confirming withdrawal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Withdrawing Order...",
+     "visible": true
+    },
+    "note": "Verify that the withdrawal window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the withdrawal as required by the case."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Withdrawing Order...",
+     "visible": false
+    },
+    "note": "Verify that the withdrawal window closed."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify the event was not withdrawn and the action remains available."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the RFQ Responses tab after cancelling."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Verify the existing vendor bid remains visible after cancellation."
+   }
+  ]
+ }
+}

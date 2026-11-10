@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-014",
+  "title": "Allow partial line quoting respects rfq.bid.allow_partial setting",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-09T23:01:56.802Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "No dedicated catalog step can verify that the saved remark preserves the trailing space exactly; the rejection dialog's remark field label is not confirmed by the catalog."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: No dedicated catalog step can verify that the saved remark preserves the trailing space exactly; the rejection dialog's remark field label is not confirmed by the catalog."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "click",
+   "fill",
+   "click",
+   "expect_toast",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 61176
+ },
+ "plan": {
+  "title": "Reject bid with trailing-space remark",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ on the buyer's Responses tab with the active vendor bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor A"
+    },
+    "note": "Open rejection for Vendor A's submitted bid."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": "Price too high "
+    },
+    "note": "Enter the specified remark, including its trailing space."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "dialog"
+    },
+    "note": "Confirm the bid rejection from the rejection dialog."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Assert that the rejection was accepted without a validation error."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "within": "Vendor A"
+    },
+    "note": "Assert that Vendor A's bid is shown as rejected."
+   }
+  ]
+ }
+}

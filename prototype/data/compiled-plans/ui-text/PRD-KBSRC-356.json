@@ -1,0 +1,131 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-356",
+  "title": "Breakdown is pre-filled pro rata and editable by the vendor",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:16:17.877Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open the cost breakdown prompt during CBD time, verify the auto-filled pro-rata discounts, change a discount and another price, and assert both edits are accepted."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the cost breakdown prompt during CBD time, verify the auto-filled pro-rata discounts, change a discount and another price, and assert both edits are accepted."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_visible"
+  ],
+  "ms": 10000
+ },
+ "plan": {
+  "title": "Vendor Cost Breakdown Editing",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an RFQ event to provide the vendor-side bidding context."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage, which is the closest catalog path to vendor cost-breakdown bidding."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the pricing template required before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create multiple line items so the vendor-side breakdown has more than one price to edit."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor whose portal view will be checked."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its pricing round."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the vendor's pricing round, the closest available entry point to CBD."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the cost breakdown prompt during CBD time, verify its pre-filled pro-rata discounts, change one discount and another price, and confirm both edits are accepted"
+    },
+    "note": "No catalog step can open or assert the cost breakdown prompt and its editable pre-filled values."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Price",
+     "visible": true
+    },
+    "note": "Confirm the vendor pricing screen remains visible after the tester's interaction."
+   }
+  ]
+ }
+}

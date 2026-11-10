@@ -4,32 +4,32 @@
   "title": "Two bids: award only 6 of the 10 units to B (partial award); approver approves without a remark",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:13:02.749Z",
+  "compiledAt": "2026-11-10T07:05:53.374Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or use a closed RFQ with two bids from vendors A and B at 100 and 90 for 10 units.",
-   "Allocate exactly 6 of 10 units to Vendor B, leave 4 units unawarded, and verify Vendor B shows 6 × 90 = 540.",
-   "Verify the proposal shows Awarded Vendors as 1/2 after the partial allocation.",
-   "Sign in as the separate approver, approve with an empty remark, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending."
+   "The catalog has no dedicated step for allocating a partial quantity such as 6 of 10 to a specific vendor and verifying the resulting 6 × 90 = 540 with 4 units un-awarded.",
+   "The catalog cannot sign in as the separate approver and approve with an empty remark; this requires another user's credentials/session."
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or use a closed RFQ with two bids from vendors A and B at 100 and 90 for 10 units.; Allocate exactly 6 of 10 units to Vendor B, leave 4 units unawarded, and verify Vendor B shows 6 × 90 = 540.; Verify the proposal shows Awarded Vendors as 1/2 after the partial allocation.; Sign in as the separate approver, approve with an empty remark, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending."
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The catalog has no dedicated step for allocating a partial quantity such as 6 of 10 to a specific vendor and verifying the resulting 6 × 90 = 540 with 4 units un-awarded.; The catalog cannot sign in as the separate approver and approve with an empty remark; this requires another user's credentials/session."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "open_master_qcs",
    "start_awarding",
-   "allocate_award",
-   "click",
-   "expect_navigated",
    "do_on_screen",
-   "ask_tester"
+   "ask_tester",
+   "expect_toast"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 17740
+  "ms": 14749
  },
  "plan": {
   "title": "Partial award and approval without remark",
@@ -39,46 +39,44 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared Master QCS for the existing closed event; this is the closest available route to the awarding flow."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "A",
+      "B"
+     ]
+    },
+    "note": "Open Master QCS and verify both bid columns are present before awarding."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen where vendor allocations can be selected."
-   },
-   {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Perform the closest supported allocation action; the catalog does not expose quantity entry for a partial award."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the award proposal from the awarding screen."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Verify that the proposal page opened."
+    "note": "Open the awarding screen for the closed RFQ."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "fill all required proposal fields and submit the proposal; stop when the proposal page shows the submitted or pending proposal state"
+     "goal": "On the awarding screen, allocate exactly 6 of the 10 requested units to vendor B at its bid of 90, leave 4 units un-awarded, verify Awarded Vendors reads 1/2, create the proposal, fill required proposal fields, submit it, and stop on the submitted proposal showing the pending approval state."
     },
-    "note": "Complete the buyer-side proposal fields and submission, which has no dedicated catalog step."
+    "note": "No catalog step can enter a partial award quantity or complete the proposal flow while preserving 4 un-awarded units."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the approver, open the submitted proposal, leave the approval remark empty, attempt approval, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending"
+     "need": "sign in as the separate approver, open the submitted proposal, leave the approval remark empty, attempt approval, and confirm it is refused with \"Remark is necessary for approval\""
     },
-    "note": "Approval requires a separate approver identity and the catalog cannot perform or assert that cross-user action."
+    "note": "Approval by another user and the empty-remark refusal require a separate approver session."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Remark is necessary for approval"
+    },
+    "note": "Assert the expected refusal message after the approver attempts approval."
    }
   ]
  }

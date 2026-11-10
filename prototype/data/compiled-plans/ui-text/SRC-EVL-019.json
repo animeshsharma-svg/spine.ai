@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "SRC-EVL-019",
+  "title": "Choose an existing event to test Recreate Order",
+  "group": "SRC-EVL",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:21:35.311Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the selected event is specifically an RFQ or an auction as an either/or condition",
+   "Record the selected event title and RFX number in Test Data",
+   "Directly verify the event was not created from a purchase request; an enabled Recreate Order action is used as the closest observable proxy"
+  ],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Assert that the selected event is specifically an RFQ or an auction as an either/or condition; Record the selected event title and RFX number in Test Data; Directly verify the event was not created from a purchase request; an enabled Recreate Order action is used as the closest observable proxy"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_event",
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "expect_text",
+   "expect_responses",
+   "expect_menu_item"
+  ],
+  "ms": 14063
+ },
+ "plan": {
+  "title": "Select Existing Closed Event for Recreate Order",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open a suitable existing historical event rather than creating a new one."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the buyer's Events list."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list and its state tabs rendered without an error."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Limit selection to historical events, where a closed event should be available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed"
+    },
+    "note": "Verify the selected event is closed."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Verify that at least one vendor response/bid exists on the selected event."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": true
+    },
+    "note": "Verify Recreate Order is enabled, providing the closest available check that the event is eligible and not a PR-created event."
+   }
+  ]
+ }
+}

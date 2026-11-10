@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-028",
+  "title": "A live RFQ: \"Withdrawing Order...\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:45:47.594Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly prove that all vendor assignments are unchanged before and after cancellation.",
+   "Directly compare all event start and end times before and after cancellation."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly prove that all vendor assignments are unchanged before and after cancellation.; Directly compare all event start and end times before and after cancellation."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_responses",
+   "expect_screen_clean"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 20778
+ },
+ "plan": {
+  "title": "Cancel live RFQ withdrawal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ on the buyer's event summary, as required for this fixed state."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the Responses tab where the case begins the withdrawal flow."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ withdrawal window without confirming the withdrawal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "heading": "Withdrawing Order...",
+     "visible": true
+    },
+    "note": "Verify that the withdrawal window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal operation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "heading": "Withdrawing Order...",
+     "visible": false
+    },
+    "note": "Verify that cancelling closes the withdrawal window."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live",
+     "present": true
+    },
+    "note": "Verify that the event still shows its live status after cancellation."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify that no bid response was introduced or removed by cancelling."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the Responses screen has no rendering or server errors after cancellation."
+   }
+  ]
+ }
+}

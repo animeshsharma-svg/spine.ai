@@ -4,23 +4,20 @@
   "title": "Reverse auction: Quantity Requested = blank",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:52:44.913Z",
+  "compiledAt": "2026-11-10T07:17:09.433Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Visually assert that the blank Quantity Requested cell is marked with the required indicator after pressing Tab"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Visually assert that the blank Quantity Requested cell is marked with the required indicator after pressing Tab"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -28,16 +25,15 @@
    "select_template",
    "add_line_items",
    "set_sheet_cell",
-   "expect_sheet_cell",
-   "expect_error",
+   "expect_field_error",
    "invite_vendor",
    "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 138852
+  "ms": 13518
  },
  "plan": {
-  "title": "Reverse Auction Blank Quantity Validation",
+  "title": "SRC-CRE-016 — Reverse auction blank quantity",
   "steps": [
    {
     "step": "open_create",
@@ -49,9 +45,11 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
     },
-    "note": "Switch the event type from the default RFP to an auction."
+    "note": "Configure a reverse buy auction with a price-based strategy and lot awarding."
    },
    {
     "step": "set_title",
@@ -62,17 +60,15 @@
    },
    {
     "step": "select_template",
-    "args": {
-     "name": "Buy"
-    },
-    "note": "Choose a reverse/buy auction template so the pricing sheet is rendered."
+    "args": {},
+    "note": "Apply the first available auction template so the pricing sheet is created."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the product line item to the auction sheet."
+    "note": "Add the first product line item before clearing its requested quantity."
    },
    {
     "step": "set_sheet_cell",
@@ -81,30 +77,20 @@
      "column": "Quantity Requested",
      "value": ""
     },
-    "note": "Clear the first row's quantity to reproduce the blank-quantity case."
+    "note": "Clear the first row's requested quantity to reproduce the blank-quantity case."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "expect_field_error",
     "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "refused": true
+     "field": "Quantity Requested",
+     "message": "quantity"
     },
-    "note": "Verify the sheet does not retain the blank quantity as a valid cell value."
-   },
-   {
-    "step": "expect_error",
-    "args": {
-     "contains": "quantity"
-    },
-    "note": "Verify the app reports the quantity validation error immediately after the blank value is entered."
+    "note": "Verify the sheet marks the blank quantity as invalid or required."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required QA vendor participant before attempting publication."
+    "args": {},
+    "note": "Add the available QA test vendor so quantity is the remaining publish blocker."
    },
    {
     "step": "set_schedule",
@@ -116,9 +102,9 @@
    {
     "step": "expect_publish_blocked",
     "args": {
-     "because": "quantity"
+     "because": "Please fill valid quantity on every line item"
     },
-    "note": "Press Publish Event and verify publishing is refused because the line-item quantity is invalid or missing."
+    "note": "Press Publish Event and verify publishing is refused for the blank quantity."
    }
   ]
  }

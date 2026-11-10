@@ -4,12 +4,13 @@
   "title": "RFQ: Quantity Requested = a very large number 99999999",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:50:10.393Z",
+  "compiledAt": "2026-11-10T07:16:59.987Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the quantity is displayed specifically with thousands separators.",
-   "Verify that calculated totals do not break or overflow."
+   "Select the exact CYLINDER WITH KEY & KNOB product variant and verify Product Variant becomes Default Variant.",
+   "Select the exact Plant Name (LOC-0001) delivery location.",
+   "Assert the calculated totals numerically remain correct for the large quantity; the catalog has no create-sheet total calculation assertion without a stated price."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,10 +19,10 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Verify that the quantity is displayed specifically with thousands separators.; Verify that calculated totals do not break or overflow."
+   "can only test part of this — no step for: Select the exact CYLINDER WITH KEY & KNOB product variant and verify Product Variant becomes Default Variant.; Select the exact Plant Name (LOC-0001) delivery location.; Assert the calculated totals numerically remain correct for the large quantity; the catalog has no create-sheet total calculation assertion without a stated price."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -29,15 +30,17 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "expect_sheet_cell",
-   "select",
+   "expect_screen_clean",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
+   "expect_no_error",
    "expect_screen_clean"
   ],
-  "ms": 15814
+  "ms": 15919
  },
  "plan": {
   "title": "Single-stage RFQ large quantity",
@@ -52,51 +55,56 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Switch the event type from the default RFP to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Provide the mandatory event title so the event can be published."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFQ template so the pricing sheet is created."
+    "note": "Apply the first available RFQ pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
-     "quantity": "99999999"
+     "search": "CYLINDER"
     },
-    "note": "Add the requested product and enter the large quantity value."
+    "note": "Add one product matching the requested CYLINDER item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete remaining required pricing-sheet fields."
+    "note": "Populate the remaining pricing-sheet fields so the sheet is rendered and publishable."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "99999999"
+    },
+    "note": "Enter the very large quantity into the first line item."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
-     "column": "Quantity Requested",
      "row": 1,
-     "kept": true,
-     "equals": "99999999"
+     "column": "Quantity Requested",
+     "contains": "99,999,999"
     },
-    "note": "Verify the first line item's quantity remains the requested large value."
+    "note": "Verify the quantity remains present with thousands separators after entry."
    },
    {
-    "step": "select",
-    "args": {
-     "label": "Delivery location",
-     "option": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the requested delivery location if the sheet exposes it as a selectable field."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the sheet shows no NaN, undefined, overflow-like values, server error, or crash after the large quantity is entered."
    },
    {
     "step": "set_schedule",
@@ -110,22 +118,27 @@
     "args": {
      "count": 1
     },
-    "note": "Add one available QA vendor participant."
+    "note": "Invite one available QA vendor so publication can proceed."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed RFQ as required by the scenario."
+    "note": "Publish the RFQ after completing its required setup."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publishing reached a real project page."
+    "note": "Assert that publication reached a real event page."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm publishing did not produce an application error."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Check that no overflow indicators, NaN values, raw IDs, or application errors are visible."
+    "note": "Check the published event page for crashes, server errors, or broken numeric rendering."
    }
   ]
  }

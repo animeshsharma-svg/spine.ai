@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-043",
+  "title": "eRFX RFQ project: counter offer accepted and used in the award",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:40:50.096Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Close the prepared event after counter-offer acceptance so it can be awarded",
+   "Start awarding Vendor A and verify that the submitted award uses the accepted price of 90"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Close the prepared event after counter-offer acceptance so it can be awarded; Start awarding Vendor A and verify that the submitted award uses the accepted price of 90"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 24494
+ },
+ "plan": {
+  "title": "eRFX RFQ counter offer accepted before award",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen containing Vendor A's own bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send the buyer's counter offer of 90 on Vendor A's normal bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the Responses grid marks the counter offer as initiated for Vendor A."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Use the vendor portal session to accept Vendor A's pending counter offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer-side Responses grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer's Master QCS to inspect the post-acceptance bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Assert that Master QCS shows the accepted counter-offer price of 90 for Vendor A."
+   }
+  ]
+ }
+}

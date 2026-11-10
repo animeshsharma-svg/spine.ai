@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "PRD-RFQ-043",
+  "title": "Email Notifications: any workflow event: approval request, bid invitation, PO issued, etc",
+  "group": "PRD-RFQ",
+  "compiledAt": "2026-11-10T01:31:47.559Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure or verify the tenant's INT-005 Email Notifications integration and its provider, sender, reply-to, or template overrides.",
+   "Inspect the external system's notification and compare recipient email, subject, body, action links, and attachments with Procol.",
+   "Verify that no error was recorded for the email integration."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Configure or verify the tenant's INT-005 Email Notifications integration and its provider, sender, reply-to, or template overrides.; Inspect the external system's notification and compare recipient email, subject, body, action links, and attachments with Procol.; Verify that no error was recorded for the email integration."
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "ask_tester",
+   "expect_published"
+  ],
+  "ms": 10558
+ },
+ "plan": {
+  "title": "Email Notification on Bid Invitation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage project so an RFQ invitation can be triggered."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-RFQ-043 Email Notifications"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create the RFQ workflow that will generate a bid invitation."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a required line item for the RFQ."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule so the event can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a recipient to the bid invitation audience."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ to cause the bid-invitation notification trigger."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that the triggering RFQ was successfully published."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "verify the configured outbound email integration received the bid invitation, compare its recipient, subject, body, action links, and attachments with Procol, and confirm no integration error was recorded"
+    },
+    "note": "The external notification system and tenant integration configuration cannot be inspected by catalog steps."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Retain an assertion in the plan after the manual external-system check."
+   }
+  ]
+ }
+}

@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-030",
+  "title": "A live RFQ with a vendor's bid: \"Increase Event Time\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:20:38.229Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot directly compare the event's exact before-and-after submission times or status without inventing a current-time locator.",
+   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The catalog cannot directly compare the event's exact before-and-after submission times or status without inventing a current-time locator."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "expect_responses",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_responses",
+   "expect_screen_clean"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 72295
+ },
+ "plan": {
+  "title": "Cancel Increase Event Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ event with one vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the Responses tab where the vendor bid is visible."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Confirm the live RFQ has the expected single direct vendor response before opening the time dialog."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings action that launches the Increase Event Time window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Verify the expected submission-time dialog opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the time extension without saving any change."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Increase Event Time",
+     "visible": false
+    },
+    "note": "Assert that cancelling closes the Increase Event Time window."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Confirm the vendor response remains unchanged after cancellation."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm no error, crash, or malformed state appeared after cancelling."
+   }
+  ]
+ }
+}

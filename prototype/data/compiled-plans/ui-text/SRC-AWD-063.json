@@ -4,16 +4,17 @@
   "title": "Approval chain: two approvers, the second rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:29:54.350Z",
+  "compiledAt": "2026-11-10T07:10:41.493Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared state has one line item rather than the case's A 100 and B 90 setup with 10 units allocated to Vendor B.",
-   "Sign in as Approver 1, approve the proposal, then sign in as Approver 2 and reject it with a remark.",
-   "Assert that the rejected proposal creates no PO and that the buyer can award the event again."
+   "Sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark",
+   "Assert that the proposal is rejected after the second approver's rejection",
+   "Assert that no purchase order is created",
+   "Assert that the buyer can award the event again after rejection"
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared state has one line item rather than the case's A 100 and B 90 setup with 10 units allocated to Vendor B.; Sign in as Approver 1, approve the proposal, then sign in as Approver 2 and reject it with a remark.; Assert that the rejected proposal creates no PO and that the buyer can award the event again."
+   "can only test part of this — no step for: Sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark; Assert that the proposal is rejected after the second approver's rejection; Assert that no purchase order is created; Assert that the buyer can award the event again after rejection"
   ],
   "source": "llm",
   "steps": 8,
@@ -24,12 +25,12 @@
    "expect_award_counters",
    "click",
    "expect_navigated",
-   "do_on_screen",
-   "ask_tester"
+   "ask_tester",
+   "expect_text"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 76140
+  "ms": 12677
  },
  "plan": {
   "title": "Approval chain second approver rejects award",
@@ -39,19 +40,19 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS as required for an existing bid state."
+    "note": "Open the prepared closed RFQ directly on Master QCS."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow for the closed RFQ."
+    "note": "Enter the awarding flow for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Allocate the available prepared line item to the vendor named in the case."
+    "note": "Allocate all available line items to the named Vendor B."
    },
    {
     "step": "expect_award_counters",
@@ -59,7 +60,7 @@
      "items": "1/1",
      "vendors": "1/1"
     },
-    "note": "Verify the available line item and vendor are fully allocated before proposal creation."
+    "note": "Verify the awarding allocation is complete before creating the proposal."
    },
    {
     "step": "click",
@@ -67,28 +68,29 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Create the award proposal from the completed allocation."
+    "note": "Create the award proposal so the approval chain can begin."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify that proposal creation opened the proposal page."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "fill the award proposal form and submit the proposal; stop when the proposal is submitted and awaiting approval"
-    },
-    "note": "Complete and submit the proposal form, which has no dedicated catalog step."
+    "note": "Verify that the proposal page opened."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Approver 1 and approve the submitted proposal, then sign in as Approver 2, reject it with a remark, verify that no PO is created, and confirm the buyer can award the event again"
+     "need": "sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark"
     },
-    "note": "The approval-chain identities, rejection action, no-PO outcome, and re-award check cannot be performed by the catalog."
+    "note": "The catalog has no step for separate approver sessions or proposal rejection."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "present": true
+    },
+    "note": "Check for the proposal's rejected status if the tester completes the approval-chain actions."
    }
   ]
  }

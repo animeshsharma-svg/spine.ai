@@ -1,0 +1,171 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-322",
+  "title": "Rank Based: minimum revisions before rank is shown",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:39.843Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "vendor_bid",
+   "expect_text",
+   "vendor_bid",
+   "expect_text"
+  ],
+  "ms": 13003
+ },
+ "plan": {
+  "title": "Rank visibility after minimum revisions",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage auction creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure a Rank Based auction awarded as one lot."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Rank Revision Threshold Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for bidding."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "enable Set Minimum revision to show Rank on the auction configuration, enter 2 as the minimum revision count, and stop on the create screen showing the setting enabled with value 2"
+    },
+    "note": "Set the minimum revision threshold, which has no dedicated catalog step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one vendor who will submit and revise the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached its published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's vendor bidding sheet."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's initial bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Rank must remain hidden before any revision reaches the threshold."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the first price revision, which is fewer than the configured two revisions."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Rank must still be hidden after only one revision."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 80
+    },
+    "note": "Submit the second price revision, reaching the configured threshold."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": true
+    },
+    "note": "Rank must become visible after the second revision."
+   }
+  ]
+ }
+}

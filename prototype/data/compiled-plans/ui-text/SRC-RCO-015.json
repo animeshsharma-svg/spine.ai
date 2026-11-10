@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "SRC-RCO-015",
+  "title": "Recreate Order: Schedule ticked with a time already passed",
+  "group": "SRC-RCO",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:42:29.238Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "do_on_screen",
+   "expect_text",
+   "expect_visible"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 10637
+ },
+ "plan": {
+  "title": "Recreate Order rejects past schedule",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary as required for this case."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the Recreate Order pop-up from the stage Settings menu."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the Recreate Order pop-up, tick \"Schedule this event?\", choose today with a time one hour in the past, click \"Create Order\", and verify that the app refuses with \"Invalid scheduled time!\" or \"Scheduled time is invalid!\", keeps the pop-up open, and does not create a new event."
+    },
+    "note": "Perform the past-time schedule attempt and verify the refusal and unchanged dialog on the buyer screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Scheduled time is invalid!",
+     "present": true
+    },
+    "note": "Assert the expected refusal message is visible."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Assert the Recreate Order pop-up remains open after the refusal."
+   }
+  ]
+ }
+}

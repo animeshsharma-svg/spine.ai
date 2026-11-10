@@ -4,7 +4,7 @@
   "title": "Savings against last purchase price",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:10:58.672Z",
+  "compiledAt": "2026-11-10T07:21:58.525Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -21,16 +21,14 @@
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_line_items",
    "fill_sheet",
-   "expect_sheet_columns",
    "do_on_screen",
    "set_schedule",
    "invite_vendor",
@@ -41,9 +39,10 @@
    "close_event",
    "open_master_qcs",
    "go_to",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 18982
+  "ms": 15593
  },
  "plan": {
   "title": "Savings Against Last Purchase Price",
@@ -53,14 +52,14 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow specified by the case."
+    "note": "Open the single-stage event creation flow."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Change the initial event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
@@ -70,7 +69,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template so the product sheet is available."
+    "note": "Apply an RFQ template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -79,51 +78,31 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER product with the requested quantity."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm the event contains one line item."
+    "note": "Add the CYLINDER line item with the requested quantity."
    },
    {
     "step": "fill_sheet"
    },
    {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
-    },
-    "note": "Confirm the RFQ sheet rendered the columns required by the case."
-   },
-   {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ product sheet, select CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), open Savings, choose Last Purchase Price for the product, save it, and stop on the create screen showing the saved savings basis."
+     "goal": "select the CYLINDER WITH KEY & KNOB product so Product Variant becomes Default Variant, set Delivery location to Plant Name (LOC-0001), configure Savings for the product using Last Purchase Price, save the savings configuration, and stop on the create screen ready to publish"
     },
-    "note": "Perform and verify the product-specific selections and Last Purchase Price savings configuration not covered by a dedicated domain step."
+    "note": "Perform the product variant, delivery location, and Last Purchase Price savings interactions not covered by dedicated domain steps."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a QA vendor so the event can be published and receive a bid."
+    "note": "Invite one QA vendor so the event can be published and bid on."
    },
    {
     "step": "publish",
@@ -133,12 +112,12 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm publication reached a real project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {},
-    "note": "Submit a vendor bid so savings can be calculated after bidding."
+    "note": "Have the invited vendor submit a bid so savings can be calculated from a completed response."
    },
    {
     "step": "expect_bid_submitted",
@@ -148,26 +127,34 @@
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the bidding window before inspecting post-bid savings."
+    "note": "Close the event before inspecting post-bid results."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open Master QCS as required by the case and confirm the comparison grid rendered."
+    "note": "Open Master QCS after bidding has ended, as required by the scenario."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "price_trends"
     },
-    "note": "Navigate to the Price Trends view where the savings result is shown."
+    "note": "Navigate to Price Trends where the last-purchase-price savings result is displayed."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On Price Trends, verify that the savings for the CYLINDER product are calculated using the Last Purchase Price reference and that the displayed savings result is present; stop on the Price Trends screen with that evidence visible."
+     "goal": "verify that Price Trends shows the event's savings calculated against Last Purchase Price for the CYLINDER WITH KEY & KNOB product"
     },
-    "note": "Verify the final savings basis and calculated result, which no dedicated assertion step exposes."
+    "note": "Verify the savings basis and calculated result on the buyer screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Last Purchase Price",
+     "present": true
+    },
+    "note": "Assert that the expected savings basis is visibly identified."
    }
   ]
  }

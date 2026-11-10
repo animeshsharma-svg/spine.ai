@@ -1,0 +1,99 @@
+{
+ "meta": {
+  "caseId": "SRC-SAM-028",
+  "title": "Withdraw is offered on an RFQ whose bidding has ended and is in its evaluation time",
+  "group": "SRC-SAM",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:56:41.775Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "expect_settings_menu",
+   "event_menu",
+   "expect_text",
+   "click",
+   "expect_settings_menu"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 10011
+ },
+ "plan": {
+  "title": "Withdraw Offered During RFQ Evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared RFQ event in its evaluation state on the buyer side."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where its Settings menu is available."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ]
+    },
+    "note": "Assert that Withdraw is offered and clickable during evaluation."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Click Withdraw from the RFQ stage Settings menu and open its withdrawal window without confirming it."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawal Remarks"
+    },
+    "note": "Assert that the withdrawal window opened and is awaiting a remark."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal so no event state changes occur."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ]
+    },
+    "note": "Confirm the RFQ remains withdrawable after cancelling the dialog."
+   }
+  ]
+ }
+}

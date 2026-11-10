@@ -1,0 +1,130 @@
+{
+ "meta": {
+  "caseId": "DRV-EVT-001",
+  "title": "Monitor per-vendor participation status stage by stage during live window",
+  "group": "DRV-EVT",
+  "sheet": "derived-track-each-vendor-s-participation-status",
+  "compiledAt": "2026-11-09T23:05:54.737Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the two rows are specifically the abstract vendors “Vendor A” and “Vendor B” rather than the QA vendors selected by the product."
+  ],
+  "warnings": [
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Assert that the two rows are specifically the abstract vendors “Vendor A” and “Vendor B” rather than the QA vendors selected by the product."
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "open_participants",
+   "expect_participant_count",
+   "expect_table"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 14897
+ },
+ "plan": {
+  "title": "Monitor live RFQ participation status",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before applying its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two QA vendors as required by the scenario."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so it is live while participation is inspected."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the RFQ stage’s Participants view, the subject under test."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "count": 2
+    },
+    "note": "Assert that the live RFQ Participants view contains the two invited vendor rows."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Participants",
+     "min": 2,
+     "eachRow": {
+      "Status": "Not Participated"
+     }
+    },
+    "note": "Assert that each invited vendor row shows the initial no-bid participation status during the live window."
+   }
+  ]
+ }
+}

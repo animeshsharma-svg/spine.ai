@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-621",
+  "title": "Vendor submits a modified bid (re-counter) against a buyer counter offer",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:26:02.207Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Perform the vendor-side Modify Counter Offer flow: choose Decline, select Modify Counter Offer, enter ₹85, add a remark, and submit the modified bid."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Perform the vendor-side Modify Counter Offer flow: choose Decline, select Modify Counter Offer, enter ₹85, add a remark, and submit the modified bid."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_event",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "ask_tester",
+   "expect_text",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "ms": 15634
+ },
+ "plan": {
+  "title": "Vendor modified counter offer bid",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event selected for a pending counter offer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the vendor persona’s supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the pending counter offer is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer"
+    },
+    "note": "Verify that the vendor sees the counter-offer banner or pending counter-offer state."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "complete the vendor-side Modify Counter Offer flow by choosing Decline, selecting Modify Counter Offer, entering ₹85, adding a remark, and submitting the modified bid"
+    },
+    "note": "The catalog has no step for modifying a counter offer with a remark and submitting it."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Modified Counter Offer Bid"
+    },
+    "note": "Verify the vendor view shows the expected modified-counter-offer tag."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer’s event page to inspect the updated QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer’s comparison grid for the event."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "equals": "85"
+    },
+    "note": "Verify the buyer’s QCS shows the modified bid value of ₹85."
+   }
+  ]
+ }
+}

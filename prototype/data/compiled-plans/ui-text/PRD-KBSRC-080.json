@@ -1,0 +1,127 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-080",
+  "title": "Template, products and quantities are locked on the conversion Auction Setup; vendors remain editable",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:11:52.022Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the conversion Auction Setup template control is disabled or cannot be changed; the conversion screen does not expose a catalog-observable Select Templates control."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly assert that the conversion Auction Setup template control is disabled or cannot be changed; the conversion screen does not expose a catalog-observable Select Templates control."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "convert_to_auction",
+   "expect_sheet_cells",
+   "invite_vendor",
+   "expect_no_error"
+  ],
+  "ms": 15342
+ },
+ "plan": {
+  "title": "Conversion Auction Setup locks template and line items",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start the RFQ event needed for conversion."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ that can be converted to an auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the source RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product whose product and quantity fields will be checked after conversion."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the initial invited vendor required for publication and conversion."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so conversion is available."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the source RFQ reached a published project page."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Open the Auction Setup screen created by RFQ-to-Auction conversion."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Assert that converted product and quantity fields are read-only."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Update the invited-vendor list on the conversion setup screen."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the vendor-list update completed without an application error."
+   }
+  ]
+ }
+}

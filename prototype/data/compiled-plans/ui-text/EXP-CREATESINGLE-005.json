@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-005",
+  "title": "Single stage create screen (RFQ with a product): \"Configuration for Event\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:36:43.814Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Compare event status before and after Cancel",
+   "Compare event times before and after Cancel",
+   "Compare vendors before and after Cancel",
+   "Compare bids before and after Cancel"
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Compare event status before and after Cancel; Compare event times before and after Cancel; Compare vendors before and after Cancel; Compare bids before and after Cancel"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_line_items",
+   "click",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_line_items",
+   "expect_sheet_cell",
+   "expect_template_selected"
+  ],
+  "ms": 14082
+ },
+ "plan": {
+  "title": "Single-stage RFQ configuration cancel",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the single-stage event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title while preserving the test's focus on configuration cancellation."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose the available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the product line item exists before reopening configuration."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "RFQ"
+    },
+    "note": "Reopen the RFQ configuration window from the create screen."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Configuration for Event",
+     "visible": true
+    },
+    "note": "Confirm the Configuration for Event window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the configuration without applying changes."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Configuration for Event",
+     "visible": false
+    },
+    "note": "Verify that Cancel closes the configuration window."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify the product line item remains after cancellation."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify the requested quantity remains 10 after cancellation."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify the previously selected RFQ template remains applied."
+   }
+  ]
+ }
+}

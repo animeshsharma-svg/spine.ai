@@ -1,0 +1,164 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-319",
+  "title": "Knockout: vendors can only accept or reject a target price",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:26.839Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Dedicated Knockout strategy configuration and publishing fields (base price, tick size, and knockout time difference) are not represented by a catalog step."
+  ],
+  "warnings": [
+   "resolved: “Proving that accept and reject are the only actions available on the vendor screen, with no other possible controls, can” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Dedicated Knockout strategy configuration and publishing fields (base price, tick size, and knockout time difference) are not represented by a catalog step."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "convert_to_auction",
+   "do_on_screen",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_visible",
+   "expect_visible",
+   "expect_screen_clean"
+  ],
+  "ms": 14345
+ },
+ "plan": {
+  "title": "Knockout auction vendor target-price actions",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the source RFQ required before converting to a Knockout auction."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ-only project, since Knockout auctions are reached through RFQ conversion."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the auction line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor required for the vendor-side check."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so it can be converted."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the RFQ reached a real published project page."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Open the converted-auction create screen, the supported route to Knockout auctions."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "configure the converted auction as a Knockout auction with its required target-price settings, publish it, and stop on the published event ready for the invited vendor"
+    },
+    "note": "The catalog has no dedicated step for selecting Knockout or entering its required settings, so perform that buyer-side configuration on screen."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Inspect the invited vendor's supplier-portal view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the Knockout auction's vendor bidding screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Target Price",
+     "present": true
+    },
+    "note": "Assert that the vendor screen identifies a target price."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Accept",
+     "visible": true
+    },
+    "note": "Assert that the vendor can accept the shown target price."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "visible": true
+    },
+    "note": "Assert that the vendor can reject the shown target price."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the inspected vendor screen has no crash, server error, raw identifiers, or invalid rendering."
+   }
+  ]
+ }
+}

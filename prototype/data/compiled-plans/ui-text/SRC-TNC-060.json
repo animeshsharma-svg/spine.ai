@@ -1,0 +1,156 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-060",
+  "title": "No terms at all",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:16:45.895Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "do_on_screen",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_text",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
+  ],
+  "ms": 16428
+ },
+ "plan": {
+  "title": "SRC-TNC-060 No Terms at All",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-TNC-060 No Terms At All"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the CYLINDER item with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the remaining required pricing-sheet fields."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first line item."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "in the Terms and Conditions modal, remove every clause, click Done, and stop on the create screen showing that no terms and conditions remain"
+    },
+    "note": "Perform the T&C modal operation required to leave the event with no clauses."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one QA test vendor so the event can be published and the vendor view can be checked."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the single-stage RFQ after removing all terms."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms and conditions are not added",
+     "present": true
+    },
+    "note": "Verify the buyer-side project warning about missing terms."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited vendor portal to inspect the supplier view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published event's RFQ pricing round as the vendor."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": false
+    },
+    "note": "Verify that the vendor has no Terms and Conditions block."
+   }
+  ]
+ }
+}

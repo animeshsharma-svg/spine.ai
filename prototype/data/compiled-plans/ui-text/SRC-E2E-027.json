@@ -1,0 +1,255 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-027",
+  "title": "Asset PR → eRFX Auction-only project → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:16:15.498Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the PR line itself is marked ordered.",
+   "Verify that asset assignment A reaches the created purchase order."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Verify that the PR line itself is marked ordered.; Verify that asset assignment A reaches the created purchase order."
+  ],
+  "source": "llm",
+  "steps": 32,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 19251
+ },
+ "plan": {
+  "title": "SRC-E2E-027 PR to Auction PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-E2E-027 Asset PR Auction PO"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute schedule described by the case."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two QA vendors for Vendor A and Vendor B bidding."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submit Vendor A's initial bid of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that Vendor A's initial bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 85
+    },
+    "note": "Submit Vendor A's revised bid of 85 using the same vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that Vendor A's revised bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 88
+    },
+    "note": "Submit Vendor B's bid of 88."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that Vendor B's bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the auction before reading the final QCS and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid after bidding has closed."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "Auction Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that the lowest auction amount ranks first among the two bids."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Auction Rate",
+     "vendor": 1,
+     "equals": "85"
+    },
+    "note": "Verify that Vendor A's final rate is 85."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "rate": "Auction Rate",
+     "amount": "Auction Amount",
+     "qty": "Qty Offer"
+    },
+    "note": "Verify that the QCS computes each amount and total from rate times quantity."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "portal"
+    },
+    "note": "Award the closed event to the portal vendor that submitted Vendor A's bid, which is the 85-ranked bid."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify that the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for asset PR award to the lowest bidder."
+    },
+    "note": "Approve the submitted award with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete PO creation from the approved award."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify that the PO contains the awarded 10-unit PR line."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the event's post-close location."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where the closed event should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify that this plan's event appears in History."
+   }
+  ]
+ }
+}

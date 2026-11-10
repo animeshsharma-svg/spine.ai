@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-007",
+  "title": "QCS ranking updates correctly when a bid is submitted just before window closes",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:05:01.437Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Control the vendor submission to exactly 1 second before the bidding end time.",
+   "Enter or verify Vendor A's separate freight value of 5 and calculate the landed price of 100.",
+   "Directly assert the visual L1 highlight; the available QCS assertions verify rank and amounts instead."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Control the vendor submission to exactly 1 second before the bidding end time.; Enter or verify Vendor A's separate freight value of 5 and calculate the landed price of 100.; Directly assert the visual L1 highlight; the available QCS assertions verify rank and amounts instead."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "ms": 19373
+ },
+ "plan": {
+  "title": "QCS ranking after late bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the single line item needed for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Set and commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will submit the bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the supplier session for the invited vendor."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round in the vendor portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Submit the vendor's bid; the catalog can verify the bid price but not a separate freight component or deadline offset."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Confirm the vendor portal shows the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page immediately after submission."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS to inspect the new bid and ranking."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the submitted vendor appears as a real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 1
+    },
+    "note": "Verify the submitted bid is ranked L1 for the available single-vendor state."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify QCS ranks follow the RFQ amount ordering."
+   }
+  ]
+ }
+}

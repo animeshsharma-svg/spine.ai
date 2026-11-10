@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "PRD-RFX-019",
+  "title": "Multi-Channel Invitation and Reminders: refused for a user without the Buyer role",
+  "group": "PRD-RFX",
+  "compiledAt": "2026-11-10T01:46:44.992Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as a user without the Buyer role and verify Multi-Channel Invitation and Reminders is refused or absent, then repeat as a Buyer and verify it is available.",
+   "Determine whether the tenant's RBAC configuration intentionally grants this action to roles other than Buyer.",
+   "Execute and verify the full multi-channel notification and automated reminder workflow."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify Multi-Channel Invitation and Reminders is refused or absent, then repeat as a Buyer and verify it is available.; Determine whether the tenant's RBAC configuration intentionally grants this action to roles other than Buyer.; Execute and verify the full multi-channel notification and automated reminder workflow."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_event",
+   "expect_menu_item",
+   "event_menu",
+   "expect_text",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 11718
+ },
+ "plan": {
+  "title": "Multi-Channel Reminders Role Authorization",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event where the reminder action can be inspected."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Send Reminders",
+     "present": true
+    },
+    "note": "Check whether the event menu offers the reminder action, which is the closest catalog-level availability check."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Send Reminders"
+    },
+    "note": "Open the reminder drawer to inspect the available reminder workflow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Offer submissions",
+     "present": true
+    },
+    "note": "Assert that the Send Reminders drawer opened with its expected offer-submission content."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the non-Buyer user and the Buyer user on the same tenant, verify Multi-Channel Invitation and Reminders is refused or absent for the non-Buyer and available for the Buyer, and report any intentional RBAC configuration granting it to other roles"
+    },
+    "note": "Role-specific authentication, permission comparison, tenant RBAC interpretation, and the complete multi-channel reminder action require user access and verification outside the catalog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Offer submissions",
+     "present": true
+    },
+    "note": "Final assertion that the reminder workflow screen remains observable after the role comparison."
+   }
+  ]
+ }
+}

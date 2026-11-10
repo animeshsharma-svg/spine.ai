@@ -1,0 +1,168 @@
+{
+ "meta": {
+  "caseId": "SRC-STR-009",
+  "title": "Dynamic time extension (trigger 2 min, extend by 2 min) auction: what each side sees during bidding",
+  "group": "SRC-STR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:07:35.656Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Configure an auction with a dynamic time-extension trigger of 2 minutes and extension of 2 minutes",
+   "Place Vendor B's bid exactly one minute before the original auction end",
+   "Verify that the auction end time moves two minutes later for every vendor and the buyer",
+   "Verify the participants panel reports Dynamic time extended as a result of the trigger",
+   "Verify the Order Activity entry specifically records the dynamic extension event"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "cannot test this case yet — no step can observe: Configure an auction with a dynamic time-extension trigger of 2 minutes and extension of 2 minutes; Place Vendor B's bid exactly one minute before the original auction end; Verify that the auction end time moves two minutes later for every vendor and the buyer; Verify the participants panel reports Dynamic time extended as a result of the trigger; Verify the Order Activity entry specifically records the dynamic extension event"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "event_menu",
+   "expect_text"
+  ],
+  "ms": 12372
+ },
+ "plan": {
+  "title": "Dynamic Auction Time Extension",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the single-stage event creation flow requested by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configures the closest supported auction type; dynamic time extension is not available in this step."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Dynamic Extension Auction"
+    },
+    "note": "Provides the mandatory event title required for publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the reverse-auction pricing template before adding products."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Adds the requested product and quantity; plant-location selection is not expressible in this step."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fills the pricing sheet so the auction can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Sets and commits the 30-minute auction schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invites three QA vendors to approximate Vendors A, B, and C without inventing vendor names."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publishes the auction so vendor bidding can occur."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms the auction reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submits a bid for the first invited vendor; the catalog cannot schedule it relative to the auction end."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirms the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 95
+    },
+    "note": "Submits the requested lower bid for a second vendor, but without the required one-minute-before-end timing."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirms the second vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2
+    },
+    "note": "Checks the buyer's Responses view for the two submitted vendor bids."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity"
+    },
+    "note": "Opens the buyer's Order Activity drawer, the closest available observation point for extension-related activity."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity"
+    },
+    "note": "Confirms that the Order Activity drawer opened, without claiming that a dynamic-extension entry was generated."
+   }
+  ]
+ }
+}

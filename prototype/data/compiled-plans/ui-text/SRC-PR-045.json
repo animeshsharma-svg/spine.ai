@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-045",
+  "title": "Create a Single Stage reverse auction from an open asset PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:32:51.799Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting specifically an asset PR line rather than the first matching open PR row",
+   "Creating the PR event as a single-stage event; the PR flow only exposes choose_stages and does not configure the single-stage drawer",
+   "Choosing or asserting a specific reverse-auction strategy/template when its name and strategy are not provided by the case",
+   "Asserting that the PR line's delivery location is locked to the PR on this flow",
+   "Asserting that Account Assignment A is retained and carried to a subsequently created purchase order",
+   "Asserting that the PR moves to In Progress with this event's number after publishing",
+   "Asserting the event's explicit 'created from a PR' indicator"
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting specifically an asset PR line rather than the first matching open PR row; Creating the PR event as a single-stage event; the PR flow only exposes choose_stages and does not configure the single-stage drawer; Choosing or asserting a specific reverse-auction strategy/template when its name and strategy are not provided by the case; Asserting that the PR line's delivery location is locked to the PR on this flow; Asserting that Account Assignment A is retained and carried to a subsequently created purchase order; Asserting that the PR moves to In Progress with this event's number after publishing; Asserting the event's explicit 'created from a PR' indicator"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "expect_template_selected",
+   "expect_sheet_cells",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 20769
+ },
+ "plan": {
+  "title": "Create auction event from an open asset PR line",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that a template was applied before configuring the sheet."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Verify that PR-provided product and quantity fields are read-only on the sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Set the mandatory event title required before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named in the case to the event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Verify the PR-created event cannot use Recreate Order."
+   }
+  ]
+ }
+}

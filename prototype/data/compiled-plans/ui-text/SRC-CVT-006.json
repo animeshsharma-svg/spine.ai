@@ -4,26 +4,26 @@
   "title": "End price above the L1 sum total",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:11:48.096Z",
+  "compiledAt": "2026-11-10T07:22:32.685Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reproduce the closed RFQ setup with two bids (A 100 and B 90) and independently verify an L1 sum total of 900; the prepared state has exactly one vendor, one line item, and one bid."
+   "The case's exact closed RFQ with two bids totaling A 100 and B 90 cannot be created or changed because the prepared state has one fixed bid and bidding is already closed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Reproduce the closed RFQ setup with two bids (A 100 and B 90) and independently verify an L1 sum total of 900; the prepared state has exactly one vendor, one line item, and one bid."
+   "can only test part of this — no step for: The case's exact closed RFQ with two bids totaling A 100 and B 90 cannot be created or changed because the prepared state has one fixed bid and bidding is already closed."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
    "convert_to_auction",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 11551
+  "ms": 12322
  },
  "plan": {
   "title": "Reject auction end price above RFQ L1",
@@ -33,24 +33,26 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary as the required first step."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the RFQ stage Settings menu to reach the conversion action."
+    "note": "Open the prepared closed RFQ's project summary."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the published closed RFQ into the auction configuration screen."
+    "note": "Use the published RFQ's conversion flow and continue to the converted auction create screen."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the converted auction create screen, continue past the conversion options, set the auction end price to a value above 900, click Publish, and verify that publishing is refused with the message \"End price cannot be more than the lowest RFQ (L1) Sum Total\"."
+     "goal": "On the converted auction create screen, set the auction end price to a value above 900, publish the auction, and stop when Procol shows the refusal."
     },
-    "note": "The catalog has no dedicated step for the converted auction end-price field or its publish refusal, so perform and verify that buyer-side interaction on screen."
+    "note": "Configure the conversion-specific end price and attempt publication, which no catalog domain step can perform."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "End price cannot be more than the lowest RFQ (L1) Sum Total"
+    },
+    "note": "Assert that Procol refuses the publication with the required L1 end-price validation message."
    }
   ]
  }

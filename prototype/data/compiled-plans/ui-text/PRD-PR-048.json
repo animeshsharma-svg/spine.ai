@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "PRD-PR-048",
+  "title": "Line-Item Assignment Rule Engine: refused for a user without the Procurement Manager role",
+  "group": "PRD-PR",
+  "compiledAt": "2026-11-10T04:29:05.138Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as a user without the Procurement Manager role on the specified Growth or Enterprise tenant.",
+   "Open and use the Line-Item Assignment Rule Engine to auto-assign PR line items by category, location, and value rules.",
+   "Repeat the action as a Procurement Manager and compare availability or refusal with the first user.",
+   "Determine whether tenant RBAC intentionally grants the capability to additional roles.",
+   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Sign in as a user without the Procurement Manager role on the specified Growth or Enterprise tenant.; Open and use the Line-Item Assignment Rule Engine to auto-assign PR line items by category, location, and value rules.; Repeat the action as a Procurement Manager and compare availability or refusal with the first user.; Determine whether tenant RBAC intentionally grants the capability to additional roles."
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "ask_tester",
+   "expect_visible"
+  ],
+  "ms": 10973
+ },
+ "plan": {
+  "title": "PR Line-Item Assignment Rule Engine RBAC",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Reaches the closest available PR workflow screen before the unavailable assignment-rule-engine action."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a non-Procurement Manager, verify whether the Line-Item Assignment Rule Engine is refused or absent, then repeat as a Procurement Manager and report the role comparison"
+    },
+    "note": "The catalog has no step for role-specific sign-in or for opening and exercising the Line-Item Assignment Rule Engine."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Purchase Items",
+     "visible": true
+    },
+    "note": "Confirms the PR workflow screen remains available after the tester interaction; it does not assert the missing rule-engine behavior."
+   }
+  ]
+ }
+}

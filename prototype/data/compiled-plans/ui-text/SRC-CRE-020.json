@@ -4,65 +4,84 @@
   "title": "Reverse auction: Quantity Requested = a decimal 2.5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:53:16.237Z",
+  "compiledAt": "2026-11-10T07:17:37.380Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting and verifying a specifically reverse/buy auction template when its name is not provided",
-   "Recording the alternative whole-number-unit behavior if the application rounds or refuses 2.5 rather than retaining it",
-   "Selecting Plant Name LOC-0001 specifically"
+   "Conditionally accept 2.5 for decimal units but round or refuse it for whole-number units and record whichever outcome occurs",
+   "Select a specifically identified reverse-auction template because the test does not provide its template name"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Selecting and verifying a specifically reverse/buy auction template when its name is not provided; Recording the alternative whole-number-unit behavior if the application rounds or refuses 2.5 rather than retaining it; Selecting Plant Name LOC-0001 specifically"
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Conditionally accept 2.5 for decimal units but round or refuse it for whole-number units and record whichever outcome occurs; Select a specifically identified reverse-auction template because the test does not provide its template name"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "configure_single_stage",
+   "expect_value",
    "set_title",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
-   "expect_sheet_cell"
+   "fill_sheet",
+   "fill",
+   "expect_sheet_cell",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published"
   ],
-  "ms": 20687
+  "ms": 21734
  },
  "plan": {
-  "title": "Reverse auction decimal quantity",
+  "title": "Single-stage reverse auction decimal quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage creation screen required by the case."
+    "note": "Open the Single Stage create screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "auctionSubtype": "rank"
     },
-    "note": "Set the event type to an auction with the available reverse-auction-compatible rank strategy and lot awarding."
+    "note": "Switch the event type from the default RFP to an auction."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event Type",
+     "value": "Auction"
+    },
+    "note": "Verify the configured event type is Auction."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Decimal Quantity Reverse Auction"
-    },
-    "note": "Provide the mandatory event title for a create test."
+    "args": {},
+    "note": "Provide the mandatory event title using the product-generated unique title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template; the case does not provide a template name."
+    "note": "Apply the first available auction template; no specific template name was supplied."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that a template is applied before adding line items."
    },
    {
     "step": "add_line_items",
@@ -71,7 +90,18 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "2.5"
     },
-    "note": "Add the named product and enter the test quantity exactly as 2.5."
+    "note": "Add the requested product and enter 2.5 as its quantity."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
    },
    {
     "step": "expect_sheet_cell",
@@ -80,7 +110,31 @@
      "column": "Quantity Requested",
      "equals": "2.5"
     },
-    "note": "Read the first-row quantity cell and assert that the decimal was retained as entered."
+    "note": "Read the first-row quantity cell after entry and verify that 2.5 was preserved."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one available QA test vendor so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
    }
   ]
  }

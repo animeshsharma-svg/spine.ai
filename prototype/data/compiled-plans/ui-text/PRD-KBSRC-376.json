@@ -1,0 +1,158 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-376",
+  "title": "Vendor sees their current zone and can bid to move zones",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:19:25.875Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_text",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_text"
+  ],
+  "ms": 71353
+ },
+ "plan": {
+  "title": "Vendor Traffic-Light Zone Revision",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation flow required for configuring a traffic-light auction."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "traffic_light",
+     "awarding": "lot",
+     "rangeLower": 80,
+     "rangeUpper": 120
+    },
+    "note": "Configure the auction bands so bids above 120 are red and bids at or below 80 are green."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Traffic Light Zone Revision"
+    },
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the vendor's bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will submit and revise the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured traffic-light auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the auction reached a real published event page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's vendor bid sheet."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 130
+    },
+    "note": "Submit an initial bid above the upper band to establish the starting zone."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor's initial bid was submitted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Red"
+    },
+    "note": "Assert that the vendor can see the current red traffic-light zone."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 70
+    },
+    "note": "Revise the same vendor's bid into the green band to test movement between zones."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the revised bid was submitted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Green"
+    },
+    "note": "Assert that the displayed zone updates to green after the revised bid crosses the configured band."
+   }
+  ]
+ }
+}

@@ -1,0 +1,243 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-028",
+  "title": "Asset PR → eRFX Auction-only project → split award → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:16:36.849Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the selected PR line is specifically an asset line with quantity 10",
+   "Verify that the PR line is marked ordered after PO creation",
+   "Verify that the asset assignment for Vendor A reaches the PO"
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Verify that the selected PR line is specifically an asset line with quantity 10; Verify that the PR line is marked ordered after PO creation; Verify that the asset assignment for Vendor A reaches the PO"
+  ],
+  "source": "llm",
+  "steps": 30,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "start_awarding",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 26060
+ },
+ "plan": {
+  "title": "Asset PR to Split Auction Award and PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Asset PR Auction Split Award"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "names": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Invite the two vendors named in the case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the requested Start now, 30-minute schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 100
+    },
+    "note": "Submit Vendor A's initial bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that Vendor A's initial bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 85
+    },
+    "note": "Submit Vendor A's revised bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that Vendor A's revised bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 88
+    },
+    "note": "Submit Vendor B's bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that Vendor B's bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the auction before ranking and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the comparison grid containing both bidding vendors."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lowest bid ranks first, making Vendor A rank 1 at 85."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow after the auction has closed."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the split-award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for the split asset award."
+    },
+    "note": "Approve the submitted award with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approved award and create the purchase orders."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Assert that the resulting POs contain the two awarded vendor line entries."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the final event location."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab after the event has ended and been awarded."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's event appears in History."
+   }
+  ]
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "DRV-LI-007",
+  "title": "Deleted line item quantity is added back to open PR quantity total",
+  "group": "DRV-LI",
+  "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
+  "compiledAt": "2026-11-09T23:07:03.982Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "do_on_screen",
+   "open_purchase_requisitions",
+   "pr_tab",
+   "expect_table"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 15736
+ },
+ "plan": {
+  "title": "Deleted line item restores PR quantity",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the live RFQ, delete the line item QA_Platform Item A with quantity 8 and stop after the deletion succeeds"
+    },
+    "note": "Perform the buyer-side line-item deletion, which has no dedicated catalog step."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Navigate to the Purchase Requisitions screen to inspect the returned quantity."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Show the open PR pool where the item's available quantity is reported."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "row": "QA_Platform Item A",
+     "cells": {
+      "Quantity": "10"
+     }
+    },
+    "note": "Verify the Open PR row shows 10 units available after adding the existing 2 units and the returned 8 units."
+   }
+  ]
+ }
+}

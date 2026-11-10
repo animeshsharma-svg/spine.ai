@@ -1,0 +1,107 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-015",
+  "title": "Mobile app shows correct L1 highlight in QCS ranking",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:06:28.676Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [],
+  "warnings": [
+   "resolved: “Open the Procol mobile app as the buyer and verify that Vendor A's landed-price-90 row is highlighted as L1 above Vendor” — place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_cell",
+   "place_surrogate_bid",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_ranks",
+   "ask_tester",
+   "expect_qcs_ranks"
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "ms": 79193
+ },
+ "plan": {
+  "title": "Mobile QCS L1 Highlight",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live RFQ's Master QCS, as required for this bid state."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "90"
+    },
+    "note": "Check the existing bid's price in the buyer-console QCS grid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 100
+    },
+    "note": "Add the second bid for Vendor B in the buyer console because the prepared state contains one bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Assert that both named vendors appear as QCS columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "equals": "100"
+    },
+    "note": "Check Vendor B's quoted price in the QCS grid."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lower bid ranks ahead of the higher bid in the buyer-console QCS."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the live RFQ in the Procol mobile app as the buyer and verify that Vendor A's row with landed price 90 is highlighted as L1 above Vendor B's row with landed price 100"
+    },
+    "note": "The mobile app session and its row-highlight observation are not available in the catalog."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Retain a final assertion for the available buyer-console ranking after the missing mobile verification."
+   }
+  ]
+ }
+}

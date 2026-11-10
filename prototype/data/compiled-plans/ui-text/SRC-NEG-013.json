@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-013",
+  "title": "Award at the accepted counter-offer price",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:37:38.702Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Closing the prebuilt in-evaluation event after Vendor A accepts the counter-offer; close_event is unavailable for this prepared state.",
+   "Verifying the existing second bid from Vendor B at 90 because the prepared state guarantees only one bid."
+  ],
+  "warnings": [
+   "ask_tester → close_event{natural} — waiting for the bidding window to close is close_event's job, not a question for the tester",
+   "ask_tester → close_event{natural} — waiting for the bidding window to close is close_event's job, not a question for the tester",
+   "can only test part of this — no step for: Closing the prebuilt in-evaluation event after Vendor A accepts the counter-offer; close_event is unavailable for this prepared state.; Verifying the existing second bid from Vendor B at 90 because the prepared state guarantees only one bid."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "award_event",
+   "expect_awarded"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 23826
+ },
+ "plan": {
+  "title": "Award at Accepted Counter-Offer Price",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ on the buyer's Responses tab."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send Vendor A the counter-offer reducing the price from 100 to 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify that the counter-offer was initiated for Vendor A."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {},
+    "note": "Have Vendor A accept the counter-offer in the supplier portal."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "The prepared-state catalog cannot close this in-evaluation event."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid after the event is closed."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "portal",
+     "equals": "90"
+    },
+    "note": "Verify the accepted counter-offer rate is 90 per unit."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": "portal",
+     "equals": "900"
+    },
+    "note": "Verify the total for 10 units is 900."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "portal"
+    },
+    "note": "Award the available bid to Vendor A after closure."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify that the award proposal was created and submitted."
+   }
+  ]
+ }
+}

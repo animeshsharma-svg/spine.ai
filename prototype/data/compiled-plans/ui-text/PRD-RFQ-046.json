@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "PRD-RFQ-046",
+  "title": "Email Notifications: on failure — fallback to in-app notification",
+  "group": "PRD-RFQ",
+  "compiledAt": "2026-11-10T01:31:56.952Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 9392
+ },
+ "plan": {
+  "title": "Email Failure Notification Fallback",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped"
+    },
+    "note": "The catalog cannot configure tenant integrations, induce an outbound provider failure, trigger and observe the resulting notification fallback, or inspect retry/log evidence."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the session remains free of a crash or server error after the tester completes the missing workflow."
+   }
+  ]
+ }
+}

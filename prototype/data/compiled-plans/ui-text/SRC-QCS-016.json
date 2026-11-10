@@ -1,0 +1,200 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-016",
+  "title": "Download Report matches the screen",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:40:16.063Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The downloaded file's vendor names cannot be asserted because the QA vendor names are selected dynamically."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "resolved: “The downloaded file's event number and dates cannot be asserted because their values are not known in advance and expect” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Exact equality between every downloaded report cell and every Master QCS cell cannot be expressed; the plan verifies the” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: The downloaded file's vendor names cannot be asserted because the QA vendor names are selected dynamically."
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_ranks",
+   "expect_qcs_amounts",
+   "click",
+   "expect_download"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 13363
+ },
+ "plan": {
+  "title": "SRC-QCS-016 Report Matches Master QCS",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ, matching the test setup."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create one comparable line item for the two vendor bids."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the report contains two vendor columns."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid at 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the second vendor bid at 90 to produce a lower-ranked comparison."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor's bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close bidding so Master QCS and reporting are available for the completed RFQ."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid that the report must match."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Assert that both real vendor columns are present in Master QCS."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Read the first vendor's unit price from the comparison grid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "key": "bidPrice"
+    },
+    "note": "Read the second vendor's unit price from the comparison grid."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that ranks follow the quoted amounts, with the 90 bid ranking ahead of the 100 bid."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Assert each vendor's line amount equals rate times quantity and each total equals the sum of line amounts."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Report"
+    },
+    "note": "Download the Master QCS comparison report from the same screen being checked."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "contains": [
+      "SRC-QCS-016 Report Matches Master QCS",
+      "100",
+      "90"
+     ]
+    },
+    "note": "Verify the downloaded report contains the deterministic event title and both quoted prices."
+   }
+  ]
+ }
+}

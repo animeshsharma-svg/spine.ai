@@ -4,43 +4,79 @@
   "title": "One bid: award all 10 units to Vendor A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:09:52.305Z",
+  "compiledAt": "2026-11-10T07:04:12.063Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The award is final immediately with no approval flow.",
+   "Exactly one purchase order is created per awarded vendor."
+  ],
+  "warnings": [
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The award is final immediately with no approval flow.; Exactly one purchase order is created per awarded vendor."
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "award_event",
-   "expect_awarded"
+   "expect_awarded",
+   "create_po",
+   "expect_po_items",
+   "filter_events",
+   "expect_event_in_list"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 17740
+  "ms": 12458
  },
  "plan": {
-  "title": "SRC-AWD-001 — One bid: award all 10 units to Vendor A; no approval flow",
+  "title": "Award single bid and create PO",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS directly as required by the prepared state rules."
+    "note": "Open the prepared closed RFQ's Master QCS as required for this state."
    },
    {
     "step": "award_event",
     "args": {
-     "vendor": "lowest"
+     "vendor": "Vendor A"
     },
-    "note": "Execute the full award chain: start awarding, allocate to the vendor, create the proposal, and submit it."
+    "note": "Allocate the bid to Vendor A and submit the award proposal in the supported end-to-end award flow."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Assert that the award proposal was successfully submitted and completed."
+    "note": "Verify that the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the post-award purchase-order creation flow and read the resulting PO data."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify that the PO contains the single awarded line with all 10 units."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where a completed closed RFQ should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify that this plan's awarded event is present in History."
    }
   ]
  }

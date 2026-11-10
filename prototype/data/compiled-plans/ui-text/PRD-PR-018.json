@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "PRD-PR-018",
+  "title": "PR Detail View: not available on plans below Growth",
+  "group": "PRD-PR",
+  "compiledAt": "2026-11-10T04:24:06.838Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Determine whether the tenant is on a plan below Growth or on Growth/Enterprise.",
+   "Verify that PR Detail View is absent or refused on a lower-plan tenant and available on a Growth tenant.",
+   "Open and inspect a PR detail view showing all line items, their statuses, and the requisitioner.",
+   "Repeat the same steps with the same user across two tenants/plans.",
+   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Determine whether the tenant is on a plan below Growth or on Growth/Enterprise.; Verify that PR Detail View is absent or refused on a lower-plan tenant and available on a Growth tenant.; Open and inspect a PR detail view showing all line items, their statuses, and the requisitioner.; Repeat the same steps with the same user across two tenants/plans."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "expect_visible",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 13328
+ },
+ "plan": {
+  "title": "PR Detail View Plan Gating",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Reaches the Purchase Requisitions area, the closest available starting point for the requested PR detail flow."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Shows open purchase requests, which are the only PRs the catalog can act on."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Purchase Items",
+     "visible": true
+    },
+    "note": "Confirms the available PR sourcing control, but does not assert the unavailable PR Detail View."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the same Buyer on a lower-plan tenant and a Growth tenant, open the same PR Detail View on each, and verify its availability plus all line items, statuses, and the requisitioner"
+    },
+    "note": "The catalog has no step for plan-based tenant comparison or the PR Detail View itself."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Final assertion after the tester interaction checks that the observed screen has no application error or crash."
+   }
+  ]
+ }
+}

@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "EXP-AWARDED-034",
+  "title": "Recreate Order: Create Order with negative evaluation duration is rejected",
+  "group": "EXP-AWARDED",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:16:06.705Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "select",
+   "fill",
+   "attempt"
+  ],
+  "state": "awarded",
+  "screen": "summary",
+  "ms": 8219
+ },
+ "plan": {
+  "title": "Reject Negative Evaluation Duration on Recreate Order",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the existing awarded event's summary page."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
+   },
+   {
+    "step": "select",
+    "args": {
+     "role": "radio",
+     "name": "Custom"
+    },
+    "note": "Select custom evaluation duration so the numeric duration field is available."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Min(s)",
+     "value": "-5"
+    },
+    "note": "Enter the invalid negative evaluation duration."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Assert that Create Order is rejected rather than creating an order with a negative evaluation duration."
+   }
+  ]
+ }
+}

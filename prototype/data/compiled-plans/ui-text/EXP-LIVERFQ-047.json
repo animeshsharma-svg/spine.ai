@@ -1,0 +1,122 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-047",
+  "title": "Increase Event Time: Cancel Increase Event Time leaves original end time unchanged",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:47:49.833Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly asserting that no toast appears after cancellation",
+   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Directly asserting that no toast appears after cancellation"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "expect_text",
+   "remember",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_remembered"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 10750
+ },
+ "plan": {
+  "title": "Cancel Extend Submission Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ event required by the test."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Verify the original event end time before opening the extension dialog."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "original_end_time",
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Capture the original end-time text for comparison after cancellation."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Assert that the Increase Event Time window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the extension without saving a new end time."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": false
+    },
+    "note": "Assert that the dialog closes after cancellation."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "original_end_time",
+     "same": true,
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Verify that the RFQ end time remains unchanged."
+   }
+  ]
+ }
+}

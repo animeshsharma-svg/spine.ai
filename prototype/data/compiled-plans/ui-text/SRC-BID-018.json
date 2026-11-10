@@ -4,20 +4,20 @@
   "title": "RFQ bid: Submit after the countdown ends",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:36:52.741Z",
+  "compiledAt": "2026-11-10T07:13:04.977Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Start from an event whose countdown has exactly 1 minute remaining; the shortest configurable event window is 30 minutes.",
-   "Directly verify that every bid-sheet cell becomes read-only and that no bid record was created beyond the refused submission evidence."
+   "Start the event with a countdown of exactly 1 minute; set_schedule supports a minimum 30-minute duration.",
+   "Directly verify that the entire vendor sheet becomes read-only after countdown expiry."
   ],
   "warnings": [
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Start from an event whose countdown has exactly 1 minute remaining; the shortest configurable event window is 30 minutes.; Directly verify that every bid-sheet cell becomes read-only and that no bid record was created beyond the refused submission evidence."
+   "can only test part of this — no step for: Start the event with a countdown of exactly 1 minute; set_schedule supports a minimum 30-minute duration.; Directly verify that the entire vendor sheet becomes read-only after countdown expiry."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -29,27 +29,32 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "close_event",
    "switch_portal",
    "vendor_open_event",
+   "switch_portal",
+   "close_event",
+   "switch_portal",
    "attempt",
-   "expect_disabled"
+   "switch_portal",
+   "expect_responses"
   ],
-  "ms": 12817
+  "ms": 13615
  },
  "plan": {
-  "title": "RFQ bid refused after countdown ends",
+  "title": "SRC-BID-018 RFQ bid after countdown",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage project so the RFQ stage can be selected."
+    "note": "Create the RFQ used for the bid-expiry scenario."
    },
    {
     "step": "set_title",
-    "args": {},
+    "args": {
+     "title": "SRC-BID-018 Expired RFQ"
+    },
     "note": "Provide the required event title."
    },
    {
@@ -71,7 +76,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add a line item for the vendor bid sheet."
+    "note": "Add the product that will appear in the vendor bid sheet."
    },
    {
     "step": "fill_sheet",
@@ -83,19 +88,19 @@
     "args": {
      "minutes": 3
     },
-    "note": "Create the shortest supported bidding window; the catalog cannot configure one minute."
+    "note": "Commit the shortest supported event duration; the exact one-minute setup is not expressible."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor who will attempt the late submission."
+    "note": "Invite the QA vendor who will attempt the expired bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so it is available in the vendor portal."
+    "note": "Publish the RFQ before opening it in the vendor portal."
    },
    {
     "step": "expect_published",
@@ -103,45 +108,66 @@
     "note": "Confirm the event reached a real published project page."
    },
    {
-    "step": "close_event",
-    "args": {
-     "natural": true,
-     "maxWaitMinutes": 36
-    },
-    "note": "Wait for the bidding countdown to expire without placing a bid."
-   },
-   {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor portal while keeping the buyer session available."
+    "note": "Move to the separate vendor session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ from the vendor's event list and enter its pricing view."
+    "note": "Open the live RFQ's pricing sheet as the invited vendor."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session to let the event countdown expire."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true,
+     "maxWaitMinutes": 36
+    },
+    "note": "Wait for the bidding window to end rather than force-ending it."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Return to the vendor's already opened RFQ after expiry."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "vendor_bid",
      "args": {
-      "role": "button",
-      "name": "Submit"
+      "price": 100
      },
      "expect": "refused"
     },
-    "note": "Verify that submitting after the countdown ends is refused rather than recording a bid."
+    "note": "Attempt to submit after the countdown; this passes only if the portal refuses the bid or keeps submission disabled."
    },
    {
-    "step": "expect_disabled",
+    "step": "switch_portal",
     "args": {
-     "control": "Submit"
+     "to": "buyer"
     },
-    "note": "Verify the vendor cannot use the submission control after the round has ended."
+    "note": "Check the buyer-side response record after the refused submission."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0,
+     "stage": "rfq"
+    },
+    "note": "Verify that no vendor response was recorded."
    }
   ]
  }

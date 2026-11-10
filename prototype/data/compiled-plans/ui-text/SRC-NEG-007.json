@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-007",
+  "title": "Counter offer during evaluation time: the vendor rejects",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:36:55.154Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Vendor A rejecting the pending counter offer and the counter offer being marked closed as rejected; no catalog step performs or asserts vendor rejection."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Vendor A rejecting the pending counter offer and the counter offer being marked closed as rejected; no catalog step performs or asserts vendor rejection."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "switch_portal",
+   "go_to",
+   "expect_visible",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 13853
+ },
+ "plan": {
+  "title": "SRC-NEG-007 Counter Offer Rejected During Evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen with the vendor's existing normal bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send the buyer's counter offer changing Vendor A's price from the existing bid to 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate Vendor A supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the pending counter offer is available to the vendor."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "as Vendor A, open the pending counter offer and click Reject; stop when the portal shows the rejection completed"
+    },
+    "note": "The catalog has no vendor-side reject-counter-offer action or assertion."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page after the vendor rejection."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the RFQ Responses tab to inspect the post-rejection buyer state."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer",
+     "visible": true
+    },
+    "note": "Verify the buyer can initiate another counter offer after the vendor's rejection."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to verify the bid value shown after rejection."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 100
+    },
+    "note": "Verify Vendor A's original price remains 100 in the buyer's comparison grid."
+   }
+  ]
+ }
+}

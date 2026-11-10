@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-070",
+  "title": "Lots cannot be published during the submission window",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:11:20.177Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open the Split Line Items into Lots drawer and inspect whether its Publish Lot control is available.",
+   "Verify that lots become publishable specifically during the evaluation stage."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the Split Line Items into Lots drawer and inspect whether its Publish Lot control is available.; Verify that lots become publishable specifically during the evaluation stage."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 10654
+ },
+ "plan": {
+  "title": "Lots unavailable during RFQ submission",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an RFQ event so its submission-window state is controlled by this plan."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage, as required by the case."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a publishable RFQ."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a submission window that remains open after publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant before publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ and leave it in its submission window."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the RFQ reached a published project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Split Line Items into Lots",
+     "present": false,
+     "stage": "rfq"
+    },
+    "note": "Assert the lots action is not offered in the RFQ stage Settings menu during submission."
+   }
+  ]
+ }
+}

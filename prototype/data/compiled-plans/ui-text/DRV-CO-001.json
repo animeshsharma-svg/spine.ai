@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "caseId": "DRV-CO-001",
+  "title": "Accepted counter creates a bid revision visible in Master QCS",
+  "group": "DRV-CO",
+  "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
+  "compiledAt": "2026-11-09T23:02:14.672Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The awarding screen displaying the accepted price 90 and recomputed ranking, because the prepared event is live with bidding open and the plan cannot close it before awarding."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The awarding screen displaying the accepted price 90 and recomputed ranking, because the prepared event is live with bidding open and the plan cannot close it before awarding."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "switch_portal",
+   "expect_counter_offer_accepted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 13164
+ },
+ "plan": {
+  "title": "Buyer Counter Offer Acceptance Updates Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ directly on its Responses tab, which is the required starting state."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90,
+     "remark": "Please revise pricing for bulk approval"
+    },
+    "note": "Submit the buyer's lower counter offer with the specified remark on Vendor A's active bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify that the buyer's counter offer was initiated for Vendor A."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Use the vendor portal flow to accept the pending counter offer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session to verify the accepted offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify that the Responses grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Verify that the buyer's Responses tab still shows the vendor response after acceptance."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open Master QCS to inspect the accepted bid and its vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "90"
+    },
+    "note": "Verify that Master QCS displays the accepted counter price of 90."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify that ranking is recomputed from the accepted bid amount."
+   }
+  ]
+ }
+}

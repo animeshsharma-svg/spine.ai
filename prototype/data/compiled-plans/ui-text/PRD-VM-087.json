@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "PRD-VM-087",
+  "title": "Mandatory Document Types (vendor.documents.required) = default without GST Certificate",
+  "group": "PRD-VM",
+  "compiledAt": "2026-11-10T02:57:08.887Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Change the tenant setting vendor.documents.required from PAN and GST Certificate to PAN.",
+   "Import vendors directly from the enterprise VMS/VRP as an Implementation Partner.",
+   "Reach the vendor profile approval submission requirements and verify the configured mandatory document types there.",
+   "unconfirmed label \"GST Certificate\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"GST Certificate\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Change the tenant setting vendor.documents.required from PAN and GST Certificate to PAN.; Import vendors directly from the enterprise VMS/VRP as an Implementation Partner.; Reach the vendor profile approval submission requirements and verify the configured mandatory document types there."
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "ask_tester",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 11882
+ },
+ "plan": {
+  "title": "Mandatory Vendor Documents Exclude GST Certificate",
+  "steps": [
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "set vendor.documents.required to PAN, import vendors from the enterprise VMS/VRP, and leave the vendor approval submission requirements open for verification"
+    },
+    "note": "The catalog cannot administer this tenant setting, perform the VMS/VRP import, or navigate the vendor approval requirements."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "PAN",
+     "present": true
+    },
+    "note": "Checks that PAN remains listed as a required document after the tester completes the missing workflow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "GST Certificate",
+     "present": false
+    },
+    "note": "Checks that GST Certificate is no longer listed in the vendor approval requirements."
+   }
+  ]
+ }
+}

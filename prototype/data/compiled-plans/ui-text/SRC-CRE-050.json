@@ -4,33 +4,38 @@
   "title": "Details of a row",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:06:15.202Z",
+  "compiledAt": "2026-11-10T07:19:55.497Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the product details fields are read-only"
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Assert that the product details fields are read-only"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "expect_template_selected",
-   "expect_sheet_columns",
-   "do_on_screen"
+   "do_on_screen",
+   "click",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 10527
+  "ms": 11711
  },
  "plan": {
-  "title": "SRC-CRE-050 Product Row Details",
+  "title": "Single-stage RFQ product details",
   "steps": [
    {
     "step": "open_create",
@@ -42,47 +47,55 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-CRE-050 Product Row Details"
-    },
-    "note": "Provide the mandatory event title for the create flow."
+    "args": {},
+    "note": "Provide the mandatory event title so the create flow is valid."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is rendered."
-   },
-   {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify that an RFQ template is applied before interacting with the sheet."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
-    },
-    "note": "Verify the product sheet exposes the columns named in the scenario."
+    "note": "Apply an available RFQ template so the product sheet appears."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage RFQ product sheet, add/select the product CYLINDER, choose CYLINDER WITH KEY & KNOB, verify Product Variant fills as Default Variant, enter Quantity Requested as 10, choose Plant Name (LOC-0001) for Delivery location, click Details on the row, and verify the product details open showing code, variant, specification, and attachments as read-only."
+     "goal": "on the single-stage RFQ product sheet, select the product CYLINDER and the variant CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, and stop with the populated row visible"
     },
-    "note": "Perform and verify the row-level product selection, data entry, Details action, and read-only product details that have no dedicated domain step."
+    "note": "The catalog has no dedicated step for choosing the named product, variant, or delivery location in the sheet, so perform those buyer-side interactions directly."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Details"
+    },
+    "note": "Open the Details view for the populated product row."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Specification"
+    },
+    "note": "Verify that the product details include specification information."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Attachments"
+    },
+    "note": "Verify that the product details include attachments information."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Verify that the opened details identify the selected product variant."
    }
   ]
  }

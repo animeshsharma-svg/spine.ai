@@ -1,0 +1,172 @@
+{
+ "meta": {
+  "caseId": "SRC-PUB-008",
+  "title": "Double-click Publish",
+  "group": "SRC-PUB",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:38:04.488Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Guaranteeing that the two Publish Event clicks occur quickly enough to exercise double-click handling rather than two ordinary clicks",
+   "Selecting the exact CYLINDER WITH KEY & KNOB product and verifying Product Variant auto-fills Default Variant",
+   "Selecting the exact Plant Name (LOC-0001) delivery location",
+   "Adding the specifically named Vendor A because the case does not provide a catalog-recognized vendor name"
+  ],
+  "warnings": [
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Guaranteeing that the two Publish Event clicks occur quickly enough to exercise double-click handling rather than two ordinary clicks; Selecting the exact CYLINDER WITH KEY & KNOB product and verifying Product Variant auto-fills Default Variant; Selecting the exact Plant Name (LOC-0001) delivery location; Adding the specifically named Vendor A because the case does not provide a catalog-recognized vendor name"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "invite_vendor",
+   "set_schedule",
+   "click",
+   "click",
+   "expect_published",
+   "save_draft",
+   "open_events_list",
+   "fill",
+   "expect_table"
+  ],
+  "ms": 17281
+ },
+ "plan": {
+  "title": "Double-click Publish Creates One Event",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow specified by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PUB-008 Double-click Publish"
+    },
+    "note": "Provide the required title and a value to search for after publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ template so the pricing sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add one line item using the closest available product search."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the remaining pricing-sheet fields with valid defaults."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Set the requested quantity from the case."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Attempt to set the requested delivery location using the sheet cell."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one available QA vendor so publishing can proceed."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule specified by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish Event"
+    },
+    "note": "Perform the first publish click."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish Event"
+    },
+    "note": "Perform the second publish click as the closest available representation of the requested double-click."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the event was created and the browser reached its project page."
+   },
+   {
+    "step": "save_draft"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to check for duplicate creation."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Title",
+     "value": "SRC-PUB-008 Double-click Publish"
+    },
+    "note": "Search for the event created by this plan."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "rows": 1,
+     "row": "SRC-PUB-008 Double-click Publish",
+     "present": true
+    },
+    "note": "Assert that exactly one matching event row exists."
+   }
+  ]
+ }
+}

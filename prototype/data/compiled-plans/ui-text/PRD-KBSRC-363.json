@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-363",
+  "title": "Total submission time is calculated from the number of line items",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:17:47.056Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable Serial Bidding for the auction",
+   "Configure a per-line-item duration for Serial Bidding"
+  ],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Enable Serial Bidding for the auction; Configure a per-line-item duration for Serial Bidding"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "set_schedule",
+   "remember",
+   "add_line_items",
+   "expect_remembered"
+  ],
+  "ms": 74724
+ },
+ "plan": {
+  "title": "Serial bidding total time updates with line count",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation flow for an auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Serial Bidding Duration Check"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the initial line item whose submission duration will be observed."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit an initial schedule so the displayed total submission time is available for comparison."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "initialSubmissionDuration",
+     "text": "30 Mins"
+    },
+    "note": "Record the initial displayed duration."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one more line item to trigger any automatic total-duration recalculation."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "initialSubmissionDuration",
+     "same": false,
+     "text": "30 Mins"
+    },
+    "note": "Assert that the displayed submission duration changed after the line-item count increased."
+   }
+  ]
+ }
+}

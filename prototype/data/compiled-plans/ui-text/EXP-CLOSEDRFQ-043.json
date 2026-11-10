@@ -1,0 +1,113 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-043",
+  "title": "Recreate Order: Enter a past date for Delivery Date",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:29:55.203Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The separate Vendor A bid-row ⋮ menu route to Settings → Recreate Order cannot be targeted directly; the catalog only exposes the stage Settings menu route."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The separate Vendor A bid-row ⋮ menu route to Settings → Recreate Order cannot be targeted directly; the catalog only exposes the stage Settings menu route."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "select",
+   "fill",
+   "pick_date",
+   "attempt"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 11539
+ },
+ "plan": {
+  "title": "Recreate Order with Past Delivery Date",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ with one invited vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the bid is shown."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Assert that the Recreate Order window opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "4 Hrs"
+    },
+    "note": "Set the requested event end-time duration."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "20"
+    },
+    "note": "Enter the requested evaluation duration."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Delivery Date",
+     "date": "2023-12-01"
+    },
+    "note": "Choose the past Delivery Date from the date picker."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to create the order and require evidence that Procol refuses the past delivery date."
+   }
+  ]
+ }
+}

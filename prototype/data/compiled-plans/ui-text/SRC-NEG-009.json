@@ -1,0 +1,157 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-009",
+  "title": "Buyer revokes a pending counter offer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:37:21.905Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact setup named in the case—a specific RFQ in evaluation with Vendor A at 100 and Vendor B at 90—cannot be selected by title or reproduced from the prepared state, which provides one live vendor bid."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The exact setup named in the case—a specific RFQ in evaluation with Vendor A at 100 and Vendor B at 90—cannot be selected by title or reproduced from the prepared state, which provides one live vendor bid."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "go_to",
+   "click",
+   "expect_visible",
+   "go_to",
+   "expect_qcs_cell",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 26910
+ },
+ "plan": {
+  "title": "Revoke Pending Counter Offer",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prebuilt RFQ event without creating or searching for another event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the vendor bid and counter-offer controls are shown."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid required before sending a buyer counter offer."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send the counter offer against the prepared vendor bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer view marks the counter offer as pending."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the Responses grid to access the pending offer's revoke control."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer"
+    },
+    "note": "Revoke the pending counter offer for the vendor bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer",
+     "visible": true
+    },
+    "note": "Verify the buyer again has the Counter Offer action after revocation."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to Master QCS to verify the original bid value was restored."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "key": "bidPrice"
+    },
+    "note": "Verify the vendor's original bid value is active again; the prepared bid value is held by the API."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's separate supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview to inspect whether a pending counter offer remains visible to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": false
+    },
+    "note": "Verify the vendor no longer sees a pending counter offer."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the vendor's pricing sheet after revocation."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Submit a revised bid to verify the vendor can revise again after the counter offer is revoked."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor's revised quote was accepted and submitted."
+   }
+  ]
+ }
+}

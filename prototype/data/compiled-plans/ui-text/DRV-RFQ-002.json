@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-002",
+  "title": "Member without lot‑splitting permission cannot see \"Split into Lot\" button",
+  "group": "DRV-RFQ",
+  "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
+  "compiledAt": "2026-11-09T23:08:31.340Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable commercial masking for the tenant before the test",
+   "Verify that the commercial section remains masked after the refusal"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Enable commercial masking for the tenant before the test; Verify that the commercial section remains masked after the refusal"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "switch_portal",
+   "vendor_open_event",
+   "click",
+   "expect_message"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 12369
+ },
+ "plan": {
+  "title": "RFQ unauthorized commercial access",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required commercial line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Invite the vendor named in the case."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to Vendor A's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the assigned RFQ without entering the bid sheet."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Open Commercials"
+    },
+    "note": "Attempt the unauthorized manual commercial-opening action."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "You are not authorized to perform this action"
+    },
+    "note": "Verify the expected authorization refusal."
+   }
+  ]
+ }
+}

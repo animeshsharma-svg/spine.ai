@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-003",
+  "title": "RFQ: keep the same price (100 → 100)",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:46:31.383Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact event-list search-and-open flow for the named RFQ cannot be used because the prepared event must be opened directly and has no named title."
+  ],
+  "warnings": [
+   "resolved: “The vendor portal's revision history cannot be inspected to distinguish no new revision from a saved revision 2.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: The exact event-list search-and-open flow for the named RFQ cannot be used because the prepared event must be opened directly and has no named title."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "go_to",
+   "expect_responses",
+   "go_to",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell"
+  ],
+  "state": "two_bids",
+  "screen": "master_qcs",
+  "ms": 14931
+ },
+ "plan": {
+  "title": "SRC-REV-003 RFQ Same-Price Revision",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared RFQ on the buyer side; this is the required starting point for the existing event."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Add the second bid at 90 so the event matches the two-bid comparison while keeping the prepared vendor's 100 bid available for revision."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the buyer-side surrogate bid at 90 was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session while leaving the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared RFQ's pricing round in the vendor portal, where Vendor A's existing bid can be revised."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Resubmit the vendor's bid at the unchanged price of 100, exercising the revise/edit submission."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal shows the RFQ bid as submitted after the same-price revision."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's project page to inspect the resulting bids."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view for the revised RFQ."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 1,
+     "surrogate": 1
+    },
+    "note": "Confirm both the vendor's direct bid and the surrogate bid are visible to the buyer."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS to verify the comparison values after revision."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Confirm the comparison grid contains two real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 100
+    },
+    "note": "Verify the revising vendor's RFQ rate remains 100."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "number": 90
+    },
+    "note": "Verify the other bid remains 90, preserving the two-bid comparison."
+   }
+  ]
+ }
+}

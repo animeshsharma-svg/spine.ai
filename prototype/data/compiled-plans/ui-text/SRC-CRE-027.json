@@ -4,24 +4,22 @@
   "title": "Forward auction: Quantity Requested = a decimal 2.5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:58:51.041Z",
+  "compiledAt": "2026-11-10T07:18:20.105Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select or verify a forward (sell) auction direction/template.",
-   "Set the line item's Plant Name to LOC-0001.",
-   "Assert the conditional outcome that the value is either rounded or refused for whole-number units while accepting 2.5 for decimal-capable units."
+   "Selecting and verifying the specific forward (sell) auction template because no template name is provided and the catalog cannot assert auction direction from the selected template.",
+   "Setting and verifying Plant Name (LOC-0001) for the added product because no product-location selection step is available.",
+   "Expressing the conditional expected result that whole-number units may round or refuse while decimal-capable units retain 2.5."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "can only test part of this — no step for: Select or verify a forward (sell) auction direction/template.; Set the line item's Plant Name to LOC-0001.; Assert the conditional outcome that the value is either rounded or refused for whole-number units while accepting 2.5 for decimal-capable units."
+   "can only test part of this — no step for: Selecting and verifying the specific forward (sell) auction template because no template name is provided and the catalog cannot assert auction direction from the selected template.; Setting and verifying Plant Name (LOC-0001) for the added product because no product-location selection step is available.; Expressing the conditional expected result that whole-number units may round or refuse while decimal-capable units retain 2.5."
   ],
   "source": "llm",
   "steps": 11,
@@ -31,62 +29,50 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
-   "set_sheet_cell",
    "expect_sheet_cell",
-   "invite_vendor",
+   "fill_sheet",
    "set_schedule",
-   "publish"
+   "invite_vendor",
+   "publish",
+   "expect_published"
   ],
-  "ms": 140370
+  "ms": 18018
  },
  "plan": {
-  "title": "Forward Auction Decimal Quantity",
+  "title": "Single-stage auction decimal quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the required Single Stage create screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction"
     },
-    "note": "Change the initial event type to Auction; the catalog has no forward/sell direction control."
+    "note": "Changes the event type from the default RFP to Auction."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-CRE-027 Decimal Forward Auction"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Provides the mandatory event title without replacing any title under test."
    },
    {
     "step": "select_template",
-    "note": "Select the first available auction template; a forward-specific template cannot be selected by a confirmed name."
+    "args": {},
+    "note": "Applies the first available auction template; the exact forward template cannot be identified from the case."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "2.5"
     },
-    "note": "Add the requested product as the first line item."
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "2.5"
-    },
-    "note": "Enter the decimal quantity in the pricing sheet and press Tab as the case requires."
+    "note": "Adds the requested product and enters the decimal quantity in the first row."
    },
    {
     "step": "expect_sheet_cell",
@@ -95,25 +81,36 @@
      "column": "Quantity Requested",
      "equals": "2.5"
     },
-    "note": "Assert that the sheet kept the decimal value; rounding or refusal alternatives cannot be represented in one assertion."
+    "note": "Checks whether the quantity cell preserves 2.5 after entry."
    },
    {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one available QA vendor so the event can be published."
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes any remaining required pricing-sheet fields so the event can continue if the quantity is accepted."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute schedule."
+    "note": "Commits the required 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds one available QA vendor before publishing."
    },
    {
     "step": "publish",
-    "note": "Attempt to publish the configured auction after the quantity check."
+    "args": {},
+    "note": "Attempts to publish the completed auction after the quantity observation."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms publication succeeded when the entered quantity is accepted."
    }
   ]
  }

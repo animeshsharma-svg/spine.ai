@@ -1,0 +1,117 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-042",
+  "title": "Recreate Order: Attempt to create order with Delivery Date not selected",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:29:48.090Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open Vendor A's bid-row ⋮ menu and choose Settings → Recreate Order; the catalog only opens Recreate Order from the RFQ stage Settings menu."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open Vendor A's bid-row ⋮ menu and choose Settings → Recreate Order; the catalog only opens Recreate Order from the RFQ stage Settings menu."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "select",
+   "fill",
+   "click",
+   "expect_field_error",
+   "expect_visible"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 10444
+ },
+ "plan": {
+  "title": "Recreate Order Missing Delivery Date",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared closed RFQ with one invited vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab containing the vendor bid."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the Recreate Order window using the available RFQ Settings action."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "15"
+    },
+    "note": "Set the requested event end-time duration."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "10"
+    },
+    "note": "Enter the requested evaluation duration."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Submit the form while deliberately leaving Delivery Date empty."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Delivery Date",
+     "message": "Please select a delivery date"
+    },
+    "note": "Verify creation is blocked by the delivery-date validation message."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the validation leaves the Recreate Order window open."
+   }
+  ]
+ }
+}

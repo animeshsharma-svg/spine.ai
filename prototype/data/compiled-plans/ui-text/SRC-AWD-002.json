@@ -4,101 +4,87 @@
   "title": "One bid: award all 10 units to Vendor A; approver approves with a remark",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:10:58.009Z",
+  "compiledAt": "2026-11-10T07:04:10.607Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it",
-   "Verify the submitted allocation itself is exactly 10 units at 100 for a total of 1,000 on the awarding/proposal screen",
-   "Verify this specific prepared event moves to History after approval because its title is not available to the plan"
+   "Sign in as the separate approver user, open the proposal from Approvals, enter the remark \"OK — QA\", and approve it as that approver",
+   "Directly verify the proposal shows Vendor A with exactly 10 × 100 = 1,000 before submission",
+   "Verify the approval-in-progress state and the specific prepared event's row after it moves to History"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the separate approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it; Verify the submitted allocation itself is exactly 10 units at 100 for a total of 1,000 on the awarding/proposal screen; Verify this specific prepared event moves to History after approval because its title is not available to the plan"
+   "can only test part of this — no step for: Sign in as the separate approver user, open the proposal from Approvals, enter the remark \"OK — QA\", and approve it as that approver; Directly verify the proposal shows Vendor A with exactly 10 × 100 = 1,000 before submission; Verify the approval-in-progress state and the specific prepared event's row after it moves to History"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_amounts",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
    "award_event",
    "expect_awarded",
-   "ask_tester",
+   "approve_award",
    "create_po",
    "expect_po_items"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 7072
+  "ms": 9818
  },
  "plan": {
-  "title": "SRC-AWD-002 — Award and approve one bid",
+  "title": "SRC-AWD-002 — Award one bid and approve",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state cases."
+    "note": "Open the prepared closed RFQ's Master QCS as required for this state."
    },
    {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 1,
-     "realNames": true
-    },
-    "note": "Confirm the comparison grid has exactly one real vendor column."
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding page for the closed event."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "allocate_award",
     "args": {
-     "row": "Qty Offer",
-     "key": "quantity",
-     "vendor": 1
+     "vendor": "Vendor A"
     },
-    "note": "Verify the sole bid covers the API-held quantity of 10 units."
+    "note": "Allocate the available line item to the named vendor."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_award_counters",
     "args": {
-     "row": "RFQ Rate",
-     "key": "bidPrice",
-     "vendor": 1
+     "items": "1/1",
+     "vendors": "1/1"
     },
-    "note": "Verify the sole bid rate matches the API-held bid price of 100."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": 1
-    },
-    "note": "Verify the bid arithmetic, including 100 × 10 = 1,000 and the matching total."
+    "note": "Verify all available line items and one vendor are selected for award."
    },
    {
     "step": "award_event",
     "args": {
-     "vendor": "lowest"
+     "vendor": "Vendor A"
     },
-    "note": "Allocate the only bid and submit the award proposal in the complete awarding flow."
+    "note": "Create and submit the award proposal for Vendor A."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Confirm the award proposal was created and submitted."
+    "note": "Verify the award proposal was created and submitted."
    },
    {
-    "step": "ask_tester",
+    "step": "approve_award",
     "args": {
-     "need": "sign in as the assigned approver, open the submitted proposal from Approvals, enter the remark \"OK — QA\", and approve it"
+     "remark": "OK — QA"
     },
-    "note": "The approval requires a separate approver identity unavailable to the catalog."
+    "note": "Approve the submitted award using the available pending-approver flow and the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete PO creation after the award has been approved."
+    "note": "Complete the award approval flow and create the purchase order for the awarded vendor."
    },
    {
     "step": "expect_po_items",
@@ -106,7 +92,7 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Confirm one PO carries the awarded line with quantity 10."
+    "note": "Verify the resulting purchase order contains the awarded line with quantity 10."
    }
   ]
  }

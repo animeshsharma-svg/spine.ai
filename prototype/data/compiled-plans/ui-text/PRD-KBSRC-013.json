@@ -1,0 +1,113 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-013",
+  "title": "An RFQ and an Auction cannot be created together; max 2 stages at creation",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:07:31.151Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "expect_stages",
+   "set_title",
+   "open_add_stage_menu",
+   "expect_add_stage_options",
+   "compose_stages",
+   "expect_stages",
+   "open_add_stage_menu",
+   "expect_add_stage_options"
+  ],
+  "ms": 10650
+ },
+ "plan": {
+  "title": "RFQ and Auction Stage Exclusivity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage project creation screen where stage selection is available."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Select RFQ as the initial stage."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Confirm that RFQ is the selected stage before checking incompatible options."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFQ Auction Stage Constraint Test"
+    },
+    "note": "Provide the required event title for this creation flow."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Open the stage selector to inspect which additional stages are allowed."
+   },
+   {
+    "step": "expect_add_stage_options",
+    "args": {
+     "offers": [
+      "Technical Stage"
+     ],
+     "absent": [
+      "Auction"
+     ]
+    },
+    "note": "Assert that Auction cannot be added alongside RFQ while Technical Stage remains available."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Add the permitted second stage to reach the maximum of two stages."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Confirm that exactly the two selected stages are present."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Reopen the selector after two stages have been selected."
+   },
+   {
+    "step": "expect_add_stage_options",
+    "args": {
+     "disabled": true
+    },
+    "note": "Assert that no third stage can be selected once the two-stage limit is reached."
+   }
+  ]
+ }
+}

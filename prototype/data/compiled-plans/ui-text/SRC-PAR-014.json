@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "SRC-PAR-014",
+  "title": "Invite a new vendor by e-mail with a bad address",
+  "group": "SRC-PAR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:57:06.230Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting the CYLINDER product, CYLINDER WITH KEY & KNOB variant, quantity 10, and Plant Name (LOC-0001) through dedicated catalog steps",
+   "Opening the new-vendor email invitation form, entering the vendor name and malformed email abc@, and observing its validation through a dedicated domain step"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting the CYLINDER product, CYLINDER WITH KEY & KNOB variant, quantity 10, and Plant Name (LOC-0001) through dedicated catalog steps; Opening the new-vendor email invitation form, entering the vendor name and malformed email abc@, and observing its validation through a dedicated domain step"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "expect_message"
+  ],
+  "ms": 21303
+ },
+ "plan": {
+  "title": "Reject invalid vendor email invitation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation flow described by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title so the setup can proceed to participant invitation."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ template so the product sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the required product-sheet row."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the remaining pricing-sheet setup before inviting a vendor."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's single-stage RFQ create screen, select the CYLINDER product, choose CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, open the option to invite a new vendor by email, enter vendor email abc@ and a name, submit the invitation, and stop when the screen shows the refusal Please enter a valid email"
+    },
+    "note": "Perform the exact product setup and unsupported quick-invite interaction in the buyer session."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please enter a valid email"
+    },
+    "note": "Assert the malformed email was refused with the expected validation message."
+   }
+  ]
+ }
+}

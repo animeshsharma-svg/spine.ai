@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-055",
+  "title": "Increase Event Time: Window stays open and shows error when no radio option is selected and Ok is pressed",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:23:11.420Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "do_on_screen",
+   "click",
+   "expect_message",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 13372
+ },
+ "plan": {
+  "title": "Increase Time With No Option Selected",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab where the stage Settings menu is available."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Confirm the Increase Event Time window opened before modifying its selection."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "deselect any selected Increase Event Time radio option, if the buyer UI permits, and leave the Increase Event Time window open with no option selected"
+    },
+    "note": "Perform the case-specific UI interaction that has no dedicated catalog action."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Ok"
+    },
+    "note": "Submit the dialog with no duration option selected."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that Procol reports a validation error for the missing duration selection."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Assert that the Increase Event Time window stays open after the refused submission."
+   }
+  ]
+ }
+}

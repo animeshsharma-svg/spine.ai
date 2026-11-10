@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "PRA-REG-001",
+  "title": "Other user pickers are not affected",
+  "group": "PRA-REG",
+  "sheet": "pr-assignee",
+  "compiledAt": "2026-11-10T01:06:12.588Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Log in specifically as the PR manager who assigns PRs.",
+   "Verify the picker contains exactly the same users as before this change.",
+   "Verify that the picker applies no category filtering compared with the pre-change user list."
+  ],
+  "warnings": [
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "can only test part of this — no step for: Log in specifically as the PR manager who assigns PRs.; Verify the picker contains exactly the same users as before this change.; Verify that the picker applies no category filtering compared with the pre-change user list."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_text",
+   "expect_count",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 17633
+ },
+ "plan": {
+  "title": "Other User Picker Regression",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API builds the proposal event this case starts from"
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Change Owner"
+    },
+    "note": "Open the event's Change Owner user picker, which is the closest available non-PR user dropdown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Change Owner"
+    },
+    "note": "Confirm that the Change Owner picker is open."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "option",
+     "min": 1
+    },
+    "note": "Confirm that the picker exposes user options, without inventing expected names."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the PR manager, provide the pre-change user list, and verify that the Change Owner picker contains the same users without category filtering"
+    },
+    "note": "The catalog cannot provide the required identity, historical baseline, or category-comparison assertion."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure no visible application error or crash occurred while inspecting the picker."
+   }
+  ]
+ }
+}

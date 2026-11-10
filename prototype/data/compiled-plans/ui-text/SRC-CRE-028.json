@@ -4,22 +4,25 @@
   "title": "Forward auction: Quantity Requested = a very large number 99999999",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:00:59.567Z",
+  "compiledAt": "2026-11-10T07:18:22.401Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The forward/sell auction orientation and exact forward auction template cannot be asserted.",
+   "The Plant Name (LOC-0001) line-item location cannot be set or verified by a catalog step.",
+   "The totals' thousands formatting and absence of numeric overflow cannot be directly asserted; expect_screen_clean only checks for malformed values and errors."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+   "can only test part of this — no step for: The forward/sell auction orientation and exact forward auction template cannot be asserted.; The Plant Name (LOC-0001) line-item location cannot be set or verified by a catalog step.; The totals' thousands formatting and absence of numeric overflow cannot be directly asserted; expect_screen_clean only checks for malformed values and errors."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -29,92 +32,106 @@
    "fill_sheet",
    "set_sheet_cell",
    "expect_sheet_cell",
+   "expect_screen_clean",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "expect_screen_clean"
   ],
-  "ms": 193125
+  "ms": 15644
  },
  "plan": {
-  "title": "Forward auction quantity requested very large number 99999999",
+  "title": "Single-stage auction large quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single stage create screen"
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Configure as auction"
+    "note": "Change the event type from RFP to Auction."
    },
    {
     "step": "set_title",
-    "note": "Set event title"
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "select_template",
-    "note": "Select template"
+    "args": {},
+    "note": "Apply the first available auction template so the pricing sheet is available; the exact forward template cannot be selected confidently."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "99999999"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add item with very large quantity"
+    "note": "Add the requested product as the first line item."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Render and populate the auction pricing sheet before editing the requested quantity."
    },
    {
     "step": "set_sheet_cell",
     "args": {
-     "column": "Quantity Requested",
      "row": 1,
+     "column": "Quantity Requested",
      "value": "99999999"
     },
-    "note": "Type large quantity into cell"
+    "note": "Enter the very large quantity directly into the first sheet row and advance with Tab."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
+     "row": 1,
      "column": "Quantity Requested",
-     "equals": "99999999",
-     "kept": true,
-     "row": 1
+     "equals": "99,999,999"
     },
-    "note": "Assert quantity is kept and shown correctly"
+    "note": "Verify the quantity is retained and displayed with thousands separators."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the sheet has no NaN, undefined, raw IDs, server error, or page crash after the large value is entered."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set event schedule"
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite vendor"
+    "note": "Add one available QA vendor so the event can be published."
    },
    {
     "step": "publish",
-    "note": "Publish event"
+    "args": {},
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
-    "note": "Assert event published successfully"
+    "args": {},
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check the published event page for malformed values, errors, or crashes after publishing."
    }
   ]
  }

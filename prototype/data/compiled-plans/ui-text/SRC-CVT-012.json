@@ -4,51 +4,50 @@
   "title": "Vendors bid in the converted auction",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:12:19.387Z",
+  "compiledAt": "2026-11-10T07:22:55.151Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect and assert the conversion pop-up options for reusing RFQ quotes, participants, and weights.",
-   "Directly verify that the RFQ stage is read-only after conversion.",
-   "Select the specifically titled closed RFQ because the test case does not provide its title; open_event must choose a fitting existing event."
+   "The conversion pop-up offers options to reuse RFQ quotes, participants, and weights",
+   "The RFQ stage remains read-only after conversion"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Inspect and assert the conversion pop-up options for reusing RFQ quotes, participants, and weights.; Directly verify that the RFQ stage is read-only after conversion.; Select the specifically titled closed RFQ because the test case does not provide its title; open_event must choose a fitting existing event."
+   "can only test part of this — no step for: The conversion pop-up offers options to reuse RFQ quotes, participants, and weights; The RFQ stage remains read-only after conversion"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "convert_to_auction",
    "publish",
-   "place_bid",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
    "expect_bid_submitted",
+   "switch_portal",
    "open_master_qcs",
    "expect_qcs_ranks"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 20360
+  "ms": 14357
  },
  "plan": {
-  "title": "Vendors bid in converted auction",
+  "title": "Vendors Bid in Converted Auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prebuilt closed RFQ without recreating or searching for the event."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the published RFQ into an auction and continue to the converted auction create screen."
+    "note": "Convert the published RFQ into an auction; this opens the converted auction's create screen."
    },
    {
     "step": "publish",
@@ -56,12 +55,26 @@
     "note": "Publish the converted auction."
    },
    {
-    "step": "place_bid",
+    "step": "switch_portal",
     "args": {
-     "vendor": 1,
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Open the invited vendor's supplier portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the converted auction's pricing round in the vendor portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
      "price": 85
     },
-    "note": "Have the first invited vendor submit the reduced auction price of 85 from the vendor portal."
+    "note": "Submit Vendor A's revised lower price of 85."
    },
    {
     "step": "expect_bid_submitted",
@@ -69,17 +82,24 @@
     "note": "Verify the vendor portal accepted the revised bid."
    },
    {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's project page."
+   },
+   {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's comparison grid for the converted auction."
+    "note": "Open the buyer's comparison grid to inspect the auction result."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
+     "by": "lowest",
      "order": "lowest"
     },
-    "note": "Verify the auction ranking follows the current bid amounts, with the lowest amount ranked first."
+    "note": "Verify the buyer-side ranking follows the lowest bid amount."
    }
   ]
  }

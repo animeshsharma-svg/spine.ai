@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "SRC-VEN-004",
+  "title": "Vendor view when counter offer pending",
+  "group": "SRC-VEN",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:20:58.453Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vendor’s Reject control has no confirmed catalog label, so its exact control identity cannot be asserted reliably."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The vendor’s Reject control has no confirmed catalog label, so its exact control identity cannot be asserted reliably."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_event",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "vendor_open_event",
+   "attempt"
+  ],
+  "ms": 14381
+ },
+ "plan": {
+  "title": "Vendor view with pending counter offer",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing RFQ with a pending counter offer rather than creating a new event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate vendor portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the pending counter offer and its response action are shown."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Accept Counter Offer",
+     "visible": true
+    },
+    "note": "Assert that the vendor can accept the pending counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": true
+    },
+    "note": "Assert that the vendor view identifies the pending counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Reject",
+     "present": true
+    },
+    "note": "Attempt to observe the expected reject response; the exact control label is not confirmed by the catalog."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the pricing round so the vendor’s price-editing behavior can be tested."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "submit": false,
+      "price": 110
+     },
+     "expect": "refused"
+    },
+    "note": "Verify that the vendor cannot edit the price while the counter offer remains pending."
+   }
+  ]
+ }
+}

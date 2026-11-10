@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "SRC-EXT-007",
+  "title": "Extend the live reverse auction to earlier than the current end",
+  "group": "SRC-EXT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:25:38.456Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "remember",
+   "extend_time",
+   "expect_remembered"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 15046
+ },
+ "plan": {
+  "title": "Reject Earlier Submission End Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live reverse auction in the buyer console."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "current_end",
+     "text": "Bidding Ends At"
+    },
+    "note": "Record the displayed current end time before attempting the invalid change."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "fixed",
+     "at": "-10m",
+     "expect": "refused",
+     "message": "New time cannot be less than existing",
+     "confirm": true
+    },
+    "note": "Attempt to set the submission end to a time earlier than the current end and assert Procol refuses it with the expected message."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "current_end",
+     "same": true
+    },
+    "note": "Verify the displayed end time did not change after the refusal."
+   }
+  ]
+ }
+}

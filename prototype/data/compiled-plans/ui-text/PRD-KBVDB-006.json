@@ -1,0 +1,166 @@
+{
+ "meta": {
+  "caseId": "PRD-KBVDB-006",
+  "title": "Technical response can be changed and re-submitted while submission time is running",
+  "group": "PRD-KBVDB",
+  "compiledAt": "2026-11-10T06:53:34.315Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "resolved: “Change arbitrary Technical Stage response values, resubmit them from the vendor portal, and verify the changed values ar” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 11901
+ },
+ "plan": {
+  "title": "Technical response resubmission while open",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the two-stage event needed for a Technical Stage response."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Add the Technical Stage and pricing stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "configure the rfp stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfp needs its own template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a running submission window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the vendor who will submit and revise the response."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event while leaving time for a response revision."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor's initial submission was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Reopen the event's Technical Stage response screen."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "change one or more submitted Technical Stage answers in the vendor portal, scroll to the bottom, submit the response again, and confirm the changed values and resubmission confirmation"
+    },
+    "note": "No catalog step can edit arbitrary technical questionnaire answers or assert the changed values after resubmission."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Assert the vendor portal shows the submitted state after the tester completes the revision."
+   }
+  ]
+ }
+}

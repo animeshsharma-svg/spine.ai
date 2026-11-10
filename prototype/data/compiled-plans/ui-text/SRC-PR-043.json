@@ -1,0 +1,154 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-043",
+  "title": "Create a Single Stage RFQ from an open asset PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:32:39.057Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the asset line retains Account Assignment A and that this assignment is carried to a subsequently created purchase order.",
+   "Verify the specific PR line moves to In Progress with this event's number and that the published event explicitly shows it came from that PR.",
+   "Verify the PR-derived delivery location is locked if the screen does not expose it as a locked sheet cell."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify the asset line retains Account Assignment A and that this assignment is carried to a subsequently created purchase order.; Verify the specific PR line moves to In Progress with this event's number and that the published event explicitly shows it came from that PR.; Verify the PR-derived delivery location is locked if the screen does not expose it as a locked sheet cell."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_sheet_cells",
+   "set_title",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "open_event",
+   "expect_menu_item"
+  ],
+  "ms": 19665
+ },
+ "plan": {
+  "title": "Create Single-Stage RFQ from Asset PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify the PR quantity is shown on the created event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify the PR unit is shown on the created event."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Assert that PR-derived product, variant, and requested quantity cells are locked."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title using the product's generated title behavior."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named in the test case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed single-stage RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to the event created by this plan for post-publish checks."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
+   }
+  ]
+ }
+}

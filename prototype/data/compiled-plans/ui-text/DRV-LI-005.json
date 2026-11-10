@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "DRV-LI-005",
+  "title": "Double‑click Delete quickly before API response does not create duplicate deletion",
+  "group": "DRV-LI",
+  "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
+  "compiledAt": "2026-11-09T23:06:58.268Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The required starting state has two active line items; the prepared live RFQ provides exactly one line item.",
+   "The exact absence of a second deletion API call cannot be asserted because the deletion request path is not specified.",
+   "The catalog cannot guarantee that the second click occurs before the first request returns."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The required starting state has two active line items; the prepared live RFQ provides exactly one line item.; The exact absence of a second deletion API call cannot be asserted because the deletion request path is not specified.; The catalog cannot guarantee that the second click occurs before the first request returns."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "click",
+   "click",
+   "expect_count",
+   "expect_toast"
+  ],
+  "state": "live",
+  "screen": "overview",
+  "ms": 10176
+ },
+ "plan": {
+  "title": "Prevent duplicate line-item deletion",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "overview"
+    },
+    "note": "Open the prepared live RFQ directly on its Overview tab."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Delete"
+    },
+    "note": "Trigger deletion of the available line item."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Delete"
+    },
+    "note": "Immediately repeat the Delete action to exercise duplicate-click handling."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Line item deleted successfully",
+     "count": 1
+    },
+    "note": "Assert that exactly one success toast is rendered."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Line item deleted successfully"
+    },
+    "note": "Confirm the deletion completed successfully with the expected message."
+   }
+  ]
+ }
+}

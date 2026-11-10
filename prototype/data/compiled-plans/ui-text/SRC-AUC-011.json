@@ -4,12 +4,12 @@
   "title": "Auction with traffic light without a range",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:09:15.860Z",
+  "compiledAt": "2026-11-10T07:03:26.519Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select the specifically named reverse (buy) auction template because no exact template name is provided.",
-   "Set the first line item's Plant Name to LOC-0001 because no catalog step targets that sheet field precisely."
+   "Set the first line item's Plant Name to LOC-0001.",
+   "Select the specifically intended Vendor A and Vendor B because their exact QA vendor names are not provided."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,7 +18,7 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Select the specifically named reverse (buy) auction template because no exact template name is provided.; Set the first line item's Plant Name to LOC-0001 because no catalog step targets that sheet field precisely."
+   "can only test part of this — no step for: Set the first line item's Plant Name to LOC-0001.; Select the specifically intended Vendor A and Vendor B because their exact QA vendor names are not provided."
   ],
   "source": "llm",
   "steps": 9,
@@ -33,7 +33,7 @@
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 13658
+  "ms": 12896
  },
  "plan": {
   "title": "Traffic-light auction without range",
@@ -52,19 +52,17 @@
      "auctionSubtype": "traffic_light",
      "awarding": "lot"
     },
-    "note": "Configure a buy auction with traffic-light ranking and intentionally omit both range bounds."
+    "note": "Configure a buy auction with traffic-light ranking and omit both range bounds to test the invalid configuration."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-AUC-011 Traffic Light Missing Range"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Provide the required event title so publishing reaches the traffic-light validation."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template so the product sheet can be configured."
+    "note": "Apply the first available reverse-auction template."
    },
    {
     "step": "add_line_items",
@@ -73,33 +71,33 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product with quantity 10."
+    "note": "Add the requested product and quantity; the catalog cannot set its plant location."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet required before publishing."
+    "note": "Complete the pricing sheet fields required before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute schedule."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Add the two vendors required by the scenario."
+    "note": "Invite two available QA vendors; their exact identities cannot be selected without names."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
-     "because": "Traffic light"
+     "because": "Traffic light type is required"
     },
-    "note": "Press Publish and assert that the missing traffic-light range blocks publication with the product's traffic-light validation message."
+    "note": "Assert that Publish Event is refused because the traffic-light range is missing."
    }
   ]
  }

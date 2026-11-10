@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "DRV-EVT-008",
+  "title": "Vendor portal masks participation status details of competitor vendors",
+  "group": "DRV-EVT",
+  "sheet": "derived-track-each-vendor-s-participation-status",
+  "compiledAt": "2026-11-09T23:06:34.265Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Comprehensively assert that every competitor vendor identity is hidden because no competitor names or dedicated vendor-privacy assertion is available",
+   "Comprehensively assert that all competitor participation metrics are hidden across every vendor list or participation tab",
+   "unconfirmed label \"Not Participated\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "resolved: “Comprehensively assert that competitor quotes are hidden from the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "coverage partial: unconfirmed label \"Not Participated\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Comprehensively assert that every competitor vendor identity is hidden because no competitor names or dedicated vendor-privacy assertion is available; Comprehensively assert that all competitor participation metrics are hidden across every vendor list or participation tab"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 10203
+ },
+ "plan": {
+  "title": "Vendor Portal Masks Competitor Participation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared live RFQ summary as required for prepared-state cases."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the prepared RFQ project page in the vendor portal without entering a bid round."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Verify the vendor can see its own submitted participation status."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Participation Summary",
+     "present": false
+    },
+    "note": "Check that the vendor overview does not expose the buyer-side participation summary."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Not Participated",
+     "present": false
+    },
+    "note": "Check that competitor participation-status wording is not exposed on the vendor project page."
+   }
+  ]
+ }
+}

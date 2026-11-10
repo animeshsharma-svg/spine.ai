@@ -1,0 +1,150 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-306",
+  "title": "Partial award option runs the auction at line-item level",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:12:22.635Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks"
+  ],
+  "ms": 10102
+ },
+ "plan": {
+  "title": "Auction line-item awarding",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage auction creation flow where awarding mode is configurable."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Partial Award Line Item Auction"
+    },
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create multiple line items so line-item-level ranking can be observed."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet for all line items."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so ranking can be compared per line item."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published project page."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a bid for the first invited vendor across the auction line items."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 110
+    },
+    "note": "Submit a second vendor bid so ranks can be compared for each line item."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the live auction comparison grid containing the line items and vendor bids."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Confirm both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "atLeast": 2
+    },
+    "note": "Assert that ranks are calculated across the line items, demonstrating line-item-level auction ranking."
+   }
+  ]
+ }
+}

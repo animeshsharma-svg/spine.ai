@@ -4,91 +4,67 @@
   "title": "An upcoming event can be seen but not bid on",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:33:16.637Z",
+  "compiledAt": "2026-11-10T07:11:09.187Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Whether individual bid-sheet cells are read-only while the event is upcoming if the vendor screen exposes no stable cell-level control state"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Whether individual bid-sheet cells are read-only while the event is upcoming if the vendor screen exposes no stable cell-level control state"
+   "resolved: “Assert that the upcoming event's start time is shown in the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_text",
-   "attempt",
+   "expect_disabled",
    "attempt"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 74121
+  "ms": 11751
  },
  "plan": {
-  "title": "Upcoming RFQ vendor bid blocked",
+  "title": "Upcoming event cannot be bid on",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared upcoming RFQ without creating or publishing another event."
+    "note": "Open the prepared upcoming RFQ without creating or searching for another event."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to Vendor A's supplier-portal view while keeping the buyer session available."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the upcoming RFQ from the vendor event list and land on its pricing sheet."
+    "note": "Open the upcoming RFQ's pricing round from the vendor event list."
    },
    {
-    "step": "expect_text",
+    "step": "expect_disabled",
     "args": {
-     "text": "Upcoming"
+     "control": "Submit Quote"
     },
-    "note": "Verify the vendor sees that the event has not started."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Start time"
-    },
-    "note": "Verify the event's start-time information is shown to the vendor."
+    "note": "Verify the vendor cannot submit a quote before the event start time."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "fill",
+     "step": "vendor_bid",
      "args": {
-      "label": "Price",
-      "value": "100"
+      "price": 100
      },
      "expect": "refused"
     },
-    "note": "Attempt to type a bid price and require the vendor sheet to reject the edit if it is read-only."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "expect": "refused"
-    },
-    "note": "Attempt submission and require the product to refuse it before the event start time."
+    "note": "Try entering and submitting a price, requiring the portal to refuse the bid."
    }
   ]
  }

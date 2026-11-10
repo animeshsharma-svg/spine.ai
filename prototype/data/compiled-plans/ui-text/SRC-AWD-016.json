@@ -4,59 +4,86 @@
   "title": "Two bids: award a split: 6 units to B and 4 units to A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:12:36.110Z",
+  "compiledAt": "2026-11-10T07:05:37.795Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Prepare or observe two bids from Vendor A and Vendor B in the prepared state",
-   "Allocate exactly 6 units to Vendor B and 4 units to Vendor A",
-   "Verify Vendor B's 6 × 90 = 540, Vendor A's 4 × 100 = 400, and total 940",
-   "Create and submit the award proposal with the required proposal fields",
-   "Log in as the approver and reject the proposal with a remark",
-   "Verify that no purchase order is created after rejection",
-   "Verify that the buyer can start awarding again from Master QCS"
+   "The prepared closed RFQ has only one bid, so awarding 6 units to Vendor B and 4 units to Vendor A, including the two-vendor allocation and total of 940, cannot be tested.",
+   "Sign in as the approver and reject the proposal with a remark requires another user's session.",
+   "Verify that no purchase order is created after rejection.",
+   "Verify that the buyer can start awarding again from Master QCS after rejection."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Prepare or observe two bids from Vendor A and Vendor B in the prepared state; Allocate exactly 6 units to Vendor B and 4 units to Vendor A; Verify Vendor B's 6 × 90 = 540, Vendor A's 4 × 100 = 400, and total 940; Create and submit the award proposal with the required proposal fields; Log in as the approver and reject the proposal with a remark; Verify that no purchase order is created after rejection; Verify that the buyer can start awarding again from Master QCS"
+   "can only test part of this — no step for: The prepared closed RFQ has only one bid, so awarding 6 units to Vendor B and 4 units to Vendor A, including the two-vendor allocation and total of 940, cannot be tested.; Sign in as the approver and reject the proposal with a remark requires another user's session.; Verify that no purchase order is created after rejection.; Verify that the buyer can start awarding again from Master QCS after rejection."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "expect_qcs_vendors",
    "start_awarding",
-   "expect_award_counters"
+   "allocate_award",
+   "expect_award_counters",
+   "award_event",
+   "expect_awarded",
+   "ask_tester",
+   "expect_text"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 10816
+  "ms": 14277
  },
  "plan": {
-  "title": "Partial award split and rejection",
+  "title": "SRC-AWD-016 Split Award Rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ at Master QCS; this is the required starting point, but it contains only one bid."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "realNames": true
-    },
-    "note": "Confirm the available Master QCS vendor column uses a real vendor name, without asserting the unavailable second vendor."
+    "note": "Open Master QCS on the prepared closed RFQ."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen, the closest available screen for the requested allocation."
+    "note": "Open the awarding screen for the available bid."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available line to the single available vendor; a two-vendor split is not possible in this prepared state."
    },
    {
     "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Assert that the available single-vendor allocation is selected."
+   },
+   {
+    "step": "award_event",
     "args": {},
-    "note": "Assert that the awarding counters are rendered on the available one-vendor awarding screen."
+    "note": "Create and submit the proposal for the available allocation so the proposal-rejection portion can be handed to the approver."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the proposal was created and submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, and return to the buyer view"
+    },
+    "note": "The approver is another user and cannot be signed in by the catalog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "present": true
+    },
+    "note": "Assert that the proposal shows the rejected status after the approver action."
    }
   ]
  }

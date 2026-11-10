@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-023",
+  "title": "A live RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T01:46:33.273Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that event status, times, vendors, and bids are unchanged after cancellation",
+   "unconfirmed label \"Are you sure you want to create a new version?\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Are you sure you want to create a new version?\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Directly verify that event status, times, vendors, and bids are unchanged after cancellation"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "click",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_navigated",
+   "expect_screen_clean"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 9972
+ },
+ "plan": {
+  "title": "Cancel Create New Version on Live RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ directly on its Responses tab, as required for prepared-state cases."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create New Version"
+    },
+    "note": "Open the new-version confirmation window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Are you sure you want to create a new version?",
+     "visible": true
+    },
+    "note": "Verify that the expected confirmation dialog opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel version creation without confirming."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Are you sure you want to create a new version?",
+     "visible": false
+    },
+    "note": "Verify that the confirmation window closed."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Verify that cancellation leaves the buyer on the RFQ Responses tab."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify that cancelling did not produce an error or broken screen."
+   }
+  ]
+ }
+}

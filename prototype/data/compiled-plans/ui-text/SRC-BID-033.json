@@ -4,53 +4,73 @@
   "title": "Tech+RFQ: Technical response after the technical stage ended",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:41:54.094Z",
+  "compiledAt": "2026-11-10T07:14:27.451Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "the exact technical answer field/control label to target when attempting to change an existing answer",
+   "independently waiting for or verifying that the Technical Stage has ended"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: the exact technical answer field/control label to target when attempting to change an existing answer; independently waiting for or verifying that the Technical Stage has ended"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "do_on_screen"
+   "expect_visible",
+   "attempt"
   ],
   "state": "live",
   "screen": "technical",
-  "ms": 7615
+  "ms": 14920
  },
  "plan": {
-  "title": "Technical response is read-only after stage end",
+  "title": "SRC-BID-033 Technical response after stage end",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "technical"
     },
-    "note": "Open the prepared Tech+RFQ event on its Technical stage; this must be the first step for the prepared state."
+    "note": "Open the prepared Tech+RFQ event on its technical round as required for this prepared state."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to Vendor A's supplier portal while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the event's Technical response in the vendor portal."
+    "note": "Open the event's Technical Stage in the vendor portal."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "on the vendor's Technical response screen after the Technical stage has ended, try to change an existing answer and stop when the screen proves the answer is read-only and unchanged"
+     "role": "tab",
+     "name": "Technical Stage",
+     "visible": true
     },
-    "note": "Interact with the technical answer and verify that no change can be made after the stage ended."
+    "note": "Confirm the vendor is viewing the technical response round."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "fill",
+     "args": {
+      "label": "Answer",
+      "value": "Changed answer"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to change the existing technical answer and require evidence that the read-only response refuses the edit."
    }
   ]
  }

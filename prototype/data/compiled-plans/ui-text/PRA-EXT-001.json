@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "PRA-EXT-001",
+  "title": "Typing a name that matches nobody shows the 'several PRs' message even with one PR ticked",
+  "group": "PRA-EXT",
+  "sheet": "pr-assignee",
+  "compiledAt": "2026-11-10T01:00:49.865Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"No user can see all selected PRs. Assign them separately.\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"No user can see all selected PRs. Assign them separately.\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 9764
+ },
+ "plan": {
+  "title": "PRA-EXT-001 No-Match PR Assignee Message",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use the Open PRs tab as required by the case."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "1010",
+     "items": 1
+    },
+    "note": "Select only one item from PR 1010."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the selected PR 1010 item, click Assign, type the nonexistent user name \"zzqx\", and leave the assignment screen showing the neutral no-match result while confirming that the misleading several-PRs message is not shown."
+    },
+    "note": "The catalog has no dedicated Assign-user search step, so perform this buyer-side interaction on screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No matching user",
+     "present": true
+    },
+    "note": "Assert the neutral no-match message is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No user can see all selected PRs. Assign them separately.",
+     "present": false
+    },
+    "note": "Assert the misleading several-PRs message is absent."
+   }
+  ]
+ }
+}

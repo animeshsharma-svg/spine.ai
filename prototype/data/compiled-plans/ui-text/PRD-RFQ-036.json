@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "PRD-RFQ-036",
+  "title": "Quote Mode (Discount % or Price): refused for a user without the Vendor role",
+  "group": "PRD-RFQ",
+  "compiledAt": "2026-11-10T01:31:17.616Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as a same-tenant user without the Vendor role and verify whether Quote Mode is refused or absent.",
+   "Use Quote Mode to quote a discount percentage or an absolute price per line.",
+   "Repeat the Quote Mode action as a Vendor user and compare availability.",
+   "Verify or record the tenant's Enterprise plan and RBAC configuration for this permission."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Sign in as a same-tenant user without the Vendor role and verify whether Quote Mode is refused or absent.; Use Quote Mode to quote a discount percentage or an absolute price per line.; Repeat the Quote Mode action as a Vendor user and compare availability.; Verify or record the tenant's Enterprise plan and RBAC configuration for this permission."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 10306
+ },
+ "plan": {
+  "title": "Quote Mode Role Access",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the non-Vendor user and the Vendor user in the same Enterprise tenant, try Quote Mode with both discount percentage and absolute price per line, and record whether the control is absent, refused, or available for each role"
+    },
+    "note": "The catalog cannot authenticate as arbitrary console users or operate the Quote Mode control, so the role comparison must be performed manually."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Quote Mode",
+     "present": true
+    },
+    "note": "Record whether the Quote Mode label is visible after the tester's role comparison; this is only a closest observation and does not establish the permission outcome."
+   }
+  ]
+ }
+}

@@ -4,7 +4,7 @@
   "title": "Savings budget left empty",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:11:37.840Z",
+  "compiledAt": "2026-11-10T07:21:46.058Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,19 +17,20 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "add_line_items",
    "do_on_screen",
-   "expect_error"
+   "expect_message"
   ],
-  "ms": 130937
+  "ms": 12727
  },
  "plan": {
-  "title": "Savings budget left empty",
+  "title": "Savings Budget Left Empty",
   "steps": [
    {
     "step": "open_create",
@@ -43,32 +44,42 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the case."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CUR-006 Savings budget empty"
+     "title": "SRC-CUR-006 Savings Budget Empty"
     },
-    "note": "Provide the mandatory event title required for a create flow."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "note": "Select the RFQ template so the product sheet and savings controls are available."
+    "args": {},
+    "note": "Choose the available RFQ template so the product sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add the CYLINDER line item required by the scenario."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage RFQ create screen, add the product CYLINDER and select CYLINDER WITH KEY & KNOB so Product Variant becomes Default Variant; enter Quantity Requested 10, select Plant Name (LOC-0001) for Delivery location, open Savings, choose Budget, leave the price empty, save, and stop when the screen shows the refusal Please enter price in INR."
+     "goal": "On the RFQ create screen, set the first line item's Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, open Savings, choose Budget, leave the price empty, save the savings configuration, and stop with the refusal message visible."
     },
-    "note": "Perform the product, quantity, delivery-location, and Savings Budget interactions not covered by dedicated catalog steps, and observe the required refusal."
+    "note": "Perform the product-sheet edits and savings interaction not covered by a dedicated domain step."
    },
    {
-    "step": "expect_error",
+    "step": "expect_message",
     "args": {
-     "contains": "Please enter price in INR"
+     "kind": "error",
+     "text": "Please enter price in INR"
     },
-    "note": "Assert that the empty Budget savings price is rejected with the expected currency-specific message."
+    "note": "Assert that saving Budget savings without a price is refused with the expected currency-specific message."
    }
   ]
  }

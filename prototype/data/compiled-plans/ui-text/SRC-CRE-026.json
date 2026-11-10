@@ -4,11 +4,11 @@
   "title": "Forward auction: Quantity Requested = letters \"abc\"",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:56:30.669Z",
+  "compiledAt": "2026-11-10T07:18:06.755Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot explicitly select or verify the auction's forward/sell direction or confirm that the selected template is a forward auction template."
+   "Selecting or asserting Plant Name (LOC-0001) for the added product is not supported by the catalog."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,83 +17,66 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The catalog cannot explicitly select or verify the auction's forward/sell direction or confirm that the selected template is a forward auction template."
+   "can only test part of this — no step for: Selecting or asserting Plant Name (LOC-0001) for the added product is not supported by the catalog."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
-   "set_sheet_cell",
-   "expect_sheet_cell"
+   "expect_error"
   ],
-  "ms": 71915
+  "ms": 11899
  },
  "plan": {
-  "title": "Forward Auction Quantity Rejects Letters",
+  "title": "SRC-CRE-026 Forward Auction Rejects Letter Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage create screen."
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank",
+     "auctionSubtype": "price",
      "awarding": "lot"
     },
-    "note": "Set the event type to Auction so the auction pricing sheet is available."
+    "note": "Switch the event type to a forward auction; price-based auction is the closest explicit forward-auction configuration."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-026 Forward Auction Quantity Letters"
+     "title": "SRC-CRE-026 Forward Auction Quantity Validation"
     },
-    "note": "Provide the required event title for a create flow."
+    "note": "Provide the required event title before configuring the sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template so the pricing sheet can be rendered."
+    "note": "Apply the first available auction template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "abc"
     },
-    "note": "Add the specified product as the first line item."
+    "note": "Add the requested product and enter the invalid letters value in Quantity Requested; the step exits the cell with Tab and records the inline validation."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and populate the auction pricing sheet before editing the quantity cell."
-   },
-   {
-    "step": "set_sheet_cell",
+    "step": "expect_error",
     "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "abc"
+     "contains": "Quantity"
     },
-    "note": "Type the invalid letters into the first row's quantity cell and press Tab to trigger validation."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "refused": true
-    },
-    "note": "Verify that the quantity cell does not retain the non-numeric value."
+    "note": "Assert that the application rejects the non-numeric quantity and reports a quantity-related error immediately."
    }
   ]
  }

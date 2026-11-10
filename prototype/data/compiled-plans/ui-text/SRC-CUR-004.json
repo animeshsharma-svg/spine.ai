@@ -4,25 +4,24 @@
   "title": "Change the exchange rate after bids",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:10:39.688Z",
+  "compiledAt": "2026-11-10T07:21:44.993Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Dedicated creation/configuration of a multi-currency event and exchange-rate editor control are not represented by catalog steps."
+   "Configure the event as multi-currency and set its exchange-rate fields before bidding.",
+   "Directly select the CYLINDER WITH KEY & KNOB variant and Plant Name (LOC-0001) through a dedicated catalog step."
   ],
   "warnings": [
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Dedicated creation/configuration of a multi-currency event and exchange-rate editor control are not represented by catalog steps."
+   "can only test part of this — no step for: Configure the event as multi-currency and set its exchange-rate fields before bidding.; Directly select the CYLINDER WITH KEY & KNOB variant and Plant Name (LOC-0001) through a dedicated catalog step."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -34,38 +33,41 @@
    "invite_vendor",
    "publish",
    "expect_published",
+   "place_bid",
    "expect_bid_submitted",
-   "switch_portal",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_message"
   ],
-  "ms": 80918
+  "ms": 14002
  },
  "plan": {
-  "title": "Change exchange rate after bids",
+  "title": "Reject exchange-rate change after bid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage create flow specified by the case."
+    "note": "Open the single-stage event creation flow."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Changes the initial event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provides the required event title so the event can be published."
+    "args": {
+     "title": "SRC-CUR-004 Exchange Rate Lock"
+    },
+    "note": "Provide the required event title so the event can be published."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available RFQ template so the pricing sheet is available."
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -74,55 +76,61 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Adds a CYLINDER line item with the requested quantity; exact variant and location selection are not exposed by a catalog step."
+    "note": "Add one CYLINDER line item with the requested quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Completes the RFQ pricing sheet before scheduling and publishing."
+    "note": "Complete the RFQ pricing sheet fields required for publication."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commits a usable bidding schedule."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Adds one QA vendor so the event can receive a bid."
+    "note": "Invite one QA vendor so the event can receive a bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publishes the event before bidding."
+    "note": "Publish the RFQ before placing a bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirms the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the invited vendor place a bid, establishing the post-bid state."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirms the bid was accepted by the vendor portal."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Returns to the buyer portal before attempting the exchange-rate change."
+    "note": "Confirm the vendor bid was accepted."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "configure or open the event's multi-currency exchange-rate editor, change an exchange rate after the bid has been placed, and verify that Procol refuses the change with the message \"Exchange rates cannot be updated after bids have been placed.\""
+     "goal": "on the buyer's live multi-currency RFQ with the bid present, open the exchange-rate editor, attempt to change the exchange rate, and stop when the screen shows the refusal 'Exchange rates cannot be updated after bids have been placed.'"
     },
-    "note": "Performs and verifies the buyer-side exchange-rate action that no dedicated catalog step can express."
+    "note": "Perform the exchange-rate edit that has no dedicated catalog step and leave the refusal visible."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Exchange rates cannot be updated after bids have been placed."
+    },
+    "note": "Assert the required refusal message is shown."
    }
   ]
  }

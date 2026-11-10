@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "PRD-KBPTP-010",
+  "title": "Approver rejects an intake; workflow records who rejected and when",
+  "group": "PRD-KBPTP",
+  "compiledAt": "2026-11-10T06:49:44.543Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open the submitted intake request as the current approver because no catalog step reaches intake requests.",
+   "Assert the workflow records the exact rejecting approver identity and rejection timestamp.",
+   "unconfirmed label \"Rejecting this intake because the submitted information is incomplete.\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Rejecting this intake because the submitted information is incomplete.\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Open the submitted intake request as the current approver because no catalog step reaches intake requests.; Assert the workflow records the exact rejecting approver identity and rejection timestamp."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "ask_tester",
+   "fill",
+   "click",
+   "expect_visible",
+   "click",
+   "expect_text"
+  ],
+  "ms": 13822
+ },
+ "plan": {
+  "title": "Reject Intake as Approver",
+  "steps": [
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the current approver, open the submitted intake request, and stop on its approval screen"
+    },
+    "note": "The catalog has no intake-request screen or approver-session navigation."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": "Rejecting this intake because the submitted information is incomplete."
+    },
+    "note": "Enter the rejection explanation required by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject"
+    },
+    "note": "Submit the rejection as the current approver."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Comments",
+     "visible": true
+    },
+    "note": "Verify that the request exposes the Comments tab after rejection."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "Comments"
+    },
+    "note": "Open the comments history to inspect the recorded remark."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejecting this intake because the submitted information is incomplete.",
+     "present": true
+    },
+    "note": "Verify that the rejection remark appears in Comments."
+   }
+  ]
+ }
+}

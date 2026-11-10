@@ -1,0 +1,295 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-025",
+  "title": "Asset PR → RFQ converted to an auction → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:16:10.788Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Create a Single Stage RFQ directly from the purchase-request flow; the catalog's PR path only exposes choose_stages for project stages.",
+   "Verify that asset assignment A reaches the created purchase order.",
+   "Verify approval performed by a separate approver identity when that approver is not the configured pending approver."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction",
+   "can only test part of this — no step for: Create a Single Stage RFQ directly from the purchase-request flow; the catalog's PR path only exposes choose_stages for project stages.; Verify that asset assignment A reaches the created purchase order.; Verify approval performed by a separate approver identity when that approver is not the configured pending approver."
+  ],
+  "source": "llm",
+  "steps": 36,
+  "stepNames": [
+   "compose_stages",
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "convert_to_auction",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 23632
+ },
+ "plan": {
+  "title": "Asset PR to Auction Award and PO",
+  "steps": [
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-E2E-025 Asset PR Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute RFQ schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "names": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Invite the two vendors named in the case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the RFQ reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 100
+    },
+    "note": "Submit Vendor A's RFQ quote of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor portal accepted the quote."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 90
+    },
+    "note": "Submit Vendor B's RFQ quote of 90."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor's quote was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the RFQ bidding window to close before conversion."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the closed RFQ into the auction round."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the converted auction's schedule before publishing its new version."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the converted auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the converted auction is published."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 85
+    },
+    "note": "Submit Vendor A's auction bid of 85."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's auction bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 88
+    },
+    "note": "Submit Vendor B's auction bid of 88."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor B's auction bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the auction to close before awarding."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Award all available line items to Vendor A through Master QCS."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for asset PR award to Vendor A."
+    },
+    "note": "Approve the submitted award with the required remark using the configured approver context."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approval-to-PO flow."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify the PO contains the single awarded PR line with quantity 10."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the completed event's History placement."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "SRC-E2E-025 Asset PR Auction"
+    },
+    "note": "Verify the converted and awarded event appears in History."
+   }
+  ]
+ }
+}

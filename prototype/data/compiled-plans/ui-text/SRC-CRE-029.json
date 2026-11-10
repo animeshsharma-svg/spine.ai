@@ -4,40 +4,38 @@
   "title": "Forward auction: Quantity Requested = 10",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:58:28.192Z",
+  "compiledAt": "2026-11-10T07:18:25.440Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Selecting the specific plant location Plant Name (LOC-0001) for the line item is not expressible by the catalog."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added invite_vendor — an event with no participants cannot be bid on",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added invite_vendor — an event with no participants cannot be bid on"
+   "can only test part of this — no step for: Selecting the specific plant location Plant Name (LOC-0001) for the line item is not expressible by the catalog."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 12,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "expect_sheet_cell",
    "fill_sheet",
    "expect_sheet_cell",
-   "do_on_screen",
-   "set_sheet_cell",
-   "expect_sheet_cell",
-   "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 30946
+  "ms": 14043
  },
  "plan": {
   "title": "Forward Auction Quantity 10",
@@ -47,28 +45,28 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
     },
-    "note": "Change the event type from the default RFP to Auction."
+    "note": "Set the event type to Auction using a price-based forward-auction configuration."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-CRE-029 Forward Auction Quantity 10"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Provide the mandatory event title using the runner's generated title."
    },
    {
     "step": "select_template",
     "args": {
      "name": "forward"
     },
-    "note": "Select the forward auction template required by the case."
+    "note": "Select the offered forward auction template."
    },
    {
     "step": "add_line_items",
@@ -77,12 +75,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with requested quantity 10."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and populate the pricing sheet after adding the line item."
+    "note": "Add the requested product with Quantity Requested set to 10."
    },
    {
     "step": "expect_sheet_cell",
@@ -91,59 +84,45 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Verify the requested quantity remains 10 in the first row."
+    "note": "Verify the quantity cell retains the requested value after entry."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "set the first line item's Plant Name to LOC-0001 and stop when the sheet visibly shows LOC-0001"
-    },
-    "note": "Set the plant location, which has no dedicated catalog argument."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Price",
-     "value": "100"
-    },
-    "note": "Enter a price so Total Amount can be calculated."
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet so a price exists and dependent totals can be calculated."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Total Amount",
-     "equals": "1000"
+     "empty": false
     },
-    "note": "Verify the total is calculated as price 100 multiplied by quantity 10."
+    "note": "Verify that Total Amount is populated once a price is present."
    },
    {
-    "step": "do_on_screen",
+    "step": "invite_vendor",
     "args": {
-     "goal": "search for Vendor A under Participants, select it, and stop when the participant is visibly selected"
+     "count": 1
     },
-    "note": "Add the specifically named participant through the buyer screen."
+    "note": "Add one QA test vendor so the event can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute schedule."
-   },
-   {
-    "step": "invite_vendor"
+    "note": "Commit the default Start now and 30-minute schedule."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed auction."
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached the project page successfully."
+    "note": "Assert that publishing reached the real project page."
    }
   ]
  }

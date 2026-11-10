@@ -4,52 +4,49 @@
   "title": "Vendor fills a required text column \"Brand\": leave it empty",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:42:12.998Z",
+  "compiledAt": "2026-11-10T07:14:42.810Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Guarantee that the selected existing live RFQ uses a template with a required text column named Brand",
+   "Authenticate as a specifically named Vendor A when no vendor identity is provided"
+  ],
+  "warnings": [
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "can only test part of this — no step for: Guarantee that the selected existing live RFQ uses a template with a required text column named Brand; Authenticate as a specifically named Vendor A when no vendor identity is provided"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 4,
   "stepNames": [
    "open_event",
    "switch_portal",
    "vendor_open_event",
-   "fill",
-   "attempt",
-   "expect_message"
+   "attempt"
   ],
-  "ms": 9563
+  "ms": 9622
  },
  "plan": {
-  "title": "Vendor required Brand field validation",
+  "title": "Vendor required Brand field refusal",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open a suitable existing live RFQ for the vendor-side test."
+    "note": "Open an existing event that can serve as the live RFQ under test."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor portal while keeping the buyer session available."
+    "note": "Move to the invited vendor's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's live RFQ pricing form as the vendor."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "100"
-    },
-    "note": "Enter the requested quote while leaving the required Brand field empty."
+    "note": "Open the event's RFQ bidding sheet in the vendor portal."
    },
    {
     "step": "attempt",
@@ -57,20 +54,12 @@
      "step": "click",
      "args": {
       "role": "button",
-      "name": "Submit"
+      "name": "Submit Quote"
      },
      "expect": "refused",
      "because": "This is required field"
     },
-    "note": "Submit the incomplete bid and require Procol to refuse it because Brand is empty."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "inline",
-     "text": "This is required field"
-    },
-    "note": "Verify the required-field validation message is shown for the empty Brand cell."
+    "note": "Attempt submission and require the vendor portal to refuse it with the Brand required-field message."
    }
   ]
  }

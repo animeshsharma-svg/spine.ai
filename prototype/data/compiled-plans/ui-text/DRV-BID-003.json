@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-003",
+  "title": "Loading factor template configuration is restricted to users with buyer role",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-09T22:56:39.259Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable or verify the tenant setting disable_reject_bid_in_bidding_time is on"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable or verify the tenant setting disable_reject_bid_in_bidding_time is on"
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "attempt",
+   "expect_message",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 1367
+ },
+ "plan": {
+  "title": "Reject Bid Blocked During Live Bidding",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses tab with one active vendor bid."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject"
+     },
+     "expect": "refused",
+     "because": "Bid rejection is disabled while bidding is in progress"
+    },
+    "note": "Attempt to reject the active bid and require Procol's refusal evidence and message."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "modal",
+     "text": "Bid rejection is disabled while bidding is in progress"
+    },
+    "note": "Verify the expected refusal message is shown in the rejection modal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Active",
+     "present": true
+    },
+    "note": "Verify the bid remains marked Active after the rejected action."
+   }
+  ]
+ }
+}

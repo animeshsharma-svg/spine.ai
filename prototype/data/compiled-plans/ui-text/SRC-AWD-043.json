@@ -4,56 +4,52 @@
   "title": "Approver missing",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:21:13.330Z",
+  "compiledAt": "2026-11-10T07:08:19.436Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog has no dedicated step to submit an award proposal with no approver selected and assert the exact refusal message \"Please select at least one approver to proceed.\""
-  ],
-  "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The catalog has no dedicated step to submit an award proposal with no approver selected and assert the exact refusal message \"Please select at least one approver to proceed.\""
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
    "start_awarding",
-   "allocate_award",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9948
+  "ms": 9189
  },
  "plan": {
-  "title": "Award proposal without approver",
+  "title": "Award submission without approver",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared event summary without searching the events list."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow so the proposal can be prepared."
-   },
-   {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Allocate the event's line item before creating the proposal."
+    "note": "Enter the awarding flow for the existing event and draft award proposal."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the award proposal submission screen, leave the approver selection empty, submit the proposal, and verify that the submission is refused with the message \"Please select at least one approver to proceed.\""
+     "goal": "on the buyer portal, submit the award proposal without selecting any approver and stop with the refusal visible"
     },
-    "note": "Perform the unsupported missing-approver submission and observe the refusal on the buyer screen."
+    "note": "Perform the specific negative submission path that no dedicated catalog step can execute."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Please select at least one approver to proceed."
+    },
+    "note": "Verify Procol refused the submission with the required approver message."
    }
   ]
  }

@@ -1,0 +1,171 @@
+{
+ "meta": {
+  "caseId": "DRV-CO-009",
+  "title": "Bid revision is read‑only in History view after award",
+  "group": "DRV-CO",
+  "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
+  "compiledAt": "2026-11-09T23:03:28.475Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
+   "go_to",
+   "expect_responses"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 14926
+ },
+ "plan": {
+  "title": "Accepted Counter Offer Recomputes Ranking",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses tab."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the Participants list to add the second vendor bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor B",
+     "price": 95
+    },
+    "note": "Create Vendor B's 95 bid so the ranking comparison has both vendors."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the surrogate bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the comparison grid containing both vendor bids."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90
+    },
+    "note": "Send the buyer's 90 counter offer to Vendor A."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Confirm the counter offer is marked as initiated for Vendor A."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Have Vendor A accept the pending counter offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Confirm the buyer grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify both real vendor columns are present in Master QCS."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Verify Vendor A's revised rate is 90."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 1
+    },
+    "note": "Verify the accepted counter makes Vendor A rank L1."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's line amount and total recompute correctly from the revised rate."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify ranking follows the updated RFQ amounts across both vendors."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the Responses tab to verify the response records."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "surrogate": 1,
+     "direct": 1,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Confirm both responses are shown, with the expected direct and surrogate bid types."
+   }
+  ]
+ }
+}

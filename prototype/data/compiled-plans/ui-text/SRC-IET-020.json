@@ -1,0 +1,108 @@
+{
+ "meta": {
+  "caseId": "SRC-IET-020",
+  "title": "Cancel leaves the end time unchanged",
+  "group": "SRC-IET",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:28:48.152Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that no vendor notification was sent after cancellation.",
+   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Directly verify that no vendor notification was sent after cancellation."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "remember",
+   "go_to",
+   "extend_time",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_remembered"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 12799
+ },
+ "plan": {
+  "title": "Cancel Extend Submission Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without recreating or changing its state."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "endTime",
+     "text": "Bidding Ends At"
+    },
+    "note": "Record the current bidding end-time region before opening the editor."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where Settings and the submission-time action are available."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "amount": 60,
+     "unit": "minutes",
+     "confirm": false
+    },
+    "note": "Open Increase Event Time, choose Custom, enter 60 minutes, and leave the change unconfirmed so Cancel can be tested."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Verify that the Increase Event Time window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the unsubmitted time change."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": false
+    },
+    "note": "Verify that the time-change window closed."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "endTime",
+     "text": "Bidding Ends At",
+     "same": true
+    },
+    "note": "Verify that the displayed bidding end time is unchanged after cancellation."
+   }
+  ]
+ }
+}

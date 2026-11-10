@@ -1,0 +1,155 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-023",
+  "title": "All Vendors: Attempt to add a new vendor while vendor addition is locked is prevented",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:39:02.277Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact unchanged dialog state after pressing Enter or Filters cannot be asserted.",
+   "The conditional lock message such as \"Adding vendors is locked for this event\" cannot be checked when the add control is absent.",
+   "Conditional selection or addition cannot be attempted only when an add button appears."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: The exact unchanged dialog state after pressing Enter or Filters cannot be asserted.; The conditional lock message such as \"Adding vendors is locked for this event\" cannot be checked when the add control is absent.; Conditional selection or addition cannot be attempted only when an add button appears."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "expect_template_selected",
+   "add_line_items",
+   "expect_line_items",
+   "click",
+   "expect_visible",
+   "click",
+   "fill",
+   "press",
+   "expect_value",
+   "expect_count"
+  ],
+  "ms": 14455
+ },
+ "plan": {
+  "title": "Single-stage RFQ vendor addition lock",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation screen specified by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-CREATESINGLE-023"
+    },
+    "note": "Provide the required event title so the create screen is valid."
+   },
+   {
+    "step": "select_template",
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Apply the Buy Template requested by the case."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Verify that the RFQ template was applied before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the product was added to the event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participants"
+    },
+    "note": "Open the participant panel on the single-stage create screen."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "All Vendors",
+     "visible": true
+    },
+    "note": "Verify that the All Vendors window entry is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "All Vendors"
+    },
+    "note": "Open the All Vendors window whose locked-add behavior is under test."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Vendors",
+     "value": "NewVendor"
+    },
+    "note": "Search for the new vendor named in the case."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Enter"
+    },
+    "note": "Submit the vendor search as instructed."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Search Vendors",
+     "value": "NewVendor"
+    },
+    "note": "Confirm the search field retained the requested vendor name."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Invite Vendor",
+     "max": 0
+    },
+    "note": "Assert that no vendor-add action is presented while addition is locked."
+   }
+  ]
+ }
+}

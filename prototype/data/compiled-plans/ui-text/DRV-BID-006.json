@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-006",
+  "title": "Global rank and landed cost calculations correctly incorporate loading factor",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-09T22:58:58.574Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "A closed RFQ with two active bids from Vendor A and Vendor B at totals 500 and 450; the prepared state has only one bid.",
+   "Rejecting Vendor B and verifying that Vendor B becomes Rejected while Vendor A becomes rank 1 with total 500 and the best-offer indicator moves to Vendor A. The available prepared state cannot establish the required two-vendor comparison."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: A closed RFQ with two active bids from Vendor A and Vendor B at totals 500 and 450; the prepared state has only one bid.; Rejecting Vendor B and verifying that Vendor B becomes Rejected while Vendor A becomes rank 1 with total 500 and the best-offer indicator moves to Vendor A. The available prepared state cannot establish the required two-vendor comparison."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "expect_responses",
+   "open_prepared",
+   "expect_qcs_vendors"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 61235
+ },
+ "plan": {
+  "title": "Rejecting a bid updates ranking totals",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses tab on the prepared closed RFQ."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1
+    },
+    "note": "Record the available response state; the prepared RFQ exposes only one bid rather than the two required by the case."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the available Master QCS view to inspect the prepared bid comparison."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert the prepared QCS contains one real vendor column, confirming that the required two-vendor ranking scenario is unavailable."
+   }
+  ]
+ }
+}

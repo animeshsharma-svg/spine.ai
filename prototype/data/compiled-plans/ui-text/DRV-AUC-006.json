@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "DRV-AUC-006",
+  "title": "Buyer receives error when trying to select a non‑qualified vendor",
+  "group": "DRV-AUC",
+  "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
+  "compiledAt": "2026-11-09T22:49:48.733Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared converted-auction state has only one bid, so a second vendor's bid amount and its absence from Vendor A's view cannot be tested.",
+   "A second vendor's own supplier-portal session is unavailable."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared converted-auction state has only one bid, so a second vendor's bid amount and its absence from Vendor A's view cannot be tested.; A second vendor's own supplier-portal session is unavailable."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_api_value"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 121554
+ },
+ "plan": {
+  "title": "Vendor sees only own copied auction bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared converted RFQ-to-auction event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the converted auction's pricing round as the vendor."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "auction bid sheet"
+    },
+    "note": "Verify that the vendor portal shows the vendor's own copied bid price from the prepared state."
+   }
+  ]
+ }
+}

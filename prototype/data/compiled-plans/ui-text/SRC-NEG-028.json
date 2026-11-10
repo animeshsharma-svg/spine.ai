@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-028",
+  "title": "Counter offer while bidding is live on one of the two lines; the vendor rejects",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:38:28.577Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Finding a specific existing live RFQ by title from the events list; prepared-state cases must start from the prepared Responses screen.",
+   "A two-line event with Vendor A quoting 100 and 50, including verifying that only line 1 is countered while line 2 remains unchanged.",
+   "Verifying both line totals after rejection because the prepared event has only one line."
+  ],
+  "warnings": [
+   "resolved: “The vendor rejecting a pending counter offer in the supplier portal; the catalog can accept counter offers but has no ve” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Finding a specific existing live RFQ by title from the events list; prepared-state cases must start from the prepared Responses screen.; A two-line event with Vendor A quoting 100 and 50, including verifying that only line 1 is countered while line 2 remains unchanged.; Verifying both line totals after rejection because the prepared event has only one line."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "switch_portal",
+   "go_to",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 14776
+ },
+ "plan": {
+  "title": "Live RFQ counter-offer rejection",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen with the vendor's own bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send a counter offer against the vendor's own bid at 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the Responses grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate supplier portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the prepared event's vendor view where the pending counter offer is visible."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "reject the pending counter offer as Vendor A in the supplier portal"
+    },
+    "note": "The catalog has no vendor-side rejection action, so request the missing interaction at the point it belongs."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's Responses screen after the vendor action."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the buyer's Responses tab to inspect the post-rejection bid state."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to verify the current bid remains represented after rejection."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Verify the vendor's single prepared-line rate remains the original 100 rather than the rejected counter price."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the displayed line amount and Sum Total remain arithmetically consistent with the current bid."
+   }
+  ]
+ }
+}

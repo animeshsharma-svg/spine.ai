@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "DRV-AUC-003",
+  "title": "Auction strategy cannot be changed after event is live",
+  "group": "DRV-AUC",
+  "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
+  "compiledAt": "2026-11-09T22:47:16.298Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Create or verify the exact precondition that Vendor A submitted the string \"100 \" with a trailing space.",
+   "Publish the converted auction and verify the copied vendor bid in the live auction's bid or Master QCS view."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Create or verify the exact precondition that Vendor A submitted the string \"100 \" with a trailing space.; Publish the converted auction and verify the copied vendor bid in the live auction's bid or Master QCS view."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "convert_to_auction",
+   "expect_navigated",
+   "expect_sheet_cell",
+   "expect_no_error"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 122412
+ },
+ "plan": {
+  "title": "Convert RFQ Bid with Trailing Space",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with its existing bid."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Convert the published RFQ to an auction using the product's conversion flow."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Confirm conversion landed on the converted auction create screen."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "100"
+    },
+    "note": "Check the converted pricing sheet shows the normalized price 100 without the trailing space."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm conversion and price normalization did not produce an application error."
+   }
+  ]
+ }
+}

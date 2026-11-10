@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-020",
+  "title": "A vendor never sees other vendors' prices",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:40:29.274Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that no other vendor's prices or identity appear everywhere on the vendor portal, including the sheet, rank, and history, because the other vendor's actual name and all relevant regions are not available as assertion targets."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that no other vendor's prices or identity appear everywhere on the vendor portal, including the sheet, rank, and history, because the other vendor's actual name and all relevant regions are not available as assertion targets."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "expect_screen_clean"
+  ],
+  "state": "two_bids",
+  "screen": "summary",
+  "ms": 11934
+ },
+ "plan": {
+  "title": "Vendor bid privacy on RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared RFQ event without recreating or searching for it."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the buyer-side Participants list so a second invited vendor can be given a surrogate bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Create the second bid required by the scenario while keeping the buyer session active."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the surrogate bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier-portal session while preserving the buyer session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared RFQ's pricing round as the vendor."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Price",
+     "visible": true
+    },
+    "note": "Assert that the vendor's pricing sheet is rendered."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the vendor view has no crash, server error, raw IDs, or malformed values while displaying the bid sheet."
+   }
+  ]
+ }
+}

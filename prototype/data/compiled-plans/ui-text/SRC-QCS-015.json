@@ -1,0 +1,113 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-015",
+  "title": "Two lines, different winners",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:40:09.512Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Find the RFQ by searching for its title because no title is provided",
+   "Assert the exact second-line cells without a product name identifying that line",
+   "Record which vendor is ranked overall, since the catalog only asserts ranks per line"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Find the RFQ by searching for its title because no title is provided; Assert the exact second-line cells without a product name identifying that line; Record which vendor is ranked overall, since the catalog only asserts ranks per line"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 71551
+ },
+ "plan": {
+  "title": "Master QCS line-specific winners",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Assert that both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": 1,
+     "equals": "1000"
+    },
+    "note": "Check the first vendor's first-line amount, 100 × 10."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": 2,
+     "equals": "900"
+    },
+    "note": "Check the second vendor's first-line amount, 90 × 10."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 1,
+     "equals": "1500"
+    },
+    "note": "Check the first vendor's expected total."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 2,
+     "equals": "1500"
+    },
+    "note": "Check the second vendor's expected total."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify that displayed line amounts and vendor totals are arithmetically consistent."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that per-line ranks follow the lowest amount."
+   }
+  ]
+ }
+}

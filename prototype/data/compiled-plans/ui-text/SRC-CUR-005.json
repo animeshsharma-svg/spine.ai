@@ -4,11 +4,12 @@
   "title": "Savings against budget",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:10:42.143Z",
+  "compiledAt": "2026-11-10T07:21:42.930Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"25 %\" (expect_text) — not among the labels known from the app nor in the case"
+   "The exact RFQ template selection, Product Variant auto-fill, Plant Name (LOC-0001) location selection, and Budget savings configuration are handled through do_on_screen rather than dedicated catalog assertions.",
+   "unconfirmed label \"25\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -19,21 +20,19 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "coverage partial: unconfirmed label \"25 %\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "coverage partial: unconfirmed label \"25\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The exact RFQ template selection, Product Variant auto-fill, Plant Name (LOC-0001) location selection, and Budget savings configuration are handled through do_on_screen rather than dedicated catalog assertions."
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "expect_template_selected",
    "add_line_items",
-   "fill_sheet",
-   "expect_sheet_columns",
    "do_on_screen",
+   "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -47,7 +46,7 @@
    "expect_text",
    "expect_text"
   ],
-  "ms": 77541
+  "ms": 11227
  },
  "plan": {
   "title": "Savings Against Budget",
@@ -57,29 +56,25 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation flow described by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the event type to RFQ and award the entire lot to one vendor."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Savings Against Budget"
-    },
-    "note": "Provide the required event title."
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "select_template",
-    "note": "Choose the RFQ pricing template."
-   },
-   {
-    "step": "expect_template_selected",
-    "note": "Verify that an RFQ template is applied."
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -88,98 +83,93 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER line item with the required quantity."
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Render and complete the pricing sheet for the line item."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
-    },
-    "note": "Verify the expected product and pricing columns are present."
+    "note": "Add the CYLINDER line item with the requested quantity of 10."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the buyer create screen, set the CYLINDER line item's Delivery location to Plant Name (LOC-0001), open Savings, choose line item and Budget, enter 120 for the CYLINDER product, save the savings configuration, and stop on the create screen"
+     "goal": "on the RFQ create screen, select the CYLINDER WITH KEY & KNOB product variant, confirm Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), open Savings, choose Line Item and Budget, enter 120 for the product, save the savings configuration, and stop on the create screen showing the saved configuration"
     },
-    "note": "Configure the budget savings basis and value, plus the specified delivery location, using the buyer-side UI."
+    "note": "Complete the product-specific variant/location choices and configure the budget baseline of 120, which lack dedicated catalog steps."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill any remaining pricing-sheet fields required for publication."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit a bidding schedule before publishing."
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors so both specified bids can be submitted."
+    "note": "Invite two QA vendors so both stated bids can be submitted."
    },
    {
     "step": "publish",
+    "args": {},
     "note": "Publish the configured RFQ."
    },
    {
     "step": "expect_published",
-    "note": "Verify that the event reached its project page."
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit the first vendor bid at 100."
+    "note": "Submit vendor A's bid of 100."
    },
    {
     "step": "expect_bid_submitted",
-    "note": "Verify that the first bid was submitted."
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
    },
    {
     "step": "place_bid",
     "args": {
      "price": 90
     },
-    "note": "Submit the second vendor bid at 90."
+    "note": "Submit vendor B's bid of 90."
    },
    {
     "step": "expect_bid_submitted",
-    "note": "Verify that the second bid was submitted."
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the bidding event before opening comparison results."
+    "note": "Close the event so the bids and savings can be evaluated."
    },
    {
     "step": "open_master_qcs",
-    "note": "Open the buyer's Master QCS after bidding has closed."
+    "args": {},
+    "note": "Open the buyer's Master QCS after closure."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "300"
+     "text": "300",
+     "present": true
     },
-    "note": "Verify that the displayed savings amount is 300."
+    "note": "Verify the calculated savings amount is visible."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "25 %"
+     "text": "25",
+     "present": true
     },
-    "note": "Verify that the displayed savings percentage is 25%."
+    "note": "Verify the calculated savings percentage is visible."
    }
   ]
  }

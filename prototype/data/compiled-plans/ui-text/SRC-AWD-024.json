@@ -4,28 +4,31 @@
   "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:15:54.102Z",
+  "compiledAt": "2026-11-10T07:06:15.473Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The prepared event has only one line item and one vendor, so the requested two-line allocation to Vendor B and Vendor A with totals 900, 250, and 1,150 cannot be exercised.",
-   "Submitting the proposal with the requested allocation and verifying that no purchase order is created cannot be completed from the one-line, one-vendor prepared state.",
-   "Rejecting the proposal as a separate approver and verifying that the buyer can restart awarding requires another user session and has no catalog step."
+   "A closed RFQ with two line items and two vendor bids with the specified quantities and prices",
+   "Allocating line 1 to Vendor B and line 2 to Vendor A with quantities 10 and 5",
+   "Verifying Vendor B totals 10 × 90 = 900, Vendor A totals 5 × 50 = 250, and the combined total is 1,150",
+   "Filling and submitting the proposal for the specified two-line allocation",
+   "Signing in as the approver and rejecting the proposal with a remark",
+   "Verifying that no purchase order is created after rejection",
+   "Verifying that the buyer can start awarding again after the approver rejection"
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has only one line item and one vendor, so the requested two-line allocation to Vendor B and Vendor A with totals 900, 250, and 1,150 cannot be exercised.; Submitting the proposal with the requested allocation and verifying that no purchase order is created cannot be completed from the one-line, one-vendor prepared state.; Rejecting the proposal as a separate approver and verifying that the buyer can restart awarding requires another user session and has no catalog step."
+   "cannot test this case yet — no step can observe: A closed RFQ with two line items and two vendor bids with the specified quantities and prices; Allocating line 1 to Vendor B and line 2 to Vendor A with quantities 10 and 5; Verifying Vendor B totals 10 × 90 = 900, Vendor A totals 5 × 50 = 250, and the combined total is 1,150; Filling and submitting the proposal for the specified two-line allocation; Signing in as the approver and rejecting the proposal with a remark; Verifying that no purchase order is created after rejection; Verifying that the buyer can start awarding again after the approver rejection"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
    "start_awarding",
-   "do_on_screen",
-   "ask_tester"
+   "expect_visible"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 143846
+  "ms": 11051
  },
  "plan": {
   "title": "Line-wise award and approver rejection",
@@ -35,26 +38,21 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS, the closest available starting screen for awarding."
+    "note": "Open the prepared closed RFQ's Master QCS; this is the only supported starting state for the existing event."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen where line allocations and awarded-vendor counters are managed."
+    "note": "Reach the awarding screen to inspect the closest available allocation flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "allocate line 1 to Vendor B for 10 units at 90 and line 2 to Vendor A for 5 units at 50, confirm Awarded Vendors shows 2/2, create the proposal, fill all required proposal fields, submit it, and stop on the submitted proposal"
+     "role": "button",
+     "name": "Create Proposal",
+     "visible": true
     },
-    "note": "Attempt the buyer-side line-wise allocation and proposal submission; this will expose the prepared state's missing second line or vendor if the requested scenario cannot be reached."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, and verify that no purchase order is created and the buyer can start awarding again from Master QCS"
-    },
-    "note": "The catalog has no step for switching to the separate approver identity, rejecting a proposal, or checking the post-rejection restart and no-PO outcome."
+    "note": "Assert that the awarding screen exposes the proposal-creation control, without claiming the requested two-line allocation."
    }
   ]
  }

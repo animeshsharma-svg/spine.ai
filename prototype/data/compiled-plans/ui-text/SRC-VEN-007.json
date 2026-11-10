@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "SRC-VEN-007",
+  "title": "Vendor view when event in evaluation",
+  "group": "SRC-VEN",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:21:09.789Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan can verify that the vendor sees counter-offer information, but it cannot prove a counter offer can arrive asynchronously while the RFQ is in evaluation.",
+   "unconfirmed vendor-portal label: Read-only bid",
+   "unconfirmed vendor-portal label: waiting for the buyer's decision"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The plan can verify that the vendor sees counter-offer information, but it cannot prove a counter offer can arrive asynchronously while the RFQ is in evaluation.; unconfirmed vendor-portal label: Read-only bid; unconfirmed vendor-portal label: waiting for the buyer's decision"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 11327
+ },
+ "plan": {
+  "title": "Vendor view during RFQ evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ event in its existing evaluation state without creating or changing the event."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to the separate vendor session while keeping the buyer session open."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Read-only bid"
+    },
+    "note": "Assert that the vendor's bid is shown as read-only during evaluation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "waiting for the buyer's decision"
+    },
+    "note": "Assert that the vendor is told the RFQ is awaiting the buyer's decision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer"
+    },
+    "note": "Assert that counter-offer information remains visible to the vendor."
+   }
+  ]
+ }
+}

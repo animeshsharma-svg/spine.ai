@@ -4,17 +4,18 @@
   "title": "Submit the proposal with \"Recommended Supplier 1 Contact Name\" empty",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:28:41.311Z",
+  "compiledAt": "2026-11-10T07:10:16.208Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact closed RFQ with bids A 100 and B 90, awarding all 10 units to Vendor B, because the prepared state guarantees only one line item and one invited bidder."
+   "Start from the specifically configured closed RFQ containing both bids A 100 and B 90.",
+   "Award all 10 requested units specifically to Vendor B; the prepared state exposes only one bid/vendor and allocate_award cannot set an award quantity."
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact closed RFQ with bids A 100 and B 90, awarding all 10 units to Vendor B, because the prepared state guarantees only one line item and one invited bidder."
+   "can only test part of this — no step for: Start from the specifically configured closed RFQ containing both bids A 100 and B 90.; Award all 10 requested units specifically to Vendor B; the prepared state exposes only one bid/vendor and allocate_award cannot set an award quantity."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "start_awarding",
@@ -22,21 +23,22 @@
    "click",
    "expect_navigated",
    "do_on_screen",
-   "expect_field_error"
+   "expect_field_error",
+   "expect_navigated"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 17374
+  "ms": 18278
  },
  "plan": {
-  "title": "Proposal submission requires recommended supplier contact",
+  "title": "Required Recommended Supplier Contact Name",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS as the buyer."
+    "note": "Open the prepared closed RFQ's Master QCS without searching the events list."
    },
    {
     "step": "start_awarding",
@@ -45,10 +47,8 @@
    },
    {
     "step": "allocate_award",
-    "args": {
-     "vendor": "Vendor B"
-    },
-    "note": "Allocate the available line item to the explicitly named Vendor B."
+    "args": {},
+    "note": "Allocate the available line item to the available vendor so a proposal can be created; the prepared state does not expose the case's specific Vendor B or quantity allocation."
    },
    {
     "step": "click",
@@ -56,21 +56,21 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Open the proposal form after allocation."
+    "note": "Open the proposal form after allocating the line item."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify that the proposal page opened."
+    "note": "Confirm the proposal page opened."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the proposal page, fill every required field except Recommended Supplier 1 Contact Name, leave that field empty, click Submit Proposal, and stop when the required-field validation is shown and the proposal remains unsubmitted"
+     "goal": "On the proposal form, fill every required field except Recommended Supplier 1 Contact Name, leave that field empty, click Submit Proposal, and stop on the proposal form showing the validation refusal."
     },
-    "note": "Perform the form completion and submission attempt that no specialized catalog step can express."
+    "note": "The catalog has no step that fills an arbitrary company-specific proposal form while deliberately excluding one required field, so perform that form interaction on screen."
    },
    {
     "step": "expect_field_error",
@@ -78,7 +78,14 @@
      "field": "Recommended Supplier 1 Contact Name",
      "message": "is a required field"
     },
-    "note": "Assert the omitted contact-name field is highlighted with the required validation."
+    "note": "Verify the omitted contact name is highlighted with the required-field validation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm submission was refused and the browser remains on the proposal form rather than advancing."
    }
   ]
  }

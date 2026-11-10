@@ -1,0 +1,227 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-028",
+  "title": "eRFX project level (all stages), Mark all mandatory: the vendor accepts both clauses",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:13:49.811Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+  ],
+  "source": "llm",
+  "steps": 25,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "toggle",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "expect_text"
+  ],
+  "ms": 23462
+ },
+ "plan": {
+  "title": "eRFX project-level mandatory terms acceptance",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Set the project title required for publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project with RFQ only, matching the requested final stage configuration."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before applying its template and line items."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the CYLINDER product and set its quantity to 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the delivery location was retained in the pricing sheet."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the project contains one line item."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the buyer's eRFX project screen, open Add T&Cs, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", enable \"Mark all Terms & Conditions mandatory\", click Done, and stop with the saved project-level terms showing both clauses as mandatory"
+    },
+    "note": "Configure the project-level clauses and mandatory setting, which has no dedicated catalog step."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA test vendor, corresponding to Vendor A."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFQ project."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publishing reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal session while keeping the buyer session open."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event's RFQ pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days",
+     "present": true
+    },
+    "note": "Verify the first project-level clause is shown to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days",
+     "present": true
+    },
+    "note": "Verify the second project-level clause is shown to the vendor."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": true
+    },
+    "note": "Accept the first mandatory clause."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Delivery within 7 days",
+     "on": true
+    },
+    "note": "Accept the second mandatory clause."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's quote at 100 after accepting both clauses."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor portal reports the quote as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendors who have placed the bid, have accepted the Terms and Conditions.",
+     "present": true
+    },
+    "note": "Verify the buyer-side event page confirms the vendor bid and T&C acceptance."
+   }
+  ]
+ }
+}

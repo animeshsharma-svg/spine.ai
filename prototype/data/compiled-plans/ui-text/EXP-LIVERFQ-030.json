@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-030",
+  "title": "A live RFQ: \"Rejected Bids\": \"Close\" closes it and changes nothing",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:46:02.770Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly compare the event's submission times before and after closing the Rejected Bids window.",
+   "Verify that the complete vendor list is unchanged without known vendor names or a supported before/after participant snapshot."
+  ],
+  "warnings": [
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Directly compare the event's submission times before and after closing the Rejected Bids window.; Verify that the complete vendor list is unchanged without known vendor names or a supported before/after participant snapshot."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "expect_text",
+   "event_menu",
+   "expect_text",
+   "expect_event_status",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 15175
+ },
+ "plan": {
+  "title": "Live RFQ Rejected Bids Close",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the RFQ Responses tab where the live no-bid state can be observed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No bids received yet.",
+     "present": true
+    },
+    "note": "Confirm the event initially has no bids."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids",
+     "stage": "rfq",
+     "close": true
+    },
+    "note": "Open the RFQ Rejected Bids window and close it without changing any event data."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected Bids",
+     "present": false
+    },
+    "note": "Confirm the Rejected Bids window is closed."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Confirm the event remains live after closing the window."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No bids received yet.",
+     "present": true
+    },
+    "note": "Confirm that closing the window did not create or alter any bids."
+   }
+  ]
+ }
+}

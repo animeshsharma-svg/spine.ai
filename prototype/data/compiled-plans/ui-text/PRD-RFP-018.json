@@ -1,0 +1,148 @@
+{
+ "meta": {
+  "caseId": "PRD-RFP-018",
+  "title": "Vendor Technical Response: refused for a user without the Vendor role",
+  "group": "PRD-RFP",
+  "compiledAt": "2026-11-10T01:39:58.537Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the configured non-Vendor user on the tenant and attempt manual, bulk Excel, and Quick Fill technical responses, recording whether each is refused or absent and whether tenant RBAC grants access to that role"
+  ],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "can only test part of this — no step for: Sign in as the configured non-Vendor user on the tenant and attempt manual, bulk Excel, and Quick Fill technical responses, recording whether each is refused or absent and whether tenant RBAC grants access to that role"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "ask_tester",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
+  ],
+  "ms": 9967
+ },
+ "plan": {
+  "title": "RFP technical response role access",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create a technical-only event for the role-access check."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFP-RFP-018 Technical Role Access"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a technical response template before publishing."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical questionnaire so the vendor can respond."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Satisfy the technical-stage evaluator requirement."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding and evaluation schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the configured QA Vendor who will perform the positive comparison."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the technical event so the response screen is available."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the configured user without the Vendor role and attempt manual, bulk Excel, and Quick Fill technical responses, recording whether Procol refuses or omits each action and whether tenant RBAC grants access"
+    },
+    "note": "The catalog has no session for an arbitrary non-Vendor user or a way to validate that tenant's RBAC configuration."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited QA Vendor session for the positive role comparison."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the event's Technical Stage in the supplier portal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Quick Fill",
+     "visible": true
+    },
+    "note": "Verify that the Vendor is offered the technical response quick-fill action."
+   }
+  ]
+ }
+}

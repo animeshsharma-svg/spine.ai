@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "SRC-SEL-006",
+  "title": "Buyer edits a vendor's bid during evaluation",
+  "group": "SRC-SEL",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:03:48.358Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that Order Activity records exactly which buyer user changed the bid.",
+   "unconfirmed label \"98\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"98\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Assert that Order Activity records exactly which buyer user changed the bid."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "do_on_screen",
+   "event_menu",
+   "expect_text",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 23057
+ },
+ "plan": {
+  "title": "Buyer edits vendor bid during evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the RFQ in the prepared evaluation state without searching the events list."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the bid comparison screen where the vendor bid and Edit Bid action should be available."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the buyer's Responses screen, open Vendor A's Edit Bid control, change the bid from 100 to 98, enter a reason, save it, and stop when the buyer screen shows the vendor bid as 98"
+    },
+    "note": "No catalog domain step performs the buyer-side bid edit, so execute this buyer-only interaction on screen."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity"
+    },
+    "note": "Open the activity drawer after saving to inspect the audit trail area."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity"
+    },
+    "note": "Assert that the Order Activity drawer opened; the actor-specific audit entry is not expressible."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited vendor's supplier portal to check the vendor-facing result."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared RFQ's pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "98"
+    },
+    "note": "Assert that the vendor portal displays the edited bid value."
+   }
+  ]
+ }
+}

@@ -4,25 +4,29 @@
   "title": "Allow bids in USD and INR",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:09:26.902Z",
+  "compiledAt": "2026-11-10T07:21:30.989Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Vendor A selecting USD in the supplier portal and submitting 1.2 USD, including the portal's currency control and cross-portal login flow."
+   "Configure Add Bid Currencies with USD and exchange rate 83",
+   "Select CYLINDER, CYLINDER WITH KEY & KNOB, quantity 10, and Plant Name (LOC-0001) using the product picker and delivery-location picker",
+   "Verify that the buyer sees 1.2 USD converted to 99.6 INR in the comparison",
+   "Use the specifically named Vendor A and Vendor B accounts because their exact catalog-recognized names are not provided"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added place_bid — the test is about bidding and no bid step was planned",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added place_bid — the test is about bidding and no bid step was planned",
-   "can only test part of this — no step for: Vendor A selecting USD in the supplier portal and submitting 1.2 USD, including the portal's currency control and cross-portal login flow."
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "resolved: “Verify that Vendor A can choose USD in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "cannot test this case yet — no step can observe: Configure Add Bid Currencies with USD and exchange rate 83; Select CYLINDER, CYLINDER WITH KEY & KNOB, quantity 10, and Plant Name (LOC-0001) using the product picker and delivery-location picker; Verify that the buyer sees 1.2 USD converted to 99.6 INR in the comparison; Use the specifically named Vendor A and Vendor B accounts because their exact catalog-recognized names are not provided"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -30,114 +34,133 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "do_on_screen",
-   "invite_vendor",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "place_bid",
-   "ask_tester",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "close_event",
    "open_master_qcs",
-   "expect_qcs_cell"
+   "expect_qcs_vendors"
   ],
-  "ms": 79801
+  "ms": 16609
  },
  "plan": {
-  "title": "SRC-CUR-001 USD and INR Bid Currency Conversion",
+  "title": "USD and INR bid currency support",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen specified by the case."
+    "note": "Open the single-stage event creation screen described by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Change the default event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CUR-001 USD and INR Bid Currency Conversion"
+     "title": "USD INR Currency Test"
     },
-    "note": "Provide the required event title so the event can be published."
+    "note": "Every create flow requires a title before publication."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet is created."
+    "note": "Apply the RFQ pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
+     "count": 1
     },
-    "note": "Add the requested CYLINDER line item with quantity 10."
+    "note": "Add one line item as the closest available substitute for selecting the requested CYLINDER product."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the remaining required pricing-sheet fields."
+    "note": "Populate the available pricing sheet fields."
    },
    {
-    "step": "do_on_screen",
+    "step": "set_schedule",
     "args": {
-     "goal": "On the buyer create screen, set the first line item's Delivery location to Plant Name (LOC-0001), open Add Bid Currencies, add USD with exchange rate 83, save the currency configuration, and stop on the completed create screen."
+     "minutes": 3
     },
-    "note": "No catalog domain step configures bid currencies or the specified delivery-location picker, but these are buyer-side actions available in the current session."
+    "note": "Commit the required 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite the two vendors required for the event without inventing vendor names."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the 30-minute schedule before publishing."
+    "note": "Invite two QA vendors to approximate Vendor A and Vendor B without inventing their names."
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the configured RFQ."
+    "note": "Publish the RFQ so a vendor can submit a quote."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Confirm publication reached a real project page."
+    "note": "Confirm publication reached a real event page."
    },
    {
-    "step": "place_bid"
-   },
-   {
-    "step": "ask_tester",
+    "step": "switch_portal",
     "args": {
-     "need": "sign in as Vendor A in the supplier portal, choose USD as the bid currency, submit a 1.2 USD quote, then return to the buyer portal"
+     "to": "vendor"
     },
-    "note": "The catalog cannot select a bid currency in the vendor portal or perform this additional-user login."
+    "note": "Move to the available invited QA vendor portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ pricing sheet in the vendor portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 1.2
+    },
+    "note": "Submit the numeric 1.2 quote as the closest available representation of the requested USD bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the vendor portal accepted the quote."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": false
+    },
+    "note": "Close the published event so the buyer comparison can be opened."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer comparison grid after the vendor bid."
+    "note": "Open the buyer's Master QCS and assert that the comparison grid rendered with the submitted bid."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_qcs_vendors",
     "args": {
-     "row": "Sum Total",
-     "equals": "99.6"
+     "count": 1,
+     "realNames": true
     },
-    "note": "Assert the buyer sees the USD bid converted to 99.6 INR at the configured rate of 83."
+    "note": "Confirm the buyer comparison contains a real vendor column for the submitted quote."
    }
   ]
  }

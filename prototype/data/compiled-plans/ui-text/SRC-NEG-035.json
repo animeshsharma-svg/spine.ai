@@ -1,0 +1,123 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-035",
+  "title": "Counter offer during evaluation time on one of the two lines; the vendor does not answer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:40:06.717Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Starting from or verifying an RFQ in evaluation time rather than the available prepared pricing-round state",
+   "Verifying a two-line event with Vendor A's prices of 100 and 50",
+   "Verifying the counter-offer appears only on line 1"
+  ],
+  "warnings": [
+   "resolved: “Ticking only line 1 while leaving line 2 unchanged” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Verifying the second line's unchanged total separately” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: Starting from or verifying an RFQ in evaluation time rather than the available prepared pricing-round state; Verifying a two-line event with Vendor A's prices of 100 and 50; Verifying the counter-offer appears only on line 1"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "attempt",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 18498
+ },
+ "plan": {
+  "title": "Counter offer pending during evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen, which is the required starting point for this existing bid event."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Raise a counter offer on the vendor's own bid at the available line-item scope."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Assert that the buyer's Responses grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate supplier portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the vendor's pricing round where the pending counter offer is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer"
+    },
+    "note": "Assert that Vendor A can see the pending counter offer without accepting it."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Verify the vendor cannot revise its bid while the counter offer is pending."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's Responses page."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to inspect the current bid values after the unanswered counter offer."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Assert the available vendor rate remains the current API bid value rather than the unaccepted counter offer."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Assert the available line amount and sum total follow the current price."
+   }
+  ]
+ }
+}

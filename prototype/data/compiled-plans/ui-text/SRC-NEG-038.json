@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-038",
+  "title": "Counter offer during evaluation time on both lines; the vendor does not answer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:40:24.674Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event has only one line, so the requested two-line counter offer cannot be tested.",
+   "Changing both quoted prices from 100 to 90 and 50 to 45 cannot be expressed because place_counter_offer accepts only one counter price and does not expose line selection.",
+   "The vendor not answering while the offer remains explicitly pending cannot be asserted as a state.",
+   "Vendor A being unable to revise any line while the counter offer is pending cannot be asserted.",
+   "Master QCS totals for both lines cannot be checked because the prepared state has only one line."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared event has only one line, so the requested two-line counter offer cannot be tested.; Changing both quoted prices from 100 to 90 and 50 to 45 cannot be expressed because place_counter_offer accepts only one counter price and does not expose line selection.; The vendor not answering while the offer remains explicitly pending cannot be asserted as a state.; Vendor A being unable to revise any line while the counter offer is pending cannot be asserted.; Master QCS totals for both lines cannot be checked because the prepared state has only one line."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "switch_portal",
+   "open_prepared",
+   "expect_qcs_amounts"
+  ],
+  "state": "closed",
+  "screen": "responses",
+  "ms": 17956
+ },
+ "plan": {
+  "title": "Counter offer during evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen, which is the required starting point for this existing event."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send the expressible single-line counter offer during the prepared evaluation state."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Assert that the buyer's grid records the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate vendor portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the prepared event's vendor overview to inspect the unanswered counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": true
+    },
+    "note": "Assert that the vendor portal shows the pending counter-offer context without accepting it."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page without taking any vendor response action."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS after the vendor has not answered."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Assert the available one-line Master QCS arithmetic remains internally consistent with the current displayed price."
+   }
+  ]
+ }
+}

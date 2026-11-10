@@ -1,0 +1,206 @@
+{
+ "meta": {
+  "caseId": "SRC-PUB-001",
+  "title": "Publish a complete single stage RFQ",
+  "group": "SRC-PUB",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:37:31.562Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact identities of Vendor A and Vendor B cannot be asserted because the case does not provide their concrete QA_Platform vendor names; invite_vendor can verify that two QA vendors are invited."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: The exact identities of Vendor A and Vendor B cannot be asserted because the case does not provide their concrete QA_Platform vendor names; invite_vendor can verify that two QA vendors are invited."
+  ],
+  "source": "llm",
+  "steps": 21,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "do_on_screen",
+   "fill_sheet",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_api_value",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 20463
+ },
+ "plan": {
+  "title": "Publish Complete Single-Stage RFQ",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to RFQ and the whole-lot awarding rule."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PUB-001 Single Stage RFQ"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template so the product sheet is created."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the requested CYLINDER line item and enter quantity 10."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the single-stage RFQ pricing sheet, ensure the CYLINDER line item shows Product Variant as Default Variant and set its Delivery location to Plant Name (LOC-0001); stop when those values are visible"
+    },
+    "note": "Set and verify the specific product-derived variant and delivery location that no dedicated catalog step can select."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet fields required for publication."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite exactly two QA test vendors, corresponding to Vendor A and Vendor B."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the Start now schedule with a 30-minute duration."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed single-stage RFQ and confirm the publication prompt."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Verify that the published project page shows the event title."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Copy",
+     "visible": true
+    },
+    "note": "Verify that the project page exposes the copy control for the project/RFX identifier."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Project Details",
+     "present": true
+    },
+    "note": "Verify the Project Details tab is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "RFQ",
+     "present": true
+    },
+    "note": "Verify the RFQ stage/tab is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Master QCS",
+     "present": true
+    },
+    "note": "Verify the Master QCS tab is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live",
+     "present": true
+    },
+    "note": "Verify the published project has a Live status."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "RFQ-",
+     "present": true
+    },
+    "note": "Verify that the project details include an RFQ stage code."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Participants 0/2",
+     "present": true
+    },
+    "note": "Verify the project details report two invited participants with no bids yet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Starts At",
+     "present": true
+    },
+    "note": "Verify the bidding start schedule is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Ends At",
+     "present": true
+    },
+    "note": "Verify the bidding end schedule/countdown information is shown."
+   }
+  ]
+ }
+}

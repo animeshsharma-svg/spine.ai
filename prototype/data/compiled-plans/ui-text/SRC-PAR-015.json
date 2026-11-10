@@ -1,0 +1,100 @@
+{
+ "meta": {
+  "caseId": "SRC-PAR-015",
+  "title": "Invite a new vendor with an empty name",
+  "group": "SRC-PAR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:57:22.974Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "select",
+   "do_on_screen",
+   "expect_message"
+  ],
+  "ms": 16743
+ },
+ "plan": {
+  "title": "Reject New Vendor with Empty Name",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ, matching the case flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title so the create screen is valid."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the requested CYLINDER line item with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet fields needed to reach participant controls."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Delivery location",
+     "option": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the participant invitation form, choose to invite a new vendor, enter a valid QA email while leaving the vendor name empty, submit the form, and stop when the screen shows the validation message \"Please enter a valid name\""
+    },
+    "note": "Perform the manual new-vendor invitation flow that no dedicated catalog step can express."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please enter a valid name"
+    },
+    "note": "Assert that Procol refuses the invitation because the vendor name is empty."
+   }
+  ]
+ }
+}

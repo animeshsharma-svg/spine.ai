@@ -1,0 +1,196 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-003",
+  "title": "Each event type asks for its own configurations",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:06:46.094Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether RFQ renders an optional Delivery Date field, because the single-stage drawer has no confirmed catalog label for it",
+   "Whether Reverse Auction renders optional Rank Type Configurations",
+   "Whether Reverse Auction renders optional Serial Bidding"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
+   "can only test part of this — no step for: Whether RFQ renders an optional Delivery Date field, because the single-stage drawer has no confirmed catalog label for it; Whether Reverse Auction renders optional Rank Type Configurations; Whether Reverse Auction renders optional Serial Bidding"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "expect_value",
+   "expect_visible",
+   "expect_visible",
+   "configure_single_stage",
+   "expect_value",
+   "expect_visible",
+   "expect_options",
+   "configure_single_stage",
+   "expect_value",
+   "expect_visible",
+   "expect_options",
+   "expect_visible",
+   "expect_options",
+   "expect_no_error"
+  ],
+  "ms": 14488
+ },
+ "plan": {
+  "title": "Single-stage event type configurations",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event setup screen where the event-type configuration drawer is available."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Select RFP in the configuration drawer."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Event Type Configuration Test"
+    },
+    "note": "Provide the required title for a create flow without changing the configuration subject."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event Type",
+     "value": "RFP"
+    },
+    "note": "Confirm RFP is the selected event type."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Choose a Strategy",
+     "visible": false
+    },
+    "note": "RFP should not require or show auction strategy configuration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "How will you award the event?",
+     "visible": false
+    },
+    "note": "RFP should not require awarding type configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Switch to RFQ and set the supported lot awarding mode."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event Type",
+     "value": "RFQ"
+    },
+    "note": "Confirm RFQ is the selected event type."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "How will you award the event?",
+     "visible": true
+    },
+    "note": "RFQ should show awarding configuration."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "How will you award the event?",
+     "options": [
+      "I'll award the entire lot to single Vendor",
+      "I may partially award the event to multiple"
+     ]
+    },
+    "note": "Verify RFQ offers Lot and Line awarding choices."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Switch to the Reverse Auction/Auction configuration and select a valid strategy and awarding mode."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event Type",
+     "value": "Auction"
+    },
+    "note": "Confirm the reverse-auction event type is represented by the product's Auction label."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Choose a Strategy",
+     "visible": true
+    },
+    "note": "Reverse Auction should show auction strategy configuration."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Choose a Strategy",
+     "options": [
+      "Rank Based",
+      "Price Based",
+      "Traffic Light",
+      "Knockout",
+      "Dutch"
+     ]
+    },
+    "note": "Verify all documented auction strategy choices are offered in the strategy control."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "How will you award the event?",
+     "visible": true
+    },
+    "note": "Reverse Auction should show awarding type configuration."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "How will you award the event?",
+     "options": [
+      "I'll award the entire lot to single Vendor",
+      "I may partially award the event to multiple"
+     ]
+    },
+    "note": "Verify Reverse Auction offers Lot and Line awarding choices."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm switching among event types did not produce an application error."
+   }
+  ]
+ }
+}

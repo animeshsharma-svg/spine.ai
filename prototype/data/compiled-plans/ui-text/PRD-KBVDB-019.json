@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "PRD-KBVDB-019",
+  "title": "Quote can be changed and re-submitted while submission time is running",
+  "group": "PRD-KBVDB",
+  "compiledAt": "2026-11-10T06:54:12.300Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_value"
+  ],
+  "ms": 10278
+ },
+ "plan": {
+  "title": "Vendor revises and resubmits quote",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the RFQ event used for the resubmission scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBVDB-019 Quote Revision"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ with a pricing quote sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the quote sheet has a value to revise."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the initial pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a submission window that remains active for the revision."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will submit and revise the quote."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can quote."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the initial vendor response was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reopen the active quote sheet for the submitted event."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Verify the vendor portal shows the renewed submitted confirmation."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Price",
+     "value": "110"
+    },
+    "note": "Verify the changed price is held in the submitted response."
+   }
+  ]
+ }
+}

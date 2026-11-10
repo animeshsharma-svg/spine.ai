@@ -4,49 +4,65 @@
   "title": "Download Logs gives a file of the same history",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T19:08:41.416Z",
+  "compiledAt": "2026-11-10T07:02:13.370Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Identify and verify the RFQ fixture has exactly two bids priced 100 and 90 from vendors A and B",
-   "Trigger Download Logs and verify that a file downloads",
-   "Compare the downloaded file entries with Order Activity history",
-   "Verify the fallback message \"Download triggered, but no file URL received.\" after the download action"
+   "Compare the downloaded file's entries with the event's Order Activity entries",
+   "Enable the tenant setting required for buyer access to Download Logs"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Identify and verify the RFQ fixture has exactly two bids priced 100 and 90 from vendors A and B; Trigger Download Logs and verify that a file downloads; Compare the downloaded file entries with Order Activity history; Verify the fallback message \"Download triggered, but no file URL received.\" after the download action"
+   "can only test part of this — no step for: Compare the downloaded file's entries with the event's Order Activity entries; Enable the tenant setting required for buyer access to Download Logs"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "expect_menu_item"
+   "event_menu",
+   "expect_visible",
+   "event_menu",
+   "expect_download"
   ],
-  "state": "bid",
+  "state": "two_bids",
   "screen": "summary",
-  "ms": 20984
+  "ms": 11118
  },
  "plan": {
-  "title": "Buyer Download Logs availability",
+  "title": "Buyer Download Logs History",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ event's project page without recreating or searching for it."
    },
    {
-    "step": "expect_menu_item",
+    "step": "event_menu",
     "args": {
-     "item": "Download Logs",
-     "present": false,
-     "stage": "rfq"
+     "item": "Order Activity"
     },
-    "note": "Verify that the buyer's RFQ Settings menu does not expose the Procol-internal Download Logs action."
+    "note": "Open the event history drawer so the buyer-side activity entries are observable."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Activity",
+     "visible": true
+    },
+    "note": "Assert that the Order Activity drawer opened."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Download Logs"
+    },
+    "note": "Attempt the buyer-side Settings action requested by the case."
+   },
+   {
+    "step": "expect_download",
+    "args": {},
+    "note": "Assert that a file download occurred; the catalog cannot validate that its entries match the activity drawer."
    }
   ]
  }

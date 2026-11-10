@@ -1,0 +1,158 @@
+{
+ "meta": {
+  "caseId": "SRC-ERX-008",
+  "title": "After deleting a stage the panel is blank",
+  "group": "SRC-ERX",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:16:54.493Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "expect_stages",
+   "open_add_stage_menu",
+   "expect_add_stage_options",
+   "click",
+   "expect_stages",
+   "open_stage_menu",
+   "click",
+   "expect_stages",
+   "switch_stage",
+   "expect_visible",
+   "expect_visible",
+   "expect_no_error"
+  ],
+  "ms": 12531
+ },
+ "plan": {
+  "title": "eRFX stage panel remains usable after deleting Auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project create screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Confirm the initial project contains exactly the default Auction stage."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Open the Add Stages menu to add Technical Stage."
+   },
+   {
+    "step": "expect_add_stage_options",
+    "args": {
+     "offers": [
+      "Technical Stage"
+     ]
+    },
+    "note": "Verify Technical Stage is available to add."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Technical Stage"
+    },
+    "note": "Add the Technical Stage while retaining Auction."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "auction"
+     ]
+    },
+    "note": "Confirm both Technical Stage and Auction are present before deletion."
+   },
+   {
+    "step": "open_stage_menu",
+    "args": {
+     "stage": "auction"
+    },
+    "note": "Open the Auction stage overflow menu so it can be deleted."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Delete"
+    },
+    "note": "Delete the Auction stage as required by the scenario."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Confirm only the Technical Stage remains after deletion."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Open the remaining Technical Stage panel."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Select Templates",
+     "visible": true
+    },
+    "note": "Verify the remaining stage panel is rendered and not blank."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Add Evaluator",
+     "visible": true
+    },
+    "note": "Verify Technical Stage controls and content were not lost."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm no application error appeared during stage deletion or panel navigation."
+   }
+  ]
+ }
+}
