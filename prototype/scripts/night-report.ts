@@ -132,16 +132,35 @@ out(`${runs.length} run(s), ${ranCases} case(s): ${Object.entries(tally).map(([k
 out();
 if (fails.length) { out(`Fails to re-read against their evidence before anyone reports them:`); out(); for (const f of fails) out(`- ${f}`); out(); }
 
-// ── the API batch ────────────────────────────────────────────────────────────
-const sumFile = join(NIGHT, "api-run-summary.json");
-if (existsSync(sumFile)) {
+// ── the API batches ──────────────────────────────────────────────────────────
+for (const [file, title] of [["api-run-summary.json", "API batch — the exact-runner cases (run-all-runnable)"], ["api-plans-run-summary.json", "API batch — the stored API plans (run-all-runnable --plans-only)"]] as const) {
+  const sumFile = join(NIGHT, file);
+  if (!existsSync(sumFile)) continue;
   try {
     const s = JSON.parse(readFileSync(sumFile, "utf8"));
-    out(`## API batch (run-all-runnable)`);
+    const batches: Array<{ id?: string; verdict?: string; reason?: string; ran?: number; passed?: number; failed?: number; inconclusive?: number }> = s.batches ?? [];
+    out(`## ${title}`);
     out();
-    out("```");
-    out(JSON.stringify(s, null, 1).slice(0, 2500));
-    out("```");
+    out(`${s.startedAt?.slice(11, 16)}–${s.finishedAt?.slice(11, 16)} UTC, ${s.minutes} min${s.stopped ? ` — stopped: ${s.stopped}` : ""}.`);
+    const perCase = batches.filter((b) => b.verdict);
+    if (perCase.length) {
+      const t: Record<string, number> = {};
+      for (const b of perCase) t[b.verdict!] = (t[b.verdict!] ?? 0) + 1;
+      out(`${perCase.length} plan(s) judged: ${Object.entries(t).map(([k, n]) => `${k} ${n}`).join(" · ")}.`);
+    } else {
+      const ran = batches.reduce((n, b) => n + (b.ran ?? 0), 0), passed = batches.reduce((n, b) => n + (b.passed ?? 0), 0), failed = batches.reduce((n, b) => n + (b.failed ?? 0), 0);
+      out(`${batches.length} batch(es), ${ran} case(s): passed ${passed} · failed ${failed}.`);
+    }
+    const ver: Array<{ id: string; reproduced: boolean; first?: string; fresh?: string }> = s.verified ?? [];
+    if (ver.length) {
+      out();
+      out(`Failures that repeated on a second fresh record (${ver.filter((v) => v.reproduced).length}) — re-read each against its evidence before it is reported; a plan whose starting state contradicts the case ("proposal already submitted", "does not exist") is a plan premise, not a product bug:`);
+      out();
+      for (const v of ver.filter((x) => x.reproduced)) {
+        const b = perCase.find((x) => x.id === v.id);
+        out(`- ${v.id} — ${(b?.reason ?? v.first ?? "").replace(/ It failed the same way.*$/, "").slice(0, 170)}`);
+      }
+    }
     out();
   } catch { /* skip */ }
 }
