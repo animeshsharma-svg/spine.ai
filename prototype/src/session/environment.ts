@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { TOKEN_CLIENTS, isTokenClient, tokenClient } from "../../config/tokenClients.js";
 import { readEnvVar } from "../tokenClient.js";
 import { FEATURES } from "../../config/featureTree.js";
-import { advance, saveSession, type EnvironmentProfile, type EnvironmentSnapshot, type Session } from "./store.js";
+import { advance, updateSession, type EnvironmentProfile, type EnvironmentSnapshot, type Session } from "./store.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROFILES = join(here, "..", "..", "data", "env-profiles.json");
@@ -126,9 +126,9 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
   const notes: string[] = [];
   const say = (type: EnvEvent["type"] & ("reach" | "signin" | "settings" | "gates" | "vendors"), line: string, ok = true) => emit({ type, line, ok } as EnvEvent);
   const fail = (why: string): Session => {
-    s.env = { ...(s.env ?? { profileId: "", url: input.url, companyId: input.companyId ?? 0, signIn: input.signIn ?? "otp", kind: "uat", snapshot: { at: new Date().toISOString(), settings: { flags: 0, key: {} }, notes } }), error: why };
+    updateSession(s, (f) => { f.env = { ...(f.env ?? { profileId: "", url: input.url, companyId: input.companyId ?? 0, signIn: input.signIn ?? "otp", kind: "uat", snapshot: { at: new Date().toISOString(), settings: { flags: 0, key: {} }, notes } }), error: why }; });
     emit({ type: "error", why });
-    return saveSession(s);
+    return s;
   };
 
   const d = describeUrl(input.url);
@@ -292,7 +292,7 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
       snapshotAt: snapshot.at, snapshot,
     };
     saveProfile(profile);
-    s.env = { profileId: profile.id, url: profile.url, companyId, companyName, signIn, kind, snapshot };
+    updateSession(s, (f) => { f.env = { profileId: profile.id, url: profile.url, companyId, companyName, signIn, kind, snapshot }; });
     emit({ type: "done", profile });
     return advance(s, "environment");
   } catch (e) {
@@ -306,7 +306,7 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
 export function useProfile(s: Session, profileId: string): Session | null {
   const p = listProfiles().find((x) => x.id === profileId);
   if (!p) return null;
-  s.env = { profileId: p.id, url: p.url, companyId: p.companyId, companyName: p.companyName, signIn: p.signIn, kind: p.kind, snapshot: p.snapshot };
+  updateSession(s, (f) => { f.env = { profileId: p.id, url: p.url, companyId: p.companyId, companyName: p.companyName, signIn: p.signIn, kind: p.kind, snapshot: p.snapshot }; });
   return advance(s, "environment");
 }
 

@@ -20,7 +20,7 @@
  */
 import { addSheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { runSheetCases, type SheetEvent, type SheetRunCase } from "../checks/sheetRunner.js";
-import { advance, saveSession, type Session } from "./store.js";
+import { advance, updateSession, type Session } from "./store.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
 
 export type FlowVerdict = "works" | "broken" | "couldn't reach";
@@ -165,8 +165,7 @@ export async function runSanity(s: Session, flowIds: string[] | undefined, emit:
   const tally: Record<FlowVerdict, number> = { works: 0, broken: 0, "couldn't reach": 0 };
   for (const f of flows) tally[f.verdict]++;
   const result: SanityResult = { at: new Date().toISOString(), runId: run.id, sheet: cases[0].sheet, flows, tally };
-  s.sanity = result as unknown as Record<string, unknown>;
-  saveSession(s);
+  updateSession(s, (f) => { f.sanity = result as unknown as Record<string, unknown>; });
   emit({ type: "line", line: `Sanity done in ${Math.round((Date.now() - t0) / 60_000)} min: ${tally.works} work, ${tally.broken} broken, ${tally["couldn't reach"]} could not be reached.` });
   emit({ type: "done", result });
   if (tally.works > 0) advance(s, "sanity");

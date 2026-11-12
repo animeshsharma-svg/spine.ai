@@ -19,7 +19,7 @@ import { defectsFor, existingFor, jsonOf, sameTitle } from "../agents/deriveCase
 import { addSheetCases, sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { advance, saveSession, SESSIONS_DIR, type Session } from "./store.js";
+import { advance, updateSession, SESSIONS_DIR, type Session } from "./store.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
 
 export const KINDS = ["happy", "negative", "edge", "permission", "state", "settings", "data", "timing", "visibility", "api", "design", "error-guessing"] as const;
@@ -223,8 +223,7 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
   }
   if (written.length) addSheetCases(written.map(({ kind: _k, existing, ...c }) => ({ ...c, status: "", twin: existing, reference: `generated for session ${s.id}; ${c.source}` })), sheet);
   const generation: Generation = { at: new Date().toISOString(), kinds: picked, depth, sheet, sections, total: written.length, existing: written.filter((w) => w.existing).length, notes };
-  s.generation = generation as unknown as Record<string, unknown>;
-  saveSession(s);
+  updateSession(s, (f) => { f.generation = generation as unknown as Record<string, unknown>; });
   emit({ type: "line", line: `${written.length} case(s) written in ${sections.filter((x) => x.count).length} section(s); ${generation.existing} already in the catalog.` });
   emit({ type: "done", generation });
   if (written.length) advance(s, "cases");

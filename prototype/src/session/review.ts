@@ -9,7 +9,7 @@
  */
 import { addSheetCases, importSheetBuffer, listSheets, removeSheetCases, renameSheet, sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { existingFor, sameTitle } from "../agents/deriveCases.js";
-import { advance, saveSession, type Session } from "./store.js";
+import { advance, updateSession, type Session } from "./store.js";
 import type { Understanding } from "./understanding.js";
 
 export interface ReviewState {
@@ -51,9 +51,7 @@ export function editCase(s: Session, id: string, patch: Record<string, unknown>)
 
 export function dropCases(s: Session, ids: string[]): number {
   const n = removeSheetCases(genSheet(s), ids);
-  const prev = (s.review as any) ?? {};
-  s.review = { ...prev, dropped: Number(prev.dropped ?? 0) + n };
-  saveSession(s);
+  updateSession(s, (f) => { const prev = (f.review as any) ?? {}; f.review = { ...prev, dropped: Number(prev.dropped ?? 0) + n }; });
   return n;
 }
 
@@ -77,9 +75,7 @@ export function mergeSheet(s: Session, name: string, data: string): { added: She
   }
   if (added.length) addSheetCases(added.map(({ sheet: _sheet, ...r }) => r), sheet);
   removeSheetCases(info.id, incoming.map((c) => c.id));
-  const prev = (s.review as any) ?? {};
-  s.review = { ...prev, merged: Number(prev.merged ?? 0) + added.length, duplicatesSeen: Number(prev.duplicatesSeen ?? 0) + duplicates.length };
-  saveSession(s);
+  updateSession(s, (f) => { const prev = (f.review as any) ?? {}; f.review = { ...prev, merged: Number(prev.merged ?? 0) + added.length, duplicatesSeen: Number(prev.duplicatesSeen ?? 0) + duplicates.length }; });
   return { added, duplicates };
 }
 
@@ -96,9 +92,7 @@ export function approve(s: Session, ids?: string[]): { sheetId: string; name: st
   const frozen = rows.map((c, i) => { const { sheet: _sheet, ...r } = c; return { ...r, id: `${pre}-${String(i + 1).padStart(3, "0")}`, status: "Approved", reference: `${r.reference ?? ""}; approved in session ${s.id} as ${sheetId} (was ${c.id})`.replace(/^; /, "") }; });
   addSheetCases(frozen, sheetId);
   renameSheet(sheetId, `${title} — v${version} (${frozen.length} approved)`);
-  const prev = (s.review as any) ?? {};
-  s.review = { ...prev, sheetId, version, approved: frozen.length, dropped: Number(prev.dropped ?? 0), merged: Number(prev.merged ?? 0), at: new Date().toISOString() };
-  saveSession(s);
+  updateSession(s, (f) => { const prev = (f.review as any) ?? {}; f.review = { ...prev, sheetId, version, approved: frozen.length, dropped: Number(prev.dropped ?? 0), merged: Number(prev.merged ?? 0), at: new Date().toISOString() }; });
   advance(s, "review");
   return { sheetId, name: `${title} — v${version}`, version, count: frozen.length };
 }

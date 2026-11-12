@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { importSheetBuffer } from "../checks/sheetCases.js";
-import { saveSession, SESSIONS_DIR, type Session } from "./store.js";
+import { updateSession, SESSIONS_DIR, type Session } from "./store.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EXTRACT = join(here, "..", "..", "scripts", "extract-text.py");
@@ -182,8 +182,7 @@ export async function runIntake(s: Session, input: IntakeInput, emit: (e: Intake
   }
   if (!summary.prd && !summary.sheet) summary.notes.push("No PRD was read. The understanding needs the requirement's words; a sheet alone can be run but not understood.");
 
-  s.intake = { ...summary, at: new Date().toISOString() };
-  saveSession(s);
+  updateSession(s, (f) => { f.intake = { ...summary, at: new Date().toISOString() }; });
   return { session: s, prdText, figmaLabels };
 }
 

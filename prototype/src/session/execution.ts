@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { loadSheetRun, runSheetCases, type SheetEvent, type SheetRun } from "../checks/sheetRunner.js";
-import { saveSession, type Session } from "./store.js";
+import { updateSession, type Session } from "./store.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const QUEUE = join(here, "..", "..", "data", "night", "queue.json");
@@ -47,9 +47,7 @@ export async function runExecution(s: Session, scope: Scope, sections: string[] 
   if (!now.length) { emit({ type: "error", why: `Nothing to run for scope "${scope}"${sections?.length ? ` (${sections.join(", ")})` : ""}: the sheet has ${all.length} case(s).` }); return s; }
   if (later.length && overnightRest) { queueForNight(sheet, later.map((c) => c.id)); emit({ type: "queued", sheet, ids: later.map((c) => c.id), note: `${later.length} case(s) queued for the night runner.` }); }
   const run: SheetRun = await runSheetCases(now, { companyId: s.env.companyId, sheet, headed: false, repair: true, emit });
-  const prev = (s.execution as any) ?? { runIds: [] };
-  s.execution = { ...prev, runIds: [...(prev.runIds ?? []), run.id], lastRunAt: new Date().toISOString() };
-  saveSession(s);
+  updateSession(s, (f) => { const prev = (f.execution as any) ?? { runIds: [] }; f.execution = { ...prev, runIds: [...(prev.runIds ?? []), run.id], lastRunAt: new Date().toISOString() }; });
   return s;
 }
 
@@ -60,9 +58,7 @@ export async function rerunCase(s: Session, caseId: string, emit: (e: ExecEvent)
   if (!sheet || !c) { emit({ type: "error", why: `No case ${caseId} on the approved sheet.` }); return s; }
   if (!s.env || s.env.kind !== "uat") { emit({ type: "error", why: "The run needs a company on Procol's UAT." }); return s; }
   const run = await runSheetCases([c], { companyId: s.env.companyId, sheet, headed: false, repair: true, emit });
-  const prev = (s.execution as any) ?? { runIds: [] };
-  s.execution = { ...prev, runIds: [...(prev.runIds ?? []), run.id], lastRunAt: new Date().toISOString() };
-  saveSession(s);
+  updateSession(s, (f) => { const prev = (f.execution as any) ?? { runIds: [] }; f.execution = { ...prev, runIds: [...(prev.runIds ?? []), run.id], lastRunAt: new Date().toISOString() }; });
   return s;
 }
 

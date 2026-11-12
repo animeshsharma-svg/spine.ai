@@ -137,13 +137,28 @@ export function listSessions(): Array<Pick<Session, "id" | "name" | "step" | "cr
   return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+/**
+ * Change a session SAFELY: a long step (a sanity run of twenty minutes) must not save the stale copy it
+ * loaded at its start over what other requests saved meanwhile (12 Nov: a sanity run's final save wiped
+ * the approval and the generation made while it ran). So every change loads the file afresh, applies the
+ * mutation, saves, and copies the result back into the caller's object.
+ */
+export function updateSession(s: Session, mutate: (fresh: Session) => void): Session {
+  const fresh = loadSession(s.id) ?? s;
+  mutate(fresh);
+  saveSession(fresh);
+  Object.assign(s, fresh);
+  return s;
+}
+
 /** Move to the next step after `done`; never skips a step. */
 export function advance(s: Session, done: Step): Session {
-  const i = STEPS.indexOf(done);
-  const next = STEPS[Math.min(i + 1, STEPS.length - 1)];
-  if (STEPS.indexOf(next) > STEPS.indexOf(s.step)) s.step = next;
-  s.stale = (s.stale ?? []).filter((x) => x !== done);
-  return saveSession(s);
+  return updateSession(s, (f) => {
+    const i = STEPS.indexOf(done);
+    const next = STEPS[Math.min(i + 1, STEPS.length - 1)];
+    if (STEPS.indexOf(next) > STEPS.indexOf(f.step)) f.step = next;
+    f.stale = (f.stale ?? []).filter((x) => x !== done);
+  });
 }
 
 /**
@@ -153,10 +168,11 @@ export function advance(s: Session, done: Step): Session {
 export function reopen(s: Session, step: Step): Session {
   const i = STEPS.indexOf(step);
   if (i < 0) return s;
-  const after = STEPS.slice(i + 1).filter((x) => STEPS.indexOf(x) <= STEPS.indexOf(s.step));
-  s.stale = [...new Set([...(s.stale ?? []), ...after])];
-  s.step = step;
-  return saveSession(s);
+  return updateSession(s, (f) => {
+    const after = STEPS.slice(i + 1).filter((x) => STEPS.indexOf(x) <= STEPS.indexOf(f.step));
+    f.stale = [...new Set([...(f.stale ?? []), ...after])];
+    f.step = step;
+  });
 }
 
 /** Only this much of a session goes over the wire for the list; the whole object for the page. */

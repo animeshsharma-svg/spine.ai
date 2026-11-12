@@ -19,7 +19,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { chat } from "../ai/llm.js";
 import { defectsFor, existingFor, jsonOf } from "../agents/deriveCases.js";
 import { settingsCatalog } from "../checks/companySettings.js";
-import { advance, saveSession, type Session } from "./store.js";
+import { advance, updateSession, type Session } from "./store.js";
 
 export interface Feature { id: string; name: string; what: string; existing?: number; off?: string }
 export interface Role { name: string; canDo: string[] }
@@ -207,8 +207,7 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
   const grounding = await ground(s, c, figmaLabels, say);
   c.questions.push(...ruleQuestions(c, grounding.settings));
   const card: Understanding = { version: ((s.understanding as any)?.version ?? 0) + 1, at: new Date().toISOString(), ...c, grounding, notes };
-  s.understanding = card as unknown as Record<string, unknown>;
-  saveSession(s);
+  updateSession(s, (f) => { f.understanding = card as unknown as Record<string, unknown>; });
   emit({ type: "understanding", card });
   emit({ type: "questions", questions: card.questions });
   if (card.flows.length) advance(s, "requirement"); else say("No flow could be read from the requirement, so the sanity step cannot start yet; answer the questions or give more of the PRD.");
@@ -222,7 +221,7 @@ export function answerQuestion(s: Session, questionId: string, answer?: string, 
   const q = card.questions.find((x) => x.id === questionId);
   if (!q) return null;
   if (skip) { q.skipped = true; delete q.answer; } else { q.answer = clean(answer); q.skipped = false; }
-  saveSession(s);
+  updateSession(s, (f) => { f.understanding = card as unknown as Record<string, unknown>; });
   return card;
 }
 
@@ -240,8 +239,7 @@ export async function applyAnswers(s: Session, emit: (e: UnderstandEvent) => voi
   const kept = card.questions.filter((q) => q.answer || q.skipped);
   const fresh = c.questions.filter((q) => !kept.some((k) => k.text.toLowerCase() === q.text.toLowerCase()));
   const next: Understanding = { ...card, ...c, version: card.version + 1, at: new Date().toISOString(), questions: [...kept, ...fresh], grounding: card.grounding, notes: card.notes };
-  s.understanding = next as unknown as Record<string, unknown>;
-  saveSession(s);
+  updateSession(s, (f) => { f.understanding = next as unknown as Record<string, unknown>; });
   emit({ type: "understanding", card: next });
   if (next.flows.length) advance(s, "requirement");
   return next;
