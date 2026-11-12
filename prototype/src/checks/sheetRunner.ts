@@ -319,7 +319,12 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   r.planRunId = planRunId;
   r.startedFrom = sp?.why ? `${sp.why}${sp.note ? ` (${sp.note})` : ""}` : undefined;
   if (!result?.steps?.length) {
-    r.why = "The browser run ended without a result (it may have been stopped, or the login failed). Nothing can be concluded.";
+    // Playwright leaves the last error beside its output; a network failure reaching the environment is said
+    // as such (12 Nov: page.goto net::ERR_TIMED_OUT on cpanel.ag-ri.in read as "ended without a result")
+    const net = lastBrowserError();
+    r.why = net
+      ? `The environment did not answer the browser (${net}): a network problem on the way to the environment, not the product. Run the case again.`
+      : "The browser run ended without a result (it may have been stopped, or the login failed). Nothing can be concluded.";
     return r;
   }
   const steps = result.steps;
@@ -478,4 +483,22 @@ async function runApiCase(c: SheetCase, companyId: number, line: (l: string) => 
     };
   }
   return r;
+}
+
+
+/** The network error of the last Playwright run, read from its error context, when there is one. */
+function lastBrowserError(): string | null {
+  try {
+    const dir = join(here, "..", "..", "..", "procol-ui-tests", "test-results");
+    if (!existsSync(dir)) return null;
+    const dirs = readdirSync(dir).map((d) => join(dir, d, "error-context.md")).filter((f) => existsSync(f));
+    if (!dirs.length) return null;
+    const latest = dirs.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+    if (Date.now() - statSync(latest).mtimeMs > 30 * 60_000) return null;
+    const text = readFileSync(latest, "utf8");
+    const m = text.match(/(net::ERR_[A-Z_]+|ERR_TIMED_OUT|ERR_CONNECTION_[A-Z_]+|ENETUNREACH|ETIMEDOUT) at (https?:\/\/[^\s"]+)/);
+    return m ? `${m[1]} at ${m[2]}` : null;
+  } catch {
+    return null;
+  }
 }
