@@ -388,6 +388,11 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"\n]+?)"?\s*$/i) ?? d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i)!;
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) expected "${m[2]}", a name the case never wrote (the compiler guessed it); the screen shows "${m[1]}", which contains it. The case's own words hold; the guessed name proves nothing. This is an automation gap, not a product bug.`;
+    } else if (/^expect_participant(_count)?$/.test(f.step) && steps.slice(0, failedAt).some((st) => /invited every vendor the product suggested/i.test(st.detail ?? ""))) {
+      // the company suggests vendors on invite (PROCOL DEMO adds ~200): the participant count is the company's doing,
+      // not the case's, so "exactly the invited vendor" cannot be judged there (12 Nov, FL2 step 16)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) counted participants after the invite step took every vendor the company suggests (the company adds its suggested vendors on invite). The count is the company's, not the case's; this cannot be judged on this company. Not a product bug.`;
     } else if (/^no control reading /i.test(d) && !f.evidence?.appSaid) {
       // the step's own words: the control it was told to judge is not on this screen — a label the compiler
       // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")

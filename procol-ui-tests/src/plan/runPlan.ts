@@ -1283,6 +1283,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         draft: /\bdraft\b|to be scheduled/i,
         closed: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended/i,
         ended: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended|\bended\b/i,
+        // a running event's row reads "RFQ in Progress" / "Auction in Progress" with "Ends in …" (12 Nov, a PRD said "Live")
+        live: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b/i,
+        published: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b|\bupcoming\b|starts in\b/i,
+        upcoming: /\bupcoming\b|starts in\b|\bscheduled\b/i,
+        awarded: /\bawarded\b|\bpo created\b|purchase order/i,
       };
       const said = SAYS[status.toLowerCase()] ? SAYS[status.toLowerCase()].exec(row)?.[0] : row.toLowerCase().includes(status.toLowerCase()) ? status : undefined;
       if (!said) {
