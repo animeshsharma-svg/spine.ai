@@ -81,7 +81,19 @@ export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]
   return flows.map((f, i) => {
     const feature = card.features.find((x) => x.id === f.feature);
     const vendorSide = VENDOR.test(f.role) && !/\bbuyer\b/i.test(f.role);
-    const pre = f.preconditions.length ? f.preconditions.map((p) => p.replace(/\.?$/, ".")).join(" ") : "The buyer can create events.";
+    let steps = f.steps;
+    let preList = f.preconditions;
+    // A flow that starts from the unpublished event an earlier flow builds ("configured … not yet published")
+    // cannot start from a draft the API builds: a draft's schedule and publish live on the create screen the
+    // earlier flow is on. So it runs as a continuation: the earlier flow's steps first, then its own (12 Nov, FL2).
+    const startsFromDraft = /\b(not (yet )?(been )?published|unpublished|configured|draft|before (it is |the )?publish)\b/i.test(preList.join(" "));
+    const prevIndex = card.flows.findIndex((x) => x.id === f.id) - 1;
+    const prev = prevIndex >= 0 ? card.flows[prevIndex] : undefined;
+    if (startsFromDraft && prev && /\b(create|creates|new event|single-stage)\b/i.test(`${prev.name} ${prev.steps.join(" ")}`)) {
+      steps = [...prev.steps, ...f.steps];
+      preList = prev.preconditions;
+    }
+    const pre = preList.length ? preList.map((p) => p.replace(/\.?$/, ".")).join(" ") : "The buyer can create events.";
     return {
       id: `SAN-${String(i + 1).padStart(3, "0")}`,
       sheet,
@@ -91,9 +103,9 @@ export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]
       role: f.role || (vendorSide ? "Vendor" : "Buyer"),
       portal: vendorSide ? "Supplier portal" : f.layer === "api" ? "API" : "Buyer portal",
       preconditions: pre,
-      configs: configsFor(f, card.rules, s),
+      configs: configsFor({ ...f, steps, preconditions: preList }, card.rules, s),
       testData: "-",
-      steps: f.steps,
+      steps,
       expected: f.endState || "The flow completes as the PRD describes.",
       priority: "P1",
       testType: "Happy path",
