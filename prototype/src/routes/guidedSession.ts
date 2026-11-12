@@ -20,6 +20,9 @@
  *   POST /api/session/:id/sanity      {flowIds?: []}                            SSE: line, flow-start, frame, flow-done{flow}, done{result} | error{why}
  *   GET  /api/session/:id/sanity                                                → {result}
  *   POST /api/session/:id/sanity/accept  (write cases although no flow worked)  → the session
+ *   GET  /api/session/kinds                                                     → {kinds:[{kind,basis}]}
+ *   POST /api/session/:id/generate    {kinds:[], depth:"quick"|"standard"|"deep"}  SSE: line, section-start{kind,basis,planned}, case{row}, section-done{kind,count,existing,note?}, done{generation} | error{why}
+ *   GET  /api/session/:id/generation                                            → {generation}
  *
  * Later steps (intake, answer, sanity, generate, review, merge, run, report) are added here as their
  * modules land; the names and shapes are fixed by the plan so the frontend can mock them today.
@@ -30,10 +33,11 @@ import { companiesFor, describeUrl, listProfiles, runEnvironmentStep, useProfile
 import { figmaLabelsOf, prdTextOf, runIntake } from "../session/intake.js";
 import { answerQuestion, applyAnswers, runUnderstanding, understandingOf } from "../session/understanding.js";
 import { acceptSanity, runSanity } from "../session/sanity.js";
+import { KIND_BASIS, KINDS, runGeneration, type Depth, type Kind } from "../session/generation.js";
 import { onLlmWait } from "../ai/llm.js";
 
 /** only the guided session's own paths; /api/session/reply (the Run screen's chat, routes/session.ts) is not ours */
-const MINE = /^\/api\/session\/(start|list|env\/profiles|env\/describe|s-[a-z0-9]+(\/[a-z/]+)?)$/;
+const MINE = /^\/api\/session\/(start|list|kinds|env\/profiles|env\/describe|s-[a-z0-9]+(\/[a-z/]+)?)$/;
 
 export const handle: RouteHandler = async (ctx) => {
   if (!MINE.test(ctx.path)) return false;
@@ -47,6 +51,7 @@ export const handle: RouteHandler = async (ctx) => {
   }
   if (ctx.path === "/api/session/list") return ctx.json({ sessions: listSessions(), steps: STEPS }), true;
   if (ctx.path === "/api/session/env/profiles") return ctx.json({ profiles: listProfiles() }), true;
+  if (ctx.path === "/api/session/kinds") return ctx.json({ kinds: KINDS.map((k) => ({ kind: k, basis: KIND_BASIS[k] })), depths: ["quick", "standard", "deep"] }), true;
   if (ctx.path === "/api/session/env/describe") {
     const d = describeUrl(sp.get("url") ?? "");
     if (!d.ok) return ctx.json({ ok: false, why: d.why }), true;
@@ -104,8 +109,9 @@ export const handle: RouteHandler = async (ctx) => {
     return card ? (ctx.json({ card }), true) : (ctx.json({ why: "No such question on this session's card." }, 404), true);
   }
   if (action === "sanity" && m === "GET") return ctx.json({ result: s.sanity ?? null }), true;
+  if (action === "generation" && m === "GET") return ctx.json({ generation: s.generation ?? null }), true;
   if (action === "sanity/accept" && m === "POST") return ctx.json(acceptSanity(s)), true;
-  if ((action === "intake" || action === "apply" || action === "sanity") && m === "POST") {
+  if ((action === "intake" || action === "apply" || action === "sanity" || action === "generate") && m === "POST") {
     const b = action === "apply" ? {} : await ctx.body();
     const out = ctx.sse();
     let closed = false;
@@ -121,6 +127,8 @@ export const handle: RouteHandler = async (ctx) => {
         else emit({ type: "line", line: "No requirement text was read, so there is nothing to understand yet." });
       } else if (action === "sanity") {
         await runSanity(s, Array.isArray(b?.flowIds) ? b.flowIds.map(String) : undefined, emit);
+      } else if (action === "generate") {
+        await runGeneration(s, (Array.isArray(b?.kinds) ? b.kinds.map(String) : []) as Kind[], (["quick", "standard", "deep"].includes(b?.depth) ? b.depth : "standard") as Depth, emit);
       } else {
         await applyAnswers(s, emit);
       }

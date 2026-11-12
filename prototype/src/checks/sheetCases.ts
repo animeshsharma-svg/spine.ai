@@ -327,6 +327,9 @@ function stateFromWords(pre: string): UiState | null {
   if (/\bno bids?\b|without (a |any )?bids?\b|not (yet )?bid|unbid/.test(t)) return /\blive\b|published/.test(t) ? "live" : "upcoming";
   if (/quoted|\bbids?\b|has bid|bidding with/.test(t)) return "bid";
   if (/upcoming|starts (later|tomorrow)|not started/.test(t)) return "upcoming";
+  // "has not yet been published" / "unpublished" / "before publish" is the draft, however the sentence goes on
+  // (12 Nov: a flow "configured … not yet published" was built live and its schedule could not be set)
+  if (/\b(not (yet |been )?published|unpublished|not (yet )?live|before (it is |the )?publish)/.test(t)) return "draft";
   if (/\bdraft\b/.test(t)) return "draft";
   if (/\blive\b|published|existing event|on a .*(rfq|auction|project)/.test(t)) return "live";
   return null;

@@ -376,7 +376,9 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       if (!m) return false;
       const shown = m[1].toLowerCase(), want = m[2].toLowerCase();
       const own = `${c.title} ${c.preconditions} ${c.testData} ${c.steps.join(" ")} ${c.expected}`.toLowerCase();
-      return want.length >= 3 && !own.includes(want) && shown.includes(want);
+      // as a whole word: "buy" inside "buyer" is not the case naming a "Buy" template
+      const asWord = new RegExp(`(^|[^a-z0-9])${want.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`);
+      return want.length >= 3 && !asWord.test(own) && shown.includes(want);
     })()) {
       const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i)!;
       r.status = "Couldn't tell";
