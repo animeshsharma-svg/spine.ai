@@ -116,7 +116,12 @@ export interface TokenClient {
    * "no tests yet", and "Run" hands the ticked parts to the suite instead of
    * the case library.
    */
-  suite?: "aanya-rfp";
+  suite?: "aanya-rfp" | "p2p-collection";
+  /**
+   * The web console this account's users sign in at (its origin). The P2P collection sends it
+   * as the Origin/Referer the API expects beside the phone + code login.
+   */
+  origin?: string;
   /**
    * Sign in the way the UAT clients do: from a live console session in
    * Procol's database, for this company. No token to paste, so nothing
@@ -126,6 +131,13 @@ export interface TokenClient {
   dbSessionCompany?: number;
   /** false when browser journeys cannot run for this account */
   browserJourneys: boolean;
+  /**
+   * A BROWSER SIGN-IN OF ITS OWN (11 Nov, Aanya: "why can decath not work?"). An account outside Procol
+   * UAT has no database session to borrow, but its console has the same phone + one-time-code login
+   * screen; with a fixed code, a plan run signs in there on screen, as a person does. The phone and
+   * code are read from the token files by these names, never written here.
+   */
+  browserLogin?: { appUrl: string; apiUrl?: string; phoneVar: string; codeVar: string };
   /** said in place of the journey list when they cannot run */
   browserNote?: string;
 }
@@ -213,9 +225,13 @@ export const TOKEN_CLIENTS: TokenClient[] = [
      * Its credentials were already in the API suite's .env — the suite has
      * driven this account for a while. Nothing new is stored here.
      */
-    id: 900002,
-    name: "Sandbox (P2P flow)",
-    note: "logs in per run · the full purchase-to-bill chain",
+    // Keyed by Decathlon's company id, 57675, the number the team knows it by (Aanya, 10 Nov).
+    // On Procol UAT that id is an empty shell with no users; here it routes to Decathlon's own
+    // deployment (sec-api.ag-ri.in) and its per-run login, never to a database session. 900002 was
+    // the platform's own invented key for this tenant before.
+    id: 57675,
+    name: "Decathlon",
+    note: "its own deployment · logs in per run · purchase orders, GRN, invoices, bills",
     apiBaseUrl: "https://sec-api.ag-ri.in/api",
     headerName: "access-token",
     tokenFiles: ["../api-suite/.env", "../../.env"],
@@ -229,6 +245,11 @@ export const TOKEN_CLIENTS: TokenClient[] = [
     /** One row of this company's purchase orders: proof the token is theirs. */
     dataProbe: "/fx_views/records?datasource_uuid=UWdrWlo%3D&page=1&per_page=1",
     suiteClientId: "decathlon",
+    // Aanya's P2P Postman collection is this account's API test (11 Nov): the folders it can
+    // run here (purchase order → invoice → goods receipt → bill; the vendor's acknowledgement
+    // once a vendor login is in api-suite/.env), the rest said as not run.
+    suite: "p2p-collection",
+    origin: "https://cpanel.ag-ri.in",
     covers:
       "The purchase-to-bill documents end to end: purchase orders and their line items, goods " +
       "receipts, invoices, bills, accruals, payments and credit notes — plus the specialised order " +
@@ -248,8 +269,9 @@ export const TOKEN_CLIENTS: TokenClient[] = [
       "auctions and the vendor portal are not part of this tenant's data.",
     browserJourneys: false,
     browserNote:
-      "The browser journeys sign in through the UAT database, which this deployment is not part of — " +
-      "so they cannot run for this account. Its API flow can.",
+      "The ready-made browser journeys are built for Procol UAT, which this deployment is not part of. " +
+      "A typed case still runs here: the browser signs in on Decathlon's own console with the saved phone and code.",
+    browserLogin: { appUrl: "https://cpanel.ag-ri.in", apiUrl: "https://sec-api.ag-ri.in/api", phoneVar: "DECATHLON_BUYER_PHONE", codeVar: "DECATHLON_OTP" },
   },
   {
     /**

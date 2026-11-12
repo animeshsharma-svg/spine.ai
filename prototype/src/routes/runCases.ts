@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RouteHandler } from "./index.js";
 import { chat } from "../ai/llm.js";
+import { citeOf, type RunBackend } from "../model/backendRules.js";
 
 /**
  * TEST CASES FROM A FINISHED RUN — the "Write test cases from this run" button
@@ -27,6 +28,10 @@ import { chat } from "../ai/llm.js";
  *   POST /api/run-cases { transcript, ask?, mode?, kind?, company?, runIds?, key?, fresh? }
  *     → { cases, source: "saved" | "ai" | "steps", note?, key?, savedAt? }
  *   PUT  /api/run-cases { key, cases }   the table as it stands — results, edits, ticks
+ *
+ * PROCOL'S CODE is no longer a source (Aanya, 2 Nov: "i dont want it to write testcases from code").
+ * The backend-rules plumbing (codeRef/codeRule/codeRev, src/model/backendRules.ts) stays only so
+ * sets saved before 2 Nov still parse; nothing new is written from it and the page shows no code label.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +50,7 @@ const reviewOf = (r: any): Review | undefined =>
   r && ["pending", "approved", "changed"].includes(r.state)
     ? { state: r.state, by: str(r.by, 80) || undefined, at: typeof r.at === "string" && !Number.isNaN(Date.parse(r.at)) ? r.at : undefined, from: str(r.from, 20) || undefined }
     : undefined;
-interface KeptSet {
+export interface KeptSet {
   key: string;
   runIds: string[];
   ask: string;
@@ -56,11 +61,11 @@ interface KeptSet {
   cases: KeptCase[];
 }
 
-function loadSet(key: string): KeptSet | undefined {
+export function loadSet(key: string): KeptSet | undefined {
   const d = readJson(join(SAVED, `${key}.json`));
   return d && Array.isArray(d.cases) ? (d as KeptSet) : undefined;
 }
-function saveSet(set: KeptSet): void {
+export function saveSet(set: KeptSet): void {
   mkdirSync(SAVED, { recursive: true });
   const file = join(SAVED, `${set.key}.json`);
   writeFileSync(`${file}.tmp`, JSON.stringify(set, null, 1));
@@ -73,7 +78,7 @@ function saveSet(set: KeptSet): void {
  * that says the same thing; one the fresh set no longer has is kept at the end.
  * A result is never dropped by writing again.
  */
-function carryOver(fresh: RunCase[], old: KeptCase[]): KeptCase[] {
+export function carryOver(fresh: RunCase[], old: KeptCase[]): KeptCase[] {
   const out: KeptCase[] = fresh.map((c) => ({ ...c }));
   const used = new Set<number>();
   for (const c of out) {
@@ -122,7 +127,7 @@ function fromPage(c: any, i: number): KeptCase | null {
     testData: str(c.testData, 300),
     expected: str(c.expected),
     priority: PRIORITIES.has(c.priority) ? c.priority : "P1",
-    type: TYPES.has(c.type) ? c.type : "Positive",
+    type: noteType(c, typeOf(c)),
     ...(str(c.scenarioId) ? { scenarioId: str(c.scenarioId, 8), scenarioTitle: str(c.scenarioTitle, 240), scenarioCovers: str(c.scenarioCovers, 300), scenarioCategory: str(c.scenarioCategory, 40) } : {}),
     layer: c.layer === "API" ? "API" : "UI",
     sourceStep: str(c.sourceStep, 120),
@@ -130,6 +135,10 @@ function fromPage(c: any, i: number): KeptCase | null {
     libraryId: str(c.libraryId, 60) || undefined,
     similarTo: str(c.similarTo, 60) || undefined,
     automated: str(c.automated, 60),
+    codeRef: str(c.codeRef, 200) || undefined,
+    codeRule: str(c.codeRule, 300) || undefined,
+    codeRev: str(c.codeRev, 20) || undefined,
+    qaComment: str(c.qaComment, 400) || undefined,
     why: str(c.why, 400) || undefined,
     runId: safeId(c.runId) ?? null,
     testedAt: typeof c.testedAt === "string" && !Number.isNaN(Date.parse(c.testedAt)) ? c.testedAt : undefined,
@@ -148,7 +157,9 @@ export interface RunCase {
   testData: string;
   expected: string;
   priority: "P0" | "P1" | "P2";
-  type: "Positive" | "Negative" | "Edge" | "Boundary" | "Regression";
+  type: "Positive" | "Negative" | "Edge" | "Boundary" | "Regression" | "Integration" | "Security" | "Performance" | "Bug-confirm" | "Observation";
+  /** the tester's column: [BUG-CONFIRM] / [KNOWN BEHAVIOUR] tags with the root cause, "Assumes X; confirm with dev" */
+  qaComment?: string;
   layer: "UI" | "API";
   /** the test scenario this case belongs to: TS-01 … (a case written before scenarios has none) */
   scenarioId?: string;
@@ -161,6 +172,10 @@ export interface RunCase {
   libraryId?: string;
   similarTo?: string;
   automated: string;
+  /** where in Procol's backend the case comes from (file:line), what it says there, and the commit read */
+  codeRef?: string;
+  codeRule?: string;
+  codeRev?: string;
 }
 
 // ── the stored run, by the ids on the DONE box ─────────────────────────────
@@ -234,7 +249,7 @@ const overlap = (a: Set<string>, b: Set<string>) => {
 };
 
 /** The library cases closest to what the run did — offered to the model to reuse, never to invent. */
-function related(text: string, n = 30): LibCase[] {
+export function related(text: string, n = 30): LibCase[] {
   const run = words(text);
   return library()
     .map((c) => {
@@ -284,7 +299,7 @@ const SYSTEM = [
  * edge and boundary checks that prove it. The scenarios are planned in one call, then each one's cases
  * are written in its own call, side by side.
  */
-const CATEGORIES = ["Main flow", "Input validation", "Boundaries & limits", "State & lifecycle", "Roles & permissions", "Timing & schedule", "Vendor side", "Notifications", "Amounts & calculations", "Error handling & recovery", "Regression"];
+export const CATEGORIES = ["Main flow", "Input validation", "Boundaries & limits", "State & lifecycle", "Roles & permissions", "Timing & schedule", "Vendor side", "Notifications", "Amounts & calculations", "Error handling & recovery", "Regression"];
 
 const SCENARIO_SYSTEM = [
   "You plan TEST SCENARIOS for a QA team from ONE finished automation run on Procol, a procure-to-pay platform (buyers run sourcing events; vendors bid).",
@@ -293,7 +308,7 @@ const SCENARIO_SYSTEM = [
   'Rules: 6-10 scenarios. The first is the main flow the run walked. One scenario per failure or bug the run hit (category "Regression"). Never invent a feature, screen or field that is not in the run or the library; a scenario about a rule the run did not show is still worth listing, with "(to confirm)" at the end of covers.',
   'covers: one sentence on the risk the scenario guards against. sourceStep: the run step it grows from, as "step N: <title>", or "".',
   `category: one of ${CATEGORIES.map((c) => `"${c}"`).join(", ")}.`,
-  'Return JSON only: {"scenarios":[{"title":"","category":"","covers":"","module":"","feature":"","sourceStep":""}]}',
+  'Return JSON only: {"scenarios":[{"title":"","category":"","covers":"","module":"","feature":"","sourceStep":"","rules":["A1.R2"]}]}',
 ].join("\n");
 
 const CASES_SYSTEM = [
@@ -308,32 +323,73 @@ const CASES_SYSTEM = [
 ].join("\n");
 
 /** Each scenario's cases, numbered within it: TS-02 holds TC-02.01, TC-02.02 … */
-function tidyScenarios(written: Array<{ sc: any; cases: any[] }>): RunCase[] {
+export function tidyScenarios(written: Array<{ sc: any; cases: any[] }>, backend?: RunBackend, perScenario = 6, total = 60): RunCase[] {
   const out: RunCase[] = [];
   written.forEach(({ sc, cases }, k) => {
     const sid = `TS-${String(k + 1).padStart(2, "0")}`;
     const group = { scenarioId: sid, scenarioTitle: str(sc.title, 240), scenarioCovers: str(sc.covers, 300), scenarioCategory: str(sc.category, 40) };
     // Never "Pass" by default: only a case the model says this run walked carries the run's result.
-    const mapped = tidy(cases.map((c: any) => ({ ...c, scenario: c.title ?? c.scenario, module: c.module || sc.module, feature: c.feature || sc.feature, sourceStep: c.sourceStep || sc.sourceStep })), false).slice(0, 6);
+    const mapped = tidy(cases.map((c: any) => ({ ...c, scenario: c.title ?? c.scenario, module: c.module || sc.module, feature: c.feature || sc.feature, sourceStep: c.sourceStep || sc.sourceStep })), false, backend).slice(0, perScenario);
     mapped.forEach((c, j) => out.push({ ...c, ...group, id: `TC-${String(k + 1).padStart(2, "0")}.${String(j + 1).padStart(2, "0")}` }));
   });
-  return out.slice(0, 60);
+  return out.slice(0, total);
 }
 
 const PRIORITIES = new Set(["P0", "P1", "P2"]);
-const TYPES = new Set(["Positive", "Negative", "Edge", "Boundary", "Regression"]);
+const TYPES = new Set(["Positive", "Negative", "Edge", "Boundary", "Regression", "Integration", "Security", "Performance", "Bug-confirm", "Observation"]);
+/**
+ * The case's type, never silently "Positive" (Aanya, 5 Nov: "If the model returns anything outside the
+ * five, the case is silently set to Positive. whyy? fix it"). A label the model wrote in other words is
+ * mapped ("happy path" → Positive, "invalid" → Negative, "limit" → Boundary…); a missing or unknown label
+ * is read off the case itself — what it expects, and what its steps do — and the choice is logged.
+ */
+type CaseType = RunCase["type"];
+const TYPE_WORDS: Array<[RegExp, CaseType]> = [
+  [/^(bug-?confirm|known|confirm)/i, "Bug-confirm"],
+  [/^(observ|note|measure)/i, "Observation"],
+  [/^(integ|cross|upstream|downstream|ripple)/i, "Integration"],
+  [/^(sec|permission|role|auth|access)/i, "Security"],
+  [/^(perf|load|speed|scale|volume|latency)/i, "Performance"],
+  [/^(regress|re-?test|bug|fix|defect)/i, "Regression"],
+  [/^(bound|limit|min|max|range|threshold|off-by)/i, "Boundary"],
+  [/^(neg|invalid|error|refus|reject|fail|unauthori|forbid|bad|wrong|missing|empty)/i, "Negative"],
+  [/^(edge|corner|unusual|rare|concurren|timing|race|special)/i, "Edge"],
+  [/^(pos|happy|main|normal|valid|functional|smoke|success)/i, "Positive"],
+];
+function typeOf(c: any): { type: CaseType; inferred: boolean } {
+  const raw = str(c?.type, 40).trim();
+  if (TYPES.has(raw)) return { type: raw as CaseType, inferred: false };
+  const byWord = TYPE_WORDS.find(([re]) => re.test(raw))?.[1];
+  if (byWord) return { type: byWord, inferred: true };
+  // No usable label: read the case. The expected result says whether it is a refusal; the steps say
+  // whether it is about a limit, an odd situation or a bug coming back.
+  const text = `${str(c?.scenario, 240)} ${str(c?.title, 240)} ${(Array.isArray(c?.steps) ? c.steps : []).map((x: unknown) => str(x, 300)).join(" ")}`.toLowerCase();
+  const expected = str(c?.expected).toLowerCase();
+  const status = str(c?.status, 60).toLowerCase();
+  if (/\b(regression|still fixed|no longer|is fixed|bug)\b/.test(text) || /^fail/.test(status) && /\b(again|re-?run)\b/.test(text)) return { type: "Regression", inferred: true };
+  if (/\b(exactly|just (over|under|above|below|inside|outside)|maximum|minimum|at the limit|limit of|boundary|upper|lower|\d+ characters|zero|0\.01)\b/.test(text)) return { type: "Boundary", inferred: true };
+  if (/\b(refus|reject|error|not (allowed|permitted|saved|accepted)|cannot|can't|must not|disabled|blocked|invalid|fails?|denied|forbidden|unauthori[sz]ed|validation)\b/.test(expected)) return { type: "Negative", inferred: true };
+  if (/\b(simultaneous|at the same time|concurren|while .* is (open|running)|expired|timezone|special characters|unicode|duplicate|retry|offline|slow)\b/.test(text)) return { type: "Edge", inferred: true };
+  return { type: "Positive", inferred: true };
+}
+let typeWarned = 0;
+function noteType(c: any, t: { type: CaseType; inferred: boolean }): CaseType {
+  if (t.inferred && typeWarned++ < 50) console.warn(`[run-cases] type "${str(c?.type, 40) || "(none)"}" is not one of the five; read "${str(c?.scenario || c?.title, 80)}" as ${t.type}`);
+  return t.type;
+}
 const str = (v: unknown, max = 600) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
-function tidy(raw: any[], fromRun: boolean): RunCase[] {
+function tidy(raw: any[], fromRun: boolean, backend?: RunBackend): RunCase[] {
   const ids = new Set(library().map((c) => c.id));
   return raw
     .filter((c) => c && str(c.scenario))
     .slice(0, 15)
     .map((c, i) => {
-      const type = TYPES.has(c.type) ? c.type : "Positive";
+      const type = noteType(c, typeOf(c));
       const libraryId = ids.has(str(c.libraryId)) ? str(c.libraryId) : undefined;
       const scenario = str(c.scenario, 240);
       const status = str(c.status, 60) || (type === "Positive" && fromRun ? "Pass" : "Suggested");
+      const cite = c.codeAt ? { at: str(c.codeAt, 200), rule: str(c.codeRule, 300) } : citeOf(backend, str(c.codeRef, 20));
       return {
         id: `TC-${String(i + 1).padStart(3, "0")}`,
         module: str(c.module, 60),
@@ -342,7 +398,8 @@ function tidy(raw: any[], fromRun: boolean): RunCase[] {
         preconditions: str(c.preconditions),
         steps: (Array.isArray(c.steps) ? c.steps : [c.steps]).map((s: unknown) => str(s, 300)).filter(Boolean).slice(0, 10),
         testData: str(c.testData, 300),
-        expected: str(c.expected),
+        // The code number is the cited line's, whatever the model typed (29 Oct: "code 96" for a line that returns 95).
+        expected: ((e) => { const n = cite?.rule.match(/^code (\d+)/)?.[1]; return n ? e.replace(/\bcode \d+\b/gi, `code ${n}`) : e; })(str(c.expected)),
         priority: PRIORITIES.has(c.priority) ? c.priority : "P1",
         type,
         layer: c.layer === "API" ? "API" : "UI",
@@ -351,12 +408,14 @@ function tidy(raw: any[], fromRun: boolean): RunCase[] {
         libraryId,
         similarTo: libraryId ? undefined : similar(scenario),
         automated: libraryId ? "Yes — library case" : status !== "Suggested" ? "Yes — this run's journey" : "Not yet",
+        ...(str(c.qaComment, 400) ? { qaComment: str(c.qaComment, 400) } : {}),
+        ...(cite ? { codeRef: cite.at, codeRule: cite.rule, codeRev: backend?.rev } : {}),
       } satisfies RunCase;
     });
 }
 
 /** Without the model: the run as one main-flow case, and a regression case per failed step. */
-function fromSteps(ask: string, lines: string[], layer: "UI" | "API"): RunCase[] {
+function fromSteps(ask: string, lines: string[], layer: "UI" | "API", backend?: RunBackend): RunCase[] {
   const steps = lines.filter((l) => /^\s*(step \d+:|\[)/i.test(l)).slice(0, 10).map((l) => l.replace(/^\s*step \d+:\s*/i, "").split(" — ")[0]);
   const failed = lines.filter((l) => /— (broken|refused|failed)|\bbad:|✗/i.test(l)).slice(0, 5);
   const main = {
@@ -379,7 +438,25 @@ function fromSteps(ask: string, lines: string[], layer: "UI" | "API"): RunCase[]
     sourceStep: l.slice(0, 120),
     status: "Suggested",
   }));
-  return tidy([main, ...regressions], true);
+  // Procol's code, one case per refusal of each action the run reached (at most 4 an action).
+  const rules = (backend?.actions ?? []).flatMap((a) =>
+    a.rules
+      .filter((r) => r.message)
+      .slice(0, 4)
+      .map((r) => ({
+        scenario: `${a.method} ${a.path} is refused: "${r.message}"`,
+        steps: [`Repeat the run up to ${a.steps[0] ?? "the step that sends this request"}`, `Make this true (from Procol's code): ${r.when ?? "see the code"}`, "Do the step again"],
+        expected: `Procol refuses with "${r.message}"${r.code != null ? ` (code ${r.code}` : ""}${r.status ? `${r.code != null ? ", " : " ("}HTTP ${r.status})` : r.code != null ? ")" : ""} and nothing is saved.`,
+        priority: "P1",
+        type: "Negative",
+        layer: "API",
+        sourceStep: a.steps[0] ?? "",
+        status: "Suggested",
+        codeAt: r.at,
+        codeRule: `${r.code != null ? `code ${r.code} ` : ""}"${r.message}"${r.status ? ` (HTTP ${r.status})` : ""}`,
+      })),
+  );
+  return [...tidy([main, ...regressions], true), ...tidy(rules, false, backend)].map((c, i) => ({ ...c, id: `TC-${String(i + 1).padStart(3, "0")}` }));
 }
 
 export const handle: RouteHandler = async (ctx) => {
@@ -432,6 +509,9 @@ export const handle: RouteHandler = async (ctx) => {
   const stored = runIds.flatMap((id) => storedRun(id)).slice(0, 120);
   const layer: "UI" | "API" = b?.mode === "api" ? "API" : "UI";
   const lib = related(`${ask} ${transcript} ${stored.join(" ")}`);
+  // Procol's backend code is NOT a source any more (Aanya, 2 Nov: "i dont want it to write testcases
+  // from code"). The run, the library and the tester's own words are what the cases come from.
+  const backend: RunBackend | undefined = undefined;
 
   const user = [
     `RUN: ${ask || "(no request text)"} · channel ${str(b?.mode, 10) || "?"} · kind ${str(b?.kind, 20) || "?"}${b?.company ? ` · company ${str(b.company, 60)}` : ""}`,
@@ -480,7 +560,7 @@ export const handle: RouteHandler = async (ctx) => {
           return { sc, cases: got };
         }),
       );
-      cases = tidyScenarios(written);
+      cases = tidyScenarios(written, backend);
       const empty = written.filter((w) => !w.cases.length).length;
       if (empty) note = `${empty} of ${scenarios.length} scenarios came back without test cases — “Write again” tries them again.`;
       console.log(`[run-cases] ${scenarios.length} scenario(s), ${cases.length} test case(s)${empty ? `, ${empty} scenario(s) empty` : ""}`);
@@ -502,14 +582,14 @@ export const handle: RouteHandler = async (ctx) => {
     );
     const json = raw.match(/\{[\s\S]*\}/)?.[0];
     const parsed = json ? JSON.parse(json) : null;
-    cases = tidy(Array.isArray(parsed?.cases) ? parsed.cases : [], true);
+    cases = tidy(Array.isArray(parsed?.cases) ? parsed.cases : [], true, backend);
     if (cases.length) note = undefined;
   } catch (e) {
     note = `the AI did not answer (${str((e as Error).message, 120)})`;
   }
   if (!cases.length) {
     const why = `Written without AI${note ? ` — ${note}` : ""}: the run's main flow and its failures only. Write again for variations.`;
-    const out = keep(fromSteps(ask, [...transcript.split("\n"), ...stored], layer), "steps", why);
+    const out = keep(fromSteps(ask, [...transcript.split("\n"), ...stored], layer, backend), "steps", why);
     console.log(`[run-cases] ${out.length} case(s) from the steps, without AI, in ${took()}${note ? ` — ${note}` : ""}`);
     ctx.json({ cases: out, source: "steps", note: why, key });
     return true;

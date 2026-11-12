@@ -396,7 +396,9 @@ export class SingleStagePage extends BasePage {
     await sheet.fillCell(0, "variant", { key: "variant", type: "dropdown" }, "").catch(() => {});
     // A case's own quantity is typed exactly as given — 0, -5, letters — so the app's validation is what is tested.
     await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, quantity ?? randomNumber());
-    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, searchText).catch(() => {});
+    // The delivery location is one of the client's locations, not the product: searching it with the
+    // product's name matched nothing and the cell stayed empty (Laxmi Organics, 6 Nov). Its first entry.
+    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, "").catch(() => {});
     await sheet.fillCell(0, "price", { key: "price", type: "price" }, randomNumber());
     await sheet.fillCell(0, "participant_quantity", { key: "participant_quantity", type: "number" }, randomNumber()).catch(() => {});
   }
@@ -450,6 +452,56 @@ export class SingleStagePage extends BasePage {
     );
     await this.dismissDistractions();
     return picked;
+  }
+
+  /**
+   * THAT MANY of the vendors the product suggests, picked one by one (6 Nov: "invite 2 vendors" must put 2 on the
+   * event, not everyone Invite Vendor knows). The participants search is opened, its suggestions read, and the
+   * first n added by name through addParticipant — so each is a vendor this run can later bid as.
+   */
+  async inviteSuggested(n: number): Promise<string[]> {
+    await this.dismissDistractions();
+    await this.click(
+      [
+        this.page.getByText(/search vendors you want to add/i),
+        this.page.locator(".ant-select-selection").filter({ hasText: /search vendors/i }),
+        this.page.getByRole("combobox"),
+        this.page.locator(".ant-select-selection").last(),
+      ],
+      { label: "open-participants", timeout: TIMEOUTS.MEDIUM, force: true },
+    );
+    const participants = this.page.locator(".ant-select").filter({ hasText: /search vendors you want to add/i }).last();
+    const cb = await this.find(
+      [participants.locator("input.ant-select-search__field, input"), this.page.getByPlaceholder(/search vendors you want to add/i)],
+      { label: "participants-input", timeout: TIMEOUTS.MEDIUM },
+    );
+    if (!cb) return [];
+    const typed = await cb.fill("a", { timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!typed) {
+      await cb.click({ timeout: 5_000, force: true }).catch(() => {});
+      await this.page.keyboard.type("a", { delay: 30 });
+    }
+    await this.pause(1500);
+    const options = this.page.locator(
+      ".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='menuitem'], .ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']",
+    );
+    const seen = (await options.allTextContents().catch(() => [] as string[])).map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => t && !/^vendors?$/i.test(t));
+    // the name as the search knows it: without the email or the id glued on after it
+    const keys = seen.map((t) => t.split(/\s*[-–]\s*(?=\S+@)|\s*\(\d+\)/)[0].trim().slice(0, 60) || t.slice(0, 60)).filter((k, i, all) => k && all.indexOf(k) === i);
+    await this.page.keyboard.press("Escape").catch(() => {});
+    await this.dismissDistractions();
+    if (!keys.length) {
+      console.log(`[single-stage] the participants search listed no vendors for "a"`);
+      return [];
+    }
+    const added: string[] = [];
+    for (const key of keys) {
+      if (added.length >= n) break;
+      if (await this.addParticipant(key)) added.push(key);
+      else console.log(`[single-stage] could not add "${key}" from the suggestions`);
+    }
+    console.log(`[single-stage] invited ${added.length} of the ${n} asked for, from ${keys.length} suggested: ${added.join(", ")}`);
+    return added;
   }
 
   /** Add vendors: prefer the whole-audience Invite Vendor button, else pick one via the combobox. */

@@ -20,9 +20,10 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { tokenClient } from "../../config/tokenClients.js";
+import { readEnvVar } from "../tokenClient.js";
 import { randomBytes } from "node:crypto";
 import { acquireBrowser, setSlotProgress, setSlotHeaded, setSlotAsk, clearSlotAsk } from "./browserSlot.js";
-import { DECATHLON_ID, DECATH_DIR, decathCases } from "../clients/decath.js";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,7 +59,7 @@ export interface UiFlowDef {
    * project with its own config, its own login and its own deployment — so a
    * journey now says which suite it belongs to rather than the runner guessing.
    */
-  suite?: "ui-master" | "three-way-match" | "decath";
+  suite?: "ui-master" | "three-way-match";
   /**
    * The accounts this journey may be offered to, when it is not universal.
    *
@@ -133,15 +134,30 @@ export const UI_FLOWS: UiFlowDef[] = [
     suite: "three-way-match",
     clients: [900001],
   },
-  // Decathlon: each case of the decath suite (procol-qa-platform/decath/cases.json).
-  ...decathCases().map((c) => ({ key: `decath.${c.id}`, label: `${c.id} · ${c.title}`, group: `Decathlon · ${c.module}`, suite: "decath" as const, clients: [DECATHLON_ID] })),
 ];
 
 /** The journeys this account can actually run. */
 export function uiFlowsFor(companyId: number): UiFlowDef[] {
-  // Decathlon has no sourcing events: only its own suite's journeys.
-  if (companyId === DECATHLON_ID) return UI_FLOWS.filter((f) => f.suite === "decath");
   return UI_FLOWS.filter((f) => !f.clients || f.clients.includes(companyId));
+}
+
+/**
+ * AN ACCOUNT THAT SIGNS IN ON ITS OWN CONSOLE (config/tokenClients.ts browserLogin, 11 Nov): the run gets
+ * that console's address and the saved phone and code as the generic APP_URL / BUYER_PHONE / OTP, which
+ * win over every client profile (procol-ui-tests config.ts), and is told to sign in on screen. The UAT
+ * database is never asked for a session it does not hold.
+ */
+function browserLoginEnv(companyId: number | string | undefined): Record<string, string> {
+  const client = tokenClient(Number(companyId));
+  const login = client?.browserLogin;
+  if (!client || !login) return {};
+  const phone = readEnvVar(client, login.phoneVar) ?? "";
+  const code = readEnvVar(client, login.codeVar) ?? "";
+  if (!phone || !code) {
+    console.log(`[ui] ${client.name}: no ${!phone ? login.phoneVar : login.codeVar} in its token files — the browser cannot sign in there`);
+    return {};
+  }
+  return { UI_SHOW_LOGIN: "1", APP_URL: login.appUrl, API_URL: login.apiUrl ?? client.apiBaseUrl, BUYER_PHONE: phone, OTP: code, UI_OWN_LOGIN: client.name };
 }
 
 export interface UiRunOptions {
@@ -336,7 +352,7 @@ function launch(
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean; discover?: boolean },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number; warm?: boolean; discover?: boolean; converse?: boolean },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -376,10 +392,13 @@ export function runUiPlan(
   // are untouched. A headed demo can ask to SEE the login and to be slowed.
   env.UI_SPEED = env.UI_SPEED ?? "0.7";
   if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  Object.assign(env, browserLoginEnv(opts.companyId));
   if (opts.headed !== false && opts.slowMo) env.UI_SLOWMO = String(opts.slowMo);
   if (opts.warm) env.UI_PLAN_WAIT = "1";
   // Inventory every screen the run reaches, so new test cases can be written from them after.
   if (opts.discover) env.UI_DISCOVER = "1";
+  // Started from the session: when its steps are done it keeps the browser open for the next instruction (support/converse.ts).
+  if (opts.converse) env.UI_CONVERSE = "1";
 
   return launch(`plan ${runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),
@@ -444,6 +463,7 @@ export function runUiExplore(
     QA_RUN_ID: opts.runId,
   };
   if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  Object.assign(env, browserLoginEnv(opts.companyId));
   return launch(`explore ${opts.runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `explore ${opts.runId}` }),
   );
@@ -540,22 +560,6 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   }
 
   /**
-   * The Decathlon suite runs itself, in procol-qa-platform/decath: one case per
-   * journey, signed in on screen as each role the case names, judged against
-   * Procol's database (read-only). Its "[decath] …" lines are the run's steps,
-   * and its pages stream to the live view.
-   */
-  if (flow.suite === "decath") {
-    const caseId = flow.key.replace(/^decath\./, "");
-    const args = ["playwright", "test", "tests/rbv.spec.ts", "--workers=1"];
-    const env: Record<string, string> = { ...(process.env as Record<string, string>), DECATH_CASES: caseId, UI_LIVE_FRAMES: "1" };
-    if (opts.runId) env.QA_RUN_ID = opts.runId;
-    if (opts.headed !== false) env.DECATH_HEADED = "1";
-    const command = `npx ${args.join(" ")}  (DECATH_CASES=${caseId})`;
-    return launch(`journey ${flow.key}`, args, env, emit, () => emit({ type: "start", command, line: `$ ${command}` }), true, DECATH_DIR);
-  }
-
-  /**
    * The purchase-to-bill suite runs itself, in its own directory.
    *
    * It has its own config (its own baseURL, its own login, its own timeout),
@@ -605,6 +609,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     COMPANY_ID: String(opts.companyId),
+    ...browserLoginEnv(opts.companyId),
   };
   if (opts.lineItems && opts.lineItems > 0) env.UI_LINE_ITEMS = String(opts.lineItems);
   if (opts.boqItems && opts.boqItems > 0) env.UI_BOQ_ITEMS = String(opts.boqItems);

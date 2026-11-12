@@ -105,7 +105,9 @@
     if (status) {
       // Done is closed, as Canary says it; a message from the composer opens the next turn.
       status.dataset.state = S.open ? "running" : "closed";
-      q$("#ss-status-text").textContent = S.open ? "Running" : "Session closed";
+      // Both runs its API and browser parts at the same time (5 Nov), so the bar names both, not a part number.
+      const on = S.turn?.part ? " · API + Browser" : "";
+      q$("#ss-status-text").textContent = !S.open ? "Session closed" : window.spineBuilder?.active ? "Your turn · building the journey" : `Running${on}`;
     }
     const stop = q$("#ss-stop");
     paintStop();
@@ -139,7 +141,9 @@
     const shown = ask?.display || text;
     // flowKeys: the browser journeys this turn ran, so "Run again" runs exactly those.
     const keys = Array.isArray(flowKeys) && flowKeys.length ? flowKeys.map(String) : null;
-    S.turn = { text: shown, runText: text, mode: S.mode, kind, replay, flowKeys: keys, bidders, target: target(), startedAt: Date.now(), plan: [], log: [], ended: {} };
+    // plans: one plan + list per part ("api" | "browser"), since Both runs them at the same time (5 Nov);
+    // plan/planList stay as "the plan most recently posted" for the browser-only helpers.
+    S.turn = { text: shown, runText: text, mode: S.mode, kind, replay, flowKeys: keys, bidders, target: target(), startedAt: Date.now(), plan: [], plans: {}, log: [], ended: {} };
     S.chat.push({ role: "user", text: shown });
 
     // The live turn is reused: the last run's id must not carry over to this one.
@@ -342,7 +346,7 @@
     if (!S.on) return null;
     return addNarr(node(
       `<div class="ss-b act ${h(state)}"><span class="ss-dot"></span><div class="ss-b-body">` +
-      `<div class="ss-b-a"><b>${h(verb)}</b>${arg ? ` <span class="ss-arg">${h(arg)}</span>` : ""}${extra}</div></div></div>`,
+      `<div class="ss-b-a"><b>${h(verb)}</b>${argHtml(arg)}${extra}</div></div></div>`,
     ));
   }
 
@@ -365,6 +369,36 @@
       .filter((v) => v !== undefined && v !== null && v !== "")
       .map((v) => (Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)))
       .join(" · ");
+  }
+  /**
+   * A step's text laid out, not run on. A "Do on screen" goal written from a test case carries
+   * "Preconditions: … Steps: 1. … 2. … Expected: …" in one line (Aanya, 12 Nov: "make the alignment
+   * of preconditions and all better"): the case's sentence first, then each part on its own row,
+   * the steps as a numbered list. Plain text stays a plain span.
+   */
+  function argHtml(arg) {
+    const text = String(arg ?? "");
+    if (!text) return "";
+    const marks = /(Preconditions?|Pre-?requisites?|Steps?|Expected(?: result)?|Expected outcome|Then|Checks?)\s*:/gi;
+    if (!marks.test(text)) return ` <span class="ss-arg">${h(text)}</span>`;
+    marks.lastIndex = 0;
+    const parts = [];
+    let last = 0, lead = "";
+    for (const m of text.matchAll(marks)) {
+      const before = text.slice(last, m.index).trim();
+      if (parts.length) parts[parts.length - 1].body = before;
+      else lead = before;
+      parts.push({ label: m[1].replace(/^(.)/, (c) => c.toUpperCase()), body: "" });
+      last = m.index + m[0].length;
+    }
+    if (parts.length) parts[parts.length - 1].body = text.slice(last).trim();
+    const rows = parts.filter((p) => p.body).map((p) => {
+      const items = p.body.split(/\s*(?:^|\s)(?=\d{1,2}\.\s)/).map((x) => x.replace(/^\d{1,2}\.\s*/, "").trim()).filter(Boolean);
+      const list = /^steps?$/i.test(p.label) && items.length > 1;
+      return `<div class="ss-arg-row"><span class="ss-arg-k">${h(p.label)}</span>` +
+        (list ? `<ol class="ss-arg-steps">${items.map((x) => `<li>${h(x)}</li>`).join("")}</ol>` : `<span class="ss-arg-v">${h(p.body)}</span>`) + `</div>`;
+    }).join("");
+    return `${lead ? ` <span class="ss-arg">${h(lead.replace(/[.—–-]\s*$/, ""))}</span>` : ""}<div class="ss-arg-block">${rows}</div>`;
   }
   // Steps whose name does not read as a sentence on its own.
   const STEP_LABELS = { do_on_screen: "Do on screen", ask_tester: "Ask you" };
@@ -390,7 +424,8 @@
   }
   function stepVerb(name) {
     if (STEP_LABELS[name]) return STEP_LABELS[name];
-    const w = String(name ?? "").replace(/_/g, " ").trim();
+    // "po" is a purchase order on screen, never the two letters (Aanya, 10 Nov).
+    const w = String(name ?? "").replace(/_/g, " ").replace(/\bpos?\b/g, (m) => (m === "pos" ? "purchase orders" : "purchase order")).trim();
     return w.charAt(0).toUpperCase() + w.slice(1);
   }
 
@@ -409,7 +444,7 @@
     open_purchase_requisitions: "open Purchase Requisitions", pr_tab: "open the PR tab", select_pr: "tick a PR",
     purchase_items: "use Purchase Items → Start New Project", choose_stages: "choose the event's stages", expect_pr_items: "check the create screen lists the PR's items",
   };
-  const stepWords = (name) => STEP_WORDS[name] || String(name).replace(/_/g, " ");
+  const stepWords = (name) => STEP_WORDS[name] || String(name).replace(/_/g, " ").replace(/\bpos?\b/g, (m) => (m === "pos" ? "purchase orders" : "purchase order"));
   /** Step ids inside a reason ("close_event's job") said as words. */
   const plainIds = (t) => String(t).replace(/\b([a-z]+(?:_[a-z]+)+)('s)?\b/g, (_, id, poss) => `the “${stepWords(id)}” step${poss ? "'s" : ""}`);
   /** One planner note in plain words; null for pure ordering notes, kept under "the planner's own notes". */
@@ -474,7 +509,7 @@
       `<div class="ss-draft"><div class="ss-draft-h"><span class="ss-draft-tag">Draft plan</span><span>${h(p.title || "")} — refining it into exact steps</span></div>` +
       `<ol class="ss-draft-steps">${steps.map((s) => {
         const { verb, arg } = stepLabel(s);
-        return `<li class="ss-b act wait"><span class="ss-dot"></span><div class="ss-b-body"><div class="ss-b-a"><b>${h(verb)}</b>${arg ? ` <span class="ss-arg">${h(arg)}</span>` : ""}</div></div></li>`;
+        return `<li class="ss-b act wait"><span class="ss-dot"></span><div class="ss-b-body"><div class="ss-b-a"><b>${h(verb)}</b>${argHtml(arg)}</div></div></li>`;
       }).join("")}</ol></div>`,
     ));
   }
@@ -490,40 +525,45 @@
     stopWorking();
     // A plan that cannot run is not a green line: its dot stays grey.
     const runnable = p.coverage !== "none" && (p.steps || []).length > 0;
-    head(p.title || "The plan", p.reasoning || "", runnable ? "ok" : "skip");
+    const via = p.via === "api" ? "api" : "browser";
+    const headLine = head(p.title || "The plan", p.reasoning || "", runnable ? "ok" : "skip");
+    // Both: the two plans sit in one narration, so each says which part it is (Aanya, 5 Nov: "api and
+    // browser which one is what?") — a chip on the heading, a tinted rail down its steps.
+    if (S.turn.mode === "both" && headLine) q$(".ss-b-t", headLine)?.prepend(node(partChip(via)));
     // What the planner prepared goes with the plan, above its steps — not after them, where results appear.
     beforeStart(p);
-    const list = node(`<ol class="ss-steps"></ol>`);
+    const list = node(`<ol class="ss-steps${S.turn.mode === "both" ? ` ss-part ss-part-${via}` : ""}" data-part="${via}"></ol>`);
     S.turn.plan = (p.steps || []).map((s, i) => {
       const { verb, arg } = stepLabel(s);
       const assertion = ASSERTS.test(String(s.step ?? ""));
       const li = node(
         `<li class="ss-b ${assertion ? "head" : "act"} wait" data-i="${i}"><span class="ss-dot"></span><div class="ss-b-body">` +
         (assertion
-          ? `<div class="ss-b-t">${h(verb)}${arg ? ` <span class="ss-arg">${h(arg)}</span>` : ""}</div>`
-          : `<div class="ss-b-a"><b>${h(verb)}</b>${arg ? ` <span class="ss-arg">${h(arg)}</span>` : ""}</div>`) +
+          ? `<div class="ss-b-t">${h(verb)}${argHtml(arg)}</div>`
+          : `<div class="ss-b-a"><b>${h(verb)}</b>${argHtml(arg)}</div>`) +
         `<div class="ss-b-d ss-step-detail" hidden></div></div></li>`,
       );
       list.appendChild(li);
       return { verb, arg, name: s.step, state: "wait", detail: "" };
     });
-    // planStep() ticks THIS list: a Both ask can show an API journey's list above it.
+    // planStep() ticks THIS list: a Both ask shows an API journey's list and the browser's, each its own.
     S.turn.planList = list;
+    S.turn.plans[via] = { plan: S.turn.plan, list };
     if (S.turn.plan.length) addNarr(list);
     // An API journey's steps come here too (via "api"), so the chat reads the same either way.
-    S.turn.planVia = p.via === "api" ? "api" : "browser";
+    S.turn.planVia = via;
     if (S.turn.planVia === "browser") browserPart();
     if (runnable) working(`Running ${S.turn.plan.length} step${S.turn.plan.length === 1 ? "" : "s"} ${p.via === "api" ? "against the API" : "in the browser"}`);
   }
 
   /** How many step rows the running plan has. */
-  const planLength = () => S.turn?.plan?.length ?? 0;
+  const planLength = () => planOf("browser").plan.length ?? 0;
   /**
    * Steps added mid-run (choose_stages asks which event and then inserts that event's stage steps):
    * rows for them at `at`, the later rows moved down. They start unnamed; planName names each as it runs.
    */
   function planGrow(at, count) {
-    const list = S.turn?.planList;
+    const list = planOf("browser").list;
     if (!S.on || !list || !(count > 0)) return;
     const rows = Array.from(list.querySelectorAll(":scope > li[data-i]"));
     const before = rows[at] ?? null;
@@ -532,15 +572,54 @@
         node(`<li class="ss-b act wait" data-i=""><span class="ss-dot"></span><div class="ss-b-body"><div class="ss-b-a"><b>Next step</b></div><div class="ss-b-d ss-step-detail" hidden></div></div></li>`),
         before,
       );
-      S.turn.plan.splice(at + k, 0, { verb: "Next step", arg: "", name: "", state: "wait", detail: "" });
+      planOf("browser").plan.splice(at + k, 0, { verb: "Next step", arg: "", name: "", state: "wait", detail: "" });
     }
     Array.from(list.querySelectorAll(":scope > li")).forEach((li, i) => (li.dataset.i = String(i)));
   }
+  /**
+   * What the tester said changed the plan (a run you talk to, 29 Oct): from row `from` on, the rows are these steps.
+   * Rows before it — done or running — stay as they are.
+   */
+  function planReplace(from, steps) {
+    const list = planOf("browser").list;
+    if (!S.on || !list || !Array.isArray(steps)) return;
+    Array.from(list.querySelectorAll(":scope > li")).slice(from).forEach((li) => li.remove());
+    planOf("browser").plan.splice(from);
+    for (const st of steps) {
+      const { verb, arg } = stepLabel(st);
+      const assertion = ASSERTS.test(String(st.step ?? ""));
+      list.appendChild(node(
+        `<li class="ss-b ${assertion ? "head" : "act"} wait added" data-i=""><span class="ss-dot"></span><div class="ss-b-body">` +
+        (assertion
+          ? `<div class="ss-b-t">${h(verb)}${argHtml(arg)}</div>`
+          : `<div class="ss-b-a"><b>${h(verb)}</b>${argHtml(arg)}</div>`) +
+        `<div class="ss-b-d ss-step-detail" hidden></div></div></li>`,
+      ));
+      planOf("browser").plan.push({ verb, arg, name: st.step, state: "wait", detail: "" });
+    }
+    Array.from(list.querySelectorAll(":scope > li")).forEach((li, i) => (li.dataset.i = String(i)));
+    pin(true);
+  }
+  /** The run's steps are done and it waits, browser open, for the next instruction — or it stopped waiting. */
+  function converse(c) {
+    if (!S.on || !S.turn) return;
+    S.turn.waitingForYou = !!c?.waiting;
+    if (c?.waiting) {
+      const mins = c.until ? Math.max(1, Math.round((c.until - Date.now()) / 60_000)) : 10;
+      working(`Done with its steps — the browser stays on this screen for ${mins} min. Tell me what to do next, or say “done”.`);
+      const box = q$("#ss-msg");
+      if (box) box.placeholder = "What next? e.g. “now approve the award” — or “done”";
+      syncSend();
+    } else if (c?.why) {
+      working(/continuing/i.test(c.why) ? "Carrying on as you said" : `Finishing — ${c.why}`);
+    }
+  }
+
   /** Name a row by the step the run says is there (a row added mid-run, or one whose step changed). */
   function planName(i, name) {
-    const s = S.turn?.plan?.[i];
+    const s = planOf("browser").plan[i];
     if (!S.on || !s || !name || s.name === name) return;
-    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`);
+    const li = planOf("browser").list?.querySelector(`:scope > [data-i="${i}"]`);
     const { verb } = stepLabel({ step: name });
     s.name = name;
     s.verb = verb;
@@ -587,14 +666,22 @@
     return `<details class="ss-scr"><summary>What was on screen${flags.length ? ` <span class="ss-scr-bad">· ${h(flags.join(" · "))}</span>` : ""}</summary>${parts}</details>`;
   }
 
-  function planStep(i, state, detail, spotlights, record) {
-    if (!S.on || !S.turn?.plan?.[i]) return;
-    if (record?.screen) consoleLines({ step: i + 1, stepName: S.turn.plan[i].step || "", url: record.screen.url || "", console: record.screen.console || [], failedRequests: record.screen.failedRequests || [] });
-    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
+  /** The plan and list a caller means: its part's (api | browser), else the one posted last. */
+  function planOf(via) {
+    const part = via && S.turn?.plans?.[via];
+    return part ? part : { plan: S.turn?.plan ?? [], list: S.turn?.planList ?? null };
+  }
+  const partWord = (via) => (S.turn?.mode === "both" ? `${via === "api" ? "API" : "Browser"} · ` : "");
+  const partChip = (via) => `<span class="ss-part-chip ${via}">${via === "api" ? "API" : "Browser"}</span>`;
+  function planStep(i, state, detail, spotlights, record, via) {
+    const { plan, list } = planOf(via);
+    if (!S.on || !plan[i]) return;
+    if (record?.screen) consoleLines({ step: i + 1, stepName: plan[i].step || "", url: record.screen.url || "", console: record.screen.console || [], failedRequests: record.screen.failedRequests || [] });
+    const li = list?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
     if (!li) return;
     li.classList.remove("wait", "run", "ok", "bad", "skip");
     li.classList.add(state);
-    const s = S.turn.plan[i];
+    const s = plan[i];
     s.state = state;
     spotsOutcome(i + 1, state);
     if (detail !== undefined) {
@@ -635,18 +722,19 @@
         strip.appendChild(t);
       }
     }
-    if (state === "run") working(`Step ${i + 1} of ${S.turn.plan.length}: ${s.verb}`);
+    if (state === "run") working(`${partWord(via || S.turn.planVia)}Step ${i + 1} of ${plan.length}: ${s.verb}`);
   }
 
   /**
    * A line under a step while it runs — which event the run looked at and why
    * it was used or passed over ("[pick] …" from the run). kind: "ok" | "no" | "info".
    */
-  function planNote(i, text, kind) {
-    if (!S.on || !S.turn?.plan?.[i] || !text) return;
-    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
+  function planNote(i, text, kind, via) {
+    const { plan, list } = planOf(via);
+    if (!S.on || !plan[i] || !text) return;
+    const li = list?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
     if (!li) return;
-    const s = S.turn.plan[i];
+    const s = plan[i];
     (s.notes ??= []).push({ text: String(text), kind });
     let ul = q$(".ss-step-notes", li);
     if (!ul) {
@@ -655,7 +743,7 @@
     }
     const mark = kind === "ok" ? "✓" : kind === "no" ? "✕" : "·";
     ul.appendChild(node(`<li class="${kind}"><span class="ss-note-m" aria-hidden="true">${mark}</span><span>${h(String(text))}</span></li>`));
-    if (li.classList.contains("run") || li.classList.contains("wait")) working(`Step ${i + 1} of ${S.turn.plan.length}: ${String(text).slice(0, 90)}`);
+    if (li.classList.contains("run") || li.classList.contains("wait")) working(`${partWord(via || S.turn.planVia)}Step ${i + 1} of ${plan.length}: ${String(text).slice(0, 90)}`);
   }
 
   // ── a journey worked out on screen (no ready-made steps) ─────────────────
@@ -889,14 +977,27 @@
     for (const p of document.querySelectorAll(".ss-pane")) p.hidden = p.dataset.pane !== S.tab;
   }
   /**
-   * The browser part of a run is starting (Both: after the API part, whose
-   * requests had brought the Requests tab forward). Show the Browser tab, as
+   * The browser part of a run is starting (Both: alongside the API part, whose
+   * requests may have brought the Requests tab forward). Show the Browser tab, as
    * the first frame would, unless the reader picked a tab themselves.
    */
   function browserPart() {
     if (!S.on || browserless()) return;
+    part("browser");
     if (!S.tabPicked) setTab("browser");
     setRight(true);
+  }
+  /**
+   * Both runs its two parts at the same time (app.js runInstruction, since 5 Nov): the API part in the
+   * Requests tab and the same case in the browser here. One line says so when the turn opens; the
+   * browser part only marks itself so the empty browser pane and the tabs know it has started.
+   */
+  function part(which) {
+    if (!S.on || S.turn?.mode !== "both" || S.turn.part === which) return;
+    S.turn.part = which;
+    if (which === "api") head("API and browser together", "The API part runs in Requests while the same case runs in the browser here.");
+    paintTop();
+    paintLive();
   }
   /**
    * The vendor portal BESIDE the buyer's page (Aanya, 27 Oct: "buyer's tab stay open and in the side vendor's
@@ -909,8 +1010,10 @@
     const panel = q$("#live-frame-panel");
     if (!box || !panel) return;
     if (d.frame) q$("#live-frame-side").src = `data:image/jpeg;base64,${d.frame}`;
-    if (d.label) q$("#live-side-cap").textContent = d.state === "done" ? `${d.label} · done` : d.label;
-    if (d.state) box.dataset.state = d.state;
+    // "· failed — <why>" in the label is the run's own word for how the side page ended: shown as it is.
+    const failed = /· failed\b/.test(d.label || "");
+    if (d.label) q$("#live-side-cap").textContent = d.state === "done" && !failed ? `${d.label} · done` : d.label;
+    if (d.state) box.dataset.state = d.state === "done" && failed ? "failed" : d.state;
     if (!d.frame && !q$("#live-frame-side").getAttribute("src")) return;
     box.hidden = false;
     panel.classList.add("split");
@@ -959,7 +1062,13 @@
     if (empty) {
       empty.hidden = !!shown;
       empty.textContent = S.open
-        ? S.turn?.mode === "api" ? "This run talks to the API directly — open Requests to watch it." : "The browser appears here as soon as the run opens it."
+        ? S.turn?.mode === "api"
+          ? "This run talks to the API directly — open Requests to watch it."
+          : window.spineBuilder?.active
+            ? "Answer the questions on the left — the run starts once you press Run it."
+          : S.turn?.mode === "both" && S.turn.part === "api"
+            ? "The API part is already going in Requests. The browser appears here as soon as the run opens it."
+            : "The browser appears here as soon as the run opens it."
         : S.turn?.replay && S.turn?.mode !== "api"
           ? "A saved run doesn't keep the browser. Run it again to watch it live."
           : "No browser was used in this run.";
@@ -1219,9 +1328,17 @@
    * The box a run ends on. `key` names the part of the turn it closes ("API",
    * "UI", a journey) so a part that reports twice replaces its own box.
    */
-  function end({ tone = "ok", key = "", title = "", lines = [], links = [], tag = "", html = "" } = {}) {
+  function end({ tone = "ok", key = "", title = "", lines = [], links = [], tag = "", html = "", via = "" } = {}) {
     if (!S.on || !el.end) return;
     stopWorking();
+    /**
+     * A Both run ends twice — once per part — and the first box to land used to read as the whole
+     * run's verdict: "Done · Everything worked" from the API part while the browser was still stuck at
+     * step 6 (Aanya, 5 Nov: "everything worked, how??? most of the cases didnt run"). Each part's box
+     * is named for its part, and the run's own verdict comes only when both are over (bothVerdict).
+     */
+    const both = S.turn?.mode === "both" && !!via;
+    if (both) { key = via === "api" ? "API part" : "Browser part"; tag = `${key} · ${tag || TAG[tone] || tone}`; }
     const k = key || "run";
     const was = S.turn?.ended?.[k];
     // A part that already said "not tested" with its reason keeps it: the
@@ -1230,7 +1347,7 @@
     const box = node(
       `<div class="ss-call ${h(tone)}" data-key="${h(k)}">` +
       `<div class="ss-call-h">${icon(TAG_ICON[tone] || "info")}<span class="ss-call-tag">${h(tag || TAG[tone] || tone)}</span>` +
-      (key ? `<span class="ss-call-k">${h(key)}</span>` : "") + `</div>` +
+      (key && !both ? `<span class="ss-call-k">${h(key)}</span>` : "") + `</div>` +
       (title ? `<div class="ss-call-t">${h(title)}</div>` : "") +
       lines.filter(Boolean).map((l) => `<p>${h(l)}</p>`).join("") +
       (html || "") +
@@ -1253,11 +1370,33 @@
     else el.end.appendChild(box);
     if (S.turn) S.turn.ended[k] = { tone, title, lines };
     S.chat.push({ role: "assistant", text: `${TAG[tone] || tone}${key ? ` (${key})` : ""}: ${[title, ...lines].filter(Boolean).join(" ")}` });
+    if (both && S.turn.ended["API part"] && S.turn.ended["Browser part"]) bothVerdict();
+  }
+
+  /** The verdict of a Both run: both parts in one box, and the worse one decides the tone. */
+  function bothVerdict() {
+    const api = S.turn.ended["API part"];
+    const ui = S.turn.ended["Browser part"];
+    const rank = { bad: 3, stop: 3, skip: 2, ok: 1 };
+    const worst = [api, ui].sort((a, b) => (rank[b.tone] || 0) - (rank[a.tone] || 0))[0];
+    const word = (p) => (p.tone === "ok" ? "worked" : p.tone === "skip" ? "was only partly tested" : "failed");
+    const title =
+      api.tone === "ok" && ui.tone === "ok"
+        ? "Both parts worked."
+        : api.tone === ui.tone
+          ? `Both parts ${word(api)}.`
+          : `The API part ${word(api)}; the browser part ${word(ui)}.`;
+    end({ tone: worst.tone === "stop" ? "bad" : worst.tone, key: "Both parts", tag: "Run over", title, lines: [`API: ${api.title}`, `Browser: ${ui.title}`] });
   }
 
   /** The run is over (or was stopped): the reader's turn. */
   function idle() {
     if (!S.on) return;
+    // The run is over: the journey's live list steps aside for the written set (paintCaseLists).
+    if (C.status === "running") {
+      C.status = "ended";
+      paintCaseLists();
+    }
     // Ended out of sight: it waits on Home and in the sidebar until it is opened.
     if (S.open && S.turn && !S.turn.replay && !showing()) S.yourTurn = true;
     closeAsk("No longer waiting — the run ended.");
@@ -1296,7 +1435,8 @@
     }
     // "accept" / "reject" alone is the runner's shorthand, not an expected result.
     const expected = row.expectedResult || (/\s/.test(String(row.expected ?? "")) ? row.expected : "");
-    head(row.scenario || row.id || "The matched case", expected, verdict);
+    const hl = head(row.scenario || row.id || "The matched case", expected, verdict);
+    if (S.turn?.mode === "both" && hl) q$(".ss-b-t", hl)?.prepend(node(partChip("api")));
     const status = row.httpStatus ? ` → ${row.httpStatus}` : "";
     if (req?.method) act(String(req.method).toUpperCase(), `${req.path || ""}${status}`, verdict);
     else if (row.inputSummary) act("Sent", `${row.inputSummary}${status}`, verdict);
@@ -1313,21 +1453,21 @@
     if (!S.on) return;
     // The stream itself failed (sign-in, environment): nothing was judged, so
     // it is "not tested", the way the oracle treats it — never a product failure.
-    if (error) return end({ tone: "skip", key: "API", title: "The API part could not run, so nothing was tested.", lines: [error] });
-    if (!rows.length) return end({ tone: "skip", key: "API", title: "No API case ran for this.", lines: ["Nothing in the case library matched, and no API test could be written from it."] });
+    if (error) return end({ via: "api", tone: "skip", key: "API", title: "The API part could not run, so nothing was tested.", lines: [error] });
+    if (!rows.length) return end({ via: "api", tone: "skip", key: "API", title: "No API case ran for this.", lines: ["Nothing in the case library matched, and no API test could be written from it."] });
     const bad = rows.filter((r) => !r.pass && !r.inconclusive);
     const unknown = rows.filter((r) => r.inconclusive);
     if (bad.length) {
-      return end({ tone: "bad", key: "API", title: `${bad.length} of ${rows.length} API check${rows.length === 1 ? "" : "s"} failed.`, lines: bad.slice(0, 3).map((r) => `${r.scenario || r.id}: ${r.message || r.verdict || ""}`) });
+      return end({ via: "api", tone: "bad", key: "API", title: `${bad.length} of ${rows.length} API check${rows.length === 1 ? "" : "s"} failed.`, lines: bad.slice(0, 3).map((r) => `${r.scenario || r.id}: ${r.message || r.verdict || ""}`) });
     }
     if (unknown.length === rows.length) {
-      return end({ tone: "skip", key: "API", title: "The API part could not be judged.", lines: unknown.slice(0, 2).map((r) => r.message || r.verdict || "") });
+      return end({ via: "api", tone: "skip", key: "API", title: "The API part could not be judged.", lines: unknown.slice(0, 2).map((r) => r.message || r.verdict || "") });
     }
     // Some worked, some could not be checked: never "all worked" — what was
     // not checked is the part the reader still has to find out about.
     if (unknown.length) {
       const worked = rows.length - unknown.length;
-      return end({
+      return end({ via: "api",
         tone: "skip",
         key: "API",
         title: `Only part of it was tested: ${worked} of ${rows.length} API check${rows.length === 1 ? "" : "s"} worked, ${unknown.length} could not be checked.`,
@@ -1340,7 +1480,7 @@
     // with the email part never tested (15 Oct).
     const gaps = (S.turn?.log ?? []).map((l) => String(l).match(/Not covered by this API test:\s*(.+?)\.?$/i)?.[1]).find(Boolean);
     if (gaps) {
-      return end({
+      return end({ via: "api",
         tone: "skip",
         tag: "Partly tested",
         key: "API",
@@ -1348,7 +1488,7 @@
         lines: [rows.length === 1 ? "The part it could test worked as expected." : `The parts it could test worked: all ${rows.length} API checks passed.`, ...rows.slice(0, 2).map((r) => r.message || r.verdict || "")],
       });
     }
-    end({ tone: "ok", key: "API", title: rows.length === 1 ? "It worked as expected." : `All ${rows.length} API checks worked as expected.`, lines: rows.slice(0, 2).map((r) => r.message || r.verdict || "") });
+    end({ via: "api", tone: "ok", key: "API", title: rows.length === 1 ? "It worked as expected." : `All ${rows.length} API checks worked as expected.`, lines: rows.slice(0, 2).map((r) => r.message || r.verdict || "") });
   }
 
   // ── the typed UI case: the answer renderUiInstructResult already words ───
@@ -1360,7 +1500,7 @@
     // "part": steps the tester did by hand in the browser — grey, "Partly tested", never a green pass.
     const tone = cls === "ok" ? "ok" : cls === "skip" || cls === "part" ? "skip" : "bad";
     // A run the explorer worked out has its run id: its bugs can be opened from here.
-    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [], tag: cls === "part" ? "Partly tested" : "", html });
+    end({ via: "browser", tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [], tag: cls === "part" ? "Partly tested" : "", html });
   }
 
   /**
@@ -1378,12 +1518,12 @@
     const ok = code === 0 && !error;
     // The suite ran but did not test its case (no login for the user it names, writes not allowed…).
     if (ok && notTested) {
-      end({ tone: "skip", key: label || "Journey", title: `Not tested — ${notTested}`, lines: [took ? `Took ${took}.` : ""], links: runId ? [{ label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" }] : [] });
+      end({ via: "browser", tone: "skip", key: label || "Journey", title: `Not tested — ${notTested}`, lines: [took ? `Took ${took}.` : ""], links: runId ? [{ label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" }] : [] });
       return;
     }
     // Steps the tester did in the browser (take control): the run did not test them.
     if (ok && byHand > 0) {
-      end({
+      end({ via: "browser",
         tone: "skip",
         tag: "Partly tested",
         key: label || "Journey",
@@ -1399,7 +1539,7 @@
           ...bugLinks(runId),
         ]
       : [];
-    end({
+    end({ via: "browser",
       tone: ok ? "ok" : "bad",
       key: label || "Journey",
       title: ok ? "The journey worked from start to finish." : error ? `The run broke: ${error}` : "The journey broke — the report shows exactly where it stopped.",
@@ -1426,7 +1566,7 @@
     const failures = (read(() => checkRows, []) || [])
       .filter((c) => !c.pass && !c.inconclusive)
       .map((c) => ({ name: c.scenario || c.id, why: c.message || c.verdict || "" }));
-    end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links, failures, rows: read(() => checkRows, []) || [] }));
+    end({ ...summary({ total, passed, failed, skipped, error, journey, note: subtitle, links, failures, rows: read(() => checkRows, []) || [] }), via: "api" });
   }
 
   /**
@@ -1441,6 +1581,11 @@
     const unknown = Math.max(0, total - passed - failed);
     const ran = total || journey?.steps;
     const ok = !error && failed === 0 && !stopped;
+    // Nothing broke, but part of the journey never ran (no vendor to bid as…) or checks could not be
+    // checked: Partly tested, never "Everything worked" (Aanya, 5 Nov, over "5 of 31 passed, 26 couldn't be checked").
+    const partly = ok && (journey?.notRun > 0 || unknown > 0);
+    // The journey worked and only checks around it failed: say both, in that order.
+    const journeyOk = !!journey?.steps && journey.worked === journey.steps && !stopped;
     const lines = [];
     if (journey?.steps) {
       lines.push(
@@ -1476,15 +1621,17 @@
     if (note && !error) lines.push(note);
     if (when) lines.push(when);
     if (ran && links.length) lines.push("Every check, with what was sent and what came back, is in the full report.");
-    // The journey worked and only checks around it failed: say both, in that order.
-    const journeyOk = !!journey?.steps && journey.worked === journey.steps && !stopped;
     return {
-      tone: error ? "bad" : ok ? (ran ? "ok" : "skip") : "bad",
-      tag: !error && failed && journeyOk ? "Checks failed" : "",
+      tone: error ? "bad" : ok ? (ran && !partly ? "ok" : "skip") : "bad",
+      tag: !error && failed && journeyOk ? "Checks failed" : partly ? "Partly tested" : "",
       title: error
         ? `The run stopped: ${error}`
         : ok
-          ? ran ? "Everything worked." : "Nothing was tested."
+          ? partly
+            ? journey?.notRun > 0
+              ? `Partly tested: ${journey.notRun} of ${journey.steps} steps did not run${journey.notRunWhy ? ` — ${journey.notRunWhy}` : ""}.`
+              : `Partly tested: ${journeyOk ? "the journey worked, but " : ""}${unknown} of ${total} checks could not be checked.`
+            : ran ? "Everything worked." : "Nothing was tested."
           : failed
             ? journeyOk
               ? `The journey worked end to end, but ${failed} of the ${total} checks around it failed.`
@@ -1565,7 +1712,14 @@
     const steps = (rec.journey?.steps ?? []).filter(Boolean);
     const id = encodeURIComponent(rec.id || "");
     const journey = rec.journey
-      ? { outcome: rec.journey.outcome, stoppedAt: rec.journey.stoppedAt, worked: steps.filter((s) => s.verdict === "worked").length, steps: steps.length }
+      ? {
+          outcome: rec.journey.outcome,
+          stoppedAt: rec.journey.stoppedAt,
+          worked: steps.filter((s) => s.verdict === "worked").length,
+          steps: steps.length,
+          notRun: steps.filter((s) => s.verdict === "not-run").length,
+          notRunWhy: steps.find((s) => s.verdict === "not-run")?.reason || "",
+        }
       : null;
     const at = rec.ts ? new Date(rec.ts) : null;
     end(summary({
@@ -1747,14 +1901,26 @@
       const mine = bubble(text);
       mine.classList.add("ss-ask-live");
       let ok = false;
+      let said = null;
+      // a word while it thinks: turning a sentence into steps takes a few seconds
+      const thinking = el.after.appendChild(node(`<div class="ss-ai ss-thinking" aria-live="polite"><span></span><span></span><span></span><em>Working out the steps</em></div>`));
       try {
         const r = await fetch("/api/live/say", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: S.turn.runId, text }) });
-        ok = r.ok && (await r.json().catch(() => ({}))).ok === true;
+        said = await r.json().catch(() => ({}));
+        ok = r.ok && said?.ok === true;
       } catch {
         ok = false;
       }
+      thinking.remove();
       S.chat.push({ role: "user", text });
       remember(`TO THE RUN: ${text}`);
+      // The run's own answer: what it will do with this (steps next, instead, after) or a sentence back.
+      if (ok && said?.reply) {
+        aiSay(said.reply);
+        S.chat.push({ role: "assistant", text: said.reply });
+        pin(true);
+        return;
+      }
       note(
         ok
           ? /^\s*(stop|abort|cancel|end it)/i.test(text)
@@ -1826,7 +1992,8 @@
     if (!box || typeof runInstruction !== "function") return;
     box.value = text;
     S.continuing = true;
-    runInstruction(mode);
+    // The same thing again, as it ran: no builder questions on a rerun.
+    runInstruction(mode, null, { noBuilder: true });
   }
 
   function rerun(mode) {
@@ -1913,6 +2080,7 @@
     const thread = el.thread;
     if (!sc || !thread) return;
     sc.addEventListener("scroll", () => {
+      if (jumping) return; // on the way down after "Jump to latest": the glide itself is not the reader scrolling up
       pinned = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
       const jump = q$("#ss-jump");
       if (jump) jump.hidden = pinned;
@@ -1924,11 +2092,31 @@
         if (jump && S.on) jump.hidden = false;
       }
     }).observe(thread, { childList: true, subtree: true, characterData: true });
+    // JUMP TO LATEST goes all the way (2 Nov: "jump to latest not working"). A long closed session keeps growing after
+    // the click — screenshots and case cards load in — so a glide aimed at the old bottom landed short, its first
+    // frame read as the reader scrolling up, and the button came back. It glides, then keeps to the real bottom
+    // for a moment while the rest arrives; the reader's own wheel or touch stops it.
+    let jumping = 0;
+    const stopJump = () => {
+      clearTimeout(jumping);
+      jumping = 0;
+    };
     q$("#ss-jump")?.addEventListener("click", () => {
-      sc.scrollTo({ top: sc.scrollHeight, behavior: "smooth" });
+      stopJump();
       pinned = true;
       q$("#ss-jump").hidden = true;
+      sc.scrollTo({ top: sc.scrollHeight, behavior: "smooth" });
+      const until = Date.now() + 1800;
+      const settle = () => {
+        if (!jumping) return;
+        if (sc.scrollHeight - sc.scrollTop - sc.clientHeight > 2 && Date.now() > until - 1200) sc.scrollTop = sc.scrollHeight;
+        if (Date.now() < until) jumping = setTimeout(settle, 120);
+        else stopJump();
+      };
+      jumping = setTimeout(settle, 120);
     });
+    sc.addEventListener("wheel", stopJump, { passive: true });
+    sc.addEventListener("touchstart", stopJump, { passive: true });
     // A frozen turn's check rows still open and close.
     el.history?.addEventListener("click", (e) => {
       if (e.target.closest("a, button, summary, details .cv-body")) return;
@@ -2162,8 +2350,15 @@
     const head = q$("#ss-cases-head");
     const empty = q$("#ss-cases-empty");
     const all = C.cases.length + C.newCases.length;
-    if (head) head.hidden = !all;
+    // ONE LIST AT A TIME (Aanya, 10 Nov: "why two diff testcases top bottom"): while the run goes, the tab shows
+    // what it is checking ("On this journey"); once it ends, that list gives way to the written set, which carries
+    // the run's results. The two never show together.
+    const live = C.status === "running";
+    if (head) head.hidden = !all || !live;
     if (empty) empty.hidden = !!all;
+    const tc = q$("#ss-tc");
+    if (tc && all && live) tc.hidden = true;
+    else if (tc && q$(".tc-empty", tc)) tc.hidden = !!all && live;
     const n = q$("#ss-cases-n");
     if (n) n.textContent = all ? String(all) : "";
     const jl = q$("#ss-case-list");
@@ -2171,7 +2366,7 @@
     if (jl && js) {
       jl.innerHTML = "";
       C.cases.forEach((c, i) => jl.appendChild(caseNode(c, i + 1)));
-      js.hidden = !C.cases.length;
+      js.hidden = !C.cases.length || !live;
       const jn = q$("#ss-cases-journey-n");
       if (jn) jn.textContent = String(C.cases.length);
     }
@@ -2180,7 +2375,7 @@
     if (nl && ns) {
       nl.innerHTML = "";
       C.newCases.forEach((c, i) => nl.appendChild(caseNode(c, C.cases.length + i + 1)));
-      ns.hidden = !C.newCases.length;
+      ns.hidden = !C.newCases.length || !live;
       const nn = q$("#ss-cases-new-n");
       if (nn) nn.textContent = String(C.newCases.length);
     }
@@ -2225,7 +2420,7 @@
     const text = String(p.text ?? "");
     if (p.kind === "head") {
       // The closest plan's steps never ran: say so on each, then the exploration takes over.
-      (S.turn?.plan ?? []).forEach((st, i) => { if (st.state === "wait") planStep(i, "skip", "not run — the plan did not cover what the journey is about"); });
+      planOf("browser").plan.forEach((st, i) => { if (st.state === "wait") planStep(i, "skip", "not run — the plan did not cover what the journey is about", undefined, undefined, "browser"); });
       head(text, "", p.state || "run");
       working("Opening the screen in the browser");
       return;
@@ -2413,9 +2608,35 @@
 
   window.spineSession = {
     begin, ensure, idle, stopped, showing,
+    /** Stop whatever this tab thinks is running (the PRD screen's "stop it and run" choice): the real
+     *  Stop first, then the stale case — a run whose end never reached the tab after a server restart. */
+    stopNow() {
+      q$("#run-stop-btn")?.click();
+      if (S.open) stopped();
+      idle();
+    },
+    /** A card of the journey builder (public/journeyBuilder.js) in the narration; the node, for its buttons. */
+    card(html) {
+      if (!S.on) return null;
+      const n = node(html);
+      addNarr(n);
+      pin(true);
+      return n;
+    },
+    /** The builder opened or closed: the top bar and the empty browser pane say so. */
+    repaint() { if (S.on) { paintTop(); paintLive(); } },
+    /** The sentence the builder made is what this turn ran: Run again runs it, not the short prompt it grew from. */
+    ranAs(sentence) {
+      if (S.turn && sentence) S.turn.runText = String(sentence);
+    },
+    /** What the reader answered the builder — kept in the chat like any answer. */
+    said(text) {
+      S.chat.push({ role: "user", text });
+      remember(`ANSWER: ${text}`);
+    },
     spot,
-    working, head, act, note, browserPart,
-    plan, outline, draftGone, planStep, planNote, planGrow, planName, planLength,
+    working, head, act, note, browserPart, part,
+    plan, outline, draftGone, planStep, planNote, planGrow, planName, planLength, planReplace, converse,
     explore, exploreStep, ask,
     runCase, setRunId, answerQuestion,
     cases, casesTested, newCases, journeyLinks, caseVerdict,

@@ -538,6 +538,52 @@ async function fillEmptyRequiredCells(s: RunState): Promise<SweepResult> {
   return out;
 }
 
+/**
+ * REQUIRED SHEET CELLS, FILLED OR ASKED FOR. First every kind a client's column can be, by the run itself
+ * (fillRequiredCellAnyway); the tester is asked only for what none takes, by column name, and the answer is
+ * typed into the cell — never "sheet filled" over an empty required cell (Aanya, 27 Oct). Used by fill_sheet
+ * on both create screens and by a single-stage publish the app refused with "Sheet partially filled": the
+ * explorer is not used for cells (it could not reach the grid; plan-mvpncvcu clicked the locked Product cell).
+ */
+async function fillRequiredSheetCellsOrAsk(s: RunState): Promise<{ auto: SweepResult; typed: string[] }> {
+  const auto = await fillEmptyRequiredCells(s);
+  let left = await s.create.emptyRequiredSheetCells();
+  const typed: string[] = [];
+  if (!left.length) return { auto, typed };
+  const said = (cells: typeof left) => cells.map((c) => `“${c.column}”${cells.some((o) => o.row !== c.row) || c.row > 1 ? ` (line ${c.row})` : ""}`).join(", ");
+  const answer = await askTester({
+    kind: "question",
+    question: `The sheet has ${left.length === 1 ? "a required cell" : `${left.length} required cells`} I could not fill: ${said(left)}. What should I type?`,
+    detail: `Type one value for all of them, or one per column (for example “${left[0].column}: 10”). Publish is refused while they are empty.`,
+    options: [{ id: "stop", label: "Stop here — mark it failed" }],
+  });
+  if (!answer || answer.option === "stop" || SAYS_STOP.test(answer.text ?? "")) {
+    throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty — the app refuses to publish ("Sheet partially filled")${answer ? "" : ", and nobody said what to type"}`);
+  }
+  // "Price: 10, dgfgfd: test" → per column; anything else → the same value everywhere.
+  const per = new Map<string, string>();
+  for (const part of String(answer.text).split(/[,;\n]+/)) {
+    const m = part.match(/^\s*([^:=]+?)\s*[:=]\s*(.+?)\s*$/);
+    if (m) per.set(m[1].toLowerCase(), m[2]);
+  }
+  const valueFor = (c: (typeof left)[number]) =>
+    [...per].find(([name]) => c.column.toLowerCase().includes(name) || name.includes(c.column.toLowerCase()) || name === c.key.toLowerCase())?.[1] ?? (per.size ? "" : String(answer.text).trim());
+  for (const c of left) {
+    const v = valueFor(c);
+    if (v && (await s.create.typeIntoSheetCell(c.row, c.key, v))) typed.push(`${c.column} “${v}”`);
+  }
+  left = await s.create.emptyRequiredSheetCells();
+  if (left.length) throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty after typing your answer`);
+  return { auto, typed };
+}
+
+/** Why a side page (vendor portal, evaluator) failed, in a few words for its caption. */
+function sideWhy(err: unknown): string {
+  const m = err instanceof Error ? err.message : String(err);
+  if (/page\.goto|Timeout \d+ms exceeded/i.test(m)) return "the page never loaded";
+  return m.replace(/\s+/g, " ").slice(0, 80);
+}
+
 async function isSingleStageScreen(s: RunState): Promise<boolean> {
   if (onSingleStage(s)) return true;
   const url = s.page.url();
@@ -995,6 +1041,9 @@ async function createEventForCase(s: RunState, need: "bids" | "live"): Promise<s
 
 /** Steps that drive the create screen — nothing to do once the event is published. */
 const CREATE_SCREEN_STEP = /^(compose_stages|expect_stages|set_title|select_template|add_line_items|expect_line_items|fill_sheet|set_schedule|invite_vendor|publish|save_draft|configure_single_stage)$/;
+
+/** A goal that is the vendor's — the supplier portal, a vendor's sign-in or bid — never done in the buyer's browser. */
+const VENDOR_GOAL = /\b(vendor|supplier)s?\b[^.]*\b(log ?in|sign ?in|login|portal|bid)\b|\b(log ?in|sign ?in|login)\b[^.]*\b(as|with)\b[^.]*\b(vendor|supplier)\b|\bvendor portal\b/i;
 
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
@@ -1681,6 +1730,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorCtx = await browser.newContext();
       const vendorPage = await vendorCtx.newPage();
       // The vendor portal streams beside the buyer's page (sideFrames), then stays on its last frame.
+      let sideFailed: string | undefined;
       const side = sideFrames(vendorPage, "Vendor portal");
       try {
         const portal = new VendorPortalPage(vendorPage);
@@ -1694,8 +1744,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const detail = await portal.acceptCounterOffer(s.title);
         s.counterOfferAccepted = true;
         return `${detail} (signed in as ${email} with ${how})`;
+      } catch (err) {
+        sideFailed = sideWhy(err);
+        throw err;
       } finally {
-        await side.stop();
+        await side.stop(sideFailed);
         await vendorCtx.close().catch(() => {});
       }
     }
@@ -1956,53 +2009,25 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const q = String(a.quantity);
         s.products = s.products.map((p) => ({ ...p, quantity: q }));
       }
+      s.create.productSwaps = [];
       await s.create.addLineItems(s.products);
       s.lineItemsAdded = s.products.length;
-      return `${s.products.length} line item(s)${a.quantity !== undefined ? ` (quantity: ${a.quantity})` : ""}`;
+      const swaps = s.create.productSwaps.length ? ` — ${s.create.productSwaps.join("; ")}` : "";
+      return `${s.products.length} line item(s)${a.quantity !== undefined ? ` (quantity: ${a.quantity})` : ""}${swaps}`;
     }
     case "fill_sheet": {
-      if (await isSingleStageScreen(s)) {
-        return "sheet already filled with the line item (single-stage)";
+      // The single-stage sheet was filled with the line item already; the required columns its template
+      // adds (delivery location, price) still get the sweep below — returning "already filled" skipped it,
+      // and the publish was refused with "Sheet partially filled" (Laxmi Organics, 6 Nov).
+      const single = await isSingleStageScreen(s);
+      if (!single) {
+        if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
+        await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
       }
-      if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
-      await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
-      /**
-       * REQUIRED CELLS STILL EMPTY: ask for them by name and type the answer in — never "sheet filled"
-       * over an empty required cell (Aanya, 27 Oct: "if it declines to publish because mandatory fields
-       * are not filled, then it should fill the fields … or ask the user for it"). The publish refusal
-       * "Sheet partially filled" brings the run back here too. The explorer is not used: it could not
-       * reach the grid's cells (plan-mvpncvcu clicked the locked Product cell three times).
-       */
-      // First every kind a client's column can be, by the run itself — the tester is asked only if none takes.
-      const auto = await fillEmptyRequiredCells(s);
-      let left = await s.create.emptyRequiredSheetCells();
-      if (!left.length) return `sheet filled${auto.filled.length ? ` — ${sweepSaid({ filled: auto.filled, left: [] })}` : ""}`;
-      const said =(cells: typeof left) => cells.map((c) => `“${c.column}”${cells.some((o) => o.row !== c.row) || c.row > 1 ? ` (line ${c.row})` : ""}`).join(", ");
-      const answer = await askTester({
-        kind: "question",
-        question: `The sheet has ${left.length === 1 ? "a required cell" : `${left.length} required cells`} I could not fill: ${said(left)}. What should I type?`,
-        detail: `Type one value for all of them, or one per column (for example “${left[0].column}: 10”). Publish is refused while they are empty.`,
-        options: [{ id: "stop", label: "Stop here — mark it failed" }],
-      });
-      if (!answer || answer.option === "stop" || SAYS_STOP.test(answer.text ?? "")) {
-        throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty — the app refuses to publish ("Sheet partially filled")${answer ? "" : ", and nobody said what to type"}`);
-      }
-      // "Price: 10, dgfgfd: test" → per column; anything else → the same value everywhere.
-      const per = new Map<string, string>();
-      for (const part of String(answer.text).split(/[,;\n]+/)) {
-        const m = part.match(/^\s*([^:=]+?)\s*[:=]\s*(.+?)\s*$/);
-        if (m) per.set(m[1].toLowerCase(), m[2]);
-      }
-      const valueFor = (c: (typeof left)[number]) =>
-        [...per].find(([name]) => c.column.toLowerCase().includes(name) || name.includes(c.column.toLowerCase()) || name === c.key.toLowerCase())?.[1] ?? (per.size ? "" : String(answer.text).trim());
-      const typed: string[] = [];
-      for (const c of left) {
-        const v = valueFor(c);
-        if (v && (await s.create.typeIntoSheetCell(c.row, c.key, v))) typed.push(`${c.column} “${v}”`);
-      }
-      left = await s.create.emptyRequiredSheetCells();
-      if (left.length) throw new Error(`the sheet's required ${left.length === 1 ? "cell" : "cells"} ${said(left)} ${left.length === 1 ? "is" : "are"} still empty after typing your answer`);
-      return `sheet filled — the required ${typed.length === 1 ? "cell" : "cells"} the template did not fill, with what you gave: ${typed.join(", ")}`;
+      const { auto, typed } = await fillRequiredSheetCellsOrAsk(s);
+      const base = single ? "sheet filled with the line item (single-stage)" : "sheet filled";
+      if (typed.length) return `${base} — the required ${typed.length === 1 ? "cell" : "cells"} the template did not fill, with what you gave: ${typed.join(", ")}`;
+      return `${base}${auto.filled.length ? ` — ${sweepSaid({ filled: auto.filled, left: [] })}` : ""}`;
     }
     case "fill_required": {
       // What the app named first (its drawer filled and saved), then every stage tab's mandatory fields.
@@ -2119,6 +2144,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorPage = await vendorCtx.newPage();
       shareObserver(s.page, vendorPage);
       // The vendor portal streams beside the buyer's page (sideFrames), then stays on its last frame.
+      let sideFailed: string | undefined;
       const side = sideFrames(vendorPage, "Vendor portal");
       try {
         const portal = new VendorPortalPage(vendorPage);
@@ -2198,10 +2224,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (portal.answeredTechnical) return `bid placed from the vendor portal as ${email}, signed in with ${how}: ${portal.lastFill}`;
         return `bid placed from the vendor portal as ${email}, signed in with ${how} (${cells} cell(s))`;
       } catch (err) {
+        sideFailed = sideWhy(err);
         s.failObservation = (await observe(vendorPage, s.stepNo, "place_bid", { force: true }).catch(() => null)) ?? undefined;
         throw err;
       } finally {
-        await side.stop();
+        await side.stop(sideFailed);
         await vendorCtx.close().catch(() => {});
       }
     }
@@ -2236,6 +2263,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const evalCtx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
       await orchestrate(evalCtx).catch(() => {});
       const evalPage = await evalCtx.newPage();
+      let sideFailed: string | undefined;
       const side = sideFrames(evalPage, `Evaluator · ${evaluator}`);
       try {
         // Their saved session, or the login screen when Procol has expired it (signInUser).
@@ -2269,10 +2297,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         s.evaluated = true;
         return `${evaluator} (the stage's evaluator, signed in beside the buyer) scored ${r.scored.map((x) => `${x.vendor}: ${x.label}`).join(", ")} and submitted ${r.submitted} line item(s)`;
       } catch (err) {
+        sideFailed = sideWhy(err);
         s.failObservation = (await observe(evalPage, s.stepNo, "evaluate_technical", { force: true }).catch(() => null)) ?? undefined;
         throw err;
       } finally {
-        await side.stop();
+        await side.stop(sideFailed);
         await evalCtx.close().catch(() => {});
       }
     }
@@ -2392,6 +2421,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           if (await s.single.addParticipant(n)) added.push(n);
           else console.log(`[single-stage] no vendor matched "${n}" in the participants search`);
         }
+        // A COUNT THE CASE NAMES IS THE COUNT (6 Nov, plan-mw57y3sv: "invite 2 vendors" pressed Invite Vendor, 7
+        // arrived, and the run's own participant check failed on its own doing). With no names, that many of the
+        // product's suggestions are picked one by one; only when none can be does Invite Vendor take them all.
+        const want = !asked.length && a.count !== undefined && allowRealVendors() ? Number(a.count) : 0;
+        if (!added.length && want > 0) {
+          const picked = await s.single.inviteSuggested(want).catch((e) => (console.log(`[single-stage] picking ${want} vendors one by one failed: ${(e as Error).message.split("\n")[0]}`), [] as string[]));
+          if (picked.length) {
+            invitedVendors = picked;
+            return swapNote(real) + (picked.length === want
+              ? `invited the ${want} vendor${want === 1 ? "" : "s"} the case asked for: ${picked.join(", ")} (single-stage)`
+              : `invited ${picked.length} of the ${want} vendors asked for (the product suggested no more): ${picked.join(", ")} (single-stage)`);
+          }
+          console.log(`[single-stage] could not pick ${want} vendors one by one — pressing Invite Vendor, which takes every suggested vendor`);
+        }
         if (!added.length) await s.single.inviteVendor();
         invitedVendors = allowRealVendors() ? added : added.filter((n) => isQaVendorName(n, qa));
         return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "invited every vendor the product suggested (single-stage)");
@@ -2439,15 +2482,27 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "publish":
       if (await isSingleStageScreen(s)) {
-        await s.single.publish(s.title);
-        const redirected = await s.single.waitForRedirectToProject().then(() => true).catch(() => false);
-        if (!redirected) {
+        // The required cells the template added (delivery location, price) are filled before the click: the
+        // app refuses to publish over an empty one, and a plan may reach publish without a fill_sheet step.
+        await fillEmptyRequiredCells(s).catch(() => {});
+        for (let attempt = 1; ; attempt++) {
+          await s.single.publish(s.title);
+          const redirected = await s.single.waitForRedirectToProject().then(() => true).catch(() => false);
+          if (redirected) break;
           // Say what the screen says instead of "waitForURL timed out": the
           // app refuses single-stage publishes inline (form messages), not
           // with a toast, and the traffic-light range is the usual reason.
           const inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
             .map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 4);
           const toast = await s.single.errorToastText(800);
+          // "Sheet partially filled": a required cell is still empty — filled by kind or asked for by name
+          // (Laxmi Organics, 6 Nov: Delivery location), then published once more, instead of stopping here.
+          const partial = /partially filled|required|mandatory/i.test([toast ?? "", ...inline].join(" ")) || (await s.create.emptyRequiredSheetCells().catch(() => [])).length > 0;
+          if (attempt === 1 && partial) {
+            const { typed } = await fillRequiredSheetCellsOrAsk(s);
+            console.log(`[plan] publish refused (${toast ?? inline.join(" | ") ?? "sheet partially filled"}) — required cells filled${typed.length ? ` with what you gave (${typed.join(", ")})` : ""}, publishing again`);
+            continue;
+          }
           await recordStuck(s.page, {
             label: "single-stage-publish",
             message: `publish did not reach a project page${toast ? ` — toast: ${toast}` : ""}${inline.length ? ` — on screen: ${inline.join(" | ")}` : ""}`,
@@ -2643,6 +2698,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
        */
       const goal = String(a.goal ?? a.need ?? "").trim().replace(/\.$/, "");
       if (!goal) throw new Error("do_on_screen needs a goal");
+      // THE VENDOR'S PART IS NEVER DONE IN THE BUYER'S BROWSER (6 Nov, plan-mw57y3sv: "login with the vendor who's
+      // invited" became an on-screen goal here and signed the buyer out of this very page). A goal about signing in
+      // as a vendor, the supplier portal or a vendor's bid is place_bid's: it opens a browser of its own.
+      if (VENDOR_GOAL.test(goal)) {
+        console.log(`[plan] “${goal.slice(0, 80)}” is the vendor's part — doing it as place_bid in a vendor browser; the buyer stays signed in`);
+        return runStep(s, { step: "place_bid", args: {} });
+      }
       const gapRun = `${process.env.QA_RUN_ID || "plan"}-gap${++gapCount}`;
       const done = await explore(s.page, { goal, runId: gapRun, companyId: Number(process.env.COMPANY_ID) || null, askFirst: false });
       if (done.byHand) s.didByHand = true;
@@ -3346,6 +3408,26 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.noHold = false;
       if (resumed && "tried" in resumed) results[failedAt].detail = `${results[failedAt].detail} — then, as you said, ${resumed.tried}`;
       else if (resumed) {
+        // AFTER THEIR FIX, THE STEP ITSELF RUNS AGAIN (6 Nov, plan-mw57y3sv: "fill delivery location" filled the
+        // cell, Publish was marked done and nothing was published — the nine steps after it were skipped and the
+        // tester re-typed the whole journey). Their words mend what stopped the step; the step is still the step.
+        // An action that reaches a state is tried once more here; only when that fails too does their fix stand
+        // as the finish. Done by hand it is theirs, and is not redone.
+        if (!resumed.byHand && RETRY_AFTER_TOLD.has(step.step)) {
+          let again: string | undefined;
+          let againFailed = "";
+          try {
+            again = (await runStep(s, step)) ?? "";
+          } catch (re) {
+            againFailed = (re instanceof Error ? re.message : String(re)).split("\n")[0].slice(0, 160);
+          }
+          if (again !== undefined) {
+            results[failedAt] = { ...results[failedAt], status: "ok", continuedAsTold: resumed.text, detail: `stopped (${failText}) → as you said, ${resumed.note} → then the step itself ran: ${again || "done"}` };
+            console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ after your fix the step itself ran: ${again}`);
+            continue;
+          }
+          console.log(`[plan] ${step.step} tried again after your fix and still stopped (${againFailed}) — keeping what you said as its finish`);
+        }
         // the step's own failure stays in its detail and evidence: the tester's way finished it, not the step
         results[failedAt] = { ...results[failedAt], status: "ok", continuedAsTold: resumed.text, detail: `the step itself failed (${failText}) → finished on the same screen as you said: ${resumed.note}`, ...(resumed.byHand ? { byHand: true } : {}) };
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ finished as you said: ${resumed.note}`);
@@ -3379,6 +3461,9 @@ function moreTime(ms: number): void {
  * question card or a message sent to the running test; "stop" (or no answer within UI_FAIL_HOLD_MS,
  * 10 minutes by default) ends the run as failed. Up to three tries, each told what the last one hit.
  */
+/** Actions that reach a state: after the tester's typed fix, the step itself runs once more (see the catch below). */
+const RETRY_AFTER_TOLD = new Set(["publish", "invite_vendor", "set_schedule", "select_template", "add_line_items", "fill_sheet", "set_title", "configure_single_stage", "compose_stages", "save_draft", "close_event", "award_event"]);
+
 async function continueAsTold(s: RunState, i: number, total: number, stepName: string, failText: string, shot?: string): Promise<{ text: string; note: string; byHand: boolean } | { tried: string } | null> {
   const holdMs = Number(process.env.UI_FAIL_HOLD_MS ?? 10 * 60_000);
   if (!holdMs || !process.env.UI_EXPLORE_DIR || !process.env.QA_RUN_ID) return null; // nobody can answer
