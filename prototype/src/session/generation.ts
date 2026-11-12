@@ -21,6 +21,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { advance, updateSession, SESSIONS_DIR, type Session } from "./store.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
+import { configsFor } from "./sanity.js";
 
 export const KINDS = ["happy", "negative", "edge", "permission", "state", "settings", "data", "timing", "visibility", "api", "design", "error-guessing"] as const;
 export type Kind = (typeof KINDS)[number];
@@ -212,6 +213,16 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
       n++;
       r.id = `GEN-${String(n).padStart(3, "0")}`;
       r.scenario = `${kind} — ${r.source}`;
+      // the settings this company needs for the case (the create screen's type, the vendor lock, what the PRD's
+      // rules name) — computed like the sanity step does, added to whatever the model wrote (12 Nov: a happy
+      // case without default_event_type = rfq opened as an RFI and failed its first check)
+      const feature = card.flows.find((f) => r.source.includes(f.id))?.feature ?? "";
+      const need = configsFor({ feature, steps: r.steps, preconditions: [r.preconditions] }, card.rules, s);
+      if (need !== "None") {
+        const have = (r.configs && r.configs !== "None" ? r.configs.split(/\n/) : []).map((x) => x.trim()).filter(Boolean);
+        for (const line of need.split(/\n/)) { const key = line.split("=")[0].trim(); if (!have.some((h) => h.split("=")[0].trim() === key)) have.push(line); }
+        r.configs = have.join("\n");
+      }
       ids.push(r.id);
       written.push(r);
       emit({ type: "case", row: r });

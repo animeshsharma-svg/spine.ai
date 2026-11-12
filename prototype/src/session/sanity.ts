@@ -58,7 +58,7 @@ export type SanityEvent =
 const VENDOR = /\bvendor\b|\bsupplier\b/i;
 
 /** The settings a flow needs: what the PRD's rules name (when the company does not already have it), plus the two DEMO facts every create-and-publish flow needs. */
-function configsFor(flow: Flow, rules: Rule[], s: Session): string {
+export function configsFor(flow: Pick<Flow, "feature" | "steps" | "preconditions">, rules: Rule[], s: Session): string {
   const lines: string[] = [];
   const now = (s.env?.snapshot?.settings?.key ?? {}) as Record<string, unknown>;
   for (const r of rules) {
