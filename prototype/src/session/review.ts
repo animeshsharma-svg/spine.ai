@@ -50,7 +50,11 @@ export function editCase(s: Session, id: string, patch: Record<string, unknown>)
 }
 
 export function dropCases(s: Session, ids: string[]): number {
-  return removeSheetCases(genSheet(s), ids);
+  const n = removeSheetCases(genSheet(s), ids);
+  const prev = (s.review as any) ?? {};
+  s.review = { ...prev, dropped: Number(prev.dropped ?? 0) + n };
+  saveSession(s);
+  return n;
 }
 
 /** Merge the user's own sheet: new cases join the generated set; duplicates are reported, not added. */
