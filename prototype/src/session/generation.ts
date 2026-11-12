@@ -216,7 +216,16 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
       // the settings this company needs for the case (the create screen's type, the vendor lock, what the PRD's
       // rules name) — computed like the sanity step does, added to whatever the model wrote (12 Nov: a happy
       // case without default_event_type = rfq opened as an RFI and failed its first check)
-      const feature = card.flows.find((f) => r.source.includes(f.id))?.feature ?? "";
+      const srcFlow = card.flows.find((f) => r.source.includes(f.id));
+      const feature = srcFlow?.feature ?? "";
+      // a case that starts from the unpublished event an earlier flow builds runs as that flow's continuation
+      // (a draft's schedule and publish live on the create screen) — the same rule as the sanity step
+      const prev = srcFlow ? card.flows[card.flows.indexOf(srcFlow) - 1] : undefined;
+      if (prev && /\b(not (yet )?(been )?published|unpublished|configured|draft|before (it is |the )?publish)\b/i.test(r.preconditions) && /\b(create|creates|new event|single-stage)\b/i.test(`${prev.name} ${prev.steps.join(" ")}`) && !/\b(create event|single-stage create)\b/i.test(r.steps.join(" "))) {
+        r.steps = [...prev.steps, ...r.steps];
+        r.preconditions = prev.preconditions.join(" ") || "The buyer can create events.";
+        r.why = `${r.why} Runs as the continuation of "${prev.name}": the unpublished event it starts from is built on the create screen.`;
+      }
       const need = configsFor({ feature, steps: r.steps, preconditions: [r.preconditions] }, card.rules, s);
       if (need !== "None") {
         const have = (r.configs && r.configs !== "None" ? r.configs.split(/\n/) : []).map((x) => x.trim()).filter(Boolean);
