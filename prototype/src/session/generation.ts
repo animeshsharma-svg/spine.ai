@@ -143,13 +143,14 @@ function skSettings(card: Understanding, max: number): string[] {
 function skData(card: Understanding, max: number): string[] {
   const out: string[] = [];
   const fields = card.data.length ? card.data : [{ field: "the main numeric input of the flow", type: "number", constraints: "" }];
-  for (const d of fields) {
-    if (/number|money/i.test(d.type)) out.push(`${d.field}: empty, zero, negative, a decimal with many places, Indian digit grouping (1,00,000), a value with a unit text`);
-    else if (/date/i.test(d.type)) out.push(`${d.field}: a past date, today, the end-of-day minute, an invalid format`);
-    else if (/text/i.test(d.type)) out.push(`${d.field}: empty, only spaces, 1 character, a very long value (500+), special characters and emoji, a duplicate of an existing value`);
-    else if (/file/i.test(d.type)) out.push(`${d.field}: no file, an empty file, the wrong type, the size limit`);
-    else out.push(`${d.field}: each allowed value, and a value outside the list`);
-  }
+  // one mutation per case: a bundled case hides which value broke (12 Nov: a 15-step case for one field)
+  const muts = (d: { field: string; type: string }): string[] =>
+    /number|money/i.test(d.type) ? ["left empty", "zero", "a negative value", "a decimal with many places", "Indian digit grouping (1,00,000)", "a value with a unit text (10 kg)"]
+    : /date/i.test(d.type) ? ["a past date", "today's date", "the last minute of the day", "an invalid format"]
+    : /text/i.test(d.type) ? ["left empty", "only spaces", "a single character", "a very long value (500+ characters)", "special characters and emoji", "a duplicate of an existing value"]
+    : /file/i.test(d.type) ? ["no file", "an empty file", "the wrong file type", "a file at the size limit"]
+    : ["a value outside the allowed list"];
+  for (const d of fields) for (const m of muts(d)) out.push(`${d.field} = ${m}: one case — the field set to ${m}, the save or publish attempted, the outcome read`);
   return out.slice(0, max);
 }
 function skTiming(card: Understanding, max: number): string[] {
