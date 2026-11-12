@@ -17,6 +17,9 @@
  *   GET  /api/session/:id/understanding                                         → {card}
  *   POST /api/session/:id/answer      {questionId, answer} | {questionId, skip:true} → {card}
  *   POST /api/session/:id/apply       (apply the answers given so far)          SSE: line, understanding{card}, done | error{why}
+ *   POST /api/session/:id/sanity      {flowIds?: []}                            SSE: line, flow-start, frame, flow-done{flow}, done{result} | error{why}
+ *   GET  /api/session/:id/sanity                                                → {result}
+ *   POST /api/session/:id/sanity/accept  (write cases although no flow worked)  → the session
  *
  * Later steps (intake, answer, sanity, generate, review, merge, run, report) are added here as their
  * modules land; the names and shapes are fixed by the plan so the frontend can mock them today.
@@ -26,6 +29,8 @@ import { createSession, deleteSession, listSessions, loadSession, reopen, saveSe
 import { companiesFor, describeUrl, listProfiles, runEnvironmentStep, useProfile } from "../session/environment.js";
 import { figmaLabelsOf, prdTextOf, runIntake } from "../session/intake.js";
 import { answerQuestion, applyAnswers, runUnderstanding, understandingOf } from "../session/understanding.js";
+import { acceptSanity, runSanity } from "../session/sanity.js";
+import { onLlmWait } from "../ai/llm.js";
 
 /** only the guided session's own paths; /api/session/reply (the Run screen's chat, routes/session.ts) is not ours */
 const MINE = /^\/api\/session\/(start|list|env\/profiles|env\/describe|s-[a-z0-9]+(\/[a-z/]+)?)$/;
@@ -98,18 +103,24 @@ export const handle: RouteHandler = async (ctx) => {
     const card = answerQuestion(s, String(b?.questionId ?? ""), typeof b?.answer === "string" ? b.answer : undefined, !!b?.skip);
     return card ? (ctx.json({ card }), true) : (ctx.json({ why: "No such question on this session's card." }, 404), true);
   }
-  if ((action === "intake" || action === "apply") && m === "POST") {
-    const b = action === "intake" ? await ctx.body() : {};
+  if (action === "sanity" && m === "GET") return ctx.json({ result: s.sanity ?? null }), true;
+  if (action === "sanity/accept" && m === "POST") return ctx.json(acceptSanity(s)), true;
+  if ((action === "intake" || action === "apply" || action === "sanity") && m === "POST") {
+    const b = action === "apply" ? {} : await ctx.body();
     const out = ctx.sse();
     let closed = false;
     ctx.req.on("close", () => { closed = true; });
     const emit = (e: any) => { if (!closed) out.send(e.type, e); };
+    // a long step says when it is queued behind other model calls, instead of going quiet
+    const unsub = onLlmWait((ahead) => emit({ type: "line", line: `Waiting for the model (${ahead} call${ahead === 1 ? "" : "s"} ahead in the queue)…`, waiting: ahead }));
     try {
       if (action === "intake") {
         const r = await runIntake(s, b ?? {}, emit);
         const prd = r.prdText || prdTextOf(s);
         if (prd) await runUnderstanding(r.session, prd, r.figmaLabels.length ? r.figmaLabels : figmaLabelsOf(s), emit);
         else emit({ type: "line", line: "No requirement text was read, so there is nothing to understand yet." });
+      } else if (action === "sanity") {
+        await runSanity(s, Array.isArray(b?.flowIds) ? b.flowIds.map(String) : undefined, emit);
       } else {
         await applyAnswers(s, emit);
       }
@@ -117,6 +128,7 @@ export const handle: RouteHandler = async (ctx) => {
     } catch (e) {
       emit({ type: "error", why: String((e as Error).message).slice(0, 300) });
     } finally {
+      unsub();
       out.end();
     }
     return true;

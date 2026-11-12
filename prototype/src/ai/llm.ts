@@ -332,7 +332,50 @@ async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<s
  * hand-off so a run's output is never quietly attributed to the wrong model.
  * Returns "" only when NO provider could answer.
  */
+/**
+ * ONE QUEUE FOR EVERY MODEL CALL. The gateway rate-limits bursts per user (429, 10 Nov: six compiles in
+ * flight plus three agents), and a session that waits in silence looks hung. So every call goes through
+ * one queue: at most LLM_CONCURRENCY (2) in flight, the rest waiting in order; `llmQueueState()` tells a
+ * page how many are ahead, and `onLlmWait` lets a long step say "waiting for the model (3 ahead)".
+ */
+const CONCURRENCY = Math.max(1, Number(process.env.LLM_CONCURRENCY ?? 2));
+let inFlight = 0;
+const waiting: Array<() => void> = [];
+let queued = 0, served = 0;
+export function llmQueueState(): { inFlight: number; waiting: number; served: number; concurrency: number } {
+  return { inFlight, waiting: waiting.length, served, concurrency: CONCURRENCY };
+}
+const waitListeners = new Set<(ahead: number) => void>();
+/** Called when a call has to wait; `ahead` is how many are in front of it. Returns the unsubscribe. */
+export function onLlmWait(fn: (ahead: number) => void): () => void {
+  waitListeners.add(fn);
+  return () => waitListeners.delete(fn);
+}
+async function acquire(): Promise<void> {
+  queued++;
+  if (inFlight < CONCURRENCY) { inFlight++; return; }
+  const ahead = waiting.length + inFlight;
+  for (const fn of waitListeners) { try { fn(ahead); } catch { /* a listener never breaks a call */ } }
+  await new Promise<void>((resolve) => waiting.push(resolve));
+  inFlight++;
+}
+function release(): void {
+  inFlight--;
+  served++;
+  const next = waiting.shift();
+  if (next) next();
+}
+
 export async function chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
+  await acquire();
+  try {
+    return await chatNow(messages, opts);
+  } finally {
+    release();
+  }
+}
+
+async function chatNow(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
   const chain: Array<[string, () => Promise<string>]> = [];
   if (process.env[AI.slingring.apiKeyEnvVar] && !slingringOverBudget()) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
   if (process.env[AI.groq.apiKeyEnvVar]) chain.push(["groq", () => groqChat(messages, opts)]);
