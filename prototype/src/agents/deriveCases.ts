@@ -131,7 +131,7 @@ function score(text: string, want: Set<string>): number {
   for (const w of want) if (have.has(w)) n++;
   return n;
 }
-function rulesFor(subject: string, limit = 30): Rule[] {
+export function rulesFor(subject: string, limit = 30): Rule[] {
   const want = words(subject);
   const scored = rules()
     .map((r) => ({ r, s: score(`${r.statement} ${r.section ?? ""}`, want) + (r.kind === "permission" || r.kind === "validation" || r.kind === "state" ? 0.5 : 0) }))
@@ -149,7 +149,7 @@ function rulesFor(subject: string, limit = 30): Rule[] {
   return out;
 }
 interface Defect { ticket: string; module: string; label: string; priority: string; title: string; symptom: string; rootCause: string; fix: string; errorText: string }
-function defectsFor(subject: string, module: string, limit = 10): Defect[] {
+export function defectsFor(subject: string, module: string, limit = 10): Defect[] {
   if (!existsSync(RCA)) return [];
   let all: Defect[] = [];
   try {
@@ -166,7 +166,7 @@ function defectsFor(subject: string, module: string, limit = 10): Defect[] {
     .slice(0, limit)
     .map((x) => x.d);
 }
-function productFor(subject: string, module: string, limit = 8): Array<{ file: string; title: string; text: string }> {
+export function productFor(subject: string, module: string, limit = 8): Array<{ file: string; title: string; text: string }> {
   if (!existsSync(PRODUCT_DIR)) return [];
   const want = words(subject);
   const out: Array<{ file: string; title: string; text: string; s: number }> = [];
@@ -181,7 +181,7 @@ function productFor(subject: string, module: string, limit = 8): Array<{ file: s
   }
   return out.sort((a, b) => b.s - a.s).slice(0, limit);
 }
-async function settingsForSubject(subject: string, companyId: number | undefined, limit = 10): Promise<Array<{ key: string; name: string; def: unknown; current?: unknown; hidden: boolean }>> {
+export async function settingsForSubject(subject: string, companyId: number | undefined, limit = 10): Promise<Array<{ key: string; name: string; def: unknown; current?: unknown; hidden: boolean }>> {
   const want = words(subject);
   let cat: Awaited<ReturnType<typeof settingsCatalog>> = [];
   try {
@@ -204,7 +204,7 @@ async function settingsForSubject(subject: string, companyId: number | undefined
 }
 let catalogCache: Array<{ id: string; title: string; steps?: string; expected?: string }> | null = null;
 /** The catalog cases about this subject: scored by the words they share with it (a phrase search found nothing). */
-function existingFor(subject: string, limit = 40): Array<{ id: string; title: string }> {
+export function existingFor(subject: string, limit = 40): Array<{ id: string; title: string }> {
   try {
     catalogCache ??= findCases({}) as Array<{ id: string; title: string; steps?: string; expected?: string }>;
     const want = words(subject);
@@ -238,7 +238,7 @@ function sameTitle(a: string, b: string): boolean {
 }
 
 // ── the model's two jobs: understand, then fill the matrix ────────────────
-function jsonOf(s: string): any {
+export function jsonOf(s: string): any {
   const m = s.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
   if (!m) return null;
   try {

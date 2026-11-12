@@ -12,6 +12,11 @@
  *   POST /api/session/:id/reopen      {step}                                    → the session
  *   POST /api/session/:id/rename      {name}                                    → the session
  *   DELETE /api/session/:id                                                     → {deleted}
+ *   POST /api/session/:id/intake      {prd:{text}|{name,data}, notion:{url}, figma:{url,token?}, frames:[{name,data}], sheet:{name,data}}
+ *                                     (files as base64) SSE: line, parsed{what,ok,line}, then the reading: line, understanding{card}, questions[], done | error{why}
+ *   GET  /api/session/:id/understanding                                         → {card}
+ *   POST /api/session/:id/answer      {questionId, answer} | {questionId, skip:true} → {card}
+ *   POST /api/session/:id/apply       (apply the answers given so far)          SSE: line, understanding{card}, done | error{why}
  *
  * Later steps (intake, answer, sanity, generate, review, merge, run, report) are added here as their
  * modules land; the names and shapes are fixed by the plan so the frontend can mock them today.
@@ -19,6 +24,8 @@
 import type { RouteHandler } from "./index.js";
 import { createSession, deleteSession, listSessions, loadSession, reopen, saveSession, STEPS, type Step } from "../session/store.js";
 import { companiesFor, describeUrl, listProfiles, runEnvironmentStep, useProfile } from "../session/environment.js";
+import { figmaLabelsOf, prdTextOf, runIntake } from "../session/intake.js";
+import { answerQuestion, applyAnswers, runUnderstanding, understandingOf } from "../session/understanding.js";
 
 /** only the guided session's own paths; /api/session/reply (the Run screen's chat, routes/session.ts) is not ours */
 const MINE = /^\/api\/session\/(start|list|env\/profiles|env\/describe|s-[a-z0-9]+(\/[a-z/]+)?)$/;
@@ -78,6 +85,35 @@ export const handle: RouteHandler = async (ctx) => {
         url: String(b?.url ?? ""), companyId: Number(b?.companyId) || undefined, signIn: b?.signIn, apiBaseUrl: b?.apiBaseUrl, tokenVar: b?.tokenVar, headerName: b?.headerName, label: b?.label,
       }, emit);
       emit({ type: "session", session: done });
+    } catch (e) {
+      emit({ type: "error", why: String((e as Error).message).slice(0, 300) });
+    } finally {
+      out.end();
+    }
+    return true;
+  }
+  if (action === "understanding" && m === "GET") return ctx.json({ card: understandingOf(s) }), true;
+  if (action === "answer" && m === "POST") {
+    const b = await ctx.body();
+    const card = answerQuestion(s, String(b?.questionId ?? ""), typeof b?.answer === "string" ? b.answer : undefined, !!b?.skip);
+    return card ? (ctx.json({ card }), true) : (ctx.json({ why: "No such question on this session's card." }, 404), true);
+  }
+  if ((action === "intake" || action === "apply") && m === "POST") {
+    const b = action === "intake" ? await ctx.body() : {};
+    const out = ctx.sse();
+    let closed = false;
+    ctx.req.on("close", () => { closed = true; });
+    const emit = (e: any) => { if (!closed) out.send(e.type, e); };
+    try {
+      if (action === "intake") {
+        const r = await runIntake(s, b ?? {}, emit);
+        const prd = r.prdText || prdTextOf(s);
+        if (prd) await runUnderstanding(r.session, prd, r.figmaLabels.length ? r.figmaLabels : figmaLabelsOf(s), emit);
+        else emit({ type: "line", line: "No requirement text was read, so there is nothing to understand yet." });
+      } else {
+        await applyAnswers(s, emit);
+      }
+      emit({ type: "done", session: loadSession(s.id) });
     } catch (e) {
       emit({ type: "error", why: String((e as Error).message).slice(0, 300) });
     } finally {
