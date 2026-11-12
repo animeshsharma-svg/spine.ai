@@ -43,6 +43,9 @@ export interface SheetCase {
   status: string;
   /** "Reference": where the case comes from (a ticket id, a document) — shown, never compiled. */
   reference?: string;
+  /** generated cases: the basis sentence for this case ("Why this case") and the PRD line / rule / ticket it comes from */
+  why?: string;
+  source?: string;
   layer: "ui" | "api";
 }
 export interface SheetInfo { id: string; name: string; file: string; importedAt: string; count: number; skipped: number }

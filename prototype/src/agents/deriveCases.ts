@@ -227,7 +227,7 @@ export function existingFor(subject: string, limit = 40): Array<{ id: string; ti
   }
 }
 /** Two titles that say the same thing: most of the significant word stems of the shorter are in the longer. */
-function sameTitle(a: string, b: string): boolean {
+export function sameTitle(a: string, b: string): boolean {
   const stem = (w: string) => w.slice(0, 5);
   const A = new Set([...words(a)].map(stem)), B = new Set([...words(b)].map(stem));
   if (A.size < 3 || B.size < 3) return false;

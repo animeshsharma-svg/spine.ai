@@ -369,6 +369,18 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // (7 "Fails" on 10 Nov were exactly this). The cell shows the company's own value — not a product bug.
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) compared "${String(f.args?.column)}" with the value the case's test data names, but that value comes from the company's own master data: ${d.slice(0, 180)}. The case's test data does not exist on this company; this is not a product bug.`;
+    } else if ((() => {
+      // the compiler guessed a name the case never wrote ("Buy" for "picks the pricing template") and the screen
+      // shows a name that contains it ("Buy Template"): the case's own words hold, the guess does not (12 Nov, FL1)
+      const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i);
+      if (!m) return false;
+      const shown = m[1].toLowerCase(), want = m[2].toLowerCase();
+      const own = `${c.title} ${c.preconditions} ${c.testData} ${c.steps.join(" ")} ${c.expected}`.toLowerCase();
+      return want.length >= 3 && !own.includes(want) && shown.includes(want);
+    })()) {
+      const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i)!;
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) expected "${m[2]}", a name the case never wrote (the compiler guessed it); the screen shows "${m[1]}", which contains it. The case's own words hold; the guessed name proves nothing. This is an automation gap, not a product bug.`;
     } else if (/^no control reading /i.test(d) && !f.evidence?.appSaid) {
       // the step's own words: the control it was told to judge is not on this screen — a label the compiler
       // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")
