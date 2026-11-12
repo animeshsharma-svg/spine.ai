@@ -46,6 +46,8 @@ export interface SheetCase {
   /** generated cases: the basis sentence for this case ("Why this case") and the PRD line / rule / ticket it comes from */
   why?: string;
   source?: string;
+  /** generated cases: the catalog case this one duplicates ("already have it"), when there is one */
+  twin?: string;
   layer: "ui" | "api";
 }
 export interface SheetInfo { id: string; name: string; file: string; importedAt: string; count: number; skipped: number }
@@ -174,6 +176,25 @@ export function addSheetCases(list: Array<Omit<SheetCase, "sheet" | "layer"> & {
   return added;
 }
 /** The next free id in a typed sheet: TYP-001, TYP-002 … */
+/** Drop cases from a sheet (the review step's "drop"); the sheet's count follows. */
+export function removeSheetCases(sheet: string, ids: string[]): number {
+  const store = cache ?? load();
+  const want = new Set(ids.map((x) => x.toUpperCase()));
+  const before = store.cases.length;
+  store.cases = store.cases.filter((c) => !(c.sheet === sheet && want.has(c.id.toUpperCase())));
+  const count = store.cases.filter((c) => c.sheet === sheet).length;
+  store.sheets = store.sheets.map((x) => (x.id === sheet ? { ...x, count } : x));
+  save();
+  return before - store.cases.length;
+}
+
+/** Rename a sheet's display name (a frozen, approved set gets the feature's name and version). */
+export function renameSheet(sheet: string, name: string): void {
+  const store = cache ?? load();
+  store.sheets = store.sheets.map((x) => (x.id === sheet ? { ...x, name } : x));
+  save();
+}
+
 export function nextTypedId(prefix = "TYP", sheet = TYPED_SHEET): string {
   const n = sheetCases(sheet).map((c) => Number(c.id.match(/-(\d+)$/)?.[1] ?? 0)).reduce((a, b) => Math.max(a, b), 0) + 1;
   return `${prefix}-${String(n).padStart(3, "0")}`;

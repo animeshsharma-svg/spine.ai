@@ -220,7 +220,7 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
     emit({ type: "section-done", kind, count: ids.length, existing, note });
     if (!rows.length) notes.push(`${kind}: the model gave no usable cases`);
   }
-  if (written.length) addSheetCases(written.map(({ kind: _k, existing: _e, ...c }) => ({ ...c, status: "", reference: `generated for session ${s.id}; ${c.source}` })), sheet);
+  if (written.length) addSheetCases(written.map(({ kind: _k, existing, ...c }) => ({ ...c, status: "", twin: existing, reference: `generated for session ${s.id}; ${c.source}` })), sheet);
   const generation: Generation = { at: new Date().toISOString(), kinds: picked, depth, sheet, sections, total: written.length, existing: written.filter((w) => w.existing).length, notes };
   s.generation = generation as unknown as Record<string, unknown>;
   saveSession(s);

@@ -23,6 +23,12 @@
  *   GET  /api/session/kinds                                                     → {kinds:[{kind,basis}]}
  *   POST /api/session/:id/generate    {kinds:[], depth:"quick"|"standard"|"deep"}  SSE: line, section-start{kind,basis,planned}, case{row}, section-done{kind,count,existing,note?}, done{generation} | error{why}
  *   GET  /api/session/:id/generation                                            → {generation}
+ *   GET  /api/session/:id/review                                                → {sheet, cases, sections, frozen?}
+ *   POST /api/session/:id/review      {edits:[{id,patch}], drops:[id], approve?:true|[ids]} → {edited, dropped, sheet?:{id,name,version,count}}
+ *   POST /api/session/:id/merge       {name, data}  (a sheet as base64)         → {added:[…], duplicates:[{id,title,matches}]}
+ *   POST /api/session/:id/run         {scope:"all"|"p0p1"|"sections", sections?:[], overnightRest?:true}  SSE: the sheet runner's events, queued{…}, done
+ *   POST /api/session/:id/rerun       {caseId}                                  SSE: the sheet runner's events, done
+ *   GET  /api/session/:id/report                                                → {sheet, runs[], tally, latest, bugs[], queued}
  *
  * Later steps (intake, answer, sanity, generate, review, merge, run, report) are added here as their
  * modules land; the names and shapes are fixed by the plan so the frontend can mock them today.
@@ -34,6 +40,8 @@ import { figmaLabelsOf, prdTextOf, runIntake } from "../session/intake.js";
 import { answerQuestion, applyAnswers, runUnderstanding, understandingOf } from "../session/understanding.js";
 import { acceptSanity, runSanity } from "../session/sanity.js";
 import { KIND_BASIS, KINDS, runGeneration, type Depth, type Kind } from "../session/generation.js";
+import { approve, dropCases, editCase, mergeSheet, reviewState } from "../session/review.js";
+import { report, rerunCase, runExecution, type Scope } from "../session/execution.js";
 import { onLlmWait } from "../ai/llm.js";
 
 /** only the guided session's own paths; /api/session/reply (the Run screen's chat, routes/session.ts) is not ours */
@@ -110,8 +118,23 @@ export const handle: RouteHandler = async (ctx) => {
   }
   if (action === "sanity" && m === "GET") return ctx.json({ result: s.sanity ?? null }), true;
   if (action === "generation" && m === "GET") return ctx.json({ generation: s.generation ?? null }), true;
+  if (action === "review" && m === "GET") return ctx.json(reviewState(s)), true;
+  if (action === "report" && m === "GET") return ctx.json(report(s)), true;
+  if (action === "review" && m === "POST") {
+    const b = await ctx.body();
+    const edited: string[] = [];
+    for (const e of Array.isArray(b?.edits) ? b.edits : []) if (e?.id && e?.patch && editCase(s, String(e.id), e.patch)) edited.push(String(e.id));
+    const dropped = Array.isArray(b?.drops) && b.drops.length ? dropCases(s, b.drops.map(String)) : 0;
+    const frozen = b?.approve ? approve(s, Array.isArray(b.approve) ? b.approve.map(String) : undefined) : undefined;
+    return ctx.json({ edited, dropped, ...(frozen ? { sheet: frozen } : {}), review: reviewState(s) }), true;
+  }
+  if (action === "merge" && m === "POST") {
+    const b = await ctx.body();
+    if (!b?.name || !b?.data) return ctx.json({ why: "Give the sheet as {name, data} with the file as base64." }, 400), true;
+    try { return ctx.json(mergeSheet(s, String(b.name), String(b.data))), true; } catch (e) { return ctx.json({ why: `The sheet could not be merged: ${String((e as Error).message).slice(0, 200)}` }, 400), true; }
+  }
   if (action === "sanity/accept" && m === "POST") return ctx.json(acceptSanity(s)), true;
-  if ((action === "intake" || action === "apply" || action === "sanity" || action === "generate") && m === "POST") {
+  if ((action === "intake" || action === "apply" || action === "sanity" || action === "generate" || action === "run" || action === "rerun") && m === "POST") {
     const b = action === "apply" ? {} : await ctx.body();
     const out = ctx.sse();
     let closed = false;
@@ -129,6 +152,10 @@ export const handle: RouteHandler = async (ctx) => {
         await runSanity(s, Array.isArray(b?.flowIds) ? b.flowIds.map(String) : undefined, emit);
       } else if (action === "generate") {
         await runGeneration(s, (Array.isArray(b?.kinds) ? b.kinds.map(String) : []) as Kind[], (["quick", "standard", "deep"].includes(b?.depth) ? b.depth : "standard") as Depth, emit);
+      } else if (action === "run") {
+        await runExecution(s, (["all", "p0p1", "sections"].includes(b?.scope) ? b.scope : "all") as Scope, Array.isArray(b?.sections) ? b.sections.map(String) : undefined, !!b?.overnightRest, emit as any);
+      } else if (action === "rerun") {
+        await rerunCase(s, String(b?.caseId ?? ""), emit as any);
       } else {
         await applyAnswers(s, emit);
       }
