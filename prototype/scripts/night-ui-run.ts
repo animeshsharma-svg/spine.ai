@@ -6,6 +6,7 @@
  *     --coverage full,partial   which stored verdicts to run (default both, full first)
  *     --skip-ran                leave out cases a sheet run already recorded tonight (default on; --no-skip-ran to rerun)
  *     --skip-groups SRC-AUC     leave these groups out (a known automation trap)
+ *   A guided session's 'rest overnight' queue (data/night/queue.json) runs first.
  *     --repair                  switch on the sheet runner's repair pass (teach a stuck locator, build steps from the screen library)
  *
  * What it runs: every case the night compile stored (data/compiled-plans/ui-text, compiledUiText.ts)
@@ -111,8 +112,31 @@ picks.sort((a, b) =>
   a.sheetCase.id.localeCompare(b.sheetCase.id));
 return { picks, left };
 }
+/** Cases a guided session queued for the night ("P0–P1 now, the rest overnight"): they go first, and leave the queue as they run. */
+const QUEUE = join(OUT_DIR, "queue.json");
+function queuedCases(): Pick[] {
+  if (!existsSync(QUEUE)) return [];
+  try {
+    const q = JSON.parse(readFileSync(QUEUE, "utf8")) as Array<{ sheet: string; ids: string[] }>;
+    const out: Pick[] = [];
+    for (const e of q) for (const id of e.ids) { const sc = sheetCaseById(id, e.sheet); if (sc && !ran.has(sc.id)) out.push({ sheetCase: sc, coverage: "queued", priority: byId.get(sc.id)?.priority ?? "P2" }); }
+    return out;
+  } catch {
+    return [];
+  }
+}
+function dequeue(ids: string[]): void {
+  if (!existsSync(QUEUE)) return;
+  try {
+    const done = new Set(ids.map((x) => x.toUpperCase()));
+    const q = (JSON.parse(readFileSync(QUEUE, "utf8")) as Array<{ sheet: string; ids: string[]; at: string }>).map((e) => ({ ...e, ids: e.ids.filter((x) => !done.has(x.toUpperCase())) })).filter((e) => e.ids.length);
+    writeFileSync(QUEUE, JSON.stringify(q, null, 1));
+  } catch { /* the queue is advisory */ }
+}
 let { picks, left } = pickCases();
-let todo = picks.slice(0, LIMIT);
+const queued = queuedCases();
+if (queued.length) log(`${queued.length} case(s) queued by a guided session go first`);
+let todo = [...queued, ...picks].slice(0, LIMIT);
 log(`${todo.length} case(s) to run on client ${COMPANY}${Object.keys(left).length ? ` (left out: ${Object.entries(left).map(([k, n]) => `${k} ${n}`).join(", ")})` : ""}`);
 if (DRY) {
   const byG: Record<string, number> = {};
@@ -178,6 +202,7 @@ while (!stopWhy) {
   });
   runs.push(run.id);
   for (const c of run.cases) { tally[c.status] = (tally[c.status] ?? 0) + 1; done++; ran.add(c.id); }
+  dequeue(run.cases.map((c) => c.id));
   log(`chunk done in ${Math.round((Date.now() - t0) / 60_000)} min — run ${run.id}: ${Object.entries(tally).map(([k, n]) => `${k} ${n}`).join(" · ")}`);
   progress();
 }
