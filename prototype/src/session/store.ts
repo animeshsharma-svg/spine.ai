@@ -14,6 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { SessionQuestion } from "./questions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const SESSIONS_DIR = join(here, "..", "..", "data", "sessions");
@@ -79,6 +80,8 @@ export interface Session {
   generation?: Record<string, unknown>;
   review?: Record<string, unknown>;
   execution?: Record<string, unknown>;
+  /** what the platform asked the tester on screen, every step, with the answers and what they changed */
+  questions?: SessionQuestion[];
 }
 
 const file = (id: string) => join(SESSIONS_DIR, `${id}.json`);

@@ -26,6 +26,7 @@ import { TOKEN_CLIENTS, isTokenClient, tokenClient } from "../../config/tokenCli
 import { readEnvVar } from "../tokenClient.js";
 import { FEATURES } from "../../config/featureTree.js";
 import { advance, updateSession, type EnvironmentProfile, type EnvironmentSnapshot, type Session } from "./store.js";
+import { askAndWait } from "./questions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROFILES = join(here, "..", "..", "data", "env-profiles.json");
@@ -151,7 +152,22 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
   const actor: EnvironmentSnapshot["actor"] = {};
   try {
     if (d.kind === "uat") {
-      if (!companyId) return fail("Procol's UAT hosts many companies: pick the company to test (for example PROCOL DEMO, 198678).");
+      if (!companyId) {
+        // the platform asks which company, on screen, and waits up to ten minutes (the suggestion is PROCOL DEMO)
+        const a = await askAndWait(s, {
+          step: "environment", source: "company", kind: "one",
+          text: "This address is Procol's UAT, which hosts many companies. Which one should I test?",
+          why: "Settings are switched only on PROCOL DEMO; on the other companies I test things as they are set.",
+          options: UAT_COMPANIES.map((c) => ({ value: String(c.id), label: c.name, means: c.note })),
+          suggested: "198678",
+        }, 10 * 60_000);
+        if (a.answer === null) return fail("The step was cancelled before a company was chosen.");
+        const byName = UAT_COMPANIES.find((c) => c.name.toLowerCase() === a.answer!.trim().toLowerCase())?.id;
+        const picked = Number(a.answer) || byName || 0;
+        if (!picked) return fail(`I couldn't read “${a.answer}” as a company: give its id (for example 198678) or its name as the list shows it.`);
+        companyId = picked;
+        emit({ type: "line", line: `Testing on ${UAT_COMPANIES.find((c) => c.id === picked)?.name ?? `company ${picked}`}${a.how === "deadline" ? " (no answer by the deadline, so the suggestion)" : ", as you chose"}.` });
+      }
       if (isTokenClient(companyId)) {
         // an account that lives on this host with its own static token (the sandbox P2P flow, the "test" account)
         kind = "token";

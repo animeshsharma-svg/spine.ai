@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { loadSheetRun, runSheetCases, type SheetEvent, type SheetRun } from "../checks/sheetRunner.js";
 import { updateSession, type Session } from "./store.js";
+import { askAndWait, plural } from "./questions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const QUEUE = join(here, "..", "..", "data", "night", "queue.json");
@@ -43,12 +44,56 @@ export async function runExecution(s: Session, scope: Scope, sections: string[] 
   if (!sheet) { emit({ type: "error", why: "Approve the cases first: the run takes the approved, frozen sheet." }); return s; }
   if (!s.env || s.env.kind !== "uat") { emit({ type: "error", why: "The run needs a company on Procol's UAT (the start states are built from its database)." }); return s; }
   const all = sheetCases(sheet);
-  const { now, later } = pick(all, scope, sections);
+  let { now, later } = pick(all, scope, sections);
   if (!now.length) { emit({ type: "error", why: `Nothing to run for scope "${scope}"${sections?.length ? ` (${sections.join(", ")})` : ""}: the sheet has ${all.length} case(s).` }); return s; }
   if (later.length && overnightRest) { queueForNight(sheet, later.map((c) => c.id)); emit({ type: "queued", sheet, ids: later.map((c) => c.id), note: `${later.length} case(s) queued for the night runner.` }); }
+  // cases this company cannot carry: ask before the browser is held (run anyway / leave out / stop)
+  const kept = await askAboutUnrunnable(s, now, emit);
+  if (!kept) return s;
+  now = kept;
   const run: SheetRun = await runSheetCases(now, { companyId: s.env.companyId, sheet, headed: false, repair: true, emit });
   updateSession(s, (f) => { const prev = (f.execution as any) ?? { runIds: [] }; f.execution = { ...prev, runIds: [...(prev.runIds ?? []), run.id], lastRunAt: new Date().toISOString() }; });
   return s;
+}
+
+/**
+ * What this company cannot do for a case: a setting to switch (only done on PROCOL DEMO), a vendor to
+ * invite (the company has no QA test vendor). When any case needs one, the platform asks on screen and
+ * waits up to five minutes; the suggestion (leave them out) stands when nobody answers. Returns the cases
+ * to run, or null when the tester stopped the run.
+ */
+async function askAboutUnrunnable(s: Session, now: SheetCase[], emit: (e: ExecEvent) => void): Promise<SheetCase[] | null> {
+  const company = s.env?.companyName ?? `company ${s.env?.companyId}`;
+  const demo = s.env?.companyId === 198678;
+  const noVendor = (s.env?.snapshot?.vendors?.count ?? 0) === 0;
+  const reasons = new Map<string, string>();
+  for (const c of now) {
+    const needsSetting = !!c.configs && c.configs.trim() !== "None" && c.configs.trim() !== "-";
+    const invites = /\b(invite|vendor|supplier)\b/i.test(`${c.steps.join(" ")} ${c.preconditions}`);
+    if (needsSetting && !demo) reasons.set(c.id, "needs a company setting changed, which I only do on PROCOL DEMO");
+    else if (invites && noVendor) reasons.set(c.id, `invites a vendor, and ${company} has no QA test vendor`);
+  }
+  if (!reasons.size) return now;
+  const distinct = [...new Set(reasons.values())];
+  const a = await askAndWait(s, {
+    step: "run", source: "run", kind: "one",
+    text: `${plural(reasons.size, "case")} of the ${now.length} need something I can't do on ${company}. What should I do with them?`,
+    why: distinct.length === 1 ? `Each of them ${distinct[0]}.` : `Some ${distinct[0]}; others ${distinct[1]}.`,
+    options: [
+      { value: "out", label: "Leave them out this time", means: "The rest run now; these stay “Not run” on the report." },
+      { value: "anyway", label: "Run them anyway", means: "They will most likely come back “Couldn't tell”, with the reason." },
+      { value: "stop", label: "Stop", means: "Nothing runs; fix the company or pick another environment first." },
+    ],
+    suggested: "out",
+    ref: { caseIds: [...reasons.keys()].join(",") },
+  }, 5 * 60_000);
+  const pick = a.answer === null ? "stop" : /^(stop)/i.test(a.answer) ? "stop" : /^(anyway|run)/i.test(a.answer) ? "anyway" : "out";
+  if (pick === "stop") { emit({ type: "error", why: "Stopped before the run, as you chose." }); return null; }
+  if (pick === "anyway") { emit({ type: "line", id: "run", line: `Running all ${now.length}, as you chose; ${reasons.size} will most likely come back “Couldn't tell”.` }); return now; }
+  const kept = now.filter((c) => !reasons.has(c.id));
+  emit({ type: "line", id: "run", line: `${reasons.size} case(s) left out this time (${[...reasons.keys()].slice(0, 8).join(", ")}${reasons.size > 8 ? ", …" : ""}); running ${kept.length}.` });
+  if (!kept.length) { emit({ type: "error", why: "Every case in this scope was left out, so nothing ran." }); return null; }
+  return kept;
 }
 
 /** Run one case again, alone, on a fresh event (a failure is confirmed this way before it is a bug). */

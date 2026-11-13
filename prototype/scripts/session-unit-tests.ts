@@ -74,3 +74,42 @@ test("the settings a flow needs come from the environment snapshot and the PRD's
 test("every kind has a basis sentence", () => {
   for (const k of KINDS) assert.ok(KIND_BASIS[k].length > 40, k);
 });
+
+// ── the platform asks on screen (session/questions.ts) ──────────────────────────────────────────
+import { answerQuestion as answerOnScreen, askAndWait, askLater, onAnswer, openQuestions, questionsOf, subscribe } from "../src/session/questions.js";
+
+test("askLater saves the question, streams it once, and the answer runs the source's applier", () => {
+  const s = createSession("unit-q");
+  const seen: string[] = [];
+  const unsub = subscribe(s.id, (e) => seen.push(e.type));
+  onAnswer("cases", (_s, q) => `applied ${q.answer}`);
+  const q = askLater(s, { step: "cases", source: "cases", kind: "text", text: "What should happen?", ref: { caseId: "GEN-001" } });
+  askLater(s, { step: "cases", source: "cases", kind: "text", text: "What should happen?", ref: { caseId: "GEN-001" } }); // the same ask is not stacked
+  assert.equal(questionsOf(s).length, 1);
+  assert.equal(openQuestions(s).length, 1);
+  assert.equal(q.blocking, false);
+  const r = answerOnScreen(s, q.qid, "it is refused");
+  assert.equal(r.ok, true);
+  assert.equal(r.question?.outcome, "applied it is refused");
+  assert.equal(openQuestions(s).length, 0);
+  assert.deepEqual(seen, ["ask", "answered"]);
+  assert.equal(answerOnScreen(s, q.qid, "again").ok, false, "answering twice is refused in words");
+  unsub();
+  deleteSession(s.id);
+});
+test("askAndWait resolves with the answer, and with the suggestion when the deadline passes", async () => {
+  const s = createSession("unit-q2");
+  const p = askAndWait(s, { step: "run", source: "run", kind: "one", text: "Run anyway?", options: [{ value: "out", label: "Leave them out" }, { value: "anyway", label: "Run anyway" }], suggested: "out" }, 60_000);
+  const q = openQuestions(s)[0];
+  assert.ok(q.deadlineAt && q.ifNoAnswer?.includes("Leave them out"));
+  answerOnScreen(s, q.qid, "anyway");
+  const a = await p;
+  assert.equal(a.answer, "anyway");
+  assert.equal(a.how, "answered");
+  const p2 = askAndWait(s, { step: "run", source: "run", kind: "one", text: "Stop?", suggested: "out" }, 30);
+  const d = await p2;
+  assert.equal(d.how, "deadline");
+  assert.equal(d.answer, "out");
+  assert.equal(questionsOf(s).find((x) => x.text === "Stop?")?.closed, "deadline");
+  deleteSession(s.id);
+});

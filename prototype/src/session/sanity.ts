@@ -21,6 +21,7 @@
 import { addSheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { runSheetCases, type SheetEvent, type SheetRunCase } from "../checks/sheetRunner.js";
 import { advance, updateSession, type Session } from "./store.js";
+import { askAndWait, askLater, onAnswer, plural } from "./questions.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
 
 export type FlowVerdict = "works" | "broken" | "couldn't reach";
@@ -70,14 +71,25 @@ export function configsFor(flow: Pick<Flow, "feature" | "steps" | "preconditions
   const text = `${flow.steps.join(" ")} ${flow.preconditions.join(" ")}`.toLowerCase();
   if (/\b(create|publish)\b/.test(text) && !/\bauction\b/.test(text) && now.lock_vendors_addition_in_event_creation === true) lines.push("lock_vendors_addition_in_event_creation = Off — with it On the create screen greys out Invite Vendor and Publish");
   if (/\b(single[- ]stage|create)\b/.test(text) && /\brfq\b/.test(text) && now.default_event_type !== "rfq") lines.push("default_event_type = rfq — the create screen must open with this type selected");
+  // a feature the company has off, which the tester asked to switch on for the runs: the gate's reason names the flag
+  const feat = ((s.understanding as any)?.features ?? []).find((x: any) => x.id === flow.feature);
+  if (feat?.testAnyway) {
+    const key = String(feat.off ?? "").match(/"([a-z][a-z0-9]*(?:_[a-z0-9]+)+)"/i)?.[1] ?? String(feat.off ?? "").match(/\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b/i)?.[1];
+    if (key && now[key] !== true) lines.push(`${key} = On — you asked to switch the feature "${feat.name}" on for the runs (it is off on this company)`);
+  }
   return lines.length ? lines.join("\n") : "None";
+}
+
+/** The flows to run: the ones named, else every flow the tester has not left out. */
+export function chosenFlows(card: Understanding, flowIds?: string[]): Flow[] {
+  const want = flowIds?.length ? new Set(flowIds) : null;
+  return card.flows.filter((f) => (want ? want.has(f.id) : !f.skip));
 }
 
 /** One temporary case per flow, in the house format the sheet runner reads. */
 export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]): SheetCase[] {
   const sheet = `session-${s.id}`;
-  const want = flowIds?.length ? new Set(flowIds) : null;
-  const flows = card.flows.filter((f) => !want || want.has(f.id));
+  const flows = chosenFlows(card, flowIds);
   return flows.map((f, i) => {
     const feature = card.features.find((x) => x.id === f.feature);
     const vendorSide = VENDOR.test(f.role) && !/\bbuyer\b/i.test(f.role);
@@ -137,8 +149,26 @@ export async function runSanity(s: Session, flowIds: string[] | undefined, emit:
   if (!s.env) { emit({ type: "error", why: "Choose the environment first: the flows run on its company and its QA vendors." }); return s; }
   if (s.env.kind !== "uat") { emit({ type: "error", why: `The sanity run needs a company on Procol's UAT (the start states are built from its database); ${s.env.companyName ?? s.env.url} is a ${s.env.kind} account, which the runners cannot build states on yet.` }); return s; }
   const cases = flowsAsCases(s, card, flowIds);
-  if (!cases.length) { emit({ type: "error", why: "None of the chosen flow ids is on the card." }); return s; }
-  const byCase = new Map(cases.map((c, i) => [c.id, card.flows.filter((f) => !flowIds?.length || flowIds.includes(f.id))[i]]));
+  if (!cases.length) { emit({ type: "error", why: flowIds?.length ? "None of the chosen flow ids is on the card." : "Every flow was left out when you answered “which flows should I test?”; reopen the requirement step to pick some." }); return s; }
+  const chosen = chosenFlows(card, flowIds);
+  const byCase = new Map(cases.map((c, i) => [c.id, chosen[i]]));
+  const company = s.env.companyName ?? `company ${s.env.companyId}`;
+  // a company with no QA test vendor cannot prove a flow that invites one: ask before holding the browser
+  const inviting = chosen.filter((f) => /\b(invite|vendor|supplier)\b/i.test(`${f.steps.join(" ")} ${f.preconditions.join(" ")}`));
+  if (inviting.length && (s.env.snapshot?.vendors?.count ?? 0) === 0) {
+    const a = await askAndWait(s, {
+      step: "sanity", source: "sanity", kind: "one",
+      text: `${company} has no QA test vendor, and ${inviting.length === chosen.length ? (chosen.length === 1 ? "the flow" : "every flow") : plural(inviting.length, "flow")} invites one. What should I do?`,
+      why: "Without a QA vendor the invite step cannot be done, so those flows will come back “couldn't reach”.",
+      options: [
+        { value: "run", label: "Run anyway", means: "The flows without an invite are proved; the others stop at the invite step." },
+        { value: "stop", label: "Stop, I'll add a QA vendor first", means: "Nothing runs; come back to this step when the company has one." },
+      ],
+      suggested: "stop",
+    }, 5 * 60_000);
+    if (a.answer === null || /^stop/i.test(a.answer)) { emit({ type: "error", why: `Stopped before the run: ${company} has no QA test vendor. Add one (invite + vendor sign-up on UAT) and run the sanity step again.` }); return s; }
+    emit({ type: "line", line: "Running anyway, as you chose; the invite steps will stop where the company has no vendor." });
+  }
   // kept in the sheet store so the run has a report on the Test sheets page too
   addSheetCases(cases.map(({ sheet: _sheet, ...c }) => c), cases[0].sheet);
   emit({ type: "line", line: `${cases.length} happy flow(s) to prove on ${s.env.companyName ?? s.env.companyId}, one at a time, each on a fresh event built by API.` });
@@ -159,6 +189,7 @@ export async function runSanity(s: Session, flowIds: string[] | undefined, emit:
         const flow: SanityFlow = { id: f?.id ?? r.id, name: r.title, caseId: r.id, layer: r.layer, verdict: verdictOf(r), why: r.why, blockers: blockersOf(r.why), shots: (r.shots ?? []).map((x: any) => x.file ?? String(x)), steps: r.steps, settings: r.settings, ms: r.ms };
         flows.push(flow);
         emit({ type: "flow-done", flow });
+        askAboutVerdict(s, flow);
       }
     },
   });
@@ -177,3 +208,55 @@ export async function runSanity(s: Session, flowIds: string[] | undefined, emit:
 export function acceptSanity(s: Session): Session {
   return advance(s, "sanity");
 }
+
+/**
+ * A flow that did not work makes the platform ask what to do with it, without holding the run:
+ * a flow it could not reach (skip it, try again later, or write cases anyway) and a broken one
+ * (cases are worth writing: the bug is already there; or leave it out).
+ */
+function askAboutVerdict(s: Session, flow: SanityFlow): void {
+  if (flow.verdict === "works") return;
+  const because = flow.blockers.length ? flow.blockers.join("; ") : flow.why.replace(/\s+/g, " ").slice(0, 200);
+  if (flow.verdict === "couldn't reach") {
+    askLater(s, {
+      step: "sanity", source: "sanity", kind: "one",
+      text: `I couldn't get through the flow “${flow.name}”. What should I do with it?`,
+      why: `What stopped me: ${because}.`,
+      options: [
+        { value: "again", label: "I'll fix that, try it again", means: "The flow stays in; run the sanity step again when it is fixed." },
+        { value: "cases", label: "Write cases for it anyway", means: "Its cases are written and marked as resting on a flow the run could not prove." },
+        { value: "skip", label: "Leave it out", means: "No cases for this flow." },
+      ],
+      suggested: "again",
+      ref: { flowId: flow.id },
+    });
+  } else {
+    askLater(s, {
+      step: "sanity", source: "sanity", kind: "one",
+      text: `The flow “${flow.name}” is broken: the app did not do what the PRD says. Should I still write cases for it?`,
+      why: `What went wrong: ${because}.`,
+      options: [
+        { value: "cases", label: "Yes, write them", means: "The cases will catch the same break every run until it is fixed." },
+        { value: "skip", label: "Leave it out", means: "No cases for this flow." },
+      ],
+      suggested: "cases",
+      ref: { flowId: flow.id },
+    });
+  }
+}
+
+onAnswer("sanity", (s, q) => {
+  const id = q.ref?.flowId;
+  if (!id) return;
+  if (q.skipped) return "Skipped: the flow stays in, unproven.";
+  const a = (q.answer ?? "").toLowerCase();
+  const pick = /^(skip|leave)/.test(a) ? "skip" : /^(cases|yes|write)/.test(a) ? "cases" : /^(again|i'll fix|try)/.test(a) ? "again" : null;
+  if (!pick) return `I couldn't read “${q.answer}” as one of the choices; nothing changed.`;
+  let name = id;
+  updateSession(s, (f) => {
+    const c = f.understanding as unknown as Understanding | undefined; const fl = c?.flows.find((x) => x.id === id); if (!fl) return;
+    name = fl.name;
+    fl.skip = pick === "skip"; fl.unproven = pick === "cases";
+  });
+  return pick === "skip" ? `“${name}” is left out: no cases for it.` : pick === "cases" ? `Cases will be written for “${name}”, marked as resting on a flow the sanity run could not prove.` : `“${name}” stays in; run the sanity step again when it is fixed.`;
+});

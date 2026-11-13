@@ -30,6 +30,13 @@
  *   POST /api/session/:id/rerun       {caseId}                                  SSE: the sheet runner's events, done
  *   GET  /api/session/:id/report                                                → {sheet, runs[], tally, latest, bugs[], queued}
  *
+ *   THE PLATFORM ASKS ON SCREEN (session/questions.ts) — every step stream above also carries ask{question} and answered{question}:
+ *   GET  /api/session/:id/questions                                             → {questions:[Q], open}
+ *   POST /api/session/:id/questions/answer  {qid, answer} | {qid, skip:true}    → {ok, question} | {ok:false, why}
+ *   GET  /api/session/:id/questions/stream                                      SSE: ask{question}, answered{question}, closed{qid,how}, ping
+ *   Q = {qid, step, source, kind:"yes-no"|"one"|"many"|"text", text, why?, options:[{value,label,means?}], suggested?, blocking,
+ *        deadlineAt?, ifNoAnswer?, askedAt, answer?, answeredAt?, skipped?, outcome?, closed?, ref?}
+ *
  * Later steps (intake, answer, sanity, generate, review, merge, run, report) are added here as their
  * modules land; the names and shapes are fixed by the plan so the frontend can mock them today.
  */
@@ -43,6 +50,7 @@ import { KIND_BASIS, KINDS, runGeneration, type Depth, type Kind } from "../sess
 import { approve, dropCases, editCase, mergeSheet, reviewState } from "../session/review.js";
 import { report, rerunCase, runExecution, type Scope } from "../session/execution.js";
 import { onLlmWait } from "../ai/llm.js";
+import { answerQuestion as answerOnScreen, openQuestions, questionsOf, subscribe } from "../session/questions.js";
 
 /** only the guided session's own paths; /api/session/reply (the Run screen's chat, routes/session.ts) is not ours */
 const MINE = /^\/api\/session\/(start|list|kinds|env\/profiles|env\/describe|s-[a-z0-9]+(\/[a-z/]+)?)$/;
@@ -92,12 +100,30 @@ export const handle: RouteHandler = async (ctx) => {
     const out = useProfile(s, String(b?.profileId ?? ""));
     return out ? (ctx.json(out), true) : (ctx.json({ why: "No such environment profile; run the environment step once and it is saved." }, 404), true);
   }
+  // what the platform asked on screen, and the tester's answers
+  if (action === "questions" && m === "GET") { const questions = questionsOf(s); return ctx.json({ questions, open: questions.filter((q) => !q.answer && !q.skipped && !q.closed).length }), true; }
+  if (action === "questions/answer" && m === "POST") {
+    const b = await ctx.body();
+    const r = answerOnScreen(s, String(b?.qid ?? ""), typeof b?.answer === "string" ? b.answer : undefined, !!b?.skip);
+    return ctx.json(r, r.ok ? 200 : 400), true;
+  }
+  if (action === "questions/stream" && m === "GET") {
+    const out = ctx.sse();
+    let closed = false;
+    const unsub = subscribe(s.id, (e) => { if (!closed) out.send(e.type, e); });
+    for (const q of openQuestions(s)) out.send("ask", { type: "ask", question: q });
+    const ping = setInterval(() => { if (!closed) out.send("ping", { type: "ping", at: new Date().toISOString() }); }, 25_000);
+    ctx.req.on("close", () => { closed = true; unsub(); clearInterval(ping); });
+    return true;
+  }
+
   if (action === "env" && m === "POST") {
     const b = await ctx.body();
     const out = ctx.sse();
     let closed = false;
     ctx.req.on("close", () => { closed = true; });
     const emit = (e: any) => { if (!closed) out.send(e.type, e); };
+    const unsubQ = subscribe(s.id, emit);
     try {
       const done = await runEnvironmentStep(s, {
         url: String(b?.url ?? ""), companyId: Number(b?.companyId) || undefined, signIn: b?.signIn, apiBaseUrl: b?.apiBaseUrl, tokenVar: b?.tokenVar, headerName: b?.headerName, label: b?.label,
@@ -106,6 +132,7 @@ export const handle: RouteHandler = async (ctx) => {
     } catch (e) {
       emit({ type: "error", why: String((e as Error).message).slice(0, 300) });
     } finally {
+      unsubQ();
       out.end();
     }
     return true;
@@ -142,6 +169,8 @@ export const handle: RouteHandler = async (ctx) => {
     const emit = (e: any) => { if (!closed) out.send(e.type, e); };
     // a long step says when it is queued behind other model calls, instead of going quiet
     const unsub = onLlmWait((ahead) => emit({ type: "line", line: `Waiting for the model (${ahead} call${ahead === 1 ? "" : "s"} ahead in the queue)…`, waiting: ahead }));
+    // the questions the step asks on screen, and their answers, ride on the step's own stream too
+    const unsubQ = subscribe(s.id, emit);
     try {
       if (action === "intake") {
         const r = await runIntake(s, b ?? {}, emit);
@@ -164,6 +193,7 @@ export const handle: RouteHandler = async (ctx) => {
       emit({ type: "error", why: String((e as Error).message).slice(0, 300) });
     } finally {
       unsub();
+      unsubQ();
       out.end();
     }
     return true;

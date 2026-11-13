@@ -20,10 +20,21 @@ import { chat } from "../ai/llm.js";
 import { defectsFor, existingFor, jsonOf } from "../agents/deriveCases.js";
 import { settingsCatalog } from "../checks/companySettings.js";
 import { advance, updateSession, type Session } from "./store.js";
+import { askLater, chosenValues, onAnswer, plural, type SessionQuestion } from "./questions.js";
 
-export interface Feature { id: string; name: string; what: string; existing?: number; off?: string }
+export interface Feature {
+  id: string; name: string; what: string; existing?: number; off?: string;
+  /** the tester's answer on an off feature: switch it on for the runs / test it as it is */
+  testAnyway?: boolean; asIs?: boolean;
+}
 export interface Role { name: string; canDo: string[] }
-export interface Flow { id: string; name: string; feature: string; role: string; layer: "browser" | "api" | "both"; preconditions: string[]; steps: string[]; endState: string }
+export interface Flow {
+  id: string; name: string; feature: string; role: string; layer: "browser" | "api" | "both"; preconditions: string[]; steps: string[]; endState: string;
+  /** the tester left this flow out (the "which flows" question, or after a sanity verdict) */
+  skip?: boolean;
+  /** the tester wants cases although the sanity run could not prove the flow */
+  unproven?: boolean;
+}
 export type RuleKind = "validation" | "permission" | "setting" | "limit" | "state" | "calculation" | "visibility" | "timing" | "integration" | "other";
 export interface Rule { id: string; text: string; kind: RuleKind; source: string; feature?: string; settingKey?: string; settingNow?: unknown }
 export interface Question { id: string; text: string; why: string; kind: "permission" | "default" | "limit" | "state" | "data" | "scope" | "setting" | "other"; answer?: string; skipped?: boolean; from: "model" | "rule" }
@@ -64,10 +75,10 @@ Read the requirement a product manager wrote and write what a tester must know b
  "data":[{"field":"…","type":"number|text|date|money|choice|file","constraints":"limits, units, formats the PRD gives"}],
  "outOfScope":["what the PRD says is not covered"],
  "assumptions":["what you had to assume, each one a candidate question"],
- "questions":[{"id":"Q1","text":"the question, as asked to the product manager","why":"why a tester cannot judge pass/fail without it","kind":"permission|default|limit|state|data|scope|setting|other"}]}
+ "questions":[{"id":"Q1","text":"ONE question, in plain words anyone understands, about ONE thing only (never two joined by and/or), under 20 words, no jargon (say 'the vendor's price' not 'bid decimal precision')","why":"one short plain sentence: what goes wrong in a test if nobody answers","kind":"permission|default|limit|state|data|scope|setting|other"}]}
 Rules of the reading: never invent a rule — every rule quotes the PRD phrase it comes from; when the PRD is silent on a limit, a default, who may act, or what state is allowed, write a QUESTION, not a rule. Flows are the happy paths only, one per feature, as user actions on screens (or API calls when the PRD describes endpoints). Keep names as the PRD uses them. Mark a flow "api" only when no screen is described. Plain English, no jargon.`;
 
-const PART = `You are a senior QA engineer reading ONE PART of a longer requirement. Extract, as JSON with the same shape as a full reading ({"features":[],"roles":[],"flows":[],"rules":[],"states":[],"data":[],"outOfScope":[],"assumptions":[],"questions":[]}), only what THIS part states. Every rule quotes its source phrase (≤ 20 words). What the part leaves unsaid becomes a question. JSON only.`;
+const PART = `You are a senior QA engineer reading ONE PART of a longer requirement. Extract, as JSON with the same shape as a full reading ({"features":[],"roles":[],"flows":[],"rules":[],"states":[],"data":[],"outOfScope":[],"assumptions":[],"questions":[]}), only what THIS part states. Every rule quotes its source phrase (≤ 20 words). What the part leaves unsaid becomes a question: ONE thing per question, in plain words, under 20 words. JSON only.`;
 
 const MERGE = `You are a senior QA engineer merging the readings of the parts of one requirement into one understanding card (the full shape: title, summary, module, features, roles, flows, rules, states, data, outOfScope, assumptions, questions). Merge duplicates, renumber ids (F1…, FL1…, R1…, Q1…), keep every source phrase, drop a question that another part answers. JSON only.`;
 
@@ -210,9 +221,91 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
   updateSession(s, (f) => { f.understanding = card as unknown as Record<string, unknown>; });
   emit({ type: "understanding", card });
   emit({ type: "questions", questions: card.questions });
+  askAboutCard(s, card);
   if (card.flows.length) advance(s, "requirement"); else say("No flow could be read from the requirement, so the sanity step cannot start yet; answer the questions or give more of the PRD.");
   return s;
 }
+
+/**
+ * WHAT THE CARD MAKES THE PLATFORM ASK, ON SCREEN, BEFORE ANY FLOW RUNS:
+ *   • which of the flows it found should be tested (all ticked; a flow left out gets no run and no cases);
+ *   • every question the PRD leaves open, one at a time, with "I don't know" as an honest answer;
+ *   • each feature the test company has switched off: switch it on for the runs, leave it out, or test it as it is.
+ * None of these waits: the tester answers when ready, and the answer is applied by the appliers below.
+ */
+function askAboutCard(s: Session, card: Understanding): void {
+  const company = s.env?.companyName ?? (s.env?.companyId ? `company ${s.env.companyId}` : "the test company");
+  if (card.flows.length) {
+    askLater(s, {
+      step: "requirement", source: "flows", kind: "many",
+      text: card.flows.length === 1 ? `I found one flow in the PRD, “${card.flows[0].name}”. Should I test it?` : `I found ${plural(card.flows.length, "flow")} in the PRD. Which ones should I test?`,
+      why: "A flow you leave out gets no sanity run and no cases; you can change this later by reopening the requirement step.",
+      options: card.flows.map((f) => ({ value: f.id, label: f.name, means: `${f.role || "buyer"}, ${plural(f.steps.length, "step")}, ends with “${f.endState || "the PRD's end state"}”` })),
+      suggested: card.flows.map((f) => f.id).join(","),
+    });
+  }
+  for (const q of card.questions.filter((x) => !x.answer && !x.skipped)) {
+    askLater(s, {
+      step: "requirement", source: "prd", kind: "text",
+      text: q.text, why: q.why,
+      options: [{ value: "__dontknow", label: "I don't know", means: "Where this matters, the case will say “to confirm with the product team” instead of guessing." }],
+      ref: { questionId: q.id },
+    });
+  }
+  for (const f of card.features.filter((x) => x.off)) {
+    askLater(s, {
+      step: "requirement", source: "setting", kind: "one",
+      text: `The feature “${f.name}” is switched off on ${company}. What should I do with it?`,
+      why: `Off here means: ${String(f.off).replace(/^not on for [^:]+:\s*/i, "")}.`,
+      options: [
+        { value: "on", label: "Switch it on for the runs, and back after", means: s.env?.companyId === 198678 ? "I switch settings on PROCOL DEMO through the platform and restore them." : `I only switch settings on PROCOL DEMO; on ${company} its flows will come back “couldn't reach”.` },
+        { value: "out", label: "Leave its flows out", means: "No sanity run and no cases for this feature." },
+        { value: "asis", label: "Test it as it is", means: "The cases check that the feature stays hidden while it is off." },
+      ],
+      suggested: s.env?.companyId === 198678 ? "on" : "out",
+      ref: { feature: f.id },
+    });
+  }
+}
+
+const cardOf = (f: Session) => f.understanding as unknown as Understanding | undefined;
+
+onAnswer("flows", (s, q) => {
+  if (q.skipped) return "Skipped: every flow stays in.";
+  const chosen = new Set(chosenValues(q, q.answer ?? "").map((x) => x.toLowerCase()));
+  let kept = 0; const out: string[] = [];
+  updateSession(s, (f) => {
+    const c = cardOf(f); if (!c) return;
+    for (const fl of c.flows) { fl.skip = !(chosen.has(fl.id.toLowerCase()) || chosen.has(fl.name.toLowerCase())); if (fl.skip) out.push(fl.name); else kept++; }
+  });
+  return out.length ? `${plural(kept, "flow")} kept; left out: ${out.join("; ")}.` : `All ${plural(kept, "flow")} will be tested.`;
+});
+
+onAnswer("prd", (s, q) => {
+  const id = q.ref?.questionId ?? "";
+  if (q.skipped) { answerQuestion(s, id, undefined, true); return `Skipped on the card too (${id}); the cases will say “to confirm with the product team” where it matters.`; }
+  const dontKnow = /^(__dontknow|i don'?t know)$/i.test(q.answer ?? "");
+  const card = answerQuestion(s, id, dontKnow ? undefined : q.answer, dontKnow);
+  if (!card) return "Noted; the card no longer has that question.";
+  return dontKnow ? `Noted as unknown on the card (${id}); the cases will say “to confirm with the product team” where it matters.` : `Noted on the card as the answer to ${id}. Press “Apply answers” to rewrite the rules with it.`;
+});
+
+onAnswer("setting", (s, q) => {
+  if (q.skipped) return "Skipped: the feature stays as it is and its flows stay in.";
+  const a = (q.answer ?? "").toLowerCase();
+  const pick = /^(on|switch)/.test(a) ? "on" : /^(out|leave)/.test(a) ? "out" : /^(asis|test it as)/.test(a) ? "asis" : null;
+  if (!pick) return `I couldn't read “${q.answer}” as one of the three choices; nothing changed.`;
+  let name = "";
+  updateSession(s, (f) => {
+    const c = cardOf(f); const feat = c?.features.find((x) => x.id === q.ref?.feature); if (!c || !feat) return;
+    name = feat.name;
+    feat.testAnyway = pick === "on"; feat.asIs = pick === "asis";
+    for (const fl of c.flows) if (fl.feature === feat.id) fl.skip = pick === "out" ? true : fl.skip;
+  });
+  return pick === "on" ? `I'll switch the setting behind “${name}” on for its runs and put it back after.` : pick === "out" ? `The flows of “${name}” are left out.` : `“${name}” is tested as it is: the cases check it stays hidden while off.`;
+});
+
+export type { SessionQuestion };
 
 /** Record an answer (or a skip) on a question. */
 export function answerQuestion(s: Session, questionId: string, answer?: string, skip?: boolean): Understanding | null {

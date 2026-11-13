@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { advance, updateSession, SESSIONS_DIR, type Session } from "./store.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
 import { configsFor } from "./sanity.js";
+import { askLater, onAnswer } from "./questions.js";
 
 export const KINDS = ["happy", "negative", "edge", "permission", "state", "settings", "data", "timing", "visibility", "api", "design", "error-guessing"] as const;
 export type Kind = (typeof KINDS)[number];
@@ -177,8 +178,12 @@ const TIER: Record<Kind, "fast" | "reason"> = { happy: "fast", negative: "reason
 
 /** Generate. Streams a section at a time; the rows go into the sheet `gen-<session id>`. */
 export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emit: (e: GenEvent) => void): Promise<Session> {
-  const card = s.understanding as unknown as Understanding | undefined;
-  if (!card?.flows?.length) { emit({ type: "error", why: "Read the requirement first: the cases are written from its flows and rules." }); return s; }
+  const card0 = s.understanding as unknown as Understanding | undefined;
+  if (!card0?.flows?.length) { emit({ type: "error", why: "Read the requirement first: the cases are written from its flows and rules." }); return s; }
+  // only the flows the tester kept (the "which flows" question, the sanity answers)
+  const card: Understanding = { ...card0, flows: card0.flows.filter((f) => !f.skip) };
+  if (!card.flows.length) { emit({ type: "error", why: "Every flow was left out in your answers, so there is nothing to write cases from; reopen the requirement or sanity step and keep at least one." }); return s; }
+  if (card.flows.length < card0.flows.length) emit({ type: "line", line: `${card0.flows.length - card.flows.length} flow(s) left out as you chose: ${card0.flows.filter((f) => f.skip).map((f) => f.name).join("; ")}.` });
   const picked = kinds.filter((k) => KINDS.includes(k));
   if (!picked.length) { emit({ type: "error", why: `Pick at least one kind: ${KINDS.join(", ")}.` }); return s; }
   const max = PER_SECTION[depth] ?? PER_SECTION.standard;
@@ -226,6 +231,7 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
         r.preconditions = prev.preconditions.join(" ") || "The buyer can create events.";
         r.why = `${r.why} Runs as the continuation of "${prev.name}": the unpublished event it starts from is built on the create screen.`;
       }
+      if (srcFlow?.unproven) r.why = `${r.why} Rests on a flow the sanity run could not prove.`;
       const need = configsFor({ feature, steps: r.steps, preconditions: [r.preconditions] }, card.rules, s);
       if (need !== "None") {
         // the computed line wins over the model's for the same key: the model echoes the company's current value
@@ -247,7 +253,50 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
   const generation: Generation = { at: new Date().toISOString(), kinds: picked, depth, sheet, sections, total: written.length, existing: written.filter((w) => w.existing).length, notes };
   updateSession(s, (f) => { f.generation = generation as unknown as Record<string, unknown>; });
   emit({ type: "line", line: `${written.length} case(s) written in ${sections.filter((x) => x.count).length} section(s); ${generation.existing} already in the catalog.` });
+  askAboutToConfirm(s, written);
   emit({ type: "done", generation });
   if (written.length) advance(s, "cases");
   return s;
 }
+
+/**
+ * A case whose expected result the PRD does not give ("To confirm with the product team: …") makes the
+ * platform ask the tester, one question per case, without holding the step. The answer becomes that
+ * case's expected result (on the generated sheet, and on the frozen one once approved).
+ */
+const TO_CONFIRM = /^\s*to confirm with the product team\s*[:—-]?\s*/i;
+function askAboutToConfirm(s: Session, rows: GenCase[]): void {
+  const open = rows.filter((r) => TO_CONFIRM.test(r.expected));
+  if (!open.length) return;
+  for (const r of open.slice(0, 25)) {
+    const what = r.expected.replace(TO_CONFIRM, "").replace(/\.?\s*$/, "");
+    askLater(s, {
+      step: "cases", source: "cases", kind: "text",
+      text: `For the case “${r.title}”, the PRD doesn't say what should happen. What should the app do?`,
+      why: what ? `What I'd need to know: ${what}.` : "With your answer the case gets a real expected result and can pass or fail.",
+      options: [{ value: "__leave", label: "Leave it as “to confirm”", means: "The case stays; its run reports what the app did, without a pass or fail." }],
+      ref: { caseId: r.id, title: r.title },
+    });
+  }
+}
+
+onAnswer("cases", (s, q) => {
+  const id = q.ref?.caseId ?? "";
+  if (!id) return;
+  if (q.skipped) return `“${id}” stays as “to confirm with the product team”.`;
+  const a = (q.answer ?? "").trim();
+  if (/^(__leave|leave it)/i.test(a)) return `“${id}” stays as “to confirm with the product team”.`;
+  const expected = `${a.replace(/\.?\s*$/, "")}. (The product owner's answer to question ${q.qid}.)`;
+  // the generated sheet, and the frozen sheet when the case was already approved under it (approval renumbers
+  // the ids, so the frozen copy is found by its title)
+  const title = (q.ref?.title ?? "").toLowerCase();
+  let where = 0;
+  for (const sheet of [`gen-${s.id}`, (s.review as any)?.sheetId].filter(Boolean) as string[]) {
+    const c = sheetCases(sheet).find((x) => x.id.toUpperCase() === id.toUpperCase() || (title && x.title.toLowerCase() === title));
+    if (!c) continue;
+    const { sheet: _sheet, ...row } = c;
+    addSheetCases([{ ...row, expected }], sheet);
+    where++;
+  }
+  return where ? `The expected result of “${id}” is now your answer; it can pass or fail on the next run.` : `“${id}” is no longer on the sheet (dropped or renamed), so nothing changed.`;
+});
