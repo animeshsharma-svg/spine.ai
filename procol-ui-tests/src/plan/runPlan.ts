@@ -7,6 +7,7 @@ import { BasePage } from "../pages/BasePage.js";
 import type { BrowserContext } from "@playwright/test";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
 import { EventActionsPage } from "../pages/EventActionsPage.js";
+import { isNoiseMessage } from "../oracle/noise.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
@@ -1086,9 +1087,18 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
     await s.page.bringToFront().catch(() => {});
     return `back on the buyer's console at ${new URL(s.page.url()).pathname}`;
   }
+  const named = vendor ? String(vendor).trim() : "";
+  // vendor: 2 after place_bid steps = the second vendor that BID in this plan (the same person comes back to look at
+  // its zone, 14 Nov); before any bid it is the second vendor on the event, as place_bid{vendor:2} counts
+  const knownEmail = /@/.test(named) ? named : /^\d+$/.test(named) && biddersUsed[Number(named) - 1] ? biddersUsed[Number(named) - 1] : "";
+  // the buyer's page outlives any vendor browser: it is the one the portal was opened from, never the vendor's own
+  const buyerPage = s.portal ? s.portal.buyer.page : s.page;
+  const buyerEvents = s.portal ? s.portal.buyer.events : s.events;
   if (s.portal) {
-    const want = vendor ? String(vendor).trim().toLowerCase() : "";
-    if (!want || want === s.portal.email.toLowerCase() || s.portal.on === "vendor") {
+    const want = (knownEmail || named).toLowerCase();
+    // the same vendor (none named, or the one signed in): keep its browser — whichever side is current
+    // (14 Nov: "vendor: 2" while vendor 1's portal was the open side used to answer "on the portal already")
+    if (!want || want === s.portal.email.toLowerCase()) {
       if (s.portal.on === "vendor") return `on the supplier portal already, signed in as ${s.portal.email}`;
       s.page = s.portal.page;
       s.events = new EventsPage(s.page);
@@ -1100,8 +1110,9 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
     await s.portal.side.stop().catch(() => {});
     await s.portal.ctx.close().catch(() => {});
     s.portal = undefined;
+    s.page = buyerPage;
+    s.events = buyerEvents;
   }
-  const buyerPage = s.page;
   const browser = buyerPage.context().browser();
   if (!browser) throw new Error("no browser available to open a vendor session");
   // The vendor: the one named (an email, or a name the invited list resolves), else the event's own QA
@@ -1110,13 +1121,9 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
   // bid from the portal in this plan (a place_bid before the switch — the same person comes back to look,
   // 2 Nov); else the API-built state's vendor; else the next invited vendor this run can sign in as.
   let email = "";
-  const named = vendor ? String(vendor).trim() : "";
-  if (/@/.test(named)) email = named;
+  if (knownEmail) email = knownEmail;
   else if (!named && biddersUsed.length) email = biddersUsed[biddersUsed.length - 1];
   else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
-  // vendor: 2 after place_bid steps = the second vendor that BID in this plan (the same person comes back to look at
-  // its zone, 14 Nov); before any bid it is the second vendor on the event, as place_bid{vendor:2} counts
-  else if (/^\d+$/.test(named) && biddersUsed[Number(named) - 1]) email = biddersUsed[Number(named) - 1];
   else email = await bidderEmail(named || undefined);
   const vendorCtx = await browser.newContext();
   const vendorPage = await vendorCtx.newPage();
@@ -2755,6 +2762,82 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // the plan's gap, never the product's failure.
       if (!s.awarded) throw new Error("not checked: no award was submitted in this plan, so there is no award to confirm");
       return "the event is awarded";
+    case "set_zone_visibility": {
+      // WHICH ZONES MAY SEE THE BEST PRICE / THE RANK (14 Nov): on the live traffic-light stage the buyer's "Actions ▾"
+      // menu (auctionIndicators.jsx) has "Show Best Prices" → the "Best Prices Visibility" window (a − N + stepper for
+      // how many best prices, then "Which traffic light zones can see Best Prices?" Green / Yellow / Red Zone, Done)
+      // and "Show Rank" → "Which traffic light zones can see Rank?" (the same three, Done).
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : undefined);
+      const zonesOf = (v: unknown) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : String(v).split(/[,\s/]+/)).map((z) => String(z).toLowerCase().replace(/\s*zone$/, "").trim()).filter((z) => /^(green|yellow|red)$/.test(z));
+      const openItem = async (label: RegExp, what: string) => {
+        const btn = buyerPage.getByRole("button", { name: /^\s*actions\s*$/i }).filter({ visible: true }).first();
+        if (!(await btn.count())) throw new Error(`no "Actions" button on this stage's toolbar — the zone visibility settings live under it on a live auction`);
+        await btn.click({ timeout: 10_000 });
+        await buyerPage.waitForTimeout(700);
+        const menu = buyerPage.locator(".ant-dropdown:visible").last();
+        const item = menu.locator(".ant-dropdown-menu-item, .ant-menu-item", { hasText: label }).first();
+        if (!(await item.count())) {
+          const items = (await menu.locator(".ant-dropdown-menu-item, .ant-menu-item").allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+          await buyerPage.keyboard.press("Escape").catch(() => {});
+          throw new Error(`the Actions menu offers no "${what}" (it reads: ${items.join(" | ") || "nothing"})`);
+        }
+        if ((await item.getAttribute("aria-disabled").catch(() => null)) === "true" || /disabled/.test((await item.getAttribute("class").catch(() => "")) ?? "")) {
+          await item.hover({ timeout: 2_000 }).catch(() => {});
+          await buyerPage.waitForTimeout(600);
+          const tip = ((await buyerPage.locator(".ant-tooltip-inner").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean)[0] ?? "";
+          await buyerPage.keyboard.press("Escape").catch(() => {});
+          throw new Error(`"${what}" is greyed out in the Actions menu${tip ? ` — the app says: “${tip}”` : " with no reason shown"}`);
+        }
+        await item.click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(800);
+      };
+      const tickZones = async (modal: ReturnType<typeof buyerPage.locator>, zones: string[]) => {
+        for (const z of ["green", "yellow", "red"]) {
+          const box = modal.locator(".ant-checkbox-wrapper", { hasText: new RegExp(`^\\s*${z}\\s*zone\\s*$`, "i") }).first();
+          if (!(await box.count())) throw new Error(`the window has no "${z[0].toUpperCase()}${z.slice(1)} Zone" box (it reads: “${((await modal.innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200)}”)`);
+          const checked = await box.locator("input[type='checkbox']").isChecked({ timeout: 2_000 }).catch(() => false);
+          if (checked !== zones.includes(z)) await box.click({ timeout: 3_000 });
+        }
+      };
+      const said = async (): Promise<string> => ((await buyerPage.locator(".ant-message-notice, .ant-notification-notice").allInnerTexts().catch(() => [])) as string[]).map((x) => x.replace(/\s+/g, " ").trim()).filter((x) => x && !isNoiseMessage(x)).slice(-1)[0] ?? "";
+      const done: string[] = [];
+      if (a.bestPriceZones !== undefined || a.bestPrices !== undefined) {
+        const zones = zonesOf(a.bestPriceZones);
+        await openItem(/show best prices/i, "Show Best Prices");
+        const modal = buyerPage.locator(".ant-modal:visible", { hasText: /Best Prices Visibility|can see Best Prices/i }).first();
+        await modal.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+          throw new Error(`"Show Best Prices" opened no "Best Prices Visibility" window`);
+        });
+        // the stepper: − [N] + ; the zone boxes are disabled while N is 0
+        const stepper = modal.locator(".ant-btn-group").first();
+        if (await stepper.count()) {
+          const current = async () => Number(((await stepper.locator("button").nth(1).innerText({ timeout: 2_000 }).catch(() => "0")) || "0").trim()) || 0;
+          const want = a.bestPrices !== undefined ? Number(a.bestPrices) : Math.max(await current(), zones.length ? 1 : 0);
+          for (let i = 0; i < 12 && (await current()) !== want; i++) await stepper.locator("button").nth((await current()) < want ? 2 : 0).click({ timeout: 3_000 });
+          done.push(`best prices shown: ${await current()}`);
+        }
+        await tickZones(modal, zones);
+        await modal.getByRole("button", { name: /^\s*done\s*$/i }).click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(1_500);
+        done.push(`best prices visible to ${zones.length ? zones.map((z) => `${z} zone`).join(", ") : "no zone"}${(await said()) ? ` — the app said: “${await said()}”` : ""}`);
+      }
+      if (a.rankZones !== undefined) {
+        const zones = zonesOf(a.rankZones);
+        await openItem(/show rank/i, "Show Rank");
+        const modal = buyerPage.locator(".ant-modal:visible", { hasText: /can see Rank/i }).first();
+        await modal.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+          throw new Error(`"Show Rank" opened no window asking which zones can see the rank`);
+        });
+        await tickZones(modal, zones);
+        await modal.getByRole("button", { name: /^\s*done\s*$/i }).click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(1_500);
+        done.push(`rank visible to ${zones.length ? zones.map((z) => `${z} zone`).join(", ") : "no zone"}${(await said()) ? ` — the app said: “${await said()}”` : ""}`);
+      }
+      if (!done.length) throw new Error("set_zone_visibility: give bestPriceZones (with bestPrices) and/or rankZones");
+      return done.join("; ");
+    }
     case "expect_zone": {
       // TRAFFIC LIGHT ZONES (14 Nov, SRC-STR-005). What each side draws: the supplier portal puts a "Green Zone" /
       // "Yellow Zone" / "Red Zone" tag on the round's Submission Sheet (no rank, no best price unless the buyer

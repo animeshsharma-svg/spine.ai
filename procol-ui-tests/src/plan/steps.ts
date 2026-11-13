@@ -609,6 +609,16 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "set_zone_visibility",
+    purpose:
+      'On a LIVE traffic light auction, from the buyer\'s console: choose which zones may see the best prices and / or the rank — the stage\'s "Actions ▾" menu → "Show Best Prices" ("Best Prices Visibility": how many best prices, then "Which traffic light zones can see Best Prices?" Green / Yellow / Red Zone, Done) and "Show Rank" ("Which traffic light zones can see Rank?", Done). Use for "zones that the buyer allowed to see the best price / rank": set it, then switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor", rank:true|false, bestPrice:true|false} for a vendor in an allowed zone and one in a zone not allowed. Both items are greyed out in sealed-bid mode (the step says so).',
+    args: {
+      bestPriceZones: '["green"] — the zones that may see the best prices ([] = none); optional',
+      bestPrices: "how many best prices to show (the stepper; default: at least 1 when a zone is given); optional",
+      rankZones: '["green", "yellow"] — the zones that may see the rank ([] = none); optional',
+    },
+  },
+  {
     name: "expect_publish_blocked",
     purpose:
       "Assert the event CANNOT be published yet: press Publish and confirm either the confirm button is disabled or the app refuses. Use for tests about a precondition not being met.",
