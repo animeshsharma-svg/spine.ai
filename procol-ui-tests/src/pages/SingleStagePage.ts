@@ -527,7 +527,12 @@ export class SingleStagePage extends BasePage {
     await sheet.fillCell(0, "variant", { key: "variant", type: "dropdown" }, "").catch(() => {});
     // A case's own quantity is typed exactly as given — 0, -5, letters — so the app's validation is what is tested.
     await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, quantity ?? randomNumber());
-    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, searchText).catch(() => {});
+    // The delivery location is the company's own list, not the product's name: an empty search lists every location
+    // and the first is taken (13 Nov, SRC-AUC-008: searching the product's name there found nothing, the dropdown
+    // stayed open and swallowed the price and quantity typed next — Publish then said "Sheet partially filled").
+    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, "").catch(async () => {
+      await this.page.keyboard.press("Escape").catch(() => {});
+    });
     await sheet.fillCell(0, "price", { key: "price", type: "price" }, randomNumber());
     await sheet.fillCell(0, "participant_quantity", { key: "participant_quantity", type: "number" }, randomNumber()).catch(() => {});
   }
