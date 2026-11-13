@@ -23,6 +23,8 @@ import { advance, updateSession, SESSIONS_DIR, type Session } from "./store.js";
 import type { Flow, Rule, Understanding } from "./understanding.js";
 import { configsFor } from "./sanity.js";
 import { askLater, onAnswer } from "./questions.js";
+import { exemplarCases, PLAIN_RULES } from "../ai/plainWords.js";
+import { STYLE_GUIDE, styleExamplesText } from "../agents/caseStyle.js";
 
 export const KINDS = ["happy", "negative", "edge", "permission", "state", "settings", "data", "timing", "visibility", "api", "design", "error-guessing"] as const;
 export type Kind = (typeof KINDS)[number];
@@ -68,9 +70,15 @@ const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 const stepsOf = (v: unknown): string[] => (Array.isArray(v) ? v.map(clean).filter(Boolean) : String(v ?? "").split(/\n|(?<=\.)\s+(?=\d+[.)])/).map((x) => clean(x).replace(/^\d+[.)]\s*/, "")).filter(Boolean));
 
 const SYSTEM = `You are a senior QA engineer at Procol, a B2B sourcing platform (buyers run RFQ / RFP / reverse-auction events on the buyer portal; vendors bid in the supplier portal; evaluators score technical rounds; awards go through approval and become purchase orders).
-You write test cases in plain English that a new tester can run by hand, in this JSON shape, as an array:
+You write test cases FROM THE PRD ONLY, in the team's house style (the same rules every other case writer on this platform follows):
+${STYLE_GUIDE}
+- Every expected result comes from a statement in the PRD: quote or closely paraphrase it. When the PRD is silent on something a tester must judge, write the expected result as "Record what happens — the PRD does not say <what>" and say what to confirm; never invent the rule.
+- If the PRD names a message, tooltip, label or link, the expected result uses those exact words.
+- Implementation notes in the PRD (table, API, file names) are not expectations about what the person sees: write steps and results as a person experiences them.
+${styleExamplesText()}
+Answer in this JSON shape, as an array:
 [{"title":"what is checked, in one sentence","role":"Buyer|Vendor|Evaluator|Approver|…","portal":"Buyer portal|Supplier portal|API","preconditions":"the state the case starts from (a draft / live RFQ / live RFQ with a vendor's bid / closed RFQ with a bid / awarded / converted / withdrawn / amended / RFQ with two bids / Technical + RFQ project) and anything else that must be true","configs":"company settings the case needs, 'key = On|Off — why' per line, or 'None'","testData":"the values used, or '-'","steps":["one user action per step, as the screen names it; the last steps are the checks"],"expected":"what is observed when it passes — the product's words for messages and statuses","priority":"P0|P1|P2|P3","testType":"Happy path|Negative|Boundary|Permission|State|Settings|Data|Timing|Visibility|API|Design|Regression","why":"the basis of this case in one sentence","source":"the id of the flow / rule / field / setting / ticket / frame it comes from, e.g. R4 or FL2 or ticket 325461702389"}]
-Rules: every case has a source; never invent a rule the PRD does not state — when the expected outcome is not given by the PRD, write expected as "To confirm with the product team: …" and say what to confirm; steps are actions, not descriptions; the expected result is observable on screen or in the data; no internal ids, no jargon. JSON only.`;
+Rules: every case has a source; never invent a rule the PRD does not state — when the expected outcome is not given by the PRD, write expected as "Record what happens — the PRD does not say <what>" (the house wording; the platform treats it as a question for the product team); steps are actions, not descriptions; the expected result is observable on screen or in the data; no internal ids, no jargon. JSON only.`;
 
 function flowLines(card: Understanding): string {
   return card.flows.map((f) => `${f.id} "${f.name}" (${f.role}, ${f.layer}): starts from ${f.preconditions.join("; ") || "nothing in particular"}; steps: ${f.steps.join(" → ")}; ends: ${f.endState}`).join("\n");
@@ -89,6 +97,8 @@ async function askCases(card: Understanding, kind: Kind, skeleton: string, max: 
     card.states.length ? `STATES: ${card.states.map((s) => `${s.name} (enters: ${s.enters}; leaves: ${s.leaves})`).join("; ")}` : "",
     card.data.length ? `DATA: ${card.data.map((d) => `${d.field} (${d.type}${d.constraints ? `; ${d.constraints}` : ""})`).join("; ")}` : "",
     `KIND OF CASES TO WRITE: ${kind} — ${KIND_BASIS[kind]}`,
+    // the team's own voice: three of their hand-written cases about similar screens (data/plain-style.json)
+    (() => { const ex = exemplarCases(`${card.module} ${card.title} ${kind}`, 3); return ex.length ? `WRITE IN THE TEAM'S OWN VOICE. Three of their cases, as examples of wording only (not of content):\n${ex.map((c, i) => `${i + 1}. Title: ${c.title}\n   Pre-conditions: ${c.preconditions.slice(0, 200)}\n   Steps: ${c.steps.slice(0, 500)}\n   Expected: ${c.expected.slice(0, 300)}`).join("\n")}\n${PLAIN_RULES}` : PLAIN_RULES; })(),
     `WRITE EXACTLY THESE, one case each, in this order (skip one only if the PRD makes it impossible, and say so in "why"):\n${skeleton}`,
     `At most ${max} cases.`,
   ].filter(Boolean).join("\n\n");

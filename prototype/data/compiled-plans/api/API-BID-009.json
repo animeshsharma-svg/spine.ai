@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "API-BID-009",
   "title": "The buying company cannot bid on its own event",
-  "compiledAt": "2026-11-09T20:05:10.831Z",
+  "compiledAt": "2026-11-13T15:24:24.767534Z",
   "planVersion": 2,
-  "source": "llm-fast",
+  "source": "hand-written",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /bids/template_input"
+   "POST /v1/bids"
   ],
   "llm": {
    "calls": 0,
@@ -19,11 +19,11 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "preconditions": "A fresh published RFQ; the caller is the buyer.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The buyer sends POST /v1/bids with its own company uuid as company_uuid."
    ],
-   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+   "expected": "The app refuses it: HTTP 422, code 165 'Cannot place bid on trade by your own company' \u2014 never a server error."
   },
   "recheckedAt": "2026-11-09T22:56:36.681Z"
  },
@@ -36,17 +36,34 @@
   },
   "act": [
    {
-    "op": "library",
-    "as": "vendor",
-    "caseId": "BID-SURR-002",
-    "decisive": true
+    "op": "request",
+    "as": "buyer",
+    "decisive": true,
+    "request": {
+     "method": "POST",
+     "path": "/v1/bids",
+     "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{buyerCompanyUuid}}",
+      "currency_preference": {
+       "name": "Indian Rupees (INR)",
+       "code": "INR",
+       "symbol": "\u20b9",
+       "rateInBase": 1,
+       "adjustedPrecision": 2,
+       "defaultPrecision": 2,
+       "numberSystem": "INDIAN"
+      }
+     }
+    },
+    "say": "The buyer opens a bid on its own event, sending its OWN company as the bidder."
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "101",
-   "message": "You are not allowed to perform this action"
+   "code": "165",
+   "message": "Cannot place bid on trade by your own company"
   }
  }
 }

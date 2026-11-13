@@ -285,7 +285,7 @@ const PUB_RFQ: StepKind[] = [...BUILD, "add_stage_pricing", "publish", "read_bac
 const PUB_RFP_RFQ: StepKind[] = [...BUILD, "add_stage_rfp", "add_stage_pricing", "publish", "read_back"];
 const BID: StepKind[] = ["vendor_login", "vendor_open_pricing", "bid_create", "bid_products", "bid_submit"];
 const TECH: StepKind[] = ["vendor_login", "vendor_open_technical", "tech_start", "tech_answer", "tech_submit"];
-const BASE_PROVIDES = ["stamp", "productUuid", "productQualityUuid", "locationUuid", "vendorUuid", "vendor2Uuid"];
+const BASE_PROVIDES = ["buyerCompanyUuid", "stamp", "productUuid", "productQualityUuid", "locationUuid", "vendorUuid", "vendor2Uuid"];
 const EVENT = ["eventGroupUuid", "lineItemUuid"];
 const PRICING = ["pricingTradeUuid", "tradeId"];
 const RFP = ["technicalTradeUuid", "rfpTradeId"];
@@ -405,7 +405,7 @@ for (const op of Object.values(OPS)) for (const p of op.produces) (ACT_PRODUCES[
  */
 export const PLAN_PLACEHOLDERS = new Set([
   ...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP,
-  "bidUuid", "bid2Uuid", "templateResponseUuid", "proposalUuid", "cloneUuid", "evalFormUuid", "tradeProductUuid", "techFormUuid", "techPageUuid",
+  "bidUuid", "bid2Uuid", "templateResponseUuid", "proposalUuid", "cloneUuid", "evalFormUuid", "tradeProductUuid", "techFormUuid", "techPageUuid", "buyerCompanyUuid",
 ]);
 /** time tokens: {{now}}, {{now+600}}, {{now-3600}}, {{roundEnd+120}}, {{roundClose-30}} */
 const TIME_TOKEN = /^(now|roundEnd|roundClose|rfpEnd)([+-]\d{1,7})?$/;

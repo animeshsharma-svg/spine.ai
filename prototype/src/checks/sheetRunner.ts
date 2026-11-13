@@ -26,6 +26,7 @@ import { stepWords, expectedWords } from "../agents/journeyCases.js";
 import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
 import { isSettingKey, settingsFor, withSettings } from "./companySettings.js";
 import { parseConfigs } from "../agents/caseStyle.js";
+import { plainBug } from "../ai/plainWords.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -197,6 +198,17 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         r = base(c, "Couldn't tell", `The run broke before it could finish: ${mask((e as Error).message)}.`, 0);
       }
       r.ms = Date.now() - t0;
+      // a bug reaches the Bugs page and the bug sheet in the team's plain words (src/ai/plainWords.ts); the
+      // automation's technical wording stays beside it as `technical` for the engineer
+      if (r.bug && process.env.PLAIN_BUGS !== "0") {
+        try {
+          const b = r.bug as any;
+          const p = await plainBug({ title: b.title, module: c.module, whatHappened: b.whatHappened, expected: b.expected, steps: c.steps, technical: [b.where ? `Where: ${b.where}` : "", b.appSaid ? `The app said: ${b.appSaid}` : "", `Test case ${c.id} on company ${opts.companyId}.`].filter(Boolean).join(" ") });
+          b.technical = { title: b.title, whatHappened: b.whatHappened, expected: b.expected };
+          b.title = p.bug; b.whatHappened = `${p.whatGoesWrong} What actually happens: ${p.whatActuallyHappens}`; b.expected = p.whatShouldHappen; b.howToSeeIt = p.howToSeeIt; b.howItWasVerified = p.howItWasVerified;
+          line("Bug written in plain words.");
+        } catch { /* the technical wording stands */ }
+      }
       run.cases.push(r);
       save(run);
       opts.emit({ type: "case-done", result: r });

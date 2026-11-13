@@ -496,10 +496,23 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number, fromPr
   const bad = j.steps.find((s) => s.verdict !== "worked");
   if (bad) return fail(`the setup step “${bad.title}” ${bad.verdict === "not-run" ? "did not run" : bad.verdict === "broken" ? "broke" : "was refused"}: ${bad.actual}`, j, steps);
   const m = j.made ?? {};
-  for (const k of ["eventGroupUuid", "lineItemUuid", "pricingTradeUuid", "technicalTradeUuid", "bidUuid", "templateResponseUuid", "proposalUuid", "tradeProductUuid", "techFormUuid", "techPageUuid", "evalFormUuid"])
+  for (const k of ["eventGroupUuid", "lineItemUuid", "pricingTradeUuid", "technicalTradeUuid", "bidUuid", "templateResponseUuid", "proposalUuid", "tradeProductUuid", "techFormUuid", "techPageUuid", "evalFormUuid", "buyerCompanyUuid"])
     if (m[k]) vals[k] = m[k];
   if (m.pricingTradeUuid || m.technicalTradeUuid) vals.tradeId = m.pricingTradeUuid ?? m.technicalTradeUuid;
   if (m.technicalTradeUuid) vals.rfpTradeId = m.technicalTradeUuid;
+  // The vendor the recipe bid as is the journey's bidder (a vendor of this company with a login), not always
+  // QA vendor 1. A plan where "the vendor" must act on THAT bid — revoke it, bid again as the same company,
+  // see its own draft — signs in as the bidder (13 Nov: API-BID-010 bid as another company and was accepted
+  // for the wrong reason; API-BID-012's revoke by QA vendor 1 was refused 101).
+  if (m.vendorCompanyUuid && (m.vendorEmail || (j as any).vendorEmail) && m.vendorCompanyUuid !== vals.vendorUuid) {
+    const email = String(m.vendorEmail ?? (j as any).vendorEmail);
+    const r = await withWatchdog(vendorClient(rc.companyId, email, rc.baseURL), 120_000, "signing the bidding vendor in").catch((e) => ({ error: (e as Error).message }) as { api?: any; error?: string });
+    if (r.api) {
+      rc.apis.set("vendor", r.api);
+      vals.vendorUuid = m.vendorCompanyUuid;
+      rc.onLine(`  setup · "the vendor" in this plan is the bidder the recipe used (${String(m.vendorName ?? (j as any).vendorName ?? email)}), signed in`);
+    } else rc.onLine(`  setup · the recipe's bidder could not be signed in (${r.error ?? "sign-in failed"}); "the vendor" stays QA vendor 1`);
+  }
   const unitChoice = j.steps.find((s) => s.kind === "create_draft")?.choices?.unit;
   const inst: SetupInstance = { result: { recipe: recipe.id, ok: true, steps, ms: 0, title: j.title, eventGroupUuid: m.eventGroupUuid, journeyOutcome: j.outcome }, vals, journey: j, unit: unitChoice ?? unit0, qty: qty0, at: Date.now() };
   const buyer = rc.client.ctx.buyerApi;

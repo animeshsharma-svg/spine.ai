@@ -240,6 +240,9 @@ async function ensureEventVendors(j: Journey): Promise<void> {
       j.catalog.vendorBidCompanyUuid = bidders[0].v.uuid;
       j.vendorName = bidders[0].v.name;
       j.vendorEmail = bidders[0].email;
+      // the bidder's login and name travel with the made values, so a plan can act AS this vendor (13 Nov)
+      j.made.vendorEmail = bidders[0].email;
+      j.made.vendorName = bidders[0].v.name;
       j.opts.extraBidders = bidders.slice(1).map((b) => ({ companyUuid: b.v.uuid, email: b.email, name: b.v.name }));
     } else {
       j.vendorCompanyUuid = "";
@@ -924,7 +927,8 @@ const buyerLogin: StepSpec = {
       ...(firstTry ? { alsoCalled: [firstTry] } : {}),
       reply,
       actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.${renewed ? ` ${renewed}` : ""}`,
-      produced: user.uuid ? { buyerUserUuid: String(user.uuid) } : undefined,
+      // the buyer's own company uuid too: a case about "the buying company bidding on its own event" needs it (13 Nov)
+      produced: user.uuid || cfg.company?.uuid || user.company?.uuid ? { ...(user.uuid ? { buyerUserUuid: String(user.uuid) } : {}), ...((cfg.company?.uuid ?? user.company?.uuid ?? cfg.data?.company?.uuid) ? { buyerCompanyUuid: String(cfg.company?.uuid ?? user.company?.uuid ?? cfg.data?.company?.uuid) } : {}) } : undefined,
     };
   },
 };
@@ -1168,6 +1172,9 @@ const vendorLogin: StepSpec = {
     const produced: Record<string, string> = {};
     if (login.userUuid) produced.vendorUserUuid = String(login.userUuid);
     if (login.companyUuid) produced.vendorCompanyUuid = String(login.companyUuid);
+    // the bidder's login and name travel with the made values, so a plan can act AS this vendor (13 Nov)
+    produced.vendorEmail = email;
+    if (j.vendorName) produced.vendorName = j.vendorName;
     return {
       ...fired,
       // A vendor user can belong to more than one company; the bid is placed
@@ -2024,7 +2031,7 @@ const switchVendor: StepSpec = {
         vendorName: j.vendorName,
         vendorEmail: j.vendorEmail,
         vendorApi: j.actors.vendorApi,
-        made: { bidUuid: j.made.bidUuid, templateResponseUuid: j.made.templateResponseUuid, vendorUserUuid: j.made.vendorUserUuid, vendorCompanyUuid: j.made.vendorCompanyUuid },
+        made: { bidUuid: j.made.bidUuid, templateResponseUuid: j.made.templateResponseUuid, vendorUserUuid: j.made.vendorUserUuid, vendorCompanyUuid: j.made.vendorCompanyUuid, ...(j.vendorEmail ? { vendorEmail: j.vendorEmail, vendorName: j.vendorName } : {}) },
         bidTotal: j.bidTotal,
       };
     } else {
