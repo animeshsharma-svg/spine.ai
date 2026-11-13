@@ -423,6 +423,12 @@ export const STEP_CATALOG: StepSpec[] = [
     },
   },
   {
+    name: "add_bidding_currency",
+    purpose:
+      "On the single-stage create screen BEFORE publish, add a second bidding currency: the footer's \"Edit Currencies\" button opens \"Select Currencies\" (Multiple Currency, tick the currency, its rate in the base currency, OK). The button is greyed out on a converted RFQ→auction screen (currencies come only from the RFQ), and absent when the template does not allow multiple currencies — the step says so. A case about \"currency configuration cannot be added in Knockout / Dutch Auction\" adds the currency on the RFQ, publishes, converts, chooses Knockout/Dutch and expects that refusal at publish.",
+    args: { currencies: '["USD"] — the currency codes to add (default USD)', rateInBase: "the rate of one unit in the base currency (default 83)" },
+  },
+  {
     name: "convert_to_auction",
     purpose:
       "On a PUBLISHED RFQ's project page (after publish + expect_published), open Settings → Convert to Auction and continue. The app opens the converted event's create screen in a new tab, which becomes the page for every later step. Knockout and dutch auctions are reachable only this way.",

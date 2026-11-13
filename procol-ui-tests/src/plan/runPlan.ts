@@ -513,6 +513,45 @@ async function sheetGrid(s: RunState) {
   return { rows, heads, colOf, cell };
 }
 
+/**
+ * Row 1's REQUIRED cells (a "*" in the header) that are still empty, filled by their header: a delivery
+ * location from the company's own list (first option), a number elsewhere. Returns what it filled.
+ */
+async function completeRequiredCells(s: RunState): Promise<string[]> {
+  const g = await sheetGrid(s);
+  const rawHeads = (await g.rows.nth(0).locator("td, th").allInnerTexts().catch(() => [] as string[]));
+  const filled: string[] = [];
+  if ((await g.rows.count()) < 2) return filled;
+  for (let i = 0; i < rawHeads.length; i++) {
+    const head = rawHeads[i].replace(/\s+/g, " ").trim();
+    if (!/\*\s*$/.test(head)) continue;
+    const name = head.replace(/\*/g, "").trim();
+    if (/^(product|product variant|quantity requested)$/i.test(name)) continue; // typed in place already
+    const td = g.rows.nth(1).locator("td").nth(i);
+    const shown = cellText((await td.innerText().catch(() => "")) || "");
+    if (shown) continue;
+    await td.dblclick({ timeout: 5_000 }).catch(async () => { await td.click({ timeout: 5_000 }).catch(() => {}); });
+    await s.page.waitForTimeout(600);
+    const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+    if (await select.count().catch(() => 0)) {
+      const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
+      await search.fill("").catch(() => {});
+      const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
+      for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
+      const text = ((await opt.innerText().catch(() => "")) || "").trim();
+      if (text && (await opt.click({ timeout: 5_000 }).then(() => true).catch(() => false))) filled.push(`${name} = ${text}`);
+      else await s.page.keyboard.press("Escape").catch(() => {});
+      continue;
+    }
+    const input = td.locator("input, textarea").first();
+    if (await input.count().catch(() => 0)) {
+      const value = /price|amount|rate/i.test(name) ? "100" : /quantity|qty/i.test(name) ? "10" : /date/i.test(name) ? "" : "1";
+      if (value) { await input.fill(value).catch(() => {}); await s.page.keyboard.press("Tab").catch(() => {}); filled.push(`${name} = ${value}`); }
+    } else await s.page.keyboard.press("Escape").catch(() => {});
+  }
+  return filled;
+}
+
 /** A cell's text as a person reads it; numbers compared without separators or currency. */
 const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
 const sameCellValue = (a: string, b: string) => {
@@ -1473,6 +1512,45 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (problems.length) throw new Error(`template menu: ${problems.join("; ")} — ${listed}`);
       return listed;
     }
+    case "add_bidding_currency": {
+      // The footer's "Edit Currencies" button (eventCreation footer.jsx: shown when the template allows multi
+      // currency; DISABLED on a converted RFQ→auction screen unless the RFQ already had currencies) opens the
+      // "Select Currencies" modal (createOrder/currencyModal.jsx): "Multiple Currency" radio, one checkbox per
+      // currency (id = its code) with its "Value in INR" rate, OK.
+      const wanted = (Array.isArray(a.currencies) ? a.currencies : String(a.currencies ?? a.currency ?? "USD").split(/[,\s]+/)).map((c: unknown) => String(c).trim().toUpperCase()).filter(Boolean);
+      const rate = a.rateInBase !== undefined ? String(a.rateInBase) : "83";
+      const button = s.page.getByRole("button", { name: /edit\s*currenc/i }).first();
+      if (!(await button.count().catch(() => 0))) throw new Error("no \"Edit Currencies\" button in the footer: this template does not allow multiple bidding currencies (the company's template setting), so a second currency cannot be added here — not evidence about the product");
+      if (await button.isDisabled().catch(() => false)) {
+        const converted = /isRfqToAuction=true/.test(s.page.url());
+        throw new Error(`the "Edit Currencies" button is greyed out${converted ? " on the converted event's screen — the app only carries currencies the RFQ already had; add them on the RFQ's create screen before publishing" : ""} (the app's own rule, not a bug)`);
+      }
+      await button.click({ timeout: 5_000 });
+      const modal = s.page.locator(".ant-modal").filter({ hasText: /select currencies/i }).first();
+      await modal.waitFor({ state: "visible", timeout: 10_000 });
+      const multi = modal.getByText(/^\s*multiple currency\s*$/i).first();
+      if (await multi.count().catch(() => 0)) await multi.click({ timeout: 3_000 }).catch(() => {});
+      await s.page.waitForTimeout(500);
+      const added: string[] = [];
+      for (const code of wanted) {
+        const box = modal.locator(`input[type="checkbox"]#${code}, input#${code}`).first();
+        if (!(await box.count().catch(() => 0))) throw new Error(`the currency "${code}" is not offered in the Select Currencies list`);
+        if (!(await box.isChecked().catch(() => false))) await box.check({ timeout: 3_000 }).catch(async () => { await box.click({ timeout: 3_000 }); });
+        // the rate input sits in the same row as the checkbox
+        const row = modal.locator(".ant-row").filter({ has: s.page.locator(`input#${code}`) }).first();
+        const rateInput = row.locator(".ant-input-number input, input[placeholder*='Value in']").first();
+        if (await rateInput.count().catch(() => 0)) { await rateInput.fill(rate).catch(() => {}); }
+        added.push(code);
+      }
+      await modal.getByRole("button", { name: /^\s*ok\s*$/i }).first().click({ timeout: 5_000 });
+      await s.page.waitForTimeout(800);
+      const still = await modal.isVisible().catch(() => false);
+      if (still) {
+        const said = ((await modal.locator("[class*='currencyError'], .ant-typography-danger, [role='alert']").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean).join(" · ");
+        throw new Error(`the Select Currencies modal stayed open after OK${said ? `: “${said}”` : ""}`);
+      }
+      return `bidding currenc${added.length === 1 ? "y" : "ies"} added: ${added.join(", ")} (rate ${rate} in the base currency)`;
+    }
     case "set_sheet_cell": {
       const value = String(a.value ?? "");
       const clearing = value === "" || /^\(?(empty|clear|blank)\)?$/i.test(value);
@@ -2208,6 +2286,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"), a.quantity !== undefined ? String(a.quantity) : undefined);
+        // Required cells the typed-in-place fill left empty (13 Nov, SRC-AUC-008: Delivery location, Price and
+        // Quantity Available stayed blank on the Buy template and Publish said "Sheet partially filled") are
+        // completed by their column header: a location from the company's own list, a number elsewhere.
+        const completed = await completeRequiredCells(s).catch(() => [] as string[]);
+        if (completed.length) console.log(`[single-stage] completed required cell(s) by header: ${completed.join(", ")}`);
         s.lineItemsAdded = 1;
         const ranges = await s.single.fillRangeCells();
         if (ranges) console.log(`[single-stage] filled ${ranges} traffic-light range cell(s) on the line item`);
