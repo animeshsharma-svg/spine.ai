@@ -2,7 +2,7 @@
  "meta": {
   "caseId": "API-DB-008",
   "title": "A withdrawn event's status and remark are persisted",
-  "compiledAt": "2026-10-15T13:08:40.755Z",
+  "compiledAt": "2026-11-13T12:02:13.415Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "full",
@@ -20,27 +20,35 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
-    "As the buyer, read the event and check that Data check: “status” equals the status sent in step 1; Schema check: “withdraw details” is not empty."
+    "The buyer withdraws the event with the remarks set to “QA_Platform_withdraw_…”, with no attachments.",
+    "As the buyer, read the event and check that Data check: “status” equals withdrawn; Data check: “withdraw details › withdraw remark › remarks” equals QA_Platform_withdraw_{{stamp}}."
    ],
-   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals the status sent in step 1; Schema check: “withdraw details” is not empty."
-  },
-  "recheckedAt": "2026-11-09T22:56:36.707Z"
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals withdrawn; Data check: “withdraw details › withdraw remark › remarks” equals QA_Platform_withdraw_{{stamp}}."
+  }
  },
  "plan": {
   "version": 2,
   "caseId": "API-DB-008",
   "title": "A withdrawn event's status and remark are persisted",
   "setup": {
-   "recipe": "awarded_rfq"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "library",
+    "op": "withdraw_event",
     "as": "buyer",
-    "caseId": "EDGE-PUB-076",
+    "change": [
+     {
+      "path": "withdraw_remark.remarks",
+      "set": "QA_Platform_withdraw_{{stamp}}"
+     },
+     {
+      "path": "withdraw_remark.attachments",
+      "set": []
+     }
+    ],
     "decisive": true
    }
   ],
@@ -52,11 +60,12 @@
      {
       "path": "status",
       "op": "equals",
-      "value": "{{act1.body.status}}"
+      "value": "withdrawn"
      },
      {
-      "path": "withdraw_details",
-      "op": "non_empty"
+      "path": "withdraw_details.withdraw_remark.remarks",
+      "op": "equals",
+      "value": "QA_Platform_withdraw_{{stamp}}"
      }
     ]
    }

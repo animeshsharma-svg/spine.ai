@@ -39,7 +39,7 @@ import { pathToFileURL } from "node:url";
 
 import { chat, llmMode, usageReport, lastServedModel } from "../ai/llm.js";
 import { PROCOL_TEST } from "../executor.js";
-import { heldCases, loadCases, type TestCaseRecord } from "../checks/caseLibrary.js";
+import { heldCases, loadCases, stateNotBuilt, type TestCaseRecord } from "../checks/caseLibrary.js";
 import { caseById, type CatalogCase } from "../checks/testCatalog.js";
 import { endpointInWords, errorMessage } from "../checks/caseDisplay.js";
 import { FORMATS } from "../checks/apiAssertions.js";
@@ -1312,17 +1312,34 @@ export function recipeForLibraryCase(c: TestCaseRecord): { recipe: RecipeId; act
   const needsAward = ph.has("proposalUuid") || /award|proposal|selected/.test(pre);
   const closed = /closed|window (is )?over|has passed|passed its|after the (window|close|bid end)|expired|evaluation (time|window)|bid_end_time has/.test(pre);
   const eventScoped = ["eventGroupUuid", "tradeId", "lineItemUuid", "rfpTradeId", "bidUuid", "proposalUuid", "templateResponseUuid", "evalFormUuid"].some((k) => ph.has(k));
+  // THE AWARD'S OWN STAGES (10 Nov triage, bucket C): "awarded_rfq" has already SUBMITTED the proposal, so a case
+  // that creates the proposal ("POST /proposal", "a proposal is created") or works on a DRAFT one (add_response,
+  // the approval workflow read) was refused by the product for the right reason — "proposal already submitted".
+  // Those start from the closed event with its bid; a draft proposal is opened as an arranged step. Only a case
+  // that says the proposal is submitted / in approval / awarded starts from awarded_rfq.
+  const ownRequest = `${c.method ?? ""} ${c.path ?? ""}`.replace(/\{\{\w+\}\}/g, ":id").toUpperCase();
+  const submittedProposal = /submitted proposal|proposal (has been |is |was )?(submitted|in approval|approved|rejected)|award (is )?in approval|already (been )?submitted|after the award|awarded\b|approv(ed|al) (of )?the (award|proposal)/.test(pre);
+  const createsProposal = /^POST \/PROPOSAL\/?$/.test(ownRequest) || /\b(proposal|award) is (created|started|opened)|creat(e|es|ed) (a |the |a new )?(proposal|award)|start(s)? (a |the )?(new )?award\b/.test(pre);
+  const draftProposal = !createsProposal && (/draft proposal|proposal in draft|(open|unsubmitted|new) proposal|before (it is |the )?submi/.test(pre) || (ph.has("proposalUuid") && !submittedProposal));
   let recipe: RecipeId;
   if (!eventScoped) recipe = "none";
   else if (/no stage|without (a )?stage|no rounds?\b|but no stage/.test(pre)) recipe = "draft_event";
   else if (/\bdraft\b/.test(pre) && !/not (a )?draft|no longer|draft (bid|proposal)/.test(pre)) recipe = hasRfp ? "draft_rfp_rfq" : "draft_rfq";
+  else if (createsProposal && !submittedProposal) recipe = hasRfp ? "closed_rfp_rfq_with_tech_response" : "closed_rfq_with_bid";
+  else if (draftProposal) {
+    recipe = hasRfp ? "closed_rfp_rfq_with_tech_response" : "closed_rfq_with_bid";
+    arrange.push({ op: "open_proposal", as: "buyer", expect: "accept", say: "The buyer opens the award proposal (still a draft, not submitted)." });
+  }
   else if (needsAward) recipe = "awarded_rfq";
   else if (closed) recipe = hasRfp ? "closed_rfp_rfq_with_tech_response" : needsBid ? "closed_rfq_with_bid" : "closed_rfq";
   else if (needsBid) recipe = "rfq_with_bid";
   else if (/technical response|template response|responded/.test(pre) || ph.has("templateResponseUuid")) recipe = "rfp_rfq_with_tech_response";
   else if (hasRfp) recipe = "published_rfp_rfq";
   else recipe = "published_rfq";
-  if (/withdrawn/.test(pre) && !/not withdrawn/.test(pre)) {
+  // "A withdrawn event's status is persisted — Steps: withdraw, then read": the case's OWN request is the withdraw,
+  // so withdrawing beforehand makes the product refuse it ("cannot withdraw", 10 Nov API-DB-008)
+  const ownWithdraw = /^PATCH \/EVENT_GROUPS\/:ID/.test(ownRequest) && /withdraw/i.test(`${JSON.stringify(c.body ?? "")} ${c.title}`);
+  if (/withdrawn/.test(pre) && !/not withdrawn/.test(pre) && !ownWithdraw) {
     arrange.push({ op: "withdraw_event", as: "buyer", expect: "accept", say: "The buyer withdraws the event first (with a remark)." });
   }
   const actor: ActorId = /signed in as (the |an )?(invited )?vendor|session: the invited vendor|caller is (a|the invited) vendor|as the vendor/.test(pre)
@@ -1340,7 +1357,10 @@ export function recipeForLibraryCase(c: TestCaseRecord): { recipe: RecipeId; act
   if (/second buyer|another buyer|not the event's owner/.test(pre)) gaps.push("it needs a second buyer user, which no recipe signs in");
   if (/blacklist/.test(pre)) gaps.push("it needs a blacklisted vendor, which a plan never creates");
   if (/purchase request|from a pr\b/.test(pre)) gaps.push("it needs an event created from a purchase request");
-  return { recipe, actor, gaps, arrange, ...(unbuilt ? { unbuilt } : {}), ...(setting ? { setting } : {}) };
+  // a state the fixes file says no run builds (data/case-fixes.json needsState): the plan says so instead of
+  // running the case on the wrong state and calling the product's correct refusal a failure (13 Nov, API-AWD-022)
+  const unbuiltState = stateNotBuilt(c.id) ?? unbuilt;
+  return { recipe, actor, gaps, arrange, ...(unbuiltState ? { unbuilt: unbuiltState } : {}), ...(setting ? { setting } : {}) };
 }
 
 /**
