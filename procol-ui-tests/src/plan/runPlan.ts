@@ -2877,39 +2877,67 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const sub = buyerPage.getByRole("tab", { name: /^\s*responses\s*$/i }).filter({ visible: true }).first();
       if (await sub.count().catch(() => 0)) await sub.click({ timeout: 5_000 }).catch(() => {});
       await buyerPage.locator("img[alt*='lighticon' i]").first().waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
-      const cols = await buyerPage
-        .evaluate(() => {
-          const out: Array<{ vendor: string; zone: string; price: string }> = [];
-          for (const h of Array.from(document.querySelectorAll("[role='columnheader']"))) {
-            const name = (h.querySelector("h2")?.textContent || "").replace(/\s+/g, " ").trim();
-            if (!name) continue;
-            const img = h.querySelector("img[alt*='lighticon' i]") as HTMLImageElement | null;
-            const field = (h.getAttribute("data-fields") || "").split("|").map((f) => f.replace(/^-+|-+$/g, "")).find((f) => /#price-/.test(f));
-            const cell = field ? document.querySelector(`[role='cell'][data-field="${field}"], [data-field="${field}"]:not([role='columnheader'])`) : null;
-            out.push({ vendor: name, zone: img ? ((img.alt.match(/green|yellow|red/i) ?? [""])[0] || "").toLowerCase() : "", price: (cell?.textContent || "").replace(/\s+/g, " ").trim() });
-          }
-          return out;
-        })
-        .catch(() => [] as Array<{ vendor: string; zone: string; price: string }>);
-      const num = (t: string) => Number((t.match(/[\d,]+(?:\.\d+)?/)?.[0] ?? "").replace(/,/g, ""));
-      const list = cols.map((c) => `${c.vendor} ${c.price ? `(${c.price}) ` : ""}→ ${c.zone || "no light"}`).join(" | ") || "no vendor columns";
+      // The grid draws only the vendor columns in view (MUI virtualisation — 14 Nov: three bids, two columns read):
+      // read, scroll right, read again, until nothing new appears.
+      type Col = { vendor: string; zone: string };
+      const readCols = () =>
+        buyerPage
+          .evaluate(() => {
+            const out: Array<{ vendor: string; zone: string }> = [];
+            for (const h of Array.from(document.querySelectorAll("[role='columnheader']"))) {
+              const name = (h.querySelector("h2")?.textContent || "").replace(/\s+/g, " ").trim();
+              if (!name) continue;
+              const img = h.querySelector("img[alt*='lighticon' i]") as HTMLImageElement | null;
+              out.push({ vendor: name, zone: img ? ((img.alt.match(/green|yellow|red/i) ?? [""])[0] || "").toLowerCase() : "" });
+            }
+            return out;
+          })
+          .catch(() => [] as Col[]);
+      const cols: Col[] = [];
+      const merge = (xs: Col[]) => xs.forEach((c) => { if (!cols.some((k) => k.vendor === c.vendor)) cols.push(c); });
+      merge(await readCols());
+      for (let i = 0; i < 12; i++) {
+        const moved = await buyerPage.evaluate(() => {
+          const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null;
+          if (!sc) return false;
+          const before = sc.scrollLeft;
+          sc.scrollLeft = before + 600;
+          return sc.scrollLeft !== before;
+        }).catch(() => false);
+        if (!moved) break;
+        await buyerPage.waitForTimeout(400);
+        merge(await readCols());
+      }
+      await buyerPage.evaluate(() => { const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null; if (sc) sc.scrollLeft = 0; }).catch(() => {});
+      // who bid what: Procol's own bid records name the vendor's COMPANY (the grid's header) for each price —
+      // the portal signs in by email, the grid shows the company, and only the record joins the two
+      const eg = decodeProcolId(buyerPage.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? (s.title ? (await eventGroupByTitle(s.title).catch(() => undefined))?.id : undefined);
+      const bids = (eg ? await bidsOfEventGroup(eg).catch(() => null) : null) ?? [];
+      const priceOf = (c: Col) => bids.find((b) => b.vendor && (b.vendor.toLowerCase() === c.vendor.toLowerCase() || b.vendor.toLowerCase().startsWith(c.vendor.toLowerCase().replace(/[.…]+$/, ""))))?.price ?? null;
+      const list = cols.map((c) => `${c.vendor}${priceOf(c) != null ? ` (bid ${priceOf(c)})` : ""} → ${c.zone || "no light"}`).join(" | ") || "no vendor columns";
       if (!cols.length) throw new Error(`the Responses grid shows no vendor columns yet — nothing to read a zone from`);
+      const sameName = (a1: string, b1: string) => a1.toLowerCase() === b1.toLowerCase() || a1.toLowerCase().startsWith(b1.toLowerCase().replace(/[.…]+$/, "")) || b1.toLowerCase().startsWith(a1.toLowerCase().replace(/[.…]+$/, ""));
       // whose zone: a bid price the case gives, the n-th bidder of this plan, a name / email, "lowest" / "highest"
-      let pick: { vendor: string; zone: string; price: string } | undefined;
-      const byPrice = (p: number) => cols.find((c) => num(c.price) === p);
+      let pick: Col | undefined;
+      const byPrice = (p: number) => {
+        const rec = bids.filter((b) => b.price != null && Math.abs(Number(b.price) - p) < 0.001);
+        return cols.find((c) => rec.some((b) => sameName(b.vendor, c.vendor)));
+      };
       if (a.bid !== undefined || a.price !== undefined) pick = byPrice(Number(a.bid ?? a.price));
       else if (typeof a.vendor === "number" || /^\d+$/.test(String(a.vendor ?? ""))) {
         const b = s.portalBids?.[Number(a.vendor) - 1];
-        pick = b ? cols.find((c) => c.vendor.toLowerCase() === b.email.toLowerCase()) ?? byPrice(b.price) : undefined;
+        pick = b ? cols.find((c) => sameName(c.vendor, b.email)) ?? byPrice(b.price) : undefined;
       } else if (/^(lowest|highest)$/i.test(String(a.vendor ?? ""))) {
-        const priced = cols.filter((c) => Number.isFinite(num(c.price)));
-        pick = priced.sort((x, y) => num(x.price) - num(y.price))[/lowest/i.test(String(a.vendor)) ? 0 : priced.length - 1];
-      } else if (a.vendor) pick = cols.find((c) => c.vendor.toLowerCase().includes(String(a.vendor).toLowerCase()) || String(a.vendor).toLowerCase().includes(c.vendor.toLowerCase()));
+        const priced = cols.filter((c) => priceOf(c) != null).sort((x, y) => Number(priceOf(x)) - Number(priceOf(y)));
+        pick = priced[/lowest/i.test(String(a.vendor)) ? 0 : priced.length - 1];
+      } else if (a.vendor) pick = cols.find((c) => sameName(c.vendor, String(a.vendor)) || c.vendor.toLowerCase().includes(String(a.vendor).toLowerCase()));
       else if (cols.length === 1) pick = cols[0];
-      if (!pick) throw new Error(`could not tell which vendor's zone to read${a.vendor !== undefined ? ` for "${a.vendor}"` : a.bid !== undefined ? ` for the bid ${a.bid}` : ""} — the Responses grid shows: ${list}`);
+      if (!pick) throw new Error(`could not tell which vendor's zone to read${a.vendor !== undefined ? ` for "${a.vendor}"` : a.bid !== undefined ? ` for the bid ${a.bid}` : ""} — the Responses grid shows: ${list}${bids.length ? "" : " (Procol's bid records could not be read to match a price to a column)"}`);
+      const pickPrice = priceOf(pick);
+      (pick as Col & { price?: string }).price = pickPrice != null ? `bid ${pickPrice}` : "";
       if (!pick.zone) throw new Error(`${pick.vendor}'s column shows no traffic light on the buyer's Responses — the case expects ${want} (grid: ${list})`);
       if (pick.zone !== want) throw new Error(`${pick.vendor} is in the ${pick.zone} zone on the buyer's Responses; the case expects ${want} (grid: ${list})`);
-      return `${pick.vendor}${pick.price ? ` (${pick.price})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
+      return `${pick.vendor}${pickPrice != null ? ` (bid ${pickPrice})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
     }
     case "expect_bid_submitted": {
       // An event BUILT with a vendor's bid (the API set-up) has one to confirm too; a plan that neither bid nor

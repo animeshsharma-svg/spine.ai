@@ -622,16 +622,33 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const cfg = steps.find((s) => s.step === "configure_single_stage" && /traffic/i.test(String(s.args?.auctionSubtype ?? "")));
     const bids = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid").map((s) => Number(s.args?.price ?? 100)).filter((p) => Number.isFinite(p));
     if (cfg && bids.length >= 2 && /traffic light/i.test(testCase) && !has("open_prepared")) {
+      // the quantity: add_line_items{quantity}, else a sheet cell step about the quantity ("10 KG"), else the case's
+      // own words ("quantity 10"), else 1 (14 Nov: a screen-grounded rebuild carried the quantity as a sheet check,
+      // and bounds computed with 1 put every bidder in the red)
+      const numIn = (v: unknown) => { const m = String(v ?? "").match(/\d+(?:\.\d+)?/); return m ? Number(m[0]) : undefined; };
       const qtyStep = steps.find((s) => s.step === "add_line_items" && s.args?.quantity !== undefined);
-      const qty = Number(qtyStep?.args?.quantity ?? 1) || 1;
+      const qtyCell = steps.find((s) => (s.step === "set_sheet_cell" || s.step === "expect_sheet_cell") && /quantity/i.test(String(s.args?.column ?? "")) && (s.args?.value !== undefined || s.args?.expected !== undefined));
+      const qty = numIn(qtyStep?.args?.quantity) ?? numIn(qtyCell?.args?.value ?? qtyCell?.args?.expected) ?? numIn(testCase.match(/quantity\s*(?:of\s*)?(\d+(?:\.\d+)?)/i)?.[1]) ?? 1;
       const gross = [...new Set(bids.map((p) => p * qty))].sort((x, y) => x - y);
       const args = { ...(cfg.args ?? {}) } as Record<string, unknown>;
-      if (args.rangeLower === undefined && args.rangeUpper === undefined) {
+      // bounds the CASE states stay; bounds the model made up (the case names none) give way to the bid-derived ones
+      const caseNamesBounds = /\b(green|lower)\b[^.]{0,40}\d|\d[^.]{0,40}\b(green|yellow|range|bound)\b/i.test(testCase);
+      if (!caseNamesBounds || (args.rangeLower === undefined && args.rangeUpper === undefined)) {
+        const before = args.rangeLower !== undefined || args.rangeUpper !== undefined ? ` (the model's ${args.rangeLower} / ${args.rangeUpper} were not from the case)` : "";
         args.rangeLower = String(gross[0]);
         args.rangeUpper = String(gross[1] ?? gross[0]);
         if (!args.awarding) args.awarding = "lot";
         cfg.args = args;
-        repairs.push(`traffic light bounds set from the bids: GREEN ≤ ${args.rangeLower}, YELLOW ≤ ${args.rangeUpper} (gross = price × ${qty}) so the lowest bidder is green, the next yellow, the rest red`);
+        repairs.push(`traffic light bounds set from the bids: GREEN ≤ ${args.rangeLower}, YELLOW ≤ ${args.rangeUpper} (gross = price × ${qty}) so the lowest bidder is green, the next yellow, the rest red${before}`);
+      }
+      // a generic look for the "RFP" chip before the configure is the model's habit, not the case's: the screen opens
+      // with the company's default type (switched to auction for this plan), so that look fails every run
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const s = steps[i];
+        if ((s.step === "expect_visible" || s.step === "expect_text") && /^\s*rfp\s*$/i.test(String(s.args?.name ?? s.args?.text ?? "")) && i < steps.indexOf(cfg)) {
+          steps.splice(i, 1);
+          repairs.push("dropped a look for the RFP chip before the configure — the create screen opens with the company's default type");
+        }
       }
       const lower = Number(args.rangeLower), upper = Number(args.rangeUpper);
       const zoneOf = (g: number) => (g <= lower ? "green" : g <= upper ? "yellow" : "red");
