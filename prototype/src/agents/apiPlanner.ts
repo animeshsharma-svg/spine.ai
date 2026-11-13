@@ -101,6 +101,7 @@ export type OpId =
   | "publish_event"
   | "update_event"
   | "withdraw_event"
+  | "reject_bid"
   | "extend_round"
   | "add_vendor"
   | "remove_vendor"
@@ -363,6 +364,7 @@ export const OPS: Record<OpId, OpDef> = {
   add_rfp_round: { id: "add_rfp_round", kind: "write", method: "POST", path: "/trade/template_input?template_name=trade&additional_fields=order_details", actor: "buyer", actors: ["buyer"], template: "bodies.buildTechnicalStageBody (journey step: add the technical round)", needs: ["eventGroupUuid", "lineItemUuid"], produces: ["technicalTradeUuid", "rfpTradeId"], does: "adds a technical (RFP) round to the event" },
   publish_event: { id: "publish_event", kind: "write", method: "PATCH", path: "/event_groups/{{eventGroupUuid}}", actor: "buyer", actors: ["buyer", "vendor"], template: "bodies.buildPublishBody (journey step: publish)", needs: ["eventGroupUuid"], produces: [], does: "publishes the event" },
   update_event: { id: "update_event", kind: "write", method: "PATCH", path: "/event_groups/{{eventGroupUuid}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-CRT-020 (rename an event)", needs: ["eventGroupUuid"], produces: [], does: "updates the event" },
+  reject_bid: { id: "reject_bid", kind: "write", method: "PATCH", path: "/bids/{{bidUuid}}/reject", actor: "buyer", actors: ["buyer"], template: "a rejection with a remark (bids_controller#reject)", needs: ["bidUuid"], produces: [], does: "the buyer rejects the vendor's bid (with a remark)" },
   withdraw_event: { id: "withdraw_event", kind: "write", method: "PATCH", path: "/event_groups/{{eventGroupUuid}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-076 (withdraw with a remark)", needs: ["eventGroupUuid"], produces: [], does: "withdraws the event" },
   extend_round: { id: "extend_round", kind: "write", method: "PATCH", path: "/trade/{{tradeId}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-058 / bidding matrix M15 (extend the bid end)", needs: ["tradeId"], produces: [], does: "moves the round's bid end time" },
   add_vendor: { id: "add_vendor", kind: "write", method: "PATCH", path: "/v1/trade/add_audience?id={{tradeId}}", actor: "buyer", actors: ["buyer", "vendor"], template: "library EDGE-PUB-037 (invite a vendor to a live round)", needs: ["tradeId", "vendor2Uuid"], produces: [], does: "invites QA vendor 2 to the live round" },
@@ -568,6 +570,8 @@ export function templateBody(B: any, op: OpId, a: BodyArgs): unknown {
       return { title: `QA_Platform_Renamed_${a.stamp}` };
     case "withdraw_event":
       return { status: "withdrawn", withdraw_remark: { remarks: `QA_Platform_withdraw_${a.stamp}`, attachments: [] } };
+    case "reject_bid":
+      return { rejection_remarks: `QA_Platform_reject_${a.stamp}` };
     case "extend_round":
       // one minute past the round's CURRENT bid end, read when the step runs
       return { increase_auction_time: "{{roundEnd+60}}", remarks: `QA_Platform_extend_${a.stamp}` };
@@ -1341,6 +1345,10 @@ export function recipeForLibraryCase(c: TestCaseRecord): { recipe: RecipeId; act
   const ownWithdraw = /^PATCH \/EVENT_GROUPS\/:ID/.test(ownRequest) && /withdraw/i.test(`${JSON.stringify(c.body ?? "")} ${c.title}`);
   if (/withdrawn/.test(pre) && !/not withdrawn/.test(pre) && !ownWithdraw) {
     arrange.push({ op: "withdraw_event", as: "buyer", expect: "accept", say: "The buyer withdraws the event first (with a remark)." });
+  }
+  // "on an already-rejected bid": the buyer's first rejection is arranged, the case's own call is the second (13 Nov, API-BID-028)
+  if (/already[- ]rejected|rejected (that bid )?(once|before|earlier)|on an? rejected bid|a rejected bid/.test(pre) && !/not rejected/.test(pre)) {
+    arrange.push({ op: "reject_bid", as: "buyer", expect: "accept", say: "The buyer rejects the vendor's bid first (with a remark)." });
   }
   const actor: ActorId = /signed in as (the |an )?(invited )?vendor|session: the invited vendor|caller is (a|the invited) vendor|as the vendor/.test(pre)
     ? "vendor"

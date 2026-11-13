@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "API-EVDRJB-023",
   "title": "An unknown status value is refused",
-  "compiledAt": "2026-10-15T12:26:46.439Z",
+  "compiledAt": "2026-11-13T15:16:10.446Z",
   "planVersion": 2,
-  "source": "llm-fast",
+  "source": "library-case",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /bids/update_bid_status/:id"
   ],
   "llm": {
    "calls": 0,
@@ -21,12 +21,10 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer updates the event with the status set to “selected”.",
-    "As the buyer, read the event and check that the event's title is not the one step 1 sent (nothing changed)."
+    "The buyer sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error. Read back afterwards: the event's title is not the one step 1 sent (nothing changed)."
-  },
-  "recheckedAt": "2026-11-09T22:56:36.835Z"
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  }
  },
  "plan": {
   "version": 2,
@@ -37,32 +35,13 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "library",
     "as": "buyer",
-    "change": [
-     {
-      "path": "status",
-      "set": "selected",
-      "add": true
-     }
-    ],
+    "caseId": "API-EVDRJB-023",
     "decisive": true
    }
   ],
-  "verify": [
-   {
-    "op": "read_event",
-    "as": "buyer",
-    "assert": [
-     {
-      "path": "title",
-      "op": "not_equals",
-      "value": "{{act1.body.title}}",
-      "say": "the event's title is not the one step 1 sent (nothing changed)"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
    "outcome": "reject",
    "code": "2",

@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "API-EVDRJB-024",
   "title": "A status call without a status is refused",
-  "compiledAt": "2026-11-09T22:29:13.939Z",
+  "compiledAt": "2026-11-13T15:16:10.489Z",
   "planVersion": 2,
-  "source": "llm-fast",
+  "source": "library-case",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /bids/:id/reject"
+   "PATCH /bids/update_bid_status/:id"
   ],
   "llm": {
    "calls": 0,
@@ -21,11 +21,10 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer sends the bid call, the request the case itself writes."
+    "The buyer sends the bid call, exactly as the matching library case writes it."
    ],
    "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
-  },
-  "recheckedAt": "2026-11-09T22:56:36.836Z"
+  }
  },
  "plan": {
   "version": 2,
@@ -36,15 +35,9 @@
   },
   "act": [
    {
-    "op": "request",
+    "op": "library",
     "as": "buyer",
-    "request": {
-     "method": "PATCH",
-     "path": "/bids/{{bidUuid}}/reject",
-     "body": {
-      "rejection_remarks": "QA_Platform_{{stamp}}"
-     }
-    },
+    "caseId": "API-EVDRJB-024",
     "decisive": true
    }
   ],

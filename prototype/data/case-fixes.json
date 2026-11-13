@@ -95,6 +95,24 @@
    "body": {
     "event_group_uuid": "{{eventGroupUuid}}"
    }
+  },
+  "API-BID-028": {
+   "method": "PATCH",
+   "path": "/bids/{{bidUuid}}/reject",
+   "body": {
+    "rejection_remarks": "QA_Platform_reject_again_{{stamp}}"
+   },
+   "preconditions": "A fresh live RFQ where QA vendor 1 submitted a bid ({{bidUuid}}), and the buyer has already rejected that bid once; caller is the buyer.",
+   "steps": [
+    "1. Log in as the buyer.",
+    "2. PATCH /bids/{{bidUuid}}/reject on the active bid (arranged).",
+    "3. PATCH /bids/{{bidUuid}}/reject again on the now-rejected bid.",
+    "4. Assert the second call is refused (422, code 101)."
+   ],
+   "expected": "reject",
+   "expectedStatus": 422,
+   "expectedCode": 101,
+   "expectedResult": "First succeeds; second refused (101). One rejection recorded."
   }
  },
  "runAsWritten": [

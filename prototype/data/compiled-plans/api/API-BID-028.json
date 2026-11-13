@@ -2,7 +2,7 @@
  "meta": {
   "caseId": "API-BID-028",
   "title": "Rejecting a bid works only on an active bid",
-  "compiledAt": "2026-11-09T22:48:55.777Z",
+  "compiledAt": "2026-11-13T15:17:24.814Z",
   "planVersion": 2,
   "source": "llm-fast",
   "coverage": "full",
@@ -10,24 +10,22 @@
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /bids/:id/reject",
-   "PATCH /v1/bids/:id"
+   "PATCH /bids/:id/reject"
   ],
   "llm": {
-   "calls": 0,
-   "promptTokens": 0,
-   "completionTokens": 0,
+   "calls": 1,
+   "promptTokens": 6051,
+   "completionTokens": 340,
    "usd": 0
   },
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer sends the bid call, the request the case itself writes.",
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The buyer the buyer rejects the vendor's bid (with a remark) with the rejection remarks set to “QA_Platform_…”.",
+    "The buyer the buyer rejects the vendor's bid (with a remark) with the rejection remarks set to “QA_Platform_…”."
    ],
    "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
-  },
-  "recheckedAt": "2026-11-09T22:56:36.691Z"
+  }
  },
  "plan": {
   "version": 2,
@@ -38,21 +36,24 @@
   },
   "act": [
    {
-    "op": "request",
+    "op": "reject_bid",
     "as": "buyer",
-    "request": {
-     "method": "PATCH",
-     "path": "/bids/{{bidUuid}}/reject",
-     "body": {
-      "rejection_remarks": "QA_Platform_{{stamp}}",
-      "allow_rebidding": true
+    "change": [
+     {
+      "path": "rejection_remarks",
+      "set": "QA_Platform_{{stamp}}"
      }
-    }
+    ]
    },
    {
-    "op": "library",
-    "as": "vendor",
-    "caseId": "BID-CO-003",
+    "op": "reject_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "rejection_remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
     "decisive": true
    }
   ],
