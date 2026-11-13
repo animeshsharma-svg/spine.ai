@@ -548,7 +548,8 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // {auction, dutch | knockout, the ONE field the case is about} → the case's own check. The other fields get
   // valid defaults in the executor, so the refusal is about that field.
   const auctionField = /\b(dutch|knock-?out|tick size|base price|start(ing)? price|end(ing)? price|time difference)\b/i.test(testCase);
-  if (auctionField && !has("convert_to_auction") && !has("open_prepared") && has("configure_single_stage")) {
+  const configuresStrategy = steps.some((s) => s.step === "configure_single_stage" && /dutch|knock/i.test(String(s.args?.auctionSubtype ?? "")) && steps.some((x) => x.step === "convert_to_auction"));
+  if (auctionField && !configuresStrategy && !has("open_prepared") && has("configure_single_stage")) {
     const sub = /knock-?out/i.test(testCase) ? "knockout" : "dutch";
     const num = (re: RegExp) => testCase.match(re)?.[1];
     const args: Record<string, unknown> = { eventType: "auction", auctionSubtype: sub };
@@ -562,13 +563,15 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     first.args = { eventType: "rfq" };
     for (let i = steps.length - 1; i >= 0; i--) {
       const s = steps[i];
-      if ((s.step === "do_on_screen" || s.step === "fill_required") && /dutch|knock|tick|price|strategy|auction/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
+      if ((s.step === "do_on_screen" || s.step === "fill_required") && /dutch|knock|tick|price|strategy|auction|currenc/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
     }
     const tailAt = steps.findIndex((s) => ["publish", "expect_publish_blocked", "expect_error", "expect_published", "expect_toast", "attempt"].includes(s.step));
     const tail = tailAt >= 0 ? steps.splice(tailAt) : [];
     // a second bidding currency belongs on the RFQ's screen before its publish (greyed out once converted)
     const currencySteps = tail.filter((s) => s.step === "add_bidding_currency");
-    const check = tail.filter((s) => s.step !== "publish" && s.step !== "expect_published" && s.step !== "add_bidding_currency");
+    // the tail is rebuilt below: only the case's own checks survive from what the model wrote after the publish
+    const REBUILT = new Set(["publish", "expect_published", "add_bidding_currency", "convert_to_auction", "configure_single_stage", "set_schedule", "fill_required", "do_on_screen"]);
+    const check = tail.filter((s) => !REBUILT.has(s.step));
     if (/\b(second|another|multiple|bidding) currenc/i.test(testCase) && !has("add_bidding_currency") && !currencySteps.length) currencySteps.push({ step: "add_bidding_currency", args: { currencies: ["USD"] } });
     steps.push(...currencySteps, { step: "publish" }, { step: "expect_published" }, { step: "convert_to_auction" }, { step: "configure_single_stage", args }, ...(check.length ? check : [{ step: "publish" }, { step: "expect_published" }]));
     repairs.push(`a ${sub} auction's fields live on the converted event's screen — the plan creates and publishes an RFQ, converts it, then configures ${sub} with ${JSON.stringify(args)}`);
