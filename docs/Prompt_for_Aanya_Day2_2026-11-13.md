@@ -4,7 +4,7 @@ Written by Animesh on 13 Nov 2026. It replaces nothing in `docs/Prompt_for_Aanya
 
 ---
 
-You are the Claude working with Aanya on spine.ai, Procol's QA platform (repo `procol-qa-platform`, my checkout on branch `aanya`). Animesh builds the backend engines of the guided testing session on his branch `rca-wt`; I build the screens of that session and the "prove spine finds real bugs" corpus. This prompt tells you how we work side by side so that nothing is built twice and the final merge is a formality. Read it fully before touching a file, then start on §6.
+You are the Claude working with Aanya on spine.ai, Procol's QA platform. The team repo is `animeshsharma-svg/spine.ai` on GitHub (my `origin`); Animesh mirrors his branch to his private `animeshsharmaa208/procol-qa-platform` too, where I am also a collaborator. Branch `rca-wt` is on both since 13 Nov. My day-1 commit (4c16953, "Guided testing session (Track B day 1) on a mock…") sits on `demo` of the team repo; my work continues on branch `aanya`, made from that commit (see §5). Animesh builds the backend engines of the guided testing session on his branch `rca-wt`; I build the screens of that session and the "prove spine finds real bugs" corpus. This prompt tells you how we work side by side so that nothing is built twice and the final merge is a formality. Read it fully before touching a file, then start on §6.
 
 ## 1. The one rule of the collaboration: owners, not areas
 
@@ -114,6 +114,12 @@ Mock it first (`session-mock.js` emits a few `ask` events per step with the shap
 
 ## 5. Keeping up day by day
 
+Once, today (my day-1 commit went to `demo`; the work continues on `aanya`):
+```
+git fetch origin
+git checkout -b aanya origin/demo    # or, if aanya exists already: git checkout aanya && git merge origin/demo
+```
+
 Morning, before any work:
 ```
 git fetch origin
@@ -129,7 +135,7 @@ git push origin aanya
 ```
 Write my stand-up entry: done, verified how, blocked, needs Animesh (with the exact route or field). Never `git add -A`, never commit `.local-rca/`, `.env`, `.auth`, `prototype/data/`.
 
-If `git fetch origin` says the repository is not found, my `origin` does not point at Animesh's repo (`https://github.com/animeshsharmaa208/procol-qa-platform.git`) or my GitHub account has no access to it yet. Tell Animesh; until then keep working on the mock and commit locally.
+If `git fetch origin` says the repository is not found, check `git remote -v`: `origin` should be `https://github.com/animeshsharma-svg/spine.ai.git`. The private mirror (`animeshsharmaa208/procol-qa-platform`) needs my `aanyaa20` login; both carry `rca-wt`.
 
 ## 6. My plan from day 2 (Track B first each morning, Track A after lunch)
 
@@ -149,14 +155,14 @@ If `git fetch origin` says the repository is not found, my `origin` does not poi
 ## 7. The merge at the end (so nobody loses work)
 
 - Daily: Animesh pushes `rca-wt`; I merge `origin/rca-wt` into `aanya` each morning; I push `aanya`; Animesh merges `origin/aanya` into `rca-wt` each evening. Because the files are owned, these merges are clean. If a merge ever conflicts, the owner's version of that file wins and the other person re-applies their one-line change.
-- Demo day: Animesh pushes `rca-wt` (which by then contains `aanya`) to `demo`: `git push origin rca-wt:demo`. The demo runs from `demo`.
+- Demo day: Animesh merges `rca-wt` (which by then contains `aanya`) into `demo` on the team repo and mirrors it to the private repo. The demo runs from `demo`.
 - `main` stays untouched until the senior has been told; then `demo` goes to `main` through one pull request.
 - Nothing is rebased, nothing is force-pushed, no branch is deleted.
 
 ## 8. What I need from Animesh (I list these in the stand-up until done)
 
-1. Push `rca-wt` to origin and give my GitHub account access to the repository, so the frontend runs against the real routes.
-2. Confirm the questions contract in §4 once his engine lands (he posts "questions: live" with any field he added).
+1. Done 13 Nov: `rca-wt` is on both repos and my account has access to both.
+2. The questions contract in §4 is live as of 13 Nov (his stand-up entry has the shapes); he posts any field he adds.
 3. A copy of the real RCA workbook into my `.local-rca/`.
 4. A yes or a veto on the 40 tickets in `.local-rca/rca-40-proposal.md`.
 
