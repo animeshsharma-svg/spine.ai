@@ -25,7 +25,8 @@ import { fileURLToPath } from "node:url";
 import { TOKEN_CLIENTS, isTokenClient, tokenClient } from "../../config/tokenClients.js";
 import { readEnvVar } from "../tokenClient.js";
 import { FEATURES } from "../../config/featureTree.js";
-import { advance, saveSession, type EnvironmentProfile, type EnvironmentSnapshot, type Session } from "./store.js";
+import { advance, updateSession, type EnvironmentProfile, type EnvironmentSnapshot, type Session } from "./store.js";
+import { askAndWait } from "./questions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROFILES = join(here, "..", "..", "data", "env-profiles.json");
@@ -126,9 +127,9 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
   const notes: string[] = [];
   const say = (type: EnvEvent["type"] & ("reach" | "signin" | "settings" | "gates" | "vendors"), line: string, ok = true) => emit({ type, line, ok } as EnvEvent);
   const fail = (why: string): Session => {
-    s.env = { ...(s.env ?? { profileId: "", url: input.url, companyId: input.companyId ?? 0, signIn: input.signIn ?? "otp", kind: "uat", snapshot: { at: new Date().toISOString(), settings: { flags: 0, key: {} }, notes } }), error: why };
+    updateSession(s, (f) => { f.env = { ...(f.env ?? { profileId: "", url: input.url, companyId: input.companyId ?? 0, signIn: input.signIn ?? "otp", kind: "uat", snapshot: { at: new Date().toISOString(), settings: { flags: 0, key: {} }, notes } }), error: why }; });
     emit({ type: "error", why });
-    return saveSession(s);
+    return s;
   };
 
   const d = describeUrl(input.url);
@@ -151,7 +152,22 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
   const actor: EnvironmentSnapshot["actor"] = {};
   try {
     if (d.kind === "uat") {
-      if (!companyId) return fail("Procol's UAT hosts many companies: pick the company to test (for example PROCOL DEMO, 198678).");
+      if (!companyId) {
+        // the platform asks which company, on screen, and waits up to ten minutes (the suggestion is PROCOL DEMO)
+        const a = await askAndWait(s, {
+          step: "environment", source: "company", kind: "one",
+          text: "This address is Procol's UAT, which hosts many companies. Which one should I test?",
+          why: "Settings are switched only on PROCOL DEMO; on the other companies I test things as they are set.",
+          options: UAT_COMPANIES.map((c) => ({ value: String(c.id), label: c.name, means: c.note })),
+          suggested: "198678",
+        }, 10 * 60_000);
+        if (a.answer === null) return fail("The step was cancelled before a company was chosen.");
+        const byName = UAT_COMPANIES.find((c) => c.name.toLowerCase() === a.answer!.trim().toLowerCase())?.id;
+        const picked = Number(a.answer) || byName || 0;
+        if (!picked) return fail(`I couldn't read “${a.answer}” as a company: give its id (for example 198678) or its name as the list shows it.`);
+        companyId = picked;
+        emit({ type: "line", line: `Testing on ${UAT_COMPANIES.find((c) => c.id === picked)?.name ?? `company ${picked}`}${a.how === "deadline" ? " (no answer by the deadline, so the suggestion)" : ", as you chose"}.` });
+      }
       if (isTokenClient(companyId)) {
         // an account that lives on this host with its own static token (the sandbox P2P flow, the "test" account)
         kind = "token";
@@ -292,7 +308,7 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
       snapshotAt: snapshot.at, snapshot,
     };
     saveProfile(profile);
-    s.env = { profileId: profile.id, url: profile.url, companyId, companyName, signIn, kind, snapshot };
+    updateSession(s, (f) => { f.env = { profileId: profile.id, url: profile.url, companyId, companyName, signIn, kind, snapshot }; });
     emit({ type: "done", profile });
     return advance(s, "environment");
   } catch (e) {
@@ -306,7 +322,7 @@ export async function runEnvironmentStep(s: Session, input: EnvInput, emit: (e: 
 export function useProfile(s: Session, profileId: string): Session | null {
   const p = listProfiles().find((x) => x.id === profileId);
   if (!p) return null;
-  s.env = { profileId: p.id, url: p.url, companyId: p.companyId, companyName: p.companyName, signIn: p.signIn, kind: p.kind, snapshot: p.snapshot };
+  updateSession(s, (f) => { f.env = { profileId: p.id, url: p.url, companyId: p.companyId, companyName: p.companyName, signIn: p.signIn, kind: p.kind, snapshot: p.snapshot }; });
   return advance(s, "environment");
 }
 

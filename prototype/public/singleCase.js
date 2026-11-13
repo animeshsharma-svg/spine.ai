@@ -115,15 +115,50 @@
       ${g.lines?.length && g.live ? `<ul class="sht-lines">${g.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : ""}
       ${cases.length ? `<div class="sht-dims">${Object.entries(byDim).map(([k, v]) => `<span class="pill idle">${esc(DIM_WORDS[k] || k)}: ${v}</span>`).join(" ")}</div>
       <ol class="sht-sugg">${cases.map((c) => `<li><div><span class="pill ${c.already ? "idle" : c.testType === "Negative" ? "warn" : "ok"}">${esc(DIM_WORDS[c.dimension] || c.dimension)}</span> <span class="sht-id">${esc(c.already ? c.already.id : c.id)}</span> <b>${esc(c.title)}</b>${c.already ? `<small>Already in the catalog as ${esc(c.already.id)}: ${esc(c.already.title)}</small>` : ""}<small>${esc(c.role)} · ${esc(c.portal)} · ${esc(c.runnable === "manual" ? `for a person — ${c.whyManual}` : c.runnable === "api" ? "runs through the API" : "runs in the browser")}${c.permission ? ` · hinges on: ${esc(c.permission)}` : ""}</small><small>Starts from: ${esc(c.preconditions)}${c.configs && c.configs !== "None" ? ` · Settings: ${esc(c.configs)}` : ""}</small><ol>${c.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><p class="sht-exp">${esc(c.expected)}</p><small>Grounded in: ${esc((c.grounded || []).join(", "))}</small></div></li>`).join("")}</ol>` : ""}
-      ${g.questions?.length ? `<div class="sht-cchead"><b>Questions this raised (not guessed)</b></div><ol class="sht-checks">${g.questions.map((q) => `<li><b>${esc(q.question)}</b><br><small>${esc(q.why)} Until answered: ${esc(q.assume)}</small></li>`).join("")}</ol>` : ""}
+      ${g.asks?.length ? asksBlock(g) : ""}
+      ${g.questions?.length ? `<div class="sht-cchead"><b>Still open (not guessed)</b></div><ol class="sht-checks">${g.questions.map((q) => `<li><b>${esc(q.question)}</b><br><small>${esc(q.why)} Until answered: ${esc(q.assume)}</small></li>`).join("")}</ol>` : ""}
       ${!g.live && d ? `<div class="sht-filters"><a class="btn primary" href="#/sheets" id="sht-derive-open" data-sheet="${esc(d.sheet)}">Open the sheet "${esc(d.sheet)}" — understand, then run</a><a class="btn" href="/api/sheets/questions?format=xlsx">Download all product questions</a></div>` : ""}
       ${g.error ? `<p class="sht-msg bad">${esc(g.error)}</p>` : ""}</div>`;
   }
+  /**
+   * THE DERIVATION ASKS BEFORE IT GUESSES. Each question from the server is a small card: the question in
+   * plain words, why it matters, the options as buttons, a box for your own words, and "Skip". An answered
+   * one collapses to "You: …". The server waits a few minutes per question and goes on without an answer.
+   */
+  function asksBlock(g) {
+    const open = g.asks.filter((a) => a.answer === null);
+    return `<div class="hd-asks"><div class="sht-cchead"><b>${open.length ? "Before I write the cases, a few things to check with you" : "What you told me"}</b>${open.length ? `<span class="pill warn">${open.length} to answer</span>` : ""}</div>
+      ${g.asks.map((a) => `<div class="hd-ask${a.answer !== null ? " answered" : ""}" data-qid="${esc(a.qid)}">
+        <div class="hd-ask-q">${esc(a.text)}</div>${a.why ? `<div class="hd-ask-why">${esc(a.why)}</div>` : ""}
+        ${a.answer !== null ? `<div class="hd-ask-said">${a.answer ? esc(a.answer) : "(skipped)"}</div>` : `<div class="hd-ask-opts">${(a.options || []).map((o) => `<button type="button" class="btn hd-opt" data-answer="${esc(o)}">${esc(o)}</button>`).join("")}</div>
+        <div class="hd-ask-other"><input type="text" class="hd-ask-input" placeholder="…or say it in your own words" value="${esc(a.draft || "")}"><button type="button" class="btn primary hd-ask-send">Send</button><button type="button" class="btn hd-ask-skip">Skip</button></div>`}
+      </div>`).join("")}</div>`;
+  }
+  /** Wires the ask cards inside `root` after a render; answers go to /api/ask/answer and the card collapses. */
+  function wireAsks(root, g, tell) {
+    root.querySelectorAll(".hd-ask").forEach((el) => {
+      const a = (g.asks || []).find((x) => x.qid === el.dataset.qid);
+      if (!a || a.answer !== null) return;
+      const send = async (answer) => {
+        a.answer = answer; a.draft = "";
+        tell?.();
+        await fetch("/api/ask/answer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: a.id, qid: a.qid, answer }) }).catch(() => {});
+      };
+      el.querySelectorAll(".hd-opt").forEach((b) => b.addEventListener("click", () => send(b.dataset.answer)));
+      const input = el.querySelector(".hd-ask-input");
+      input?.addEventListener("input", () => { a.draft = input.value; });
+      input?.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && input.value.trim()) send(input.value.trim()); });
+      el.querySelector(".hd-ask-send")?.addEventListener("click", () => { if (input?.value.trim()) send(input.value.trim()); });
+      el.querySelector(".hd-ask-skip")?.addEventListener("click", () => send(""));
+    });
+  }
   function startDerive({ text, client, max, onState }) {
-    const g = { text, live: true, lines: [], und: null, grounding: null, cases: [], questions: [], derivation: null, error: null };
+    const g = { text, live: true, lines: [], und: null, grounding: null, cases: [], questions: [], asks: [], answers: [], derivation: null, error: null };
     const tell = () => onState(g);
     tell();
     const es = new EventSource(`/api/sheets/derive?text=${encodeURIComponent(text)}&c=${client || 198678}&max=${max || 40}`);
+    es.addEventListener("ask", (ev) => { const q = JSON.parse(ev.data); g.asks.push({ ...q, answer: null, draft: "" }); tell(); });
+    es.addEventListener("answers", (ev) => { g.answers = JSON.parse(ev.data).answers || []; tell(); });
     es.addEventListener("line", (ev) => { g.lines.push(JSON.parse(ev.data).line); g.lines = g.lines.slice(-4); tell(); });
     es.addEventListener("understanding", (ev) => { g.und = JSON.parse(ev.data); tell(); });
     es.addEventListener("grounding", (ev) => { g.grounding = JSON.parse(ev.data).counts; tell(); });
@@ -150,5 +185,5 @@
       ${r.groups.map(group).join("")}
       <div class="sht-filters"><button type="button" class="btn primary" id="sht-found-run" disabled>Run the ticked cases</button><button type="button" class="btn" id="sht-found-all">Tick all shown</button><button type="button" class="btn" id="sht-found-derive">Derive more cases for this</button><span class="sht-hint" id="sht-found-count" style="flex-basis:auto">Tick the cases to run.</span></div></div>`;
   }
-  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive, searchCases, searchCard };
+  window.spineSingle = { caseCard, undCard, runCard, endCard, suggCard, render, wire, start, looksLikeCase, looksLikeDerivation, deriveCard, startDerive, wireAsks, searchCases, searchCard };
 })();

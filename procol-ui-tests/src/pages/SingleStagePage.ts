@@ -380,10 +380,25 @@ export class SingleStagePage extends BasePage {
       await picker.hover({ timeout: 5_000 }).catch(() => {});
       await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     }
-    await pick.click({ timeout: 8_000 }).catch(async (e) => {
-      if (!(await pick.isVisible().catch(() => false))) throw new Error(`the template menu closed before "${name || "the template"}" could be chosen, twice (not evidence about the product)`);
-      throw e;
-    });
+    // The hover menu can close between the re-open and the click (12 Nov, a sanity flow lost its whole run on
+    // it). Try the open-and-click up to three times before giving up; each attempt is short.
+    let clicked = false;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3 && !clicked; attempt++) {
+      if (!(await pick.isVisible().catch(() => false))) {
+        await picker.hover({ timeout: 5_000 }).catch(() => {});
+        await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+        await this.pause(400);
+      }
+      try {
+        await pick.click({ timeout: 4_000 });
+        clicked = true;
+      } catch (e) {
+        lastErr = e;
+        if (await pick.isVisible().catch(() => false)) throw e;
+      }
+    }
+    if (!clicked) throw new Error(`the template menu closed before "${name || "the template"}" could be chosen, three times (not evidence about the product)${lastErr ? `: ${String((lastErr as Error).message).split("\n")[0].slice(0, 80)}` : ""}`);
     // Some tenants confirm a template choice in a modal — accept it.
     const confirm = this.page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-btn-primary").filter({ hasText: /ok|yes|confirm|proceed|continue/i }).first();
     if (await confirm.isVisible().catch(() => false)) await confirm.click({ timeout: 5_000 }).catch(() => {});

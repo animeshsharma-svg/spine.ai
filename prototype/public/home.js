@@ -1024,8 +1024,11 @@
         box2.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases derived</h2>${g.live ? `<span class="pill warn">${g.cases?.length ? "checking against the catalog" : g.grounding ? "writing the permutations" : g.und ? "reading the rules" : "reading it"}</span>` : `<button type="button" class="btn" id="home-case-close">Close</button>`}</div>${window.spineSingle.deriveCard(g)}`;
         q$("#home-case-close")?.addEventListener("click", () => { box2.remove(); if (!mount.children.length) mount.hidden = true; });
         q$("#sht-derive-open")?.addEventListener("click", () => { try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet: g.derivation?.sheet, tickAll: true })); } catch { /* ignore */ } });
+        // the questions it asks before writing: answering one re-renders this card (the server goes on when all are in)
+        window.spineSingle.wireAsks?.(box2, g, () => deriveRun?.onState?.(g));
       },
     });
+    deriveRun.onState = (g) => { box2.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases derived</h2><span class="pill warn">${g.asks?.some((a) => a.answer === null) ? "waiting for you" : "writing the permutations"}</span></div>${window.spineSingle.deriveCard(g)}`; window.spineSingle.wireAsks?.(box2, g, () => deriveRun?.onState?.(g)); };
     box2.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function clientIdNow() {

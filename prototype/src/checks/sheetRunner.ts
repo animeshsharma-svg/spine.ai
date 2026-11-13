@@ -346,7 +346,12 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   r.planRunId = planRunId;
   r.startedFrom = sp?.why ? `${sp.why}${sp.note ? ` (${sp.note})` : ""}` : undefined;
   if (!result?.steps?.length) {
-    r.why = "The browser run ended without a result (it may have been stopped, or the login failed). Nothing can be concluded.";
+    // Playwright leaves the last error beside its output; a network failure reaching the environment is said
+    // as such (12 Nov: page.goto net::ERR_TIMED_OUT on cpanel.ag-ri.in read as "ended without a result")
+    const net = lastBrowserError();
+    r.why = net
+      ? `The environment did not answer the browser (${net}): a network problem on the way to the environment, not the product. Run the case again.`
+      : "The browser run ended without a result (it may have been stopped, or the login failed). Nothing can be concluded.";
     return r;
   }
   const steps = result.steps;
@@ -396,6 +401,25 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // (7 "Fails" on 10 Nov were exactly this). The cell shows the company's own value — not a product bug.
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) compared "${String(f.args?.column)}" with the value the case's test data names, but that value comes from the company's own master data: ${d.slice(0, 180)}. The case's test data does not exist on this company; this is not a product bug.`;
+    } else if ((() => {
+      // the compiler guessed a name the case never wrote ("Buy" for "picks the pricing template") and the screen
+      // shows a name that contains it ("Buy Template"): the case's own words hold, the guess does not (12 Nov, FL1)
+      const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"\n]+?)"?\s*$/i) ?? d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i);
+      if (!m) return false;
+      const shown = m[1].toLowerCase(), want = m[2].toLowerCase();
+      const own = `${c.title} ${c.preconditions} ${c.testData} ${c.steps.join(" ")} ${c.expected}`.toLowerCase();
+      // as a whole word: "buy" inside "buyer" is not the case naming a "Buy" template
+      const asWord = new RegExp(`(^|[^a-z0-9])${want.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`);
+      return want.length >= 3 && !asWord.test(own) && shown.includes(want);
+    })()) {
+      const m = d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"\n]+?)"?\s*$/i) ?? d.match(/shows (?:template |the value |value )?"([^"]+)", not "([^"]+)"/i) ?? d.match(/reads "([^"]+)", expected "([^"]+)"/i)!;
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) expected "${m[2]}", a name the case never wrote (the compiler guessed it); the screen shows "${m[1]}", which contains it. The case's own words hold; the guessed name proves nothing. This is an automation gap, not a product bug.`;
+    } else if (/^expect_participant(_count)?$/.test(f.step) && steps.slice(0, failedAt).some((st) => /invited every vendor the product suggested/i.test(st.detail ?? ""))) {
+      // the company suggests vendors on invite (PROCOL DEMO adds ~200): the participant count is the company's doing,
+      // not the case's, so "exactly the invited vendor" cannot be judged there (12 Nov, FL2 step 16)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) counted participants after the invite step took every vendor the company suggests (the company adds its suggested vendors on invite). The count is the company's, not the case's; this cannot be judged on this company. Not a product bug.`;
     } else if (/^no control reading /i.test(d) && !f.evidence?.appSaid) {
       // the step's own words: the control it was told to judge is not on this screen — a label the compiler
       // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")
@@ -519,4 +543,21 @@ async function resolveRequiredSettings(steps: Array<{ args?: Record<string, unkn
     marks.push(typeof a.key === "string" && a.key ? a.key : `phrase:${phrase}`);
   }
   return { list, marks };
+}
+
+/** The network error of the last Playwright run, read from its error context, when there is one. */
+function lastBrowserError(): string | null {
+  try {
+    const dir = join(here, "..", "..", "..", "procol-ui-tests", "test-results");
+    if (!existsSync(dir)) return null;
+    const dirs = readdirSync(dir).map((d) => join(dir, d, "error-context.md")).filter((f) => existsSync(f));
+    if (!dirs.length) return null;
+    const latest = dirs.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+    if (Date.now() - statSync(latest).mtimeMs > 30 * 60_000) return null;
+    const text = readFileSync(latest, "utf8");
+    const m = text.match(/(net::ERR_[A-Z_]+|ERR_TIMED_OUT|ERR_CONNECTION_[A-Z_]+|ENETUNREACH|ETIMEDOUT) at (https?:\/\/[^\s"]+)/);
+    return m ? `${m[1]} at ${m[2]}` : null;
+  } catch {
+    return null;
+  }
 }

@@ -1283,6 +1283,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         draft: /\bdraft\b|to be scheduled/i,
         closed: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended/i,
         ended: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended|\bended\b/i,
+        // a running event's row reads "RFQ in Progress" / "Auction in Progress" with "Ends in …" (12 Nov, a PRD said "Live")
+        live: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b/i,
+        published: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b|\bupcoming\b|starts in\b/i,
+        upcoming: /\bupcoming\b|starts in\b|\bscheduled\b/i,
+        awarded: /\bawarded\b|\bpo created\b|purchase order/i,
       };
       const said = SAYS[status.toLowerCase()] ? SAYS[status.toLowerCase()].exec(row)?.[0] : row.toLowerCase().includes(status.toLowerCase()) ? status : undefined;
       if (!said) {
@@ -1295,8 +1300,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const shown = await s.create.appliedTemplateName();
       if (shown === null) throw new Error("the stage still offers 'Select Templates' — no template is applied");
       const want = a.name ? String(a.name) : s.templateName;
-      if (want && !shown.toLowerCase().includes(want.toLowerCase()) && !/name not displayed/.test(shown)) {
-        throw new Error(`the stage shows template "${shown}", not "${want}"`);
+      // the menu item's text has two lines ("Buy" over "Buy Template"); the applied name is one of them, or contains
+      // one — any line matching either way is the same template (12 Nov: "Buy\n\nBuy Template" vs "Buy Template")
+      const lines = String(want ?? "").split(/\n/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+      const shownLc = shown.toLowerCase();
+      const same = !lines.length || lines.some((w) => shownLc.includes(w) || w.includes(shownLc));
+      if (want && !same && !/name not displayed/.test(shown)) {
+        throw new Error(`the stage shows template "${shown}", not "${lines.join(" / ")}"`);
       }
       return `template applied: ${shown}`;
     }

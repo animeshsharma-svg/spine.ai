@@ -21,6 +21,7 @@ import type { RouteHandler } from "./index.js";
 import { addSheetCases, importSheetBuffer, listSheets, sheetCaseById, sheetCases, sheetPrep, TYPED_SHEET } from "../checks/sheetCases.js";
 import { caseFromText, suggestEdgeCases, understandCase } from "../checks/singleCase.js";
 import { deriveCases, allQuestions } from "../agents/deriveCases.js";
+import { askQuestion, cancelQuestions } from "../agents/questions.js";
 import * as XLSX from "xlsx";
 import { activeSheetRun, listSheetRuns, loadSheetRun, runSheetCases, stopSheetRun } from "../checks/sheetRunner.js";
 import { exportSheetRun, renderSheetReport } from "../report/sheetReport.js";
@@ -216,11 +217,18 @@ export const handle: RouteHandler = async (ctx) => {
       return true;
     }
     let closed = false;
+    // the derivation asks on screen before it guesses (src/agents/questions.ts): each question has a deadline,
+    // and a closed screen releases whatever is still waiting
+    const runId = `derive-${Date.now().toString(36)}`;
     ctx.req.on("close", () => {
       closed = true;
+      cancelQuestions(runId);
     });
     try {
-      await deriveCases({ text, companyId: Number(sp.get("c")) || 198678, max: Number(sp.get("max")) || 40 }, (e) => {
+      await deriveCases({
+        text, companyId: Number(sp.get("c")) || 198678, max: Number(sp.get("max")) || 40,
+        ask: (q, timeoutMs) => askQuestion(runId, q, (full) => { if (!closed) out.send("ask", full); }, timeoutMs),
+      }, (e) => {
         if (closed) return;
         if (e.type === "line") out.send("line", { id: "derive", line: e.line });
         else out.send(e.type, e);

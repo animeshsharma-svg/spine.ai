@@ -94,8 +94,12 @@ export interface Derivation {
   sheet: string;
   ms: number;
 }
+/** A question the derivation asks the tester on screen; the answer, "" when nobody answered by the deadline, null when the screen is gone. */
+export type DeriveAsk = (q: { text: string; why?: string; kind: "one" | "text"; options?: string[] }, timeoutMs: number) => Promise<string | null>;
+
 export type DeriveEvent =
   | { type: "line"; line: string }
+  | { type: "answers"; answers: Array<{ question: string; answer: string }> }
   | { type: "understanding"; subject: string; module: string; kind: DeriveKind; actors: string[]; actions: string[]; states: string[] }
   | { type: "grounding"; counts: Derivation["grounding"]; existing: Array<{ id: string; title: string }> }
   | { type: "cases"; cases: DerivedCase[] }
@@ -131,7 +135,7 @@ function score(text: string, want: Set<string>): number {
   for (const w of want) if (have.has(w)) n++;
   return n;
 }
-function rulesFor(subject: string, limit = 30): Rule[] {
+export function rulesFor(subject: string, limit = 30): Rule[] {
   const want = words(subject);
   const scored = rules()
     .map((r) => ({ r, s: score(`${r.statement} ${r.section ?? ""}`, want) + (r.kind === "permission" || r.kind === "validation" || r.kind === "state" ? 0.5 : 0) }))
@@ -149,7 +153,7 @@ function rulesFor(subject: string, limit = 30): Rule[] {
   return out;
 }
 interface Defect { ticket: string; module: string; label: string; priority: string; title: string; symptom: string; rootCause: string; fix: string; errorText: string }
-function defectsFor(subject: string, module: string, limit = 10): Defect[] {
+export function defectsFor(subject: string, module: string, limit = 10): Defect[] {
   if (!existsSync(RCA)) return [];
   let all: Defect[] = [];
   try {
@@ -166,7 +170,7 @@ function defectsFor(subject: string, module: string, limit = 10): Defect[] {
     .slice(0, limit)
     .map((x) => x.d);
 }
-function productFor(subject: string, module: string, limit = 8): Array<{ file: string; title: string; text: string }> {
+export function productFor(subject: string, module: string, limit = 8): Array<{ file: string; title: string; text: string }> {
   if (!existsSync(PRODUCT_DIR)) return [];
   const want = words(subject);
   const out: Array<{ file: string; title: string; text: string; s: number }> = [];
@@ -181,7 +185,7 @@ function productFor(subject: string, module: string, limit = 8): Array<{ file: s
   }
   return out.sort((a, b) => b.s - a.s).slice(0, limit);
 }
-async function settingsForSubject(subject: string, companyId: number | undefined, limit = 10): Promise<Array<{ key: string; name: string; def: unknown; current?: unknown; hidden: boolean }>> {
+export async function settingsForSubject(subject: string, companyId: number | undefined, limit = 10): Promise<Array<{ key: string; name: string; def: unknown; current?: unknown; hidden: boolean }>> {
   const want = words(subject);
   let cat: Awaited<ReturnType<typeof settingsCatalog>> = [];
   try {
@@ -204,7 +208,7 @@ async function settingsForSubject(subject: string, companyId: number | undefined
 }
 let catalogCache: Array<{ id: string; title: string; steps?: string; expected?: string }> | null = null;
 /** The catalog cases about this subject: scored by the words they share with it (a phrase search found nothing). */
-function existingFor(subject: string, limit = 40): Array<{ id: string; title: string }> {
+export function existingFor(subject: string, limit = 40): Array<{ id: string; title: string }> {
   try {
     catalogCache ??= findCases({}) as Array<{ id: string; title: string; steps?: string; expected?: string }>;
     const want = words(subject);
@@ -227,7 +231,7 @@ function existingFor(subject: string, limit = 40): Array<{ id: string; title: st
   }
 }
 /** Two titles that say the same thing: most of the significant word stems of the shorter are in the longer. */
-function sameTitle(a: string, b: string): boolean {
+export function sameTitle(a: string, b: string): boolean {
   const stem = (w: string) => w.slice(0, 5);
   const A = new Set([...words(a)].map(stem)), B = new Set([...words(b)].map(stem));
   if (A.size < 3 || B.size < 3) return false;
@@ -238,7 +242,7 @@ function sameTitle(a: string, b: string): boolean {
 }
 
 // ── the model's two jobs: understand, then fill the matrix ────────────────
-function jsonOf(s: string): any {
+export function jsonOf(s: string): any {
   const m = s.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
   if (!m) return null;
   try {
@@ -249,7 +253,7 @@ function jsonOf(s: string): any {
 }
 const UNDERSTAND = `You are a senior QA engineer at Procol, a B2B sourcing platform (buyers run RFQ / RFP / reverse-auction events; vendors bid in the supplier portal; evaluators score technical rounds; awards go through approval and become purchase orders).
 A tester typed something: a feature name, a flow, a PRD, one test case, or a customer ticket. Work out WHAT IS UNDER TEST. Answer JSON only:
-{"kind":"feature|flow|prd|case|ticket","subject":"the behaviour under test in one plain sentence","module":"RFQ|Auction|Bidding|Awarding|CounterOffer|Evaluation|EventStatuses|LineItems|Templates|PurchaseOrder|Intake|Approvals|VendorMgmt|Other","actors":["who acts and who is affected, e.g. buyer with award rights, buyer without it, vendor, evaluator, approver"],"actions":["the user actions involved, as the screen names them"],"states":["the event states where the behaviour is reachable or must be refused, e.g. live, closed, awarded, old version"],"rulesStated":["every rule the text itself states (a PRD's acceptance criteria, a case's expected result, a ticket's expected behaviour)"],"doubts":["what the text leaves unsaid that a tester must ask before judging pass/fail — permissions, defaults, limits"]}`;
+{"kind":"feature|flow|prd|case|ticket","subject":"the behaviour under test in one plain sentence","module":"RFQ|Auction|Bidding|Awarding|CounterOffer|Evaluation|EventStatuses|LineItems|Templates|PurchaseOrder|Intake|Approvals|VendorMgmt|Other","actors":["who acts and who is affected, e.g. buyer with award rights, buyer without it, vendor, evaluator, approver"],"actions":["the user actions involved, as the screen names them"],"states":["the event states where the behaviour is reachable or must be refused, e.g. live, closed, awarded, old version"],"rulesStated":["every rule the text itself states (a PRD's acceptance criteria, a case's expected result, a ticket's expected behaviour)"],"doubts":["what the text leaves unsaid that a tester must ask before judging pass/fail — permissions, defaults, limits; each ONE plain question anyone understands, ONE thing only, under 20 words, no jargon"]}`;
 
 const MATRIX = `You are a senior QA engineer at Procol writing the test cases for ONE subject, as a permutation matrix. Procol's screens: Events list (Live / History / Drafts), the event's project page with stage tabs (Technical Stage, RFQ, Auction), each stage's Responses / Overview / Participants / Analytics tabs, Master QCS, the awarding screen, the Settings menu of a stage (Extend Submission Time, Withdraw, Create New Version, Convert to Auction, Reject Bid, Rejected Bids, Order Activity), the supplier (vendor) portal.
 WALK EVERY DIMENSION and write a case for each cell that MEANS SOMETHING for this subject (skip cells that do not apply — say nothing rather than pad):
@@ -307,9 +311,9 @@ export function allQuestions(): DerivedQuestion[] {
 }
 
 /** Derive the permutation matrix of cases for whatever was typed. Streams progress through `emit`. */
-export async function deriveCases(input: { text: string; companyId?: number; max?: number; save?: boolean }, emit: (e: DeriveEvent) => void = () => {}): Promise<Derivation> {
+export async function deriveCases(input: { text: string; companyId?: number; max?: number; save?: boolean; ask?: DeriveAsk }, emit: (e: DeriveEvent) => void = () => {}): Promise<Derivation> {
   const t0 = Date.now();
-  const text = input.text.trim();
+  let text = input.text.trim();
   const say = (line: string) => emit({ type: "line", line });
   const max = Math.min(Math.max(input.max ?? 40, 8), 80);
 
@@ -324,8 +328,39 @@ export async function deriveCases(input: { text: string; companyId?: number; max
   const actions: string[] = Array.isArray(u.actions) ? u.actions.map(clean).filter(Boolean).slice(0, 10) : [];
   const states: string[] = Array.isArray(u.states) ? u.states.map(clean).filter(Boolean).slice(0, 10) : [];
   const stated: string[] = Array.isArray(u.rulesStated) ? u.rulesStated.map(clean).filter(Boolean).slice(0, 20) : [];
-  const doubts: string[] = Array.isArray(u.doubts) ? u.doubts.map(clean).filter(Boolean).slice(0, 10) : [];
+  let doubts: string[] = Array.isArray(u.doubts) ? u.doubts.map(clean).filter(Boolean).slice(0, 10) : [];
   emit({ type: "understanding", subject, module, kind, actors, actions, states });
+
+  // 1b · ASK BEFORE GUESSING — when a screen is listening, the tester is asked, in plain words, whether the reading
+  // is right and each thing the text leaves unsaid; the answers become rules for the matrix. Every question has a
+  // deadline, so a tester who walked away does not hold the derivation: what is unanswered stays an open question.
+  const answers: Array<{ question: string; answer: string }> = [];
+  if (input.ask) {
+    const KIND_WORDS: Record<DeriveKind, string> = { feature: "a feature", flow: "a flow", prd: "a requirement (PRD)", case: "one test case", ticket: "a bug ticket" };
+    say(`Before I write anything, ${doubts.length ? `I have ${doubts.length + 1} things to check with you` : "one thing to check with you"} — answer on the card, or I go on in a few minutes with what I have.`);
+    const confirm = await input.ask({
+      text: `I read this as ${KIND_WORDS[kind]} about “${subject}”${actors.length ? `, involving ${actors.slice(0, 3).join(", ")}` : ""}. Is that right?`,
+      why: "If I have the wrong end of the stick, every case will be about the wrong thing.",
+      kind: "one", options: ["Yes, that's it", "Not quite — let me say what it is"],
+    }, 90_000);
+    if (confirm === null) say("The screen went away; going on with my own reading.");
+    else if (confirm && !/^(yes|y\b|that's it|right|correct|ok)/i.test(confirm) && !/^not quite — let me say/i.test(confirm)) {
+      text = `${text}\n\nWHAT THE TESTER SAYS IT IS: ${confirm}`;
+      answers.push({ question: "What is under test", answer: confirm });
+      say("Noted — I'll go by your words for what is under test.");
+    }
+    if (doubts.length && confirm !== null) {
+      const replies = await Promise.all(doubts.map((d) => input.ask!({ text: d, why: "If you don't know, I'll write that case as “record what happens” instead of guessing.", kind: "text", options: ["I don't know"] }, 180_000)));
+      const open: string[] = [];
+      doubts.forEach((d, i) => {
+        const a = (replies[i] ?? "").trim();
+        if (a && !/^i don'?t know$/i.test(a)) answers.push({ question: d, answer: a }); else open.push(d);
+      });
+      doubts = open;
+      if (answers.length) say(`Thanks — ${answers.length} answer(s) will be used as rules; ${open.length} question(s) stay open.`);
+    }
+    if (answers.length) emit({ type: "answers", answers });
+  }
 
   // 2 · ground
   say("Reading Procol's code rules, settings, the RCA tickets and the product sheets for this subject…");
@@ -345,6 +380,7 @@ export async function deriveCases(input: { text: string; companyId?: number; max
     `WHAT WAS TYPED (${kind}):\n${text.slice(0, 8000)}`,
     `SUBJECT: ${subject}\nMODULE: ${module}\nACTORS: ${actors.join("; ")}\nACTIONS: ${actions.join("; ")}\nSTATES: ${states.join("; ")}`,
     stated.length ? `RULES THE TEXT ITSELF STATES:\n${stated.map((s) => `- ${s}`).join("\n")}` : "",
+    answers.length ? `WHAT THE TESTER ANSWERED WHEN ASKED (treat each as a stated rule; cite as "tester's answer"):\n${answers.map((a) => `- ${a.question} → ${a.answer}`).join("\n")}` : "",
     rs.length ? `PROCOL'S CODE RULES (cite by id):\n${rs.map((r) => `${r.id} [${r.kind}] ${clean(r.statement).slice(0, 220)}`).join("\n")}` : "",
     settings.length ? `COMPANY SETTINGS (cite by key):\n${settings.map((s) => `${s.key} — ${s.name || s.key} (default ${JSON.stringify(s.def)}${s.current !== undefined ? `, test company now ${JSON.stringify(s.current)}` : ""}${s.hidden ? ", HIDDEN: only a Procol employee can switch it" : ""})`).join("\n")}` : "",
     defects.length ? `WHAT BROKE BEFORE — RCA tickets (cite by ticket id; each needs a case that would catch it):\n${defects.map((d) => `${d.ticket} (${d.module}, ${d.priority}): ${d.title}. Symptom: ${d.symptom.slice(0, 200)} Root cause: ${d.rootCause.slice(0, 200)}`).join("\n")}` : "",
