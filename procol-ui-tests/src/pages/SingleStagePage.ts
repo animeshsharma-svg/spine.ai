@@ -216,11 +216,15 @@ export class SingleStagePage extends BasePage {
         // the card's own radio input is the truth (14 Nov: the class test read "unselected" as selected, so a
         // Traffic Light click lost to a re-render went unnoticed and the drawer saved Rank)
         const input = card.locator("input[type='radio']").first();
-        const cls = (await card.getAttribute("class", { timeout: 2_000 }).catch(() => "")) ?? "";
-        const checked = (await input.count().catch(() => 0))
-          ? await input.isChecked().catch(() => false)
-          : (await card.getAttribute("aria-checked", { timeout: 2_000 }).catch(() => null)) === "true" || (/(^|\s|--)(checked|active|selected)(\s|$)/.test(cls) && !/unselected|inactive|unchecked/.test(cls));
-        if (checked) return;
+        const isChecked = async () => {
+          const cls = (await card.getAttribute("class", { timeout: 2_000 }).catch(() => "")) ?? "";
+          return (await input.count().catch(() => 0))
+            ? await input.isChecked({ timeout: 2_000 }).catch(() => false)
+            : (await card.getAttribute("aria-checked", { timeout: 2_000 }).catch(() => null)) === "true" || (/(^|\s|--)(checked|active|selected)(\s|$)/.test(cls) && !/unselected|inactive|unchecked/.test(cls));
+        };
+        // a controlled radio shows the click at once and REVERTS on the next render when the app lost the change
+        // (14 Nov: Traffic Light read checked, the drawer saved Rank) — the choice counts only once it survives a beat
+        if ((await isChecked()) && (await this.pause(700), await isChecked())) return;
       }
       throw new Error(`the configuration drawer would not keep "${label}" selected after three tries`);
     };
@@ -288,10 +292,18 @@ export class SingleStagePage extends BasePage {
       {
         // the type is required ("Traffic light type is required" kept the drawer open, 14 Nov): Price unless the plan says Rank
         const group = d.locator(".ant-form-item", { hasText: /Group traffic light by/i }).first();
-        const radio = group.getByText(cfg.trafficBy === "rank" ? /^Rank$/i : /^Price$/i).first();
-        if (!(await radio.count())) throw new Error(`no "Group traffic light by" choice in the configuration drawer`);
-        await radio.click({ timeout: 3_000 });
-        await this.pause(300);
+        const radio = group.locator(".ant-radio-wrapper", { hasText: cfg.trafficBy === "rank" ? /^\s*Rank\s*$/i : /^\s*Price\s*$/i }).first();
+        // the group renders a beat after the Traffic Light card is chosen; a count taken at once read 0 (14 Nov)
+        await radio.waitFor({ state: "visible", timeout: 6_000 }).catch(() => {});
+        if (!(await radio.count())) {
+          const chosen = ((await d.locator(".pro-radio-tabs__tab", { hasText: /Traffic Light/i }).first().locator("input[type='radio']").isChecked({ timeout: 1_000 }).catch(() => false)) ? "Traffic Light reads chosen" : "Traffic Light does NOT read chosen");
+          throw new Error(`no "Group traffic light by" choice in the configuration drawer (${chosen}; the drawer reads: “${(((await d.innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200))}”)`);
+        }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await radio.click({ timeout: 3_000 });
+          await this.pause(600);
+          if (await radio.locator("input[type='radio']").isChecked({ timeout: 1_000 }).catch(() => false)) break;
+        }
       }
       const green = d.getByRole("textbox", { name: /range green/i }).first();
       const yellow = d.getByRole("textbox", { name: /range yellow/i }).first();
@@ -314,7 +326,7 @@ export class SingleStagePage extends BasePage {
       const box = d.locator(".ant-form-item", { hasText: /Dynamic Event Extension/i }).first();
       if (!(await box.count())) throw new Error(`no "Dynamic Event Extension" option in the configuration drawer for this auction (the product offers it for rank, price and traffic light auctions, not Knockout / Dutch)`);
       const input = box.locator("input[type='checkbox']").first();
-      const on = await input.isChecked().catch(() => false);
+      const on = await input.isChecked({ timeout: 3_000 }).catch(() => false);
       if (on !== cfg.dynamicExtension) {
         await box.locator(".ant-checkbox").first().click({ timeout: 3_000 });
         await this.pause(400);
@@ -344,7 +356,7 @@ export class SingleStagePage extends BasePage {
           const custom = minutesBox();
           if (!(await custom.count())) throw new Error(`no "Extend time by" minutes box appeared in the drawer`);
           // the box is required: a plan that names no extension gets 2 minutes (the app's placeholder is 10)
-          const current = ((await custom.inputValue().catch(() => "")) || "").trim();
+          const current = ((await custom.inputValue({ timeout: 2_000 }).catch(() => "")) || "").trim();
           if (minutes !== undefined || !current) {
             await custom.fill(minutes ?? "2");
             await this.page.keyboard.press("Tab").catch(() => {});
@@ -355,7 +367,7 @@ export class SingleStagePage extends BasePage {
         {
           const trig = item(/Trigger time extension on last/i).locator("input").first();
           if (!(await trig.count())) throw new Error(`no "Trigger time extension on last" box in the drawer`);
-          const current = ((await trig.inputValue().catch(() => "")) || "").trim();
+          const current = ((await trig.inputValue({ timeout: 2_000 }).catch(() => "")) || "").trim();
           // required too: a plan that names no trigger gets the app's own minimum, 1 minute
           if (cfg.triggerMinutes !== undefined || !current) {
             await trig.fill(cfg.triggerMinutes === undefined ? "1" : String(cfg.triggerMinutes));
