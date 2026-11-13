@@ -504,7 +504,15 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number, fromPr
   // QA vendor 1. A plan where "the vendor" must act on THAT bid — revoke it, bid again as the same company,
   // see its own draft — signs in as the bidder (13 Nov: API-BID-010 bid as another company and was accepted
   // for the wrong reason; API-BID-012's revoke by QA vendor 1 was refused 101).
-  if (m.vendorCompanyUuid && (m.vendorEmail || (j as any).vendorEmail) && m.vendorCompanyUuid !== vals.vendorUuid) {
+  // …and the bid belongs to the bidder's USER: a revoke is allowed only to the user who placed the bid, so the same
+  // company under another QA login is still refused (13 Nov, API-BID-012) — sign in as the bidder whenever its login is known and differs
+  // Best of all: the journey's OWN vendor session — the very user that placed the bid (a QA login can resolve to
+  // another user id when the vendor's home company differs from the invited one, 13 Nov)
+  if (m.vendorCompanyUuid && (j as any).actors?.vendorApi) {
+    rc.apis.set("vendor", (j as any).actors.vendorApi);
+    vals.vendorUuid = m.vendorCompanyUuid;
+    rc.onLine(`  setup · "the vendor" in this plan is the session that placed the bid (${String(m.vendorName ?? m.vendorEmail ?? "the bidder")})`);
+  } else if (m.vendorCompanyUuid && (m.vendorEmail || (j as any).vendorEmail) && (m.vendorCompanyUuid !== vals.vendorUuid || String(m.vendorEmail ?? "").toLowerCase() !== String(rc.vendors[0]?.email ?? "").toLowerCase())) {
     const email = String(m.vendorEmail ?? (j as any).vendorEmail);
     const r = await withWatchdog(vendorClient(rc.companyId, email, rc.baseURL), 120_000, "signing the bidding vendor in").catch((e) => ({ error: (e as Error).message }) as { api?: any; error?: string });
     if (r.api) {

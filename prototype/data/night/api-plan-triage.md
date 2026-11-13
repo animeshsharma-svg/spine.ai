@@ -27,4 +27,6 @@ Later on 13 Nov: API-BID-010 PASSES once "the vendor" in a plan is the bidder th
 
 The bug sheet is now in the team's plain voice (src/ai/plainWords.ts, exemplars from the 3 Oct sheet and the manual case sheets in data/plain-style.json; the technical facts in QA Comment).
 
-Next: hand-check the two auction rows and the surrogate-bid row, find the vendor portal's revoke call, then the sheet goes to the tester.
+The revoke call (13 Nov, later): a vendor may set its bid to "revoke" through `PATCH /bids/update_bid_status/:id {status: revoke}` only when the ROUND allows it (`trade_config.is_allowed_to_revoke_bid`, "Are bidders allowed to revoke bid") and the caller is the user who placed the bid (backend `bids_controller_helper#validate_bid_update_conditions`). The platform can now build that round: journey step `allow_revoke` (GET /trade/:id, merge the flag into `trade_config`, PATCH /trade/:id, read back) and recipe `rfq_with_bid_revocable`; the runner also hands the plan's "vendor" the very session that placed the bid. With all that, the vendor's revoke is STILL refused 101 on PROCOL DEMO (three runs). Observation for a hand check: with "Are bidders allowed to revoke bid" on, try Revoke on the vendor portal; if it works there, the API path needs something the portal sends that we do not. API-BID-012 stays couldn't-tell.
+
+Next: hand-check the two auction rows, the surrogate-bid row and the revoke, then the sheet goes to the tester.

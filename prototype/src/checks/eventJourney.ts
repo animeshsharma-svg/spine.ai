@@ -1147,6 +1147,31 @@ const readBack: StepSpec = {
   },
 };
 
+/**
+ * "Are bidders allowed to revoke bid" — a round setting (trade config `is_allowed_to_revoke_bid`, backend
+ * bids_controller_helper#validate_bid_update_conditions: a vendor may set its bid to "revoke" only when the
+ * round allows it). The buyer reads the round, merges the flag into its config and saves it (PATCH /trade/:id,
+ * trade#update — ignored for a Procol-employee user, which the read-back below would show). 13 Nov, API-BID-012.
+ */
+const allowRevoke: StepSpec = {
+  kind: "allow_revoke",
+  needs: (j, ev, done) => first(needBuyer(j, done), needPublished(j, ev, done), need(j, done, "the event has no pricing round", !!tradeOf(ev, "pricing"), "add_stage_pricing")),
+  expected: () => "The pricing round's settings now allow bidders to revoke their bids.",
+  run: async (j, ev) => {
+    const trade = tradeOf(ev, "pricing")!;
+    const read = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(trade));
+    if (!read.reply.ok) return { call: read.call, reply: read.reply };
+    const d = read.reply.data ?? {};
+    const cfg = (d.trade_config ?? d.config ?? d.trade_request?.config ?? {}) as Record<string, unknown>;
+    const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", `/trade/${trade}`, { trade_config: { ...cfg, is_allowed_to_revoke_bid: true } });
+    if (!reply.ok) return { call, reply, alsoCalled: [read.call] };
+    const again = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(trade));
+    const now = (again.reply.data?.trade_config ?? again.reply.data?.config ?? again.reply.data?.trade_request?.config ?? {}) as Record<string, unknown>;
+    if (now.is_allowed_to_revoke_bid !== true) return { call, reply, alsoCalled: [read.call, again.call], shortfall: "the round was saved, but reading it back the setting is still off (a Procol-employee user cannot change a round's config)" };
+    return { call, reply, alsoCalled: [read.call, again.call], actual: "The round now allows bidders to revoke their bids." };
+  },
+};
+
 const vendorLogin: StepSpec = {
   kind: "vendor_login",
   needs: (j) => (j.vendorEmail ? undefined : "this client's invited vendor has no login email"),
@@ -2086,6 +2111,7 @@ const SPECS: Record<StepKind, StepSpec> = {
   add_stage_pricing: addStage("add_stage_pricing"),
   publish,
   read_back: readBack,
+  allow_revoke: allowRevoke,
   vendor_login: vendorLogin,
   vendor_open_pricing: vendorOpenPricing,
   vendor_open_technical: vendorOpenTechnical,

@@ -166,6 +166,7 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         // over the sheet's own default_event_type line (13 Nov, SRC-AUC-006: the sheet said "auction" because the
         // case is about an auction, but the plan reaches Dutch through an RFQ that is converted — its first screen
         // is the RFQ's, and opening it as an auction lost the RFQ choice in the drawer).
+        if (c.layer === "ui") await ensureStoredTextPlan(c, line);
         if (c.layer === "ui") {
           const planned = storedTextPlan(c.id)?.plan?.steps?.find((st: { step: string; args?: Record<string, unknown> }) => st.step === "configure_single_stage")?.args?.eventType;
           if (typeof planned === "string" && ["rfq", "rfp", "auction"].includes(planned)) {
@@ -301,6 +302,41 @@ async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?:
   return again;
 }
 
+/** A fresh compile the model answered is kept in the text-plan store (a cache: a failed write changes nothing about the run). */
+function savePlanFor(c: SheetCase, sp: ReturnType<typeof sheetPrep>, compiled: Compiled): void {
+  const plan = compiled.plan as { steps?: Array<{ step: string; args?: Record<string, unknown> }> };
+  if (compiled.source === "fallback" || !plan?.steps?.length) return;
+  try {
+    saveTextPlan({
+      meta: {
+        caseId: c.id, title: c.title, group: c.id.replace(/-\d+[A-Z]?$/i, ""), ...((c as any).sheet ? { sheet: String((c as any).sheet) } : {}),
+        compiledAt: new Date().toISOString(), tier: "fast", coverage: compiled.coverage, gaps: compiled.gaps ?? [], warnings: compiled.warnings ?? [], source: compiled.source,
+        steps: plan.steps.length, stepNames: plan.steps.map((s) => s.step),
+        ...(sp?.prepared && !sp.unbuilt ? { state: sp.state, screen: sp.screen } : {}), ...(sp?.unbuilt ? { unbuilt: `${sp.why} ${sp.unbuilt}`.trim() } : {}),
+        ms: 0,
+      } as any,
+      plan: structuredClone(plan) as any,
+    });
+  } catch { /* cache */ }
+}
+
+/**
+ * The case's stored text plan, compiled NOW when none fresh exists: the settings switch before the run reads the
+ * plan's first create screen (13 Nov, SRC-AUC-009: a fresh compile had no stored plan yet, the screen opened as
+ * RFP and the drawer lost the RFQ choice). The run then reuses this plan — one compile, not two.
+ */
+async function ensureStoredTextPlan(c: SheetCase, line: (l: string) => void): Promise<void> {
+  const sp = sheetPrep(c);
+  if (sp?.unbuilt) return;
+  const stored = storedTextPlan(c.id);
+  if (stored && stored.meta.source !== "fallback" && textPlanIsFresh(stored) && (stored.meta.state ?? "none") === (sp?.prepared && !sp.unbuilt ? sp.state : "none") && stored.plan?.steps?.length) return;
+  line("Compiling the case's steps first, so the company can be set up for the screen the plan opens.");
+  const compiled = await compileTestCase(sheetCaseProse(c), "events", {
+    ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical, ...(sp.shape ? { shape: sp.shape } : {}) } } : {}),
+  }).catch(() => null as Compiled | null);
+  if (compiled) savePlanFor(c, sp, compiled);
+}
+
 async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean; applied?: string[] }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround, precompiled?: Compiled): Promise<SheetRunCase> {
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
@@ -324,20 +360,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   // A fresh compile the model answered is kept in the text-plan store, so the next run (and this run's second
   // attempt) reuse it and the settings switch reads the plan's first create screen (13 Nov: a stale stored plan
   // said "auction" where the fresh compile opened the RFQ screen first)
-  if (!precompiled && !reuse && !ground && compiled.source !== "fallback" && plan.steps?.length) {
-    try {
-      saveTextPlan({
-        meta: {
-          caseId: c.id, title: c.title, group: c.id.replace(/-\d+[A-Z]?$/i, ""), ...((c as any).sheet ? { sheet: String((c as any).sheet) } : {}),
-          compiledAt: new Date().toISOString(), tier: "fast", coverage: compiled.coverage, gaps: compiled.gaps ?? [], warnings: compiled.warnings ?? [], source: compiled.source,
-          steps: plan.steps.length, stepNames: plan.steps.map((s) => s.step),
-          ...(sp?.prepared && !sp.unbuilt ? { state: sp.state, screen: sp.screen } : {}), ...(sp?.unbuilt ? { unbuilt: `${sp.why} ${sp.unbuilt}`.trim() } : {}),
-          ms: 0,
-        } as any,
-        plan: structuredClone(plan) as any,
-      });
-    } catch { /* the store is a cache; a failed write changes nothing about the run */ }
-  }
+  if (!precompiled && !reuse && !ground) savePlanFor(c, sp, compiled);
   if (compiled.source === "fallback") return { ...base(c, "Not run", "The steps could not be turned into browser actions (the model gave no usable plan). Nothing was run in its place.", 0), startedFrom: sp?.why };
   if (compiled.coverage === "none" || !plan.steps.length)
     return { ...base(c, "Not run", `The automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}. Nothing was run in its place.`, 0), startedFrom: sp?.why };

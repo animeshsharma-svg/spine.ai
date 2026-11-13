@@ -70,6 +70,7 @@ export type RecipeId =
   | "published_rfq_short"
   | "published_rfp_rfq"
   | "rfq_with_bid"
+  | "rfq_with_bid_revocable"
   | "rfq_with_2_bids"
   | "rfp_rfq_with_tech_response"
   | "closed_rfq"
@@ -301,6 +302,7 @@ export const RECIPES: Record<RecipeId, Recipe> = {
   published_rfq_short: { id: "published_rfq_short", title: "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.", eventType: "rfq_only", steps: PUB_RFQ, clock: "short", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   published_rfp_rfq: { id: "published_rfp_rfq", title: "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.", eventType: "rfp_rfq", steps: PUB_RFP_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
   rfq_with_bid: { id: "rfq_with_bid", title: "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.", eventType: "rfq_only", steps: [...PUB_RFQ, ...BID], clock: "long", vendors: 1, bids: 1, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, "bidUuid"], minutes: 2 },
+  rfq_with_bid_revocable: { id: "rfq_with_bid_revocable", title: "A fresh published RFQ event where bidders may revoke their bids (the round allows it), and the invited QA vendor has submitted a bid; bidding still open.", eventType: "rfq_only", steps: [...PUB_RFQ, "allow_revoke", ...BID], clock: "long", vendors: 1, bids: 1, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, "bidUuid"], minutes: 2 },
   rfq_with_2_bids: { id: "rfq_with_2_bids", title: "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.", eventType: "rfq_only", steps: [...PUB_RFQ, ...BID], clock: "long", vendors: 2, bids: 2, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, "bidUuid", "bid2Uuid"], minutes: 3 },
   rfp_rfq_with_tech_response: { id: "rfp_rfq_with_tech_response", title: "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.", eventType: "rfp_rfq", steps: [...PUB_RFP_RFQ, ...TECH], clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP, "templateResponseUuid"], minutes: 2 },
   closed_rfq: { id: "closed_rfq", title: "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.", eventType: "rfq_only", steps: PUB_RFQ, clock: "short", vendors: 1, bids: 0, closed: true, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 3 },
@@ -1336,6 +1338,7 @@ export function recipeForLibraryCase(c: TestCaseRecord): { recipe: RecipeId; act
   }
   else if (needsAward) recipe = "awarded_rfq";
   else if (closed) recipe = hasRfp ? "closed_rfp_rfq_with_tech_response" : needsBid ? "closed_rfq_with_bid" : "closed_rfq";
+  else if (needsBid && /\brevok/.test(pre)) recipe = "rfq_with_bid_revocable";
   else if (needsBid) recipe = "rfq_with_bid";
   else if (/technical response|template response|responded/.test(pre) || ph.has("templateResponseUuid")) recipe = "rfp_rfq_with_tech_response";
   else if (hasRfp) recipe = "published_rfp_rfq";

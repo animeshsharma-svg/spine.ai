@@ -65,6 +65,7 @@ export type StepKind =
   | "add_stage_pricing"
   | "publish"
   | "read_back"
+  | "allow_revoke"
   // vendor responds — folder "vendor technical and bid"
   | "vendor_login"
   | "vendor_open_pricing"
@@ -110,6 +111,7 @@ export const JOURNEY_ORDER: StepKind[] = [
   "add_stage_pricing",
   "publish",
   "read_back",
+  "allow_revoke",
   "vendor_login",
   "vendor_open_pricing",
   "vendor_open_technical",
@@ -154,6 +156,7 @@ export const STEP_META: Record<StepKind, StepMeta> = {
   add_stage_pricing: { title: "Add the pricing round", actor: "buyer", postman: "event create › Template Pricing" },
   publish: { title: "Publish the event to the invited vendor", actor: "buyer", postman: "event create › Publish" },
   read_back: { title: "Read the event back", actor: "buyer" },
+  allow_revoke: { title: "Allow bidders to revoke their bids on the round", actor: "buyer", postman: "trade › read, update (trade_config.is_allowed_to_revoke_bid)" },
   vendor_login: { title: "Sign in as the vendor", actor: "vendor", postman: "auth › vendor_generate otp, vendor verify otp" },
   vendor_open_pricing: { title: "Open the pricing round as the vendor", actor: "vendor", postman: "vendor technical and bid › trade details" },
   vendor_open_technical: { title: "Open the technical round as the vendor", actor: "vendor", postman: "vendor technical and bid › get technical trade details" },

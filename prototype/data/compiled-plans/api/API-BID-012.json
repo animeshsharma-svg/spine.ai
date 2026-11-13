@@ -20,7 +20,7 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh RFQ event where the invited QA vendor has an active bid; the buyer then revokes it.",
+   "preconditions": "A fresh published RFQ where bidders may revoke their bids; the invited QA vendor has an active bid.",
    "steps": [
     "The buyer sets the bid's status to revoke.",
     "The vendor sends POST /v1/bids again on the same round."
@@ -33,7 +33,7 @@
   "caseId": "API-BID-012",
   "title": "Bidding after revoking is refused",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "rfq_with_bid_revocable"
   },
   "act": [
    {
@@ -44,11 +44,10 @@
      "method": "PATCH",
      "path": "/bids/update_bid_status/{{bidUuid}}",
      "body": {
-      "status": "revoke",
-      "rejection_remarks": "QA_Platform_revoke_{{stamp}}"
+      "status": "revoke"
      }
     },
-    "say": "The vendor revokes its own bid (the buyer may not: code 101 on 13 Nov)."
+    "say": "The vendor revokes its own bid (the round allows revoking)."
    },
    {
     "op": "open_bid",
