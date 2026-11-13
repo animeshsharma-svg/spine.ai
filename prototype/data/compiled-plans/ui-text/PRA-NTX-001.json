@@ -4,56 +4,64 @@
   "title": "Assigning to yourself sends no notification",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:03:07.014Z",
+  "compiledAt": "2026-11-12T13:47:55.214Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign PR-1 to the logged-in PR manager by opening the Assign user picker, selecting the manager's own name, opening the top-right notifications, and verifying that no new \"assigned to you\" notification exists.",
    "unconfirmed label \"assigned to you\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"assigned to you\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Assign PR-1 to the logged-in PR manager by opening the Assign user picker, selecting the manager's own name, opening the top-right notifications, and verifying that no new \"assigned to you\" notification exists."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "ask_tester",
+   "do_on_screen",
    "expect_text"
   ],
-  "ms": 10023
+  "ms": 20696
  },
  "plan": {
   "title": "Self-assignment sends no notification",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration for this case."
+   },
+   {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Navigate to Purchase Requisitions, the starting screen for PR-1."
+    "note": "Open Purchase Requisitions as the starting screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open purchase requisitions tab as required by the case."
+    "note": "Stay on the Open PR tab."
    },
    {
     "step": "select_pr",
     "args": {
      "pr": "PR-1"
     },
-    "note": "Select the specified PR-1 item before the unavailable assignment action."
+    "note": "Select the specified PR-1 item."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "assign PR-1 to the logged-in PR manager's own name, open the top-right notifications, and verify there is no new \"assigned to you\" notification"
+     "goal": "As the current PR manager, click Assign, choose the current user's own name from the Search a user list, confirm the assignment if required, then click the top-right bell and leave the notifications panel open."
     },
-    "note": "The catalog has no step for the PR assignment picker or notification center."
+    "note": "Perform the self-assignment and open notifications, which have no dedicated domain steps."
    },
    {
     "step": "expect_text",
@@ -61,7 +69,7 @@
      "text": "assigned to you",
      "present": false
     },
-    "note": "Check that the expected self-assignment notification text is absent after the tester's actions."
+    "note": "Verify that no new self-assignment notification is shown."
    }
   ]
  }

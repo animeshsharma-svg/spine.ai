@@ -4,57 +4,108 @@
   "title": "A live RFQ with a vendor's bid: switching is_counter_offer_percent_bid_allowed changes nothing visible here",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:21:05.585Z",
+  "compiledAt": "2026-11-12T13:40:10.582Z",
   "tier": "fast",
   "coverage": "partial",
-  "gaps": [
-   "Switch the tenant setting is_counter_offer_percent_bid_allowed from On to Off and determine whether any Responses, Settings, or bid ⋮ menu controls change."
-  ],
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Switch the tenant setting is_counter_offer_percent_bid_allowed from On to Off and determine whether any Responses, Settings, or bid ⋮ menu controls change."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Toggle is_counter_offer_percent_bid_allowed from On to Off during the same session and observe or compare what changes o” — require_setting switches that company setting before the case and back after",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_visible",
-   "ask_tester",
+   "probe_controls",
    "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 8904
+  "ms": 18007
  },
  "plan": {
-  "title": "RFQ Counter-Offer Percentage Setting Visibility",
+  "title": "RFQ Counter Offer Percent Setting Visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with one vendor bid on the buyer's Responses tab."
+    "note": "Open the prepared live RFQ Responses screen containing the vendor's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep RFQ counter offers visible as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required buyer bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Use the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the target setting value, although the catalog cannot compare it with the On state in the same run."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "tab",
-     "name": "Responses",
+     "role": "button",
+     "name": "Counter Offer",
      "visible": true
     },
-    "note": "Confirm the relevant buyer Responses screen is rendered before the unavailable setting change."
+    "note": "Record the closest observable counter-offer control on the Responses screen."
    },
    {
-    "step": "ask_tester",
+    "step": "probe_controls",
     "args": {
-     "need": "switch is_counter_offer_percent_bid_allowed from On to Off and compare the Responses controls, Settings menu, and bid ⋮ menu with the current screen"
+     "within": "Settings",
+     "include": [
+      "Settings"
+     ],
+     "max": 30
     },
-    "note": "A tester must perform the tenant-setting change and observe the resulting UI because catalog steps cannot modify tenant settings."
+    "note": "Explore the available event Settings controls and record any menus or changes without confirming destructive actions."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the buyer screen remains rendered without an application error after the exploration."
+    "note": "Assert that the Responses screen remains rendered without errors or corrupted values."
    }
   ]
  }

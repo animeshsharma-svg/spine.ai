@@ -4,20 +4,19 @@
   "title": "Savings before bidding ends",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:38:51.084Z",
+  "compiledAt": "2026-11-12T13:09:45.776Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Reproduce the RFQ with two live bids from vendors A and B at 100 and 90 in the fixed prepared state; it contains only one bid and cannot be changed before this check.",
-   "Verify the two-vendor columns, ranks, amounts, and totals specifically for bids A=100 and B=90."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Reproduce the RFQ with two live bids from vendors A and B at 100 and 90 in the fixed prepared state; it contains only one bid and cannot be changed before this check.; Verify the two-vendor columns, ranks, amounts, and totals specifically for bids A=100 and B=90."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_ranks",
    "expect_qcs_amounts",
@@ -25,34 +24,52 @@
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 7647
+  "ms": 69473
  },
  "plan": {
-  "title": "Savings Hidden Before Bidding Ends",
+  "title": "Savings hidden before bidding ends",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared live bidding event."
+    "note": "Open the prepared live RFQ with two bids directly on Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the required eRFX project configuration is enabled for the tenant."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
+     "count": 2,
      "realNames": true
     },
-    "note": "Verify the comparison grid renders real vendor column names; the prepared state supports only its available vendor set."
+    "note": "Verify that both bidding vendors appear as real vendor columns."
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {},
-    "note": "Read the ranks shown in the live comparison grid."
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that the lower bid ranks better than the higher bid."
    },
    {
     "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify the displayed line amounts and total arithmetic in Master QCS."
+    "args": {
+     "rate": "RFQ Rate",
+     "qty": "Qty Offer",
+     "amount": "RFQ Amount",
+     "total": "Sum Total"
+    },
+    "note": "Verify the per-line amounts and vendor totals are calculated correctly from rate and quantity."
    },
    {
     "step": "expect_text",
@@ -60,7 +77,7 @@
      "text": "Savings will be visible after bidding ends",
      "present": true
     },
-    "note": "Assert that savings are explicitly withheld until bidding ends."
+    "note": "Verify that savings are not displayed before the live bidding window ends."
    }
   ]
  }

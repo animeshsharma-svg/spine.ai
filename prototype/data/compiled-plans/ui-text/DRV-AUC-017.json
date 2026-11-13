@@ -1,28 +1,30 @@
 {
  "meta": {
   "caseId": "DRV-AUC-017",
-  "title": "Convert RFQ latest quotes into active auction bids during RFQ to Auction conversion",
+  "title": "Auction reports display vendor-submitted values instead of blank entries or zero costs",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-09T22:55:48.207Z",
+  "compiledAt": "2026-11-12T13:33:01.868Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A prepared draft auction with participants already selected; the prepared draft state is documented as a pricing RFQ draft and no step can verify or change it to an auction before publishing."
+   "The prepared state is fixed as an RFQ draft, so the plan cannot verify publishing a draft auction.",
+   "The plan cannot guarantee that participants are selected on the draft before publishing."
   ],
   "warnings": [
-   "can only test part of this — no step for: A prepared draft auction with participants already selected; the prepared draft state is documented as a pricing RFQ draft and no step can verify or change it to an auction before publishing."
+   "can only test part of this — no step for: The prepared state is fixed as an RFQ draft, so the plan cannot verify publishing a draft auction.; The plan cannot guarantee that participants are selected on the draft before publishing."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "click",
+   "expect_no_error",
    "expect_screen_clean"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 124222
+  "ms": 8853
  },
  "plan": {
   "title": "Publish Draft Auction Without Server Error",
@@ -32,7 +34,7 @@
     "args": {
      "screen": "draft"
     },
-    "note": "Open the existing prepared draft event rather than creating or searching for another event."
+    "note": "Open the existing prepared draft instead of creating or searching for an event."
    },
    {
     "step": "click",
@@ -40,12 +42,17 @@
      "role": "button",
      "name": "Publish"
     },
-    "note": "Attempt the publish action requested by the case."
+    "note": "Attempt to publish the draft as required by the case."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert that publishing did not produce an application error."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify the page remains usable and shows no internal server error, server error, raw error, or crash after publishing."
+    "note": "Assert there is no internal server error, crash, raw error, or broken page after publishing."
    }
   ]
  }

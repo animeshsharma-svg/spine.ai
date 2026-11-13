@@ -4,20 +4,20 @@
   "title": "RFQ: raise by 10 (100 → 110)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:46:17.713Z",
+  "compiledAt": "2026-11-12T13:11:17.979Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Starting from an RFQ with exactly two bids, including Vendor A at 100 and Vendor B at 90; the prepared state contains only one bid.",
-   "Checking the company setting that allows or blocks RFQ price increases, or conditionally asserting the refusal message \"You cannot increase the price\"."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Starting from an RFQ with exactly two bids, including Vendor A at 100 and Vendor B at 90; the prepared state contains only one bid.; Checking the company setting that allows or blocks RFQ price increases, or conditionally asserting the refusal message \"You cannot increase the price\"."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
@@ -26,83 +26,128 @@
    "go_to",
    "expect_responses",
    "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
    "expect_qcs_cell"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 12258
+  "ms": 15663
  },
  "plan": {
-  "title": "SRC-REV-002 RFQ bid increase revision",
+  "title": "RFQ Vendor Bid Revision Increase",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ event without creating or searching for another event."
+    "note": "Open the prepared RFQ with two existing bids without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "price increases in an RFQ",
+     "value": "On"
+    },
+    "note": "Enable RFQ price increases so the 100 to 110 revision should be accepted."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's separate supplier-portal session while preserving the buyer session."
+    "note": "Move to Vendor A's separate supplier session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared RFQ's pricing round and its existing bid sheet."
+    "note": "Open the prepared RFQ's pricing round in Vendor A's portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 110
     },
-    "note": "Submit 110 as the same vendor's revised bid, replacing the existing 100 bid."
+    "note": "Revise Vendor A's existing 100 bid by submitting the new price of 110."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the vendor portal accepted the revised submission."
+    "note": "Confirm the vendor portal accepted the revised submission."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's event page."
+    "note": "Return to the buyer's session to verify the revised bid."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the revised RFQ."
+    "note": "Open the RFQ Responses view."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1,
-     "direct": 1
+     "count": 2,
+     "direct": 2
     },
-    "note": "Assert that the buyer sees the vendor response after revision."
+    "note": "Confirm both vendor responses remain visible as direct vendor bids."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the buyer's Master QCS comparison for both bidders."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify the two real vendor columns are present."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 110
+     "vendor": "Vendor A",
+     "equals": "110"
     },
-    "note": "Assert that the buyer's comparison grid shows the revised RFQ rate as 110."
+    "note": "Verify Master QCS shows Vendor A's revised unit price as 110."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": "Vendor A",
+     "equals": "1100"
+    },
+    "note": "Verify the revised total reflects 10 requested units at the new rate of 110."
    }
   ]
  }

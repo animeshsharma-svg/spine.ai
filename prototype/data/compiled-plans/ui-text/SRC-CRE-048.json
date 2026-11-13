@@ -4,12 +4,12 @@
   "title": "Upload a file bigger than 10 MB",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:20:52.032Z",
+  "compiledAt": "2026-11-12T12:57:41.265Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Attach a file larger than 10 MB using the catalog's upload fixtures",
-   "Select the specific CYLINDER WITH KEY & KNOB product and Plant Name (LOC-0001) delivery location in the sheet"
+   "Provide or select a file larger than 10 MB using a catalog upload fixture",
+   "Assert the exact file-size wording because the test case does not specify the expected message text"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,43 +18,55 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Attach a file larger than 10 MB using the catalog's upload fixtures; Select the specific CYLINDER WITH KEY & KNOB product and Plant Name (LOC-0001) delivery location in the sheet"
+   "can only test part of this — no step for: Provide or select a file larger than 10 MB using a catalog upload fixture; Assert the exact file-size wording because the test case does not specify the expected message text"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_visible",
-   "ask_tester",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "do_on_screen",
    "expect_message"
   ],
-  "ms": 74989
+  "ms": 14187
  },
  "plan": {
-  "title": "Reject oversized single-stage upload",
+  "title": "SRC-CRE-048 — Reject oversized sheet upload",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage creation screen."
+    "note": "Open the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_file_size",
+     "value": "10"
+    },
+    "note": "Apply the required 10 MB upload limit before testing the screen behavior."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Switch the event type to RFQ as required by the scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so setup can proceed."
+    "args": {
+     "title": "SRC-CRE-048 Oversized Upload"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
@@ -65,34 +77,43 @@
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Create one product-sheet row and set its requested quantity to 10; the exact variant and delivery location cannot be selected by catalog steps."
+    "note": "Add the specified product and quantity to populate the sheet."
    },
    {
-    "step": "expect_visible",
+    "step": "set_sheet_cell",
     "args": {
-     "role": "button",
-     "name": "Upload Sheet",
-     "visible": true
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Confirm the upload control is present before attempting the size-limit test."
+    "note": "Set the required delivery location on the first product row."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_sheet_cell",
     "args": {
-     "need": "attach a file larger than 10 MB through Upload Sheet and verify that Procol refuses it with a file-size error"
+     "row": 1,
+     "column": "Quantity Requested",
+     "kept": true,
+     "equals": "10"
     },
-    "note": "The catalog cannot supply or create a file larger than 10 MB."
+    "note": "Verify the requested quantity was retained before the upload test."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the current Single Stage RFQ product sheet, upload a file larger than 10 MB and stop when the screen shows that the upload was refused for exceeding the file-size limit"
+    },
+    "note": "Perform the oversized-file upload that no catalog upload fixture can directly express."
    },
    {
     "step": "expect_message",
     "args": {
-     "kind": "error",
-     "text": "10 MB"
+     "kind": "error"
     },
-    "note": "Assert that the oversized upload produced the expected file-size refusal."
+    "note": "Assert that the oversized upload produced an error/refusal message."
    }
   ]
  }

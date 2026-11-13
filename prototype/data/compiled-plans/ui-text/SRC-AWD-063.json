@@ -4,93 +4,72 @@
   "title": "Approval chain: two approvers, the second rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:10:41.493Z",
+  "compiledAt": "2026-11-12T16:24:53.398Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark",
-   "Assert that the proposal is rejected after the second approver's rejection",
-   "Assert that no purchase order is created",
-   "Assert that the buyer can award the event again after rejection"
+   "Sign in as Approver 1 and approve, then sign in as Approver 2 and reject with a remark; verify the proposal is rejected, no PO is created, and the buyer can award again."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark; Assert that the proposal is rejected after the second approver's rejection; Assert that no purchase order is created; Assert that the buyer can award the event again after rejection"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Sign in as Approver 1 and approve, then sign in as Approver 2 and reject with a remark; verify the proposal is rejected, no PO is created, and the buyer can award again."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "start_awarding",
-   "allocate_award",
-   "expect_award_counters",
-   "click",
-   "expect_navigated",
+   "require_setting",
+   "award_event",
+   "expect_awarded",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 12677
+  "ms": 14711
  },
  "plan": {
-  "title": "Approval chain second approver rejects award",
+  "title": "Two-Approver Award Rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS."
+    "note": "Open the prepared closed RFQ with two bids directly on Master QCS."
    },
    {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Enter the awarding flow for the closed event."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before working with the prepared event."
    },
    {
-    "step": "allocate_award",
+    "step": "award_event",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Allocate all available line items to the named Vendor B."
+    "note": "Allocate all 10 requested units to Vendor B and create and submit the award proposal."
    },
    {
-    "step": "expect_award_counters",
-    "args": {
-     "items": "1/1",
-     "vendors": "1/1"
-    },
-    "note": "Verify the awarding allocation is complete before creating the proposal."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the award proposal so the approval chain can begin."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Verify that the proposal page opened."
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted before the approval chain begins."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark"
+     "need": "sign in as Approver 1 and approve the proposal, then sign in as Approver 2 and reject it with a remark; verify the proposal is rejected, no PO is created, and the buyer can award again"
     },
-    "note": "The catalog has no step for separate approver sessions or proposal rejection."
+    "note": "The approval-chain users and rejection outcome require credentials and actions unavailable to the catalog."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejected",
-     "present": true
-    },
-    "note": "Check for the proposal's rejected status if the tester completes the approval-chain actions."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the resulting screen remains rendered without a crash or server error after the tester completes the approval flow."
    }
   ]
  }

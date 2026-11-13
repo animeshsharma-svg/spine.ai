@@ -4,104 +4,96 @@
   "title": "Submit a bid on a Tech+RFQ, commercial stage after the technical response",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:15:18.584Z",
+  "compiledAt": "2026-11-12T16:28:11.836Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the commercial price is displayed next to a specific technical result in Master QCS; the catalog can read the price but not assert that exact adjacency or technical-result value."
+   "Verify that Master QCS displays the commercial price specifically next to the technical result."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the commercial price is displayed next to a specific technical result in Master QCS; the catalog can read the price but not assert that exact adjacency or technical-result value."
+   "can only test part of this — no step for: Verify that Master QCS displays the commercial price specifically next to the technical result."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "switch_portal",
-   "vendor_open_event",
-   "expect_visible",
    "vendor_open_event",
    "vendor_bid",
    "expect_bid_submitted",
    "switch_portal",
    "open_master_qcs",
+   "expect_qcs_vendors",
    "expect_qcs_cell"
   ],
   "state": "live",
   "screen": "technical",
-  "ms": 13670
+  "ms": 11159
  },
  "plan": {
-  "title": "Vendor submits commercial bid after technical response",
+  "title": "Submit RFQ bid after technical response",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "technical"
     },
-    "note": "Open the prepared Tech+RFQ event on its technical round as required for this prepared state."
+    "note": "Open the prepared Tech+RFQ event's technical round as required by the prepared-state setup."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate Vendor A supplier-portal session while keeping the buyer session available."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "technical"
-    },
-    "note": "Open the event's technical round to establish that Vendor A reaches the event after the technical response."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "Technical Stage",
-     "visible": true
-    },
-    "note": "Assert that the vendor portal shows the technical stage."
+    "note": "Continue in Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the commercial RFQ bid sheet after the technical stage."
+    "note": "Open the commercial RFQ stage after the technical response has been completed."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Accept any required terms and submit the commercial quote of 100."
+    "note": "Accept any required terms as part of the bid flow, enter a quote of 100, and submit it."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the vendor portal marks the RFQ bid as submitted."
+    "note": "Verify that the vendor portal accepted the RFQ submission."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to inspect the submitted commercial bid."
+    "note": "Return to the buyer's event page to inspect the submitted commercial response."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "note": "Open the buyer's comparison grid for the submitted bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify that the submitted vendor appears as a real vendor column in Master QCS."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
+     "vendor": 1,
      "number": 100
     },
-    "note": "Assert that the submitted commercial price appears in Master QCS."
+    "note": "Verify that Master QCS shows the submitted commercial price of 100."
    }
   ]
  }

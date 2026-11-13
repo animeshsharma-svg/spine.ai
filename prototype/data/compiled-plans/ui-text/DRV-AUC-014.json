@@ -4,62 +4,69 @@
   "title": "Vendors cannot view dummy quote mechanics or competitor status details in their portal",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-09T22:52:27.659Z",
+  "compiledAt": "2026-11-12T13:31:10.879Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Enable or verify the tenant setting is_user_allowed_to_modify_audience = true",
-   "Use the prepared event as a draft auction; the prepared draft state is a pricing RFQ"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Enable or verify the tenant setting is_user_allowed_to_modify_audience = true; Use the prepared event as a draft auction; the prepared draft state is a pricing RFQ"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "click",
-   "click",
-   "click",
+   "require_setting",
+   "go_to",
+   "select_participant",
+   "expect_participant",
    "expect_toast"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 1157
+  "ms": 666
  },
  "plan": {
-  "title": "DRV-AUC-014 Vendor audience selection",
+  "title": "Buyer selects qualified vendor with audience editing enabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the API-prepared draft event without creating or searching for another event."
+    "note": "Opens the prepared draft auction without creating or searching for another event."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "button",
+     "key": "is_user_allowed_to_modify_audience",
+     "value": "On"
+    },
+    "note": "Enables the required tenant capability before testing audience selection."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "tab",
      "name": "Participants"
     },
-    "note": "Open the draft event's participant-selection control."
+    "note": "Navigates to the draft auction's Participants view."
    },
    {
-    "step": "click",
+    "step": "select_participant",
     "args": {
-     "role": "checkbox",
-     "name": "QA_Platform_Vendor_A"
+     "vendor": "QA_Platform_Vendor_A"
     },
-    "note": "Select the vendor named in the test case."
+    "note": "Selects the named qualified vendor and saves the audience change through the supported flow."
    },
    {
-    "step": "click",
+    "step": "expect_participant",
     "args": {
-     "role": "button",
-     "name": "Save"
+     "vendor": "QA_Platform_Vendor_A",
+     "present": true,
+     "selected": true
     },
-    "note": "Save the selected audience."
+    "note": "Verifies that QA_Platform_Vendor_A is present and selected in the updated audience."
    },
    {
     "step": "expect_toast",
@@ -67,7 +74,7 @@
      "kind": "success",
      "text": "Audience updated"
     },
-    "note": "Verify the expected audience-updated confirmation appears."
+    "note": "Confirms the expected audience-update success toast appeared."
    }
   ]
  }

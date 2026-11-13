@@ -4,27 +4,25 @@
   "title": "Material PR → single stage RFQ → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:23:19.938Z",
+  "compiledAt": "2026-11-12T12:59:11.457Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting Single Stage RFQ as the event type during PR conversion; choose_stages can only select project stages such as RFQ.",
-   "Setting an independent 30-minute evaluation duration in the PR-created schedule; set_schedule accepts only the event duration.",
-   "Allocating exactly 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A.",
-   "Creating and verifying one purchase order per awarded vendor after a split award.",
-   "Verifying the PR transitions from Open to In Progress to ordered and opening the PR from the final history/PO flow."
+   "Set and verify the exact split award quantities of 6 to Vendor B and 4 to Vendor A.",
+   "Verify that each purchase order belongs to the intended vendor with its specific awarded quantity and price.",
+   "Verify the PR transitions through Open, In Progress, and ordered statuses."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Selecting Single Stage RFQ as the event type during PR conversion; choose_stages can only select project stages such as RFQ.; Setting an independent 30-minute evaluation duration in the PR-created schedule; set_schedule accepts only the event duration.; Allocating exactly 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A.; Creating and verifying one purchase order per awarded vendor after a split award.; Verifying the PR transitions from Open to In Progress to ordered and opening the PR from the final history/PO flow."
+   "can only test part of this — no step for: Set and verify the exact split award quantities of 6 to Vendor B and 4 to Vendor A.; Verify that each purchase order belongs to the intended vendor with its specific awarded quantity and price.; Verify the PR transitions through Open, In Progress, and ordered statuses."
   ],
   "source": "llm",
-  "steps": 23,
+  "steps": 40,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -34,26 +32,43 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_template_selected",
    "set_title",
-   "set_schedule",
    "invite_vendor",
+   "do_on_screen",
+   "set_schedule",
+   "do_on_screen",
    "publish",
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
-   "expect_responses",
    "close_event",
    "open_master_qcs",
+   "expect_qcs_vendors",
    "expect_qcs_ranks",
    "start_awarding",
-   "expect_text"
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
   ],
-  "ms": 24785
+  "ms": 36582
  },
  "plan": {
-  "title": "Material PR to RFQ Split Award and PO",
+  "title": "Material PR to Split Award PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -65,10 +80,7 @@
     }
    },
    {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
+    "step": "select_pr"
    },
    {
     "step": "purchase_items"
@@ -91,18 +103,38 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "Material PR RFQ Split Award"
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
     },
-    "note": "Provide the required event title so the event can be published and found later."
+    "note": "Enable split awarding for the case."
    },
    {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 3
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Commit the supported 30-minute event duration before publishing."
+    "note": "Enable RFx project creation from purchase requisitions."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirm the RFQ template was applied."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "invite_vendor",
@@ -112,60 +144,78 @@
     "note": "Invite two QA vendors without inventing supplier names."
    },
    {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Add one required Terms and Conditions clause to the event and leave the create screen showing the saved clause"
+    },
+    "note": "Add the required T&C clause, which has no dedicated catalog step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open the event schedule, set the evaluation duration to 30 minutes, save the schedule, and leave the create screen showing the committed schedule"
+    },
+    "note": "Set the requested evaluation duration, which is not parameterized by set_schedule."
+   },
+   {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured RFQ event."
+    "note": "Publish the RFQ after all required setup is complete."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's bid at 100 through the vendor portal."
+    "note": "Have the first invited QA vendor submit a quote of 100 from the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the first vendor's quote was accepted."
+    "note": "Confirm the first vendor's quote was submitted."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 2,
      "price": 90
     },
-    "note": "Submit Vendor B's bid at 90 through a separate vendor portal session."
+    "note": "Have the second invited QA vendor submit a quote of 90 from the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the second vendor's quote was accepted."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 2,
-     "direct": 2
-    },
-    "note": "Confirm the buyer sees both direct vendor responses."
+    "note": "Confirm the second vendor's quote was submitted."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for the bidding window to end before ranking and awarding."
+    "note": "Wait for bidding to end before comparison and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's comparison grid after bidding has closed."
+    "note": "Open the buyer comparison grid after bidding closes."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2
+    },
+    "note": "Confirm both bidding vendors appear as real vendor columns."
    },
    {
     "step": "expect_qcs_ranks",
@@ -174,19 +224,87 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify that the lower-priced Vendor B response ranks ahead of the higher-priced response."
+    "note": "Confirm the lower quote ranks first."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen to inspect the available award allocation flow."
+    "note": "Enter the awarding screen."
    },
    {
-    "step": "expect_text",
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the line to the first eligible vendor for the split-award flow."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the remaining award selection to the next eligible vendor; exact quantities are not configurable by this step."
+   },
+   {
+    "step": "expect_award_counters",
     "args": {
-     "text": "Create Proposal"
+     "items": "1/1",
+     "vendors": "2/2"
     },
-    "note": "Assert that the awarding screen exposes the proposal creation control; exact split allocation cannot be expressed."
+    "note": "Confirm the line and two-vendor award selections are represented on the awarding screen."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the proposal from the completed award selection."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the award proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm that the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for split award"
+    },
+    "note": "Approve the submitted proposal with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete approval and create the purchase orders."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Confirm two purchase-order lines were created, the closest available check for two vendor POs."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify history placement."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Confirm this event appears in event history."
    }
   ]
  }

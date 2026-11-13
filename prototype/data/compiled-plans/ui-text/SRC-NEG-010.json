@@ -4,50 +4,66 @@
   "title": "Revoke after the vendor already answered",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:14.875Z",
+  "compiledAt": "2026-11-12T13:03:05.642Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly reproduce the stale-page condition used to attempt the revoke",
-   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Explicitly reproduce the stale-page condition used to attempt the revoke"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
+   "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
-   "go_to",
    "attempt",
-   "expect_text"
+   "open_master_qcs",
+   "expect_qcs_cell"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 19720
+  "ms": 21305
  },
  "plan": {
-  "title": "Revoke Accepted Counter Offer",
+  "title": "Revoke accepted counter offer",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Opens the prepared RFQ Responses screen with Vendor A's normal bid and the second bid."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the buyer comparison grid where Vendor A's normal bid can be countered."
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enables counter offers on RFQs."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "counter_offer_modification_enabled",
+     "value": "On"
+    },
+    "note": "Enables the vendor counter-offer response flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures eRFX projects are enabled for the RFQ flow."
    },
    {
     "step": "place_counter_offer",
@@ -56,28 +72,28 @@
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send the counter offer changing Vendor A's price from 100 to 90."
+    "note": "Sends the buyer's counter offer on Vendor A's own bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Confirms the counter offer was initiated for Vendor A."
    },
    {
     "step": "accept_counter_offer",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Have Vendor A accept the pending counter offer in the supplier portal."
+    "note": "Has Vendor A accept the pending counter offer in the supplier portal."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify the buyer's grid records Vendor A's counter offer as accepted."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Return to the Responses view where the revoke control is shown."
+    "note": "Confirms the buyer's grid marks Vendor A's counter offer as accepted."
    },
    {
     "step": "attempt",
@@ -90,15 +106,25 @@
      "because": "No active counter offer found to modify",
      "expect": "refused"
     },
-    "note": "Attempt to revoke the already accepted counter offer and require Procol's refusal."
+    "note": "Attempts the stale-page revoke action and requires Procol's refusal message."
    },
    {
-    "step": "expect_text",
+    "step": "open_master_qcs",
     "args": {
-     "text": "90",
-     "present": true
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Verify the accepted price remains visible after the refused revoke attempt."
+    "note": "Opens the comparison grid to verify the accepted bid remains available."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Checks that Vendor A's accepted price remains 90 after the refused revoke."
    }
   ]
  }

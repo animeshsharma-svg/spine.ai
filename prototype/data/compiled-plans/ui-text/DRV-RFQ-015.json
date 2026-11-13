@@ -1,47 +1,58 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-015",
-  "title": "Target or ceiling price disclosure is prevented during Request for Best Offer creation",
+  "title": "Lot split refused when line item is marked deleted on live project",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:10:32.056Z",
+  "compiledAt": "2026-11-12T13:38:31.848Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "sign in as the assigned evaluator; commercial masking must already be enabled for the tenant",
+   "Sign in as the assigned evaluator and verify that this evaluator cannot see actual commercial prices in the RFQ Responses tab.",
    "unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: sign in as the assigned evaluator; commercial masking must already be enabled for the tenant"
+   "can only test part of this — no step for: Sign in as the assigned evaluator and verify that this evaluator cannot see actual commercial prices in the RFQ Responses tab."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 10009
+  "ms": 781
  },
  "plan": {
-  "title": "Evaluator commercial price masking",
+  "title": "Evaluator RFQ price masking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab as the closest available navigation to the subject."
+    "note": "Open the prepared live RFQ with Vendor A's bid on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable the sealed-bid configuration required by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the assigned evaluator and open this RFQ's Responses tab"
+     "need": "sign in as the assigned evaluator and view the RFQ Responses tab to verify that commercial prices are masked"
     },
-    "note": "The catalog cannot authenticate as or switch to the evaluator user."
+    "note": "The evaluator-specific login and role view cannot be performed by the catalog."
    },
    {
     "step": "expect_text",
@@ -49,7 +60,7 @@
      "text": "---",
      "present": true
     },
-    "note": "Verify that the evaluator's Responses view shows masked commercial values."
+    "note": "Assert that the evaluator's Responses view displays masked commercial values."
    }
   ]
  }

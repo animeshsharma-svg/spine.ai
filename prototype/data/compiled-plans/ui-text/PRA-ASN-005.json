@@ -4,64 +4,72 @@
   "title": "With team filtering switched off, every purchase user is listed",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:29.676Z",
+  "compiledAt": "2026-11-12T13:47:20.490Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the Assign dialog for the selected PR-2 item and inspect the complete Search a user list.",
-   "Verify that all purchase users are listed, including Food Buyer and Fruits Buyer, with no category filtering.",
-   "Verify the prerequisite tenant setting that PR team filtering is switched off."
+   "Verify exhaustively that every purchase user in the tenant is listed and that no other user is omitted from the Assign picker."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the Assign dialog for the selected PR-2 item and inspect the complete Search a user list.; Verify that all purchase users are listed, including Food Buyer and Fruits Buyer, with no category filtering.; Verify the prerequisite tenant setting that PR team filtering is switched off."
+   "can only test part of this — no step for: Verify exhaustively that every purchase user in the tenant is listed and that no other user is omitted from the Assign picker."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "ask_tester",
+   "do_on_screen",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 8786
+  "ms": 10143
  },
  "plan": {
-  "title": "PRA-ASN-005 Purchase user assignment list",
+  "title": "PR assignment user list with team filtering off",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "Off"
+    },
+    "note": "Disable PR team filtering as required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Navigate to Purchase Requisitions, the required starting screen for a PR assignment test."
+    "note": "Open Purchase Requisitions, the starting screen for assigning PR items."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab, where PR-2 can be selected for assignment."
+    "note": "Stay on the Open purchase requisitions tab."
    },
    {
-    "step": "select_pr",
+    "step": "do_on_screen",
     "args": {
-     "pr": "PR-2"
+     "goal": "Search for PR-2, show its line items, tick one PR-2 item, click the Assign person control next to Upload PRs, and inspect the Search a user list by scrolling to the end; verify the list includes Food Buyer and Fruits Buyer and shows no category-based filtering."
     },
-    "note": "Select PR-2 so its line items and the assignment action become available."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "click Assign for the selected PR-2 item, open the Search a user list, scroll through the entire list, and verify that every purchase user is shown including Food Buyer and Fruits Buyer"
-    },
-    "note": "The catalog has no step for the Assign action or for observing the complete purchase-user list."
+    "note": "No catalog domain step can search PR items, select an individual item, open the Assign picker, or inspect the complete user list."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Search a user",
+     "text": "Food Buyer",
      "present": true
     },
-    "note": "Confirm the assignment user-search interface is visible after the tester performs the missing interaction."
+    "note": "Assert that Food Buyer is available in the assignment user list."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Fruits Buyer",
+     "present": true
+    },
+    "note": "Assert that Fruits Buyer is available in the assignment user list."
    }
   ]
  }

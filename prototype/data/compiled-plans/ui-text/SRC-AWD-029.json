@@ -4,68 +4,129 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:06:36.548Z",
+  "compiledAt": "2026-11-12T16:20:38.878Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 cannot be created or selected from the prepared one-bid state.",
-   "Splitting one line into quantities 4 for B, 3 for C, and 3 for A cannot be performed or asserted by the catalog.",
-   "The allocation amounts 360, 285, 300, and total 945 cannot be verified for the requested three vendors.",
-   "Submitting a proposal with the requested split and required proposal fields cannot be performed for this three-way allocation.",
-   "Creating and verifying one purchase order per awarded vendor cannot be performed for the requested split.",
-   "Verifying the event moves to History after the three-way award cannot be performed from the fixed prepared state."
+   "A closed RFQ with three bids from vendors A, B, and C, including vendor C's bid of 95",
+   "The exact three-way allocation of 4 units to B, 3 to C, and 3 to A, totaling 945",
+   "Verification that one purchase order is created for each of three awarded vendors and that the event moves to History without an approval flow"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 cannot be created or selected from the prepared one-bid state.; Splitting one line into quantities 4 for B, 3 for C, and 3 for A cannot be performed or asserted by the catalog.; The allocation amounts 360, 285, 300, and total 945 cannot be verified for the requested three vendors.; Submitting a proposal with the requested split and required proposal fields cannot be performed for this three-way allocation.; Creating and verifying one purchase order per awarded vendor cannot be performed for the requested split.; Verifying the event moves to History after the three-way award cannot be performed from the fixed prepared state."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C, including vendor C's bid of 95; The exact three-way allocation of 4 units to B, 3 to C, and 3 to A, totaling 945; Verification that one purchase order is created for each of three awarded vendors and that the event moves to History without an approval flow"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "expect_qcs_vendors",
+   "require_setting",
+   "require_setting",
    "start_awarding",
    "allocate_award",
-   "expect_award_counters"
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
+   "expect_awarded"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 12867
+  "ms": 14377
  },
  "plan": {
-  "title": "SRC-AWD-029 Three-Way Split Award",
+  "title": "Three-way split award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS without searching the events list."
+    "note": "Open the prepared closed two-bid event directly in Master QCS."
    },
    {
-    "step": "expect_qcs_vendors",
+    "step": "require_setting",
     "args": {
-     "count": 1,
-     "realNames": true
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
     },
-    "note": "Assert the prepared state has only one real vendor column, exposing that the required three-vendor scenario is unavailable."
+    "note": "Enable split awarding required for the closest available allocation test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project behavior required by the case."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the closest available awarding screen for the closed prepared event."
+    "note": "Open the awarding screen where vendor quantities can be allocated."
    },
    {
     "step": "allocate_award",
-    "args": {},
-    "note": "Allocate the available line to the available vendor as the closest supported awarding action; this does not test the requested split."
+    "args": {
+     "vendor": 2,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate four units to the second prepared vendor, corresponding to the requested B allocation."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate the remaining six units to the first prepared vendor so the available two-vendor award covers all ten units."
    },
    {
     "step": "expect_award_counters",
     "args": {
      "items": "1/1",
-     "vendors": "1/1"
+     "vendors": "2/2",
+     "proposal": 960
     },
-    "note": "Assert the supported single-vendor allocation counters."
+    "note": "Assert that the closest supported two-vendor split selects the full line and both vendors, with 4 × 90 plus 6 × 100 totaling 960."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the completed closest-supported allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Complete mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal without adding an approval step."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was submitted."
    }
   ]
  }

@@ -1,16 +1,15 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-013",
-  "title": "Lot splitting blocked on plans below Growth",
+  "title": "Event expiry reminder durations setting applies correctly to best offer schedules",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:10:15.177Z",
+  "compiledAt": "2026-11-12T13:38:34.228Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Verify that RFQ-1 has enable_bid_masking_for_event enabled and its commercial price fields are masked.",
-   "Verify that RFQ-2 has enable_bid_masking_for_event disabled and its commercial price fields show actual prices.",
-   "Compare the commercial price visibility between RFQ-1 and RFQ-2."
+   "Set enable_bid_masking_for_event independently on RFQ-1 and RFQ-2 while keeping both live",
+   "Assert that RFQ-1's commercial price fields are masked rather than merely checking that the screen renders"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -18,21 +17,24 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Verify that RFQ-1 has enable_bid_masking_for_event enabled and its commercial price fields are masked.; Verify that RFQ-2 has enable_bid_masking_for_event disabled and its commercial price fields show actual prices.; Compare the commercial price visibility between RFQ-1 and RFQ-2."
+   "resolved: “Verify the complete two-event comparison with each RFQ retaining its distinct setting” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: Set enable_bid_masking_for_event independently on RFQ-1 and RFQ-2 while keeping both live; Assert that RFQ-1's commercial price fields are masked rather than merely checking that the screen renders"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "go_to",
    "expect_screen_clean",
-   "expect_screen_clean"
+   "go_to",
+   "expect_api_value"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10010
+  "ms": 15077
  },
  "plan": {
-  "title": "RFQ commercial masking by event setting",
+  "title": "RFQ commercial masking per event",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,14 +44,31 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the RFQ-1 screen renders without a crash or server error, without treating this as a masking check."
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the buyer's response grid where commercial bid fields are shown or masked."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the RFQ-2 screen renders without a crash or server error, without treating this as a price-visibility check."
+    "note": "Confirm the RFQ-1 response screen renders without errors, though the catalog lacks a dedicated masked-price assertion."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the buyer's response grid for RFQ-2."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Responses"
+    },
+    "note": "Assert that an actual bid price is visible for RFQ-2, covering the unmasked-price expectation when the prepared event exposes its bid."
    }
   ]
  }

@@ -4,78 +4,68 @@
   "title": "Withdraw is offered on a live RFQ where Vendor An and Vendor B have bid",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:56:38.399Z",
+  "compiledAt": "2026-11-12T13:13:29.365Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Withdrawal Remarks\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Withdrawal Remarks\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "expect_responses",
-   "expect_menu_item",
+   "require_setting",
+   "go_to",
+   "expect_settings_menu",
    "event_menu",
    "expect_text",
    "click",
-   "expect_text"
+   "expect_settings_menu"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 71010
+  "ms": 14184
  },
  "plan": {
-  "title": "Withdraw offered on live RFQ with two bids",
+  "title": "Live RFQ Withdraw Availability",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event on its summary page."
+    "note": "Open the prepared live RFQ with two bids rather than creating or searching for another event."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the RFQ Participants list so a second bid can be entered for another invited vendor."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Add the second bid on behalf of another invited vendor to reproduce the two-bid setup."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the surrogate bid was accepted."
-   },
-   {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "count": 2,
-     "surrogate": 1,
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Confirm the live RFQ now shows responses from both vendors, including the surrogate bid."
+    "note": "Navigate to the RFQ stage page where its Settings menu is available."
    },
    {
-    "step": "expect_menu_item",
+    "step": "expect_settings_menu",
     "args": {
-     "item": "Withdraw",
-     "stage": "rfq",
-     "enabled": true
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ],
+     "stage": "rfq"
     },
-    "note": "Assert that Withdraw is present and enabled in the RFQ stage Settings menu."
+    "note": "Assert Withdraw is present and clickable in the live RFQ stage Settings menu."
    },
    {
     "step": "event_menu",
@@ -83,15 +73,14 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Click Withdraw and leave its confirmation window open without confirming the withdrawal."
+    "note": "Select Withdraw to verify that it opens the withdrawal window without confirming the action."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Withdrawal Remarks",
-     "present": true
+     "text": "Withdrawal Remarks"
     },
-    "note": "Confirm that selecting Withdraw opens the withdrawal window."
+    "note": "Assert the withdrawal dialog opened and is awaiting a remark/confirmation."
    },
    {
     "step": "click",
@@ -99,15 +88,20 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the withdrawal so the event remains unchanged."
+    "note": "Cancel the withdrawal so the live event remains unchanged."
    },
    {
-    "step": "expect_text",
+    "step": "expect_settings_menu",
     "args": {
-     "text": "Withdrawal Remarks",
-     "present": false
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ],
+     "stage": "rfq"
     },
-    "note": "Confirm the withdrawal window closed after cancellation."
+    "note": "Recheck that Withdraw remains offered and enabled after cancellation."
    }
   ]
  }

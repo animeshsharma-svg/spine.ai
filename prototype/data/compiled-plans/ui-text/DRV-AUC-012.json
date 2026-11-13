@@ -1,47 +1,57 @@
 {
  "meta": {
   "caseId": "DRV-AUC-012",
-  "title": "Auction strategy selection is greyed in converted RFQ stage",
+  "title": "Request Best Offer is disabled when auction is already closed or awarded",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:52:02.584Z",
+  "compiledAt": "2026-11-12T13:31:23.420Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create or access a prepared live RFQ with two line items sharing the same product code and existing bids.",
-   "Set or verify the tenant setting allow_duplicate_product_code = Off."
+   "allow_duplicate_product_code config setup via step (handled by company setting runner)",
+   "the exact prepared RFQ having duplicate product codes in this sandbox state"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create or access a prepared live RFQ with two line items sharing the same product code and existing bids.; Set or verify the tenant setting allow_duplicate_product_code = Off."
+   "can only test part of this — no step for: allow_duplicate_product_code config setup via step (handled by company setting runner); the exact prepared RFQ having duplicate product codes in this sandbox state"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "open_event_settings",
    "attempt"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 11204
+  "ms": 74202
  },
  "plan": {
-  "title": "DRV-AUC-012 Duplicate Product Code Conversion Refusal",
+  "title": "DRV-AUC-012 Conversion with duplicate product code in RFQ is refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ summary as required for an existing event."
+    "note": "Open the prepared live RFQ"
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event settings menu"
    },
    {
     "step": "attempt",
     "args": {
-     "step": "convert_to_auction",
-     "expect": "refused",
-     "because": "Duplicate product code detected"
+     "step": "click",
+     "args": {
+      "role": "menuitem",
+      "name": "Convert to Auction"
+     },
+     "because": "Duplicate product code detected",
+     "expect": "refused"
     },
-    "note": "Attempt the conversion and require refusal evidence containing the expected duplicate-product-code message."
+    "note": "Attempt to convert to auction and assert refusal"
    }
   ]
  }

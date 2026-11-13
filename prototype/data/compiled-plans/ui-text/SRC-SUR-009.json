@@ -4,24 +4,24 @@
   "title": "Template does not allow surrogate bids",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:40.606Z",
+  "compiledAt": "2026-11-12T13:18:35.877Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set up or verify an event whose template/configuration forbids surrogate bids; tenant and template settings cannot be changed or asserted."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Set up or verify an event whose template/configuration forbids surrogate bids; tenant and template settings cannot be changed or asserted."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 9798
+  "ms": 10505
  },
  "plan": {
   "title": "Reject surrogate bid for restricted template",
@@ -31,7 +31,15 @@
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ directly on its Participants tab as required for prepared-state cases."
+    "note": "Open the prepared live RFQ's Participants tab, which is the buyer screen containing the surrogate-bid control."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "attempt",
@@ -40,7 +48,7 @@
      "expect": "refused",
      "because": "You cannot add bid with this configuration."
     },
-    "note": "Attempt the buyer-side surrogate bid and require Procol to refuse it with the expected configuration message or a disabled/unavailable Add Bid control."
+    "note": "Attempt Add Bid for an invited vendor and assert that Procol refuses the surrogate bid with the expected message or that Add Bid is unavailable."
    }
   ]
  }

@@ -4,37 +4,36 @@
   "title": "RFQ: lower line 1 to 90 and keep line 2 at 50",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:48:22.252Z",
+  "compiledAt": "2026-11-12T13:11:52.225Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set line 1 to 90 while keeping line 2 at 50 in one submitted vendor revision",
-   "Verify the resulting total decreases by exactly 100 for that line-specific revision",
-   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+   "Reliably target the unnamed first and second line price cells with distinct values using catalog-supported vendor actions",
+   "Assert that the revised total decreases by exactly 100"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Set line 1 to 90 while keeping line 2 at 50 in one submitted vendor revision; Verify the resulting total decreases by exactly 100 for that line-specific revision"
+   "can only test part of this — no step for: Reliably target the unnamed first and second line price cells with distinct values using catalog-supported vendor actions; Assert that the revised total decreases by exactly 100"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_event",
    "switch_portal",
    "vendor_open_event",
-   "vendor_bid",
-   "expect_text",
+   "fill",
+   "fill",
+   "click",
    "expect_text"
   ],
-  "ms": 19388
+  "ms": 14301
  },
  "plan": {
-  "title": "SRC-REV-023 RFQ bid revision",
+  "title": "SRC-REV-023 RFQ mixed-line bid revision",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing live RFQ event without creating a new event."
+    "note": "Open an existing live RFQ with bids, allowing the run to select a suitable event."
    },
    {
     "step": "switch_portal",
@@ -42,35 +41,48 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's supplier-portal session while leaving the buyer session available."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing sheet in the vendor portal."
+    "note": "Open the selected RFQ's pricing bid sheet in the vendor portal."
    },
    {
-    "step": "vendor_bid",
+    "step": "fill",
     "args": {
-     "price": 90
+     "label": "Price",
+     "value": "90",
+     "within": "line 1"
     },
-    "note": "Submit a same-vendor revision at 90 as the closest supported revision action; this cannot target only line 1."
+    "note": "Attempt to revise the first line to 90; the line identifier is not a confirmed catalog label."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "50",
+     "within": "line 2"
+    },
+    "note": "Attempt to retain the second line at 50; the line identifier is not a confirmed catalog label."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote"
+    },
+    "note": "Submit the vendor's revised quote."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted"
+     "text": "Submitted",
+     "present": true
     },
-    "note": "Assert that the revised quote was accepted by the vendor portal."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "90"
-    },
-    "note": "Assert that the revised price is visible on the submitted bid sheet."
+    "note": "Verify that the vendor portal accepted the revision and shows the submitted state."
    }
   ]
  }

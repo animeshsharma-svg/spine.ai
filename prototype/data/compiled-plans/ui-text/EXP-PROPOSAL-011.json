@@ -4,50 +4,110 @@
   "title": "The award proposal page: A value on the screen reads NaN / undefined / Invalid date",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:51:30.365Z",
+  "compiledAt": "2026-11-12T13:46:40.933Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Cannot verify that every label and number has a real value or '-' when absent; the catalog can detect known malformed tokens but cannot validate every displayed value semantically.",
+   "unconfirmed label \"NaN\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"undefined\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"null\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "unconfirmed label \"Invalid date\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"NaN\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"undefined\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"null\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "coverage partial: unconfirmed label \"Invalid date\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Cannot verify that every label and number has a real value or '-' when absent; the catalog can detect known malformed tokens but cannot validate every displayed value semantically."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "click",
+   "expect_navigated",
    "expect_screen_clean",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 13192
+  "ms": 9353
  },
  "plan": {
-  "title": "Award Proposal Values Render Cleanly",
+  "title": "Award Proposal Values Are Valid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS as the required starting screen."
+    "note": "Open the prepared closed RFQ's Master QCS as the required first navigation step."
    },
    {
-    "step": "open_prepared",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "On"
+    },
+    "note": "Enable the required Note to Director proposal configuration."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Bid Selection Proposal"
+    },
+    "note": "Open the award proposal from Master QCS."
+   },
+   {
+    "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the award proposal page for the prepared proposal state."
+    "note": "Verify the award proposal page opened."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the proposal page has no NaN, undefined, null, raw IDs, server errors, or page crashes."
+    "note": "Check the proposal page for invalid values, raw identifiers, errors, or crashes."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "NaN",
+     "present": false
+    },
+    "note": "Ensure no label or number displays NaN."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "undefined",
+     "present": false
+    },
+    "note": "Ensure no label or value displays undefined."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "null",
+     "present": false
+    },
+    "note": "Ensure no label or value displays null."
    },
    {
     "step": "expect_text",
@@ -55,7 +115,7 @@
      "text": "Invalid date",
      "present": false
     },
-    "note": "Assert that no invalid date value is displayed on the proposal page."
+    "note": "Ensure no date field displays Invalid date."
    }
   ]
  }

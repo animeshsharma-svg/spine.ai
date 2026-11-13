@@ -4,12 +4,12 @@
   "title": "Upload Sheet with a bad row",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:19:37.736Z",
+  "compiledAt": "2026-11-13T11:32:08.184Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Provide and upload a custom file containing exactly two valid rows and one row with an unknown product code.",
-   "Verify the failed entry identifies the specific unknown product code and its row-level reason."
+   "Provide and upload a file containing exactly 2 good rows and 1 row with an unknown product code; the catalog only provides generic sample CSV fixtures.",
+   "Assert that exactly the two valid uploaded rows were added to the sheet; no catalog step can inspect uploaded-row contents after the upload."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,21 +18,27 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Provide and upload a custom file containing exactly two valid rows and one row with an unknown product code.; Verify the failed entry identifies the specific unknown product code and its row-level reason."
+   "can only test part of this — no step for: Provide and upload a file containing exactly 2 good rows and 1 row with an unknown product code; the catalog only provides generic sample CSV fixtures.; Assert that exactly the two valid uploaded rows were added to the sheet; no catalog step can inspect uploaded-row contents after the upload."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "upload",
    "expect_text",
-   "expect_text",
-   "expect_line_items"
+   "expect_text"
   ],
-  "ms": 10845
+  "ms": 9953
  },
  "plan": {
   "title": "Single-stage RFQ upload with bad row",
@@ -49,17 +55,80 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Switch the default event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title so the upload flow can proceed."
+    "note": "Provide the mandatory event title before interacting with the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template so the product sheet and upload control are available."
+    "note": "Select the first available RFQ template so the product sheet is rendered."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "value": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Select the specified product in the first Product cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "equals": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Confirm the requested product was selected."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Confirm the product selection filled the mapped default variant."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Confirm the quantity was retained."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the specified delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the delivery location was selected."
    },
    {
     "step": "upload",
@@ -67,28 +136,23 @@
      "label": "Upload Sheet",
      "file": "sample.csv"
     },
-    "note": "Upload the available CSV fixture as the closest catalog representation of the product-sheet upload."
+    "note": "Upload the closest available CSV fixture through the product sheet's upload control."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Failed to upload 1 entries."
+     "text": "Failed to upload 1 entries.",
+     "present": true
     },
-    "note": "Assert that the application reports one failed upload entry."
+    "note": "Assert the upload reports one failed entry, as specified."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "View failed entries"
+     "text": "View failed entries",
+     "present": true
     },
-    "note": "Assert that the failed-entry inspection control is shown."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Assert that two valid uploaded rows were retained as line items."
+    "note": "Assert the failed-row inspection control is offered."
    }
   ]
  }

@@ -4,30 +4,29 @@
   "title": "Reject without a reason",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:49:16.876Z",
+  "compiledAt": "2026-11-12T13:12:25.016Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the Vendor A Reject Bid dialog, leave the reason empty, confirm the rejection, and verify the bid remains active.",
-   "The prepared-state catalog does not provide an RFQ-in-evaluation state matching the setup case."
+   "Directly assert that Vendor A's bid remains active after the refused rejection; the available response assertion can confirm the response remains visible but not its active status."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Open the Vendor A Reject Bid dialog, leave the reason empty, confirm the rejection, and verify the bid remains active.; The prepared-state catalog does not provide an RFQ-in-evaluation state matching the setup case."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that Vendor A's bid remains active after the refused rejection; the available response assertion can confirm the response remains visible but not its active status."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "ask_tester",
-   "expect_message"
+   "require_setting",
+   "do_on_screen",
+   "expect_message",
+   "expect_responses"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 9495
+  "ms": 11687
  },
  "plan": {
   "title": "Reject Bid Without Reason",
@@ -37,21 +36,22 @@
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ Responses tab containing Vendor A's submitted bid."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Reach the RFQ Responses tab where the vendor bid and rejection control should be shown."
+    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "open Vendor A's Reject Bid dialog, leave the reason empty, confirm the rejection, and report the refusal message and whether the bid remains active"
+     "goal": "Open the Reject Bid control for Vendor A's bid, leave the rejection reason empty, confirm the rejection, and stop when the screen shows the refusal message."
     },
-    "note": "The catalog cannot operate the Reject Bid dialog or confirm the bid remains active after the refusal."
+    "note": "Perform the buyer-side rejection attempt because no catalog step directly opens the reject dialog and confirms it without a reason."
    },
    {
     "step": "expect_message",
@@ -59,7 +59,17 @@
      "kind": "error",
      "text": "Please add a reason for rejecting this bid"
     },
-    "note": "Assert the expected refusal message after the tester attempts the empty-reason rejection."
+    "note": "Assert the required validation message is shown."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ],
+     "atLeast": 1
+    },
+    "note": "Confirm Vendor A's response remains present after the rejection was refused."
    }
   ]
  }

@@ -37,6 +37,22 @@ export interface ScreenSpec {
   what: string;
 }
 
+/**
+ * The lifecycle state a built state's SCREENS are those of (12 Nov). The API set-up builds richer states than the
+ * nine the screen table knows (uiSetup.ts: two_bids, closed_two_bids, withdrawn, dutch …); each opens the screens of
+ * its lifecycle state — closed_two_bids is a closed event, two_bids a live one with bids. Without this every case on
+ * those states stopped at open_prepared ("automation needs update"), found live on 12 Nov.
+ */
+const BASE_STATE: Record<string, NonNullable<PlanContext["state"]>> = {
+  two_invited: "live", uninvited: "live", dutch: "live", knockout: "live", forward: "live", pr_rfq: "live", withdrawn: "live",
+  two_bids: "bid", masked: "bid", amended: "bid", amendment: "bid",
+  closed_two_bids: "closed",
+};
+export function screenState(state: string | undefined): NonNullable<PlanContext["state"]> {
+  const s = state ?? "none";
+  return (BASE_STATE[s] ?? s) as NonNullable<PlanContext["state"]>;
+}
+
 // "upcoming" = published, bidding not yet open (the only state that offers Reschedule Event)
 const ANY_EVENT: ScreenSpec["needs"] = ["upcoming", "live", "bid", "closed", "proposal", "awarded", "converted"];
 

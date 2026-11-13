@@ -4,15 +4,15 @@
   "title": "Service PR → eRFX Technical + RFQ → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:13:36.732Z",
+  "compiledAt": "2026-11-12T12:59:44.038Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Adding exactly one Required T&C clause to the event.",
-   "Setting or asserting the evaluation duration is exactly 30 minutes; set_schedule can set the event duration but exposes no evaluation-duration argument.",
-   "Asserting the PR transitions through Open, In Progress, and ordered states.",
-   "Opening Purchase Orders and asserting there is exactly one PO per vendor with each activity retaining its vendor-specific rate.",
-   "Selecting the exact activity-to-vendor mapping of activity 1 to Vendor B and activity 2 to Vendor A; allocate_award has no line-item argument and the named QA vendor identities are not supplied."
+   "Set and verify the evaluation duration as 30 minutes through the schedule step; set_schedule exposes only the event duration.",
+   "Allocate exactly activity 1 to Vendor B and activity 2 to Vendor A with quantities 6 and 4; allocate_award cannot identify an activity, vendor role, or split quantity.",
+   "Verify that each PO is assigned to the expected vendor and preserves that vendor's individual activity rate.",
+   "Verify the PR transitions from Open to In Progress to ordered and directly open the PR after PO creation.",
+   "Verify the event's complete Live to evaluation to History lifecycle beyond confirming that the event appears in History."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -21,10 +21,10 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Adding exactly one Required T&C clause to the event.; Setting or asserting the evaluation duration is exactly 30 minutes; set_schedule can set the event duration but exposes no evaluation-duration argument.; Asserting the PR transitions through Open, In Progress, and ordered states.; Opening Purchase Orders and asserting there is exactly one PO per vendor with each activity retaining its vendor-specific rate.; Selecting the exact activity-to-vendor mapping of activity 1 to Vendor B and activity 2 to Vendor A; allocate_award has no line-item argument and the named QA vendor identities are not supplied."
+   "can only test part of this — no step for: Set and verify the evaluation duration as 30 minutes through the schedule step; set_schedule exposes only the event duration.; Allocate exactly activity 1 to Vendor B and activity 2 to Vendor A with quantities 6 and 4; allocate_award cannot identify an activity, vendor role, or split quantity.; Verify that each PO is assigned to the expected vendor and preserves that vendor's individual activity rate.; Verify the PR transitions from Open to In Progress to ordered and directly open the PR after PO creation.; Verify the event's complete Live to evaluation to History lifecycle beyond confirming that the event appears in History."
   ],
   "source": "llm",
-  "steps": 38,
+  "steps": 46,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -39,8 +39,12 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
+   "do_on_screen",
    "invite_vendor",
    "publish",
    "expect_published",
@@ -49,15 +53,19 @@
    "place_bid",
    "expect_bid_submitted",
    "close_event",
-   "evaluate_technical",
    "open_master_qcs",
-   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "start_awarding",
    "allocate_award",
+   "expect_award_counters",
    "allocate_award",
    "expect_award_counters",
    "click",
    "click",
+   "expect_awarded",
    "approve_award",
    "create_po",
    "expect_po_items",
@@ -65,10 +73,10 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 27219
+  "ms": 35028
  },
  "plan": {
-  "title": "Service PR to Split Award and PO",
+  "title": "Service PR Technical + RFQ Split Award to PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -128,9 +136,33 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the PR-created event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial awarding required for distributing activities across vendors."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendor participation to be added during event creation."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-E2E-010 Service PR Split Award"
+     "title": "Service PR Technical RFQ Split Award"
     },
     "note": "Provide the mandatory event title."
    },
@@ -139,24 +171,31 @@
     "args": {
      "minutes": 3
     },
-    "note": "Commit the 30-minute event schedule; the exact evaluation duration cannot be parameterized."
+    "note": "Commit the 30-minute event duration before publishing."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer create screen, set the evaluation duration to 30 minutes in the schedule controls, save the schedule, add one required Terms and Conditions clause, and stop on the create screen showing the saved schedule and clause."
+    },
+    "note": "Complete the evaluation-duration and required-T&C configuration not covered by a dedicated catalog step."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA test vendors without inventing real supplier names."
+    "note": "Invite two QA test vendors without inventing supplier names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured Technical plus RFQ event."
+    "note": "Publish the completed Technical plus RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publishing reached a real project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid",
@@ -164,12 +203,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Have the first invited vendor answer the technical stage and submit a quote of 100 per activity."
+    "note": "Have the first QA vendor answer the technical stage and submit a quote of 100 per activity."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the first vendor's submission was accepted."
+    "note": "Confirm the first vendor's submission was accepted."
    },
    {
     "step": "place_bid",
@@ -177,53 +216,83 @@
      "vendor": 2,
      "price": 90
     },
-    "note": "Have the second invited vendor answer the technical stage and submit a quote of 90 per activity."
+    "note": "Have the second QA vendor answer the technical stage and submit a quote of 90 per activity."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor's submission was accepted."
+    "note": "Confirm the second vendor's submission was accepted."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for bidding to end as required before evaluation and awarding."
-   },
-   {
-    "step": "evaluate_technical",
-    "args": {},
-    "note": "Submit the assigned evaluator's technical scoring after the technical window closes."
+    "note": "Wait for the bidding window to close before QCS and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid after evaluation and bidding are complete."
+    "note": "Open the buyer comparison grid after bidding ends."
    },
    {
-    "step": "expect_qcs_ranks",
+    "step": "expect_qcs_cell",
     "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 2
+     "row": "Rank",
+     "vendor": 2,
+     "equals": "1"
     },
-    "note": "Verify the lower-priced vendor ranks first."
+    "note": "Verify the second bidder, Vendor B by test order, is ranked first."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "equals": "2"
+    },
+    "note": "Verify the first bidder, Vendor A by test order, is ranked second."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "equals": "90"
+    },
+    "note": "Confirm Vendor B's quoted rate is retained in Master QCS."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Confirm Vendor A's quoted rate is retained in Master QCS."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen to allocate the two activities."
+    "note": "Open the awarding flow for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {},
-    "note": "Allocate an activity to one vendor as part of the split award."
+    "note": "Allocate the first available activity to one vendor as the closest supported split-allocation action."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/2",
+     "vendors": "1/2"
+    },
+    "note": "Confirm one of the two activities is allocated to one vendor."
    },
    {
     "step": "allocate_award",
     "args": {},
-    "note": "Allocate the remaining activity to the other vendor; exact activity identity cannot be selected by this step."
+    "note": "Allocate the remaining activity to the other available vendor as the closest supported split-allocation action."
    },
    {
     "step": "expect_award_counters",
@@ -231,7 +300,7 @@
      "items": "2/2",
      "vendors": "2/2"
     },
-    "note": "Verify both activities and both vendors are represented in the split allocation."
+    "note": "Confirm both activities and two vendors are represented in the allocation."
    },
    {
     "step": "click",
@@ -247,43 +316,48 @@
      "role": "button",
      "name": "Submit Proposal"
     },
-    "note": "Submit the created proposal for approval."
+    "note": "Submit the proposal for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for split service award"
+     "remark": "Approved for split service award after technical and commercial evaluation."
     },
     "note": "Approve the submitted proposal with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete approval and create the resulting purchase orders."
+    "note": "Complete approval and create the purchase orders."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Verify the created purchase orders contain the two awarded activity lines."
+    "note": "Confirm the resulting purchase orders contain the two awarded activity lines."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list to verify the event reached history."
+    "note": "Return to the events list to verify the event is in History."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Switch to the History tab."
+    "note": "Open the History tab after the event lifecycle completes."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify this plan's event appears in event history."
+    "note": "Confirm this plan's event appears in event History."
    }
   ]
  }

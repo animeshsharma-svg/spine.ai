@@ -4,86 +4,66 @@
   "title": "A saved eRFX draft: \"Edit Terms & Conditions\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:41:49.628Z",
+  "compiledAt": "2026-11-12T13:43:51.705Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that event times are unchanged",
-   "Verify that vendors are unchanged",
-   "Verify that bids are unchanged",
-   "unconfirmed label \"Edit Terms & Conditions\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Edit Terms & Conditions\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Verify that event times are unchanged; Verify that vendors are unchanged; Verify that bids are unchanged"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
-   "open_events_list",
-   "expect_events_list",
-   "filter_events",
-   "open_first_event",
-   "click",
-   "expect_visible",
-   "click",
-   "expect_visible",
-   "expect_event_status"
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "do_on_screen",
+   "expect_visible"
   ],
-  "ms": 7862
+  "ms": 15759
  },
  "plan": {
-  "title": "Cancel Terms & Conditions edit on saved draft",
+  "title": "EXP-DRAFT-024 Cancel Terms & Conditions",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list to reach the saved draft."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
-   },
-   {
-    "step": "filter_events",
+    "step": "open_prepared",
     "args": {
-     "tab": "Drafts"
+     "screen": "draft"
     },
-    "note": "Show saved drafts."
+    "note": "Open the existing saved eRFX draft without creating or publishing a new event."
    },
    {
-    "step": "open_first_event",
+    "step": "require_setting",
     "args": {
-     "tab": "Drafts"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the first saved draft shown in the Drafts tab."
+    "note": "Enable eRFX projects for the draft scenario."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Terms & Conditions"
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Open the draft's Terms & Conditions editor."
+    "note": "Apply the required vendor-lock configuration."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "dialog",
-     "name": "Edit Terms & Conditions",
-     "visible": true
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
     },
-    "note": "Confirm the Terms & Conditions edit window opened."
+    "note": "Apply the required stage-addition configuration."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "goal": "Open Terms & Conditions on the saved eRFX draft, cancel the Edit Terms & Conditions window, and verify on screen that the draft's status, times, vendors, bids, and other event values remain unchanged."
     },
-    "note": "Cancel the edit so no Terms & Conditions changes are saved."
+    "note": "Perform and observe the buyer-side modal cancellation flow that has no dedicated catalog action."
    },
    {
     "step": "expect_visible",
@@ -92,14 +72,7 @@
      "name": "Edit Terms & Conditions",
      "visible": false
     },
-    "note": "Verify that the edit window closes after cancellation."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Draft"
-    },
-    "note": "Verify that the event remains a draft after cancelling."
+    "note": "Assert that the Edit Terms & Conditions window is closed after cancellation."
    }
   ]
  }

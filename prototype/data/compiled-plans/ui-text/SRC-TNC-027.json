@@ -4,32 +4,31 @@
   "title": "eRFX project level (all stages), Mark all mandatory: the vendor accepts one of the two clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:13:37.693Z",
+  "compiledAt": "2026-11-12T13:19:05.882Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the line item's delivery location to Plant Name (LOC-0001), because add_line_items cannot set location and no catalog step targets that field.",
-   "Verify the project-level clauses appear on every stage of a multi-stage project, because the requested setup creates only an RFQ stage."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Set the line item's delivery location to Plant Name (LOC-0001), because add_line_items cannot set location and no catalog step targets that field.; Verify the project-level clauses appear on every stage of a multi-stage project, because the requested setup creates only an RFQ stage."
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 22,
   "stepNames": [
    "open_create",
-   "open_events_list",
-   "expect_events_list",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
+   "click",
    "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
@@ -39,27 +38,33 @@
    "toggle",
    "attempt"
   ],
-  "ms": 19765
+  "ms": 20789
  },
  "plan": {
-  "title": "Mandatory project terms block partial vendor acceptance",
+  "title": "eRFX project mandatory terms block partial acceptance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow."
+    "note": "Open the eRFX project creation screen."
    },
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the buyer's Events list before creating the eRFX project."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test."
    },
    {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the Events list rendered with the Create Event control and no error."
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the vendor to be added during event creation."
    },
    {
     "step": "set_title",
@@ -75,47 +80,69 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with the requested RFQ-only stage."
+    "note": "Configure the project with RFQ only, as required by the case."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template before adding line items."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER line item with quantity 10; the delivery location cannot be set by a catalog step."
+    "note": "Add the specified product with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Populate the RFQ pricing sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add T&Cs"
+    },
+    "note": "Open the project-level terms and conditions flow."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the RFQ create screen, open Add T&Cs, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", enable \"Mark all Terms & Conditions mandatory\", and click Done; stop with both clauses shown as overridden by Mark all mandatory"
+     "goal": "add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", mark all Terms & Conditions mandatory so both clauses show \"Overridden by Mark all mandatory\", and click Done; stop when the terms are saved"
     },
-    "note": "Configure the two project-level clauses and mark them mandatory."
+    "note": "Configure both project-level clauses and mark them mandatory."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the available QA vendor to the RFQ participants."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested 30-minute event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one QA test vendor for the vendor-portal check."
+    "note": "Commit the 30-minute schedule starting now."
    },
    {
     "step": "publish",
@@ -125,21 +152,21 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Confirm the project was published successfully."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session while keeping the buyer session available."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ pricing round in the vendor portal."
+    "note": "Open the event's RFQ bid sheet as the vendor."
    },
    {
     "step": "expect_text",
@@ -147,7 +174,7 @@
      "text": "Payment within 45 days",
      "present": true
     },
-    "note": "Verify the first project-level clause is visible to the vendor."
+    "note": "Verify the first project-level mandatory clause is shown to the vendor."
    },
    {
     "step": "expect_text",
@@ -155,7 +182,7 @@
      "text": "Delivery within 7 days",
      "present": true
     },
-    "note": "Verify the second project-level clause is visible to the vendor."
+    "note": "Verify the second project-level mandatory clause is shown to the vendor."
    },
    {
     "step": "toggle",
@@ -174,7 +201,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt to quote 100; the vendor submission must be blocked because the second mandatory clause remains unaccepted."
+    "note": "Attempt to quote 100 and submit; submission must be blocked because the second mandatory clause remains unaccepted."
    }
   ]
  }

@@ -4,68 +4,60 @@
   "title": "One PO per awarded vendor",
   "group": "SRC-PO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:12:59.527Z",
+  "compiledAt": "2026-11-12T13:06:36.774Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that each PO contains the event's exact RFX reference because no catalog step can capture or compare that reference on the Purchase Orders screen.",
-   "Use a dedicated catalog action to allocate exactly 6 units to Vendor B and 4 units to Vendor A; do_on_screen must perform this buyer-side split allocation."
+   "Award the split as 6 units to Vendor B at 90 and 4 units to Vendor A at 100",
+   "Verify which vendor owns each purchase order and that each PO has its corresponding quantity and price",
+   "Verify each purchase order displays the event's RFX reference"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that each PO contains the event's exact RFX reference because no catalog step can capture or compare that reference on the Purchase Orders screen.; Use a dedicated catalog action to allocate exactly 6 units to Vendor B and 4 units to Vendor A; do_on_screen must perform this buyer-side split allocation."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Award the split as 6 units to Vendor B at 90 and 4 units to Vendor A at 100; Verify which vendor owns each purchase order and that each PO has its corresponding quantity and price; Verify each purchase order displays the event's RFX reference"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
-   "expect_table",
-   "expect_table"
+   "require_setting",
+   "create_po",
+   "expect_po_items"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 28773
+  "ms": 13937
  },
  "plan": {
-  "title": "SRC-PO-001 — One PO per awarded vendor",
+  "title": "One PO per awarded vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared post-award event supplied by the setup case."
+    "note": "Open the prepared post-award event summary on the buyer side."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "on the buyer portal, allocate the split award as 6 units to Vendor B at 90 and 4 units to Vendor A at 100, submit and approve the award, open Purchase Orders from the left menu, search for the event's RFX number, and stop on the results showing the purchase-order rows"
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
     },
-    "note": "Perform the split award, approval, Purchase Orders navigation, and RFX search that no dedicated catalog step can express."
+    "note": "Enable partial awarding as required for the split-award scenario."
    },
    {
-    "step": "expect_table",
-    "args": {
-     "rows": 2,
-     "row": "Vendor B",
-     "cells": {
-      "Quantity": "6",
-      "Price": "90"
-     }
-    },
-    "note": "Verify the Vendor B purchase order has the awarded quantity and price."
+    "step": "create_po",
+    "args": {},
+    "note": "Finalize the prepared award approval and create the purchase orders."
    },
    {
-    "step": "expect_table",
+    "step": "expect_po_items",
     "args": {
-     "rows": 2,
-     "row": "Vendor A",
-     "cells": {
-      "Quantity": "4",
-      "Price": "100"
-     }
+     "count": 2
     },
-    "note": "Verify the Vendor A purchase order has the awarded quantity and price."
+    "note": "Assert that two purchase-order lines were created, providing the available check for two resulting POs."
    }
   ]
  }

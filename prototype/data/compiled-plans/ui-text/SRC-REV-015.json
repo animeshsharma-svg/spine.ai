@@ -4,24 +4,27 @@
   "title": "Revision needs approval when the price drops",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:47:30.983Z",
+  "compiledAt": "2026-11-12T13:11:38.828Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Enable or verify the tenant setting that requires approval for price decreases.",
-   "Approve Vendor A's pending bid revision with a buyer remark."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
-   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
-   "can only test part of this — no step for: Enable or verify the tenant setting that requires approval for price decreases.; Approve Vendor A's pending bid revision with a buyer remark."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "invite_vendor now names Vendor 1 — a later step expects that vendor on the event",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "invite_vendor now names Vendor 1 — a later step expects that vendor on the event",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 19,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
-   "compose_stages",
+   "configure_single_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -32,77 +35,84 @@
    "place_bid",
    "expect_bid_submitted",
    "place_bid",
+   "switch_portal",
    "open_master_qcs",
    "expect_qcs_cell",
-   "ask_tester",
+   "do_on_screen",
    "expect_qcs_cell"
   ],
-  "ms": 15016
+  "ms": 21209
  },
  "plan": {
-  "title": "Price Decrease Revision Approval",
+  "title": "Vendor Bid Decrease Approval",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Create the RFQ event needed for the vendor revision scenario."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "price decreases need approval",
+     "value": "On"
+    },
+    "note": "Configure the tenant rule required for the revision approval scenario."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-REV-015 Price Revision Approval"
+     "title": "SRC-REV-015 Bid Approval"
     },
-    "note": "Every create flow requires an event title."
+    "note": "Provide the mandatory event title."
    },
    {
-    "step": "compose_stages",
+    "step": "configure_single_stage",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "eventType": "rfq"
     },
-    "note": "Use an RFQ pricing stage rather than the default auction stage."
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product for the bid."
+    "note": "Add one product for the vendor quote."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1,
      "names": [
-      "Vendor A"
+      "Vendor 1"
      ]
     },
-    "note": "Invite one QA vendor to act as Vendor A."
+    "note": "Invite the QA vendor who will submit and revise the bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event before bidding."
+    "note": "Publish the event so the vendor can quote."
    },
    {
     "step": "expect_published",
@@ -128,16 +138,23 @@
      "vendor": 1,
      "price": 90
     },
-    "note": "Have the same vendor submit the decrease from 100 to 90."
+    "note": "Have the same vendor revise the bid downward to 90."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session while keeping the vendor session separate."
    },
    {
     "step": "open_master_qcs",
     "args": {
      "vendors": [
-      "Vendor A"
+      "Vendor 1"
      ]
     },
-    "note": "Open the buyer comparison after the revision to inspect the current bid value."
+    "note": "Open the buyer comparison grid after the unapproved revision."
    },
    {
     "step": "expect_qcs_cell",
@@ -146,14 +163,14 @@
      "vendor": 1,
      "number": 100
     },
-    "note": "Verify the comparison still uses 100 before the revision approval."
+    "note": "Verify the comparison still uses the original 100 before approval."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "enable or use a tenant where price decreases require approval, then approve Vendor A's pending 90 bid revision with a buyer remark"
+     "goal": "approve Vendor A's pending bid decrease from 100 to 90 with a buyer remark, then return to the buyer comparison grid showing the approved revision"
     },
-    "note": "The catalog has no step for the tenant setting or buyer approval workflow."
+    "note": "Perform the buyer approval workflow and enter the required remark, which has no dedicated catalog step."
    },
    {
     "step": "expect_qcs_cell",
@@ -162,7 +179,7 @@
      "vendor": 1,
      "number": 90
     },
-    "note": "After approval, verify the buyer comparison uses the revised price of 90."
+    "note": "Verify the approved revision is now the current comparison value."
    }
   ]
  }

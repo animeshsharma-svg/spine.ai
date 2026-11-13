@@ -4,60 +4,87 @@
   "title": "Single stage create screen (RFQ with a product): with can_add_ceil_price Off — blocked",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:37:50.873Z",
+  "compiledAt": "2026-11-12T13:43:31.333Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify or change the company setting can_add_ceil_price = Off"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Verify or change the company setting can_add_ceil_price = Off"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "fill_sheet",
+   "expect_sheet_cell",
    "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 9503
+  "ms": 21062
  },
  "plan": {
-  "title": "Single-stage RFQ ceiling price control with setting off",
+  "title": "Single-stage RFQ ceiling-price control off",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage creation screen specified by the case."
+    "note": "Open the single-stage create screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Prevent vendor additions during event creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "Off"
+    },
+    "note": "Set the ceiling-price feature to read-only/off for this scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the case's required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the event type to RFQ on the single-stage screen."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title so the screen can be configured without an unrelated title validation block."
+    "note": "Provide the mandatory event title needed to prepare a valid create screen."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ pricing template, corresponding to Buy Template."
+    "note": "Choose the available RFQ pricing template before adding the product."
    },
    {
     "step": "add_line_items",
@@ -66,19 +93,33 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product and quantity."
+    "note": "Add the named product and set its quantity to 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Render and populate the RFQ pricing sheet after adding the product."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify the product quantity is 10 before testing the ceiling-price control."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the single-stage RFQ create screen, click the can_add_ceil_price control and record what opens or changes; stop when the resulting screen state proves the outcome"
+     "goal": "On the single-stage RFQ create screen with can_add_ceil_price Off, click the can_add_ceil_price control and record what opens or changes; stop on the resulting screen."
     },
-    "note": "Explore the setting-dependent control directly on the buyer screen because no catalog assertion specifically names its behavior."
+    "note": "Perform and observe the requested control interaction when the catalog has no fixed expected outcome for it."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the resulting screen has no crash, server error, raw IDs, or invalid rendering after the interaction."
+    "note": "Assert the resulting screen has no crash, server error, raw values, or other rendering failure."
    }
   ]
  }

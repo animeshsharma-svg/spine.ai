@@ -4,45 +4,41 @@
   "title": "Award with Excel upload, no file",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:07:07.143Z",
+  "compiledAt": "2026-11-12T16:22:44.800Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Opening Events, searching by the closed RFQ title, and clicking that specific list row are not represented because prepared-state tests must start from the prepared event summary.",
-   "The exact submit control label in the Awarding with Excel drawer is not confirmed by the catalog."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Opening Events, searching by the closed RFQ title, and clicking that specific list row are not represented because prepared-state tests must start from the prepared event summary.; The exact submit control label in the Awarding with Excel drawer is not confirmed by the catalog."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "open_prepared",
    "click",
    "expect_visible",
-   "attempt"
+   "click",
+   "expect_message"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10534
+  "ms": 9281
  },
  "plan": {
-  "title": "Award with Excel Without File",
+  "title": "Award with Excel upload without file",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ as the buyer."
+    "note": "Open the prepared closed RFQ's summary page."
    },
    {
-    "step": "go_to",
+    "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Reach the Master QCS screen where the Excel awarding option is offered."
+    "note": "Navigate to the closed RFQ's Master QCS, where the Excel awarding option is available."
    },
    {
     "step": "click",
@@ -50,7 +46,7 @@
      "role": "menuitem",
      "name": "Awarding with Excel"
     },
-    "note": "Choose the Excel-based awarding flow."
+    "note": "Choose the Excel-based award flow."
    },
    {
     "step": "expect_visible",
@@ -59,20 +55,23 @@
      "name": "Upload File",
      "visible": true
     },
-    "note": "Confirm the Excel awarding drawer is open and provides its file upload control."
+    "note": "Confirm the Excel awarding flow displays its file upload control."
    },
    {
-    "step": "attempt",
+    "step": "click",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit"
-     },
-     "because": "Please upload a file before submitting",
-     "expect": "refused"
+     "role": "button",
+     "name": "Submit"
     },
-    "note": "Attempt submission with no file and require Procol's stated refusal."
+    "note": "Submit the Excel award without attaching a file."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please upload a file before submitting"
+    },
+    "note": "Assert that Procol refuses submission because no file was uploaded."
    }
   ]
  }

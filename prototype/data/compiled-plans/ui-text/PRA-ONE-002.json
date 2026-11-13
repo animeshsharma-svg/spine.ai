@@ -4,77 +4,64 @@
   "title": "A user limited to a different subcategory of the same category is not shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:24.652Z",
+  "compiledAt": "2026-11-12T13:48:08.149Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select the specific PR-4 line-item checkbox rather than the PR row checkbox",
-   "Verify every unfiltered assignee name through the end of the list",
    "unconfirmed label \"Fruits Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"Fruits Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Select the specific PR-4 line-item checkbox rather than the PR row checkbox; Verify every unfiltered assignee name through the end of the list"
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "click",
-   "expect_visible",
-   "fill",
+   "do_on_screen",
    "expect_text"
   ],
-  "ms": 9177
+  "ms": 12934
  },
  "plan": {
-  "title": "Hide ineligible PR assignee",
+  "title": "PRA-ONE-002 Wrong subcategory hidden from PR assignment",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration that restricts PR visibility to users whose team categories match the PR."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions, the starting screen for a PR-based test."
+    "note": "Open the Purchase Requisitions screen where PR-4 can be selected."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-4 is expected."
+    "note": "Stay on the Open tab, where PR-4 is available for assignment."
    },
    {
     "step": "select_pr",
     "args": {
      "pr": "PR-4"
     },
-    "note": "Select PR-4 so its available actions can be used."
+    "note": "Select the specified PR so its assignment action is available."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Assign"
+     "goal": "Open the assignment user picker for PR-4 using the Assign person icon next to Upload PRs, inspect the complete list by scrolling to the end, search for \"Fruits\", and leave the picker showing that Fruits Buyer is not listed"
     },
-    "note": "Open the assignee chooser for the selected PR."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "textbox",
-     "label": "Search a user",
-     "visible": true
-    },
-    "note": "Confirm the assignee search box opened."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search a user",
-     "value": "Fruits"
-    },
-    "note": "Filter the assignee list for the Fruits team."
+    "note": "Perform the assignment-list interaction that no dedicated catalog step models, including searching the user list and checking the filtered result."
    },
    {
     "step": "expect_text",
@@ -82,7 +69,7 @@
      "text": "Fruits Buyer",
      "present": false
     },
-    "note": "Verify the Fruits buyer is not offered for the SEA FOOD PR."
+    "note": "Assert that the Fruits Buyer user is not shown in the assignment list."
    }
   ]
  }

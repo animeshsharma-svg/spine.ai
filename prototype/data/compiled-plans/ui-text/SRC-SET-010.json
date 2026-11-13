@@ -4,24 +4,20 @@
   "title": "A single-stage RFQ created from an open material PR line",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:04:55.640Z",
+  "compiledAt": "2026-11-12T13:16:46.581Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select specifically the open PR line whose Item Type is Material and whose product is CYLINDER WITH KEY & KNOB, quantity is 10, and location is Plant Name (LOC-0001).",
-   "Verify that the two invited vendors are the specifically intended Vendor A and Vendor B because their actual catalog names are not provided and vendor names must not be invented."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 11 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
    "added place_bid — the test is about bidding and no bid step was planned",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 11 step(s) that would open a blank event or replace the PR's items",
-   "added place_bid — the test is about bidding and no bid step was planned",
-   "can only test part of this — no step for: Select specifically the open PR line whose Item Type is Material and whose product is CYLINDER WITH KEY & KNOB, quantity is 10, and location is Plant Name (LOC-0001).; Verify that the two invited vendors are the specifically intended Vendor A and Vendor B because their actual catalog names are not provided and vendor names must not be invented."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "added place_bid — the test is about bidding and no bid step was planned"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -31,18 +27,16 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "set_title",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
-   "place_bid",
-   "expect_table"
+   "place_bid"
   ],
-  "ms": 18302
+  "ms": 125142
  },
  "plan": {
-  "title": "Create single-stage RFQ from material PR",
+  "title": "A single-stage RFQ created from an open material PR line",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -80,46 +74,31 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so publishing can proceed."
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Add Vendor A and Vendor B under Participants"
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested Start now and 30-minute duration schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two QA vendors without inventing or selecting unprovided supplier names."
+    "note": "Configure event schedule with a 30-minute duration and save"
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured PR-based RFQ."
+    "note": "Publish the single-stage RFQ event"
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that the event is live on a real published project page."
+    "note": "Assert that the event successfully published and reached the project page"
    },
    {
     "step": "place_bid"
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "row": "CYLINDER WITH KEY & KNOB",
-     "cells": {
-      "Status": "In Progress"
-     }
-    },
-    "note": "Verify the PR row is present in In Progress with the expected status."
    }
   ]
  }

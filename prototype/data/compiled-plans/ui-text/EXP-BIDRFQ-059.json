@@ -4,31 +4,35 @@
   "title": "Withdrawing Order...: Withdrawing live RFQ is cancelled when the Cancel button is clicked",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:22.667Z",
+  "compiledAt": "2026-11-12T13:40:38.685Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Withdrawal Remarks\" (fill) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Withdrawal Remarks\" (fill) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
+   "expect_visible",
    "fill",
    "click",
    "expect_visible",
-   "expect_menu_item"
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9231
+  "ms": 12568
  },
  "plan": {
   "title": "Cancel live RFQ withdrawal",
@@ -41,19 +45,59 @@
     "note": "Open the prepared live RFQ with one vendor bid."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Use the requested RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the requested bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Use the requested buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Use the requested percentage counter-offer configuration."
+   },
+   {
     "step": "go_to",
     "args": {
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage where its Settings menu is available."
+    "note": "Open the RFQ stage specified by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab as specified."
+    "note": "Open the Responses tab where the case exercises Settings."
    },
    {
     "step": "event_menu",
@@ -61,15 +105,24 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Open the RFQ withdrawal dialog without confirming the withdrawal."
+    "note": "Open the RFQ Settings menu and choose Withdraw to show the withdrawal dialog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Withdrawing Order...",
+     "visible": true
+    },
+    "note": "Confirm the expected withdrawal dialog opened."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Withdrawal Remarks",
+     "label": "Enter reason",
      "value": "Changing mind"
     },
-    "note": "Enter the test withdrawal reason before cancelling."
+    "note": "Enter the case's withdrawal reason before cancelling."
    },
    {
     "step": "click",
@@ -83,18 +136,18 @@
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Withdrawing Order...",
      "visible": false
     },
-    "note": "Verify that the Withdrawing Order dialog closes."
+    "note": "Verify that cancelling closes the withdrawal dialog."
    },
    {
-    "step": "expect_menu_item",
+    "step": "expect_text",
     "args": {
-     "item": "Withdraw",
-     "stage": "rfq",
-     "enabled": true
+     "text": "Live",
+     "present": true
     },
-    "note": "Verify the RFQ remains live and its Withdraw action is still available."
+    "note": "Verify the RFQ remains live after cancellation."
    }
   ]
  }

@@ -4,34 +4,34 @@
   "title": "Withdraw an event that is in evaluation time and press Cancel in the pop-up",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:04.199Z",
+  "compiledAt": "2026-11-12T13:23:11.865Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Locate and verify the specific RFQ identified by the bid values A 100 and B 90; no exact event title or bid-based search argument is provided.",
-   "unconfirmed label \"Withdrawing Order…\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Directly verify that the specific RFQ with bids A 100 and B 90 remains in evaluation time after cancellation."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"Withdrawing Order…\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Locate and verify the specific RFQ identified by the bid values A 100 and B 90; no exact event title or bid-based search argument is provided."
+   "can only test part of this — no step for: Directly verify that the specific RFQ with bids A 100 and B 90 remains in evaluation time after cancellation."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "expect_text",
    "click",
-   "expect_visible",
-   "expect_text"
+   "expect_text",
+   "expect_menu_item"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10170
+  "ms": 14116
  },
  "plan": {
   "title": "Cancel withdrawal during evaluation",
@@ -44,26 +44,39 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw Project option is available to the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the event flow."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Withdraw Project"
     },
-    "note": "Open the project withdrawal confirmation pop-up without confirming the withdrawal."
+    "note": "Open the project withdrawal confirmation pop-up."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Withdrawing Order…",
-     "visible": true
+     "text": "Withdrawing Order"
     },
     "note": "Verify that the withdrawal confirmation pop-up is displayed."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Are you sure you want to withdraw this event?",
-     "present": true
+     "text": "Are you sure you want to withdraw this event?"
     },
     "note": "Verify the confirmation question in the pop-up."
    },
@@ -73,24 +86,23 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the withdrawal operation."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Withdrawing Order…",
-     "visible": false
-    },
-    "note": "Verify that the confirmation pop-up closes."
+    "note": "Cancel the withdrawal instead of confirming it."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Evaluation",
-     "present": true
+     "text": "Withdrawing Order",
+     "present": false
     },
-    "note": "Verify that the event remains in an evaluation-related state after cancellation."
+    "note": "Verify that the withdrawal pop-up closed."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw Project",
+     "enabled": true
+    },
+    "note": "Verify that the event was not withdrawn and the withdrawal action remains available."
    }
   ]
  }

@@ -4,52 +4,63 @@
   "title": "Delete line item respects hide_line_items_from_project_details_vendor_side setting",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:07:11.777Z",
+  "compiledAt": "2026-11-12T13:37:00.675Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable or verify the tenant setting hide_line_items_from_project_details_vendor_side.",
-   "Start from a live RFQ with exactly two active line items; the prepared event has one line item."
+   "The prepared live RFQ has one active line item, so the exact precondition of two active line items cannot be established."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable or verify the tenant setting hide_line_items_from_project_details_vendor_side.; Start from a live RFQ with exactly two active line items; the prepared event has one line item."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared live RFQ has one active line item, so the exact precondition of two active line items cannot be established."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_table",
-   "expect_count"
+   "expect_visible"
   ],
   "state": "live",
   "screen": "overview",
-  "ms": 7795
+  "ms": 9898
  },
  "plan": {
-  "title": "Hide line items from buyer overview",
+  "title": "Hide line items on RFQ overview",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the existing prepared RFQ directly on the buyer-side Overview tab."
+    "note": "Open the buyer-side Overview of the prepared live RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_line_items_from_project_details_vendor_side",
+     "value": "On"
+    },
+    "note": "Enable the tenant setting that masks line items from project details."
    },
    {
     "step": "expect_table",
     "args": {
+     "within": "Line Items",
      "rows": 0
     },
-    "note": "Assert that the buyer-side line-items table is empty."
+    "note": "Assert that the masked line-items table contains no data rows."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Delete",
-     "count": 0
+     "visible": false
     },
-    "note": "Assert that no Delete control is available to the buyer."
+    "note": "Assert that no Delete control is available when line items are hidden."
    }
   ]
  }

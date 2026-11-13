@@ -4,39 +4,43 @@
   "title": "Manage Line Items: Save line item with valid product, quantity and price",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:10.308Z",
+  "compiledAt": "2026-11-12T13:45:24.114Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+   "The exact label or identity of the unnamed price number field is not specified; the plan uses the generic label \"Price\"."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: The exact label or identity of the unnamed price number field is not specified; the plan uses the generic label \"Price\"."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
-   "fill",
+   "expect_visible",
    "select",
    "fill",
    "fill",
    "click",
    "expect_visible",
-   "expect_text",
-   "expect_text",
-   "expect_text",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "expect_no_error"
   ],
-  "ms": 72774
+  "ms": 17149
  },
  "plan": {
-  "title": "Save valid line item in eRFX draft",
+  "title": "Save Valid Draft Line Item",
   "steps": [
    {
     "step": "open_events_list",
@@ -44,16 +48,40 @@
     "note": "Open the Events list to reach the saved draft."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-creation configuration."
+   },
+   {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Confirm the events list rendered without an error."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
@@ -68,15 +96,16 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft's existing item."
+    "note": "Open the Manage Line Items window for the draft's existing line item."
    },
    {
-    "step": "fill",
+    "step": "expect_visible",
     "args": {
-     "label": "Search and add line items using product name",
-     "value": "AAC BLOCKS"
+     "role": "heading",
+     "name": "Manage Line Items",
+     "visible": true
     },
-    "note": "Search for the requested AAC BLOCKS product."
+    "note": "Confirm the line-item management window opened."
    },
    {
     "step": "select",
@@ -84,7 +113,7 @@
      "label": "Search and add line items using product name",
      "option": "1100000401 | AAC BLOCKS"
     },
-    "note": "Select the specified product from the search results."
+    "note": "Select the required AAC BLOCKS product from the searchable product dropdown."
    },
    {
     "step": "fill",
@@ -92,7 +121,7 @@
      "label": "Quantity",
      "value": "90"
     },
-    "note": "Enter the valid quantity."
+    "note": "Set the line-item quantity to 90."
    },
    {
     "step": "fill",
@@ -100,52 +129,57 @@
      "label": "Price",
      "value": "1200"
     },
-    "note": "Enter the valid positive price."
+    "note": "Set the positive price value to 1200 using the available price field."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save"
+     "name": "Save",
+     "within": "dialog"
     },
-    "note": "Save the line item changes."
+    "note": "Save the valid line-item values."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
+     "role": "heading",
+     "name": "Manage Line Items",
      "visible": false
     },
-    "note": "Verify the Manage Line Items window closed after saving."
+    "note": "Verify that saving closes the Manage Line Items window."
    },
    {
-    "step": "expect_text",
+    "step": "expect_sheet_cell",
     "args": {
-     "text": "AAC BLOCKS",
-     "present": true
+     "row": 1,
+     "column": "Product",
+     "contains": "AAC BLOCKS"
     },
-    "note": "Verify the saved product appears on the draft."
+    "note": "Verify the saved product appears in the draft sheet."
    },
    {
-    "step": "expect_text",
+    "step": "expect_sheet_cell",
     "args": {
-     "text": "90",
-     "present": true
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "90"
     },
-    "note": "Verify the saved quantity appears on the draft."
+    "note": "Verify the saved quantity is 90."
    },
    {
-    "step": "expect_text",
+    "step": "expect_sheet_cell",
     "args": {
-     "text": "1200",
-     "present": true
+     "row": 1,
+     "column": "Price",
+     "equals": "1200"
     },
-    "note": "Verify the saved price appears on the draft."
+    "note": "Verify the saved price is 1200."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm that saving produced no error message."
+    "note": "Confirm no application error is shown after saving."
    }
   ]
  }

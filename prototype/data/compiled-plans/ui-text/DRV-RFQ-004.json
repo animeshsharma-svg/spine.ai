@@ -1,30 +1,30 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-004",
-  "title": "Lot splitting unavailable when company setting is off",
+  "title": "Upload bid during best offer is restricted when setting is disabled",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:08:44.852Z",
+  "compiledAt": "2026-11-12T13:37:40.873Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set or verify the tenant setting enable_bid_masking_for_event is Off"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Set or verify the tenant setting enable_bid_masking_for_event is Off"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_api_value"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 7363
+  "ms": 13155
  },
  "plan": {
-  "title": "RFQ Commercial Price Visible with Masking Off",
+  "title": "RFQ Commercial Price Visible Without Masking",
   "steps": [
    {
     "step": "open_prepared",
@@ -34,11 +34,20 @@
     "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "Off"
+    },
+    "note": "Disable commercial bid masking for the test tenant."
+   },
+   {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Assert that the submitted commercial bid price is visible to the buyer."
+    "note": "Assert that the submitted commercial price is rendered and readable to the buyer."
    }
   ]
  }

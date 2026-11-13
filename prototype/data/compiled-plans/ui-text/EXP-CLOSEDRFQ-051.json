@@ -4,36 +4,71 @@
   "title": "Increase Event Time: Increase Event Time using Fixed time option",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:22.068Z",
+  "compiledAt": "2026-11-12T13:42:16.637Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The case does not specify the fixed time value to enter, so the exact intended fixed-time outcome cannot be determined."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The case does not specify the fixed time value to enter, so the exact intended fixed-time outcome cannot be determined."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10241
+  "ms": 11448
  },
  "plan": {
-  "title": "Increase Event Time with Fixed Time",
+  "title": "Closed RFQ Fixed-Time Extension",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary as the buyer."
+    "note": "Open the prepared closed RFQ with Vendor A's bid; this is the required starting state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Use the specified post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Use the specified buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Use the specified evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -41,24 +76,23 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab specified by the case."
+    "note": "Reach the Responses view described by the case before opening Settings."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "submission",
      "option": "fixed",
-     "at": "E+30m",
      "expect": "saved"
     },
-    "note": "Open Increase Event Time, choose Fixed time, set it to 30 minutes after the current end, press Ok, and verify Procol saves the extension."
+    "note": "Open Increase Event Time, choose Fixed time, submit with the dialog's fixed-time handling, and record whether Procol saves or refuses the request."
    }
   ]
  }

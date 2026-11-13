@@ -4,28 +4,30 @@
   "title": "eRFX Auction stage, no clause mandatory: the vendor accepts nothing",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:15:20.475Z",
+  "compiledAt": "2026-11-12T13:20:46.972Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that both clauses retain mode \"None\" and are shown as not accepted by the vendor; do_on_screen can perform the setup but has no dedicated assertion for these states."
+   "Directly assert that each vendor-side optional clause is visibly marked as not accepted or unchecked"
   ],
   "warnings": [
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: Directly assert that both clauses retain mode \"None\" and are shown as not accepted by the vendor; do_on_screen can perform the setup but has no dedicated assertion for these states."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Directly assert that each vendor-side optional clause is visibly marked as not accepted or unchecked"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "do_on_screen",
-   "invite_vendor",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
    "switch_portal",
@@ -37,112 +39,126 @@
    "switch_portal",
    "expect_responses"
   ],
-  "ms": 13122
+  "ms": 20556
  },
  "plan": {
-  "title": "eRFX auction with optional terms",
+  "title": "eRFX Auction Optional Terms Submission",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow."
+    "note": "Open the eRFX create screen with the default Auction stage."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for this tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add a vendor during event creation."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title so publishing can proceed."
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the Auction stage's first available template before adding items."
+    "note": "Apply an Auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required auction line item."
+    "note": "Add the line item to be quoted."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the line item."
+    "note": "Complete the Auction pricing sheet."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the Auction stage, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", leave each clause mode as \"None\", leave \"Mark all Terms & Conditions mandatory\" unticked, and click Done; stop on the Auction create screen showing the terms configuration saved"
+     "goal": "on the Auction stage, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", leave both clause modes set to None, leave \"Mark all Terms & Conditions mandatory\" unticked, click Done, and stop when the saved terms configuration is shown"
     },
-    "note": "Configure the two optional clauses and leave mandatory acceptance disabled; no catalog domain step can perform this exact terms workflow."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one QA vendor to receive and bid on the event."
+    "note": "Configure and verify the two optional clauses and ensure the mandatory-all switch remains unticked."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commit the 30-minute schedule with the event starting now."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one QA test vendor for the vendor-side submission."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event."
+    "note": "Publish the configured Auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier-portal session while keeping the buyer session available."
+    "note": "Open the invited QA vendor's supplier portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's Auction bid sheet in the vendor portal."
+    "note": "Open the event's Auction pricing round in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Payment within 45 days",
-     "present": true
+     "text": "Payment within 45 days"
     },
-    "note": "Verify the first optional clause is visible to the vendor."
+    "note": "Verify the first optional clause is visible in the vendor Terms & Conditions block."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Delivery within 7 days",
-     "present": true
+     "text": "Delivery within 7 days"
     },
-    "note": "Verify the second optional clause is visible to the vendor."
+    "note": "Verify the second optional clause is visible in the vendor Terms & Conditions block."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Quote 100 for every line without requiring mandatory clause acceptance."
+    "note": "Submit a quote of 100 without accepting either optional clause; successful submission demonstrates that optional terms do not block bidding."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the vendor submission succeeded."
+    "note": "Assert that the vendor portal shows the bid as submitted."
    },
    {
     "step": "switch_portal",
@@ -155,10 +171,9 @@
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1,
-     "stage": "auction"
+     "direct": 1
     },
-    "note": "Assert that the buyer sees the vendor's direct bid response."
+    "note": "Assert that the buyer sees the vendor's direct response."
    }
   ]
  }

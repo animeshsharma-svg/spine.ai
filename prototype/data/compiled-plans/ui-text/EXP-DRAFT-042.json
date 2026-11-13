@@ -4,25 +4,27 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Add T&CsAdded\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:43:39.969Z",
+  "compiledAt": "2026-11-12T13:45:06.964Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that the company setting lock_vendors_addition_in_event_creation is Off."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify that the company setting lock_vendors_addition_in_event_creation is Off."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "expect_visible"
   ],
-  "ms": 7785
+  "ms": 19852
  },
  "plan": {
   "title": "Saved eRFX draft hides Add T&Cs",
@@ -30,26 +32,50 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach saved drafts."
+    "note": "Open Events so the saved draft can be reached from the Drafts tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Set the condition under test that should prevent the control from being offered."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the remaining case configuration before opening the draft."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Confirm the events list rendered before switching tabs."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the saved drafts list."
+    "note": "Show saved drafts, which is the source screen specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft, which reopens its create screen."
+    "note": "Open an existing saved draft without creating or publishing a new event."
    },
    {
     "step": "expect_visible",
@@ -58,7 +84,7 @@
      "name": "Add T&Cs",
      "visible": false
     },
-    "note": "Assert that the Add T&Cs control is not offered on the saved draft."
+    "note": "Assert that the Add T&Cs control is not offered on the saved eRFX draft."
    }
   ]
  }

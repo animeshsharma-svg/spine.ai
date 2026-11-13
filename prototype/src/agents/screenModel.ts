@@ -657,6 +657,8 @@ const WHAT: Record<string, string> = {
 /** The API values a prepared state exposes to expect_api_value (uiSetup.ts). */
 export const VALUE_KEYS: Record<string, string[]> = { none: [], draft: ["title", "quantity", "unit"], upcoming: ["title", "quantity", "unit", "vendorName"], live: ["title", "quantity", "unit", "vendorName"], bid: ["title", "vendorName", "quantity", "unit", "bidPrice", "bidTotal"] };
 VALUE_KEYS.closed = VALUE_KEYS.bid;
+VALUE_KEYS.two_bids = [...VALUE_KEYS.bid, "secondVendorName", "bidPrice2", "bidTotal2"];
+VALUE_KEYS.closed_two_bids = VALUE_KEYS.two_bids;
 VALUE_KEYS.awarded = VALUE_KEYS.bid;
 VALUE_KEYS.proposal = VALUE_KEYS.bid;
 VALUE_KEYS.converted = VALUE_KEYS.bid;

@@ -4,60 +4,71 @@
   "title": "Revising is locked after submission",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:47:34.747Z",
+  "compiledAt": "2026-11-12T13:11:26.444Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Configure or verify the template/tenant setting \"revise bid locked\" before attempting the revision."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Configure or verify the template/tenant setting \"revise bid locked\" before attempting the revision."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "attempt"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 8177
+  "ms": 8465
  },
  "plan": {
-  "title": "Locked Bid Revision Refused",
+  "title": "Locked Bid Revision Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared event's Responses screen containing Vendor A's submitted bid."
+    "note": "Open the prepared event with Vendor A's submitted bid; prepared-state plans must start here."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_quote_after_submission",
+     "value": "On"
+    },
+    "note": "Enable the setting that locks submitted quotes against revision."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate vendor portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session open."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared event's pricing round as Vendor A, where the submitted quote can be revised."
+    "note": "Open the submitted pricing round where Vendor A can attempt a revision."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
      "expect": "refused",
-     "because": "Revise bid is locked. You cannot edit your quote after submission.",
-     "price": 100
+     "because": "Revise bid is locked. You cannot edit your quote after submission."
     },
-    "note": "Attempt to revise Vendor A's submitted quote and require the exact locked-revision refusal."
+    "note": "Attempt to submit a revised quote and require Procol's exact locked-revision refusal."
    }
   ]
  }

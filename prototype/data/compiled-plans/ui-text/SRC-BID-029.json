@@ -4,16 +4,14 @@
   "title": "Forward auction: the same price as another vendor",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:13:35.134Z",
+  "compiledAt": "2026-11-12T16:27:19.264Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A second vendor's own vendor-portal session for Vendor B while keeping the buyer and first vendor session active",
-   "A live forward auction prepared with Vendor A's existing bid and ties disabled; the prepared state is a pricing RFQ round",
-   "Quoting the exact existing Vendor A price from Vendor B's separate portal session and submitting it"
+   "A second vendor's own vendor-portal session for Vendor B, including opening the live auction and submitting Vendor A's exact price, cannot be performed by the catalog."
   ],
   "warnings": [
-   "can only test part of this — no step for: A second vendor's own vendor-portal session for Vendor B while keeping the buyer and first vendor session active; A live forward auction prepared with Vendor A's existing bid and ties disabled; the prepared state is a pricing RFQ round; Quoting the exact existing Vendor A price from Vendor B's separate portal session and submitting it"
+   "can only test part of this — no step for: A second vendor's own vendor-portal session for Vendor B, including opening the live auction and submitting Vendor A's exact price, cannot be performed by the catalog."
   ],
   "source": "llm",
   "steps": 3,
@@ -24,24 +22,24 @@
   ],
   "state": "forward",
   "screen": "summary",
-  "ms": 9114
+  "ms": 14565
  },
  "plan": {
-  "title": "Forward auction same-price bid refusal",
+  "title": "Forward auction rejects duplicate bid price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary as the required starting point."
+    "note": "Open the prepared live-auction event before attempting the vendor-side submission."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "in a second browser session, sign in as Vendor B, open the live forward auction with Vendor A's existing bid, quote exactly Vendor A's price, and submit it"
+     "need": "sign in as Vendor B in a second vendor portal session, open the live forward auction, quote exactly Vendor A's price, and submit the bid"
     },
-    "note": "The catalog cannot sign in as a second vendor or operate the required forward-auction state."
+    "note": "The catalog cannot create or control a second vendor's own portal session."
    },
    {
     "step": "expect_toast",
@@ -49,7 +47,7 @@
      "kind": "error",
      "text": "A bid at this price already exists, please quote a different price."
     },
-    "note": "Verify the expected refusal message after the attempted same-price submission."
+    "note": "Verify the duplicate-price bid was refused with the required message."
    }
   ]
  }

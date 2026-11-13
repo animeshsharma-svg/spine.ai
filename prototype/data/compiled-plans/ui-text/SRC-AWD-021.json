@@ -4,61 +4,74 @@
   "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:06:04.421Z",
+  "compiledAt": "2026-11-12T16:20:03.246Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "A closed RFQ with two line items and two vendor bids at the specified prices",
-   "Allocating line 1 to Vendor B and line 2 to Vendor A with quantities",
-   "Verifying Awarded Vendors is 2/2 for the requested two-vendor split",
-   "Verifying proposal totals of 900, 250, and 1,150",
-   "Filling and submitting the required proposal fields for this two-line allocation",
-   "Verifying one purchase order per awarded vendor and the event moving to History without approval"
+   "The prepared event has only one line item, so no catalog step can verify awarding line 1 to Vendor B and line 2 to Vendor A.",
+   "No catalog step can produce the requested two-line total of 1,150 from 10 × 90 and 5 × 50 in this prepared state.",
+   "No catalog step can verify that the final result creates one PO per awarded vendor without entering an approval flow."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: A closed RFQ with two line items and two vendor bids at the specified prices; Allocating line 1 to Vendor B and line 2 to Vendor A with quantities; Verifying Awarded Vendors is 2/2 for the requested two-vendor split; Verifying proposal totals of 900, 250, and 1,150; Filling and submitting the required proposal fields for this two-line allocation; Verifying one purchase order per awarded vendor and the event moving to History without approval"
+   "can only test part of this — no step for: The prepared event has only one line item, so no catalog step can verify awarding line 1 to Vendor B and line 2 to Vendor A.; No catalog step can produce the requested two-line total of 1,150 from 10 × 90 and 5 × 50 in this prepared state.; No catalog step can verify that the final result creates one PO per awarded vendor without entering an approval flow."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "expect_qcs_vendors",
    "start_awarding",
+   "allocate_award",
    "expect_award_counters"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14815
+  "ms": 14402
  },
  "plan": {
-  "title": "Line-wise Award Across Two Vendors",
+  "title": "SRC-AWD-021 line-wise award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the available prepared Master QCS state; this is the required starting point for prepared awarding cases."
+    "note": "Open the existing closed two-bid event directly on Master QCS."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
     },
-    "note": "Record the available state, which has one vendor column rather than the two bids required by the case."
+    "note": "Confirm both bidding vendor columns are present before awarding."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen to confirm that the awarding flow is reachable."
+    "note": "Open the awarding screen for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10,
+     "line": 1
+    },
+    "note": "Allocate the available line's full requested quantity to Vendor B, the closest expressible portion of the requested line-wise award."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "0/1",
-     "vendors": "0/1"
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
     },
-    "note": "Assert the available awarding counters, documenting that this state has one line and one vendor and therefore cannot represent the requested 2/2 allocation."
+    "note": "Assert the single-line allocation and its calculated proposal value; the requested 2/2 two-line result is unavailable in this prepared state."
    }
   ]
  }

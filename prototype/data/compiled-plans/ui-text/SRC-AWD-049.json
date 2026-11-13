@@ -4,22 +4,27 @@
   "title": "Stop auto awarding",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:08:41.972Z",
+  "compiledAt": "2026-11-12T16:23:25.814Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
+   "click",
+   "click",
    "do_on_screen",
    "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8947
+  "ms": 13095
  },
  "plan": {
   "title": "Stop Auto Awarding",
@@ -32,23 +37,42 @@
     "note": "Open the existing prepared live RFQ with auto awarding enabled."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage Settings menu containing the Disable Auto Awarding action."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Settings"
+    },
+    "note": "Open the stage settings menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Disable Auto Awarding"
+    },
+    "note": "Choose the control that stops auto awarding."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "click Disable Auto Awarding in the open Settings menu, confirm the action, and stop on the project page showing Auto Awarding Disabled"
+     "goal": "confirm disabling auto awarding in the open confirmation dialog and stop on the project summary screen"
     },
-    "note": "Perform the stop-auto-awarding action and its confirmation in the buyer session."
+    "note": "Complete the confirmation action that has no dedicated catalog step."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Auto Awarding Disabled"
     },
-    "note": "Verify the header shows that auto awarding is disabled."
+    "note": "Verify the stage header shows that auto awarding is disabled and awarding is now manual."
    }
   ]
  }

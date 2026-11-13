@@ -4,35 +4,34 @@
   "title": "Recreate Order from a closed reverse auction",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:43:58.343Z",
+  "compiledAt": "2026-11-12T13:10:34.195Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the newly created reverse auction has the same auction strategy and tick size as the source event.",
-   "Verify that the newly created auction preserves the chosen times.",
-   "Assert the newly created event's resulting reverse-auction state and settings after Create Order."
+   "Verify that the recreated auction preserves the original auction strategy and tick size.",
+   "Verify that the recreated auction preserves the chosen times from the original event."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the newly created reverse auction has the same auction strategy and tick size as the source event.; Verify that the newly created auction preserves the chosen times.; Assert the newly created event's resulting reverse-auction state and settings after Create Order."
+   "can only test part of this — no step for: Verify that the recreated auction preserves the original auction strategy and tick size.; Verify that the recreated auction preserves the chosen times from the original event."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "expect_visible",
    "click",
    "expect_no_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 11009
+  "ms": 11420
  },
  "plan": {
-  "title": "Recreate Order from Closed Reverse Auction",
+  "title": "Recreate closed reverse auction",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,19 +41,19 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project capability required by the case."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the stage Settings menu and choose Recreate Order."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Create Order",
-     "visible": true
-    },
-    "note": "Assert that the recreation dialog exposes the Create Order action."
+    "note": "Open the stage Settings menu and choose Recreate Order if it is offered."
    },
    {
     "step": "click",
@@ -62,12 +61,12 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the recreation using the default settings."
+    "note": "Submit the recreation using the displayed defaults."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Assert that submitting the recreation did not produce an application error."
+    "note": "Verify that the recreation did not produce an application error."
    }
   ]
  }

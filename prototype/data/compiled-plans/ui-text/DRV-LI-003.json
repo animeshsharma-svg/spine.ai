@@ -4,78 +4,83 @@
   "title": "Delete button is disabled on a draft RFQ with a single line item",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:06:47.071Z",
+  "compiledAt": "2026-11-12T13:36:53.248Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"⋮\" (hover) — not among the labels known from the app nor in the case"
+   "Opening the RFQ stage's Overview tab on the prepared draft, because open_prepared{screen:\"draft\"} lands on the draft create screen and no catalog step establishes that Overview tab.",
+   "unconfirmed label \"⋮\" (hover) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"⋮\" (expect_message) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"⋮\" (hover) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "coverage partial: unconfirmed label \"⋮\" (expect_message) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Opening the RFQ stage's Overview tab on the prepared draft, because open_prepared{screen:\"draft\"} lands on the draft create screen and no catalog step establishes that Overview tab."
   ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
-   "switch_stage",
-   "go_to",
-   "hover",
+   "require_setting",
+   "click",
    "expect_disabled",
+   "hover",
    "expect_message"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 7990
+  "ms": 10532
  },
  "plan": {
-  "title": "Draft RFQ single-item delete disabled",
+  "title": "Draft RFQ single-line delete disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the API-prepared draft RFQ without creating or searching for another event."
+    "note": "Open the API-prepared draft RFQ with its single active line item."
    },
    {
-    "step": "switch_stage",
+    "step": "require_setting",
     "args": {
-     "stage": "rfq"
+     "key": "pr_deletion_enabled",
+     "value": "On"
     },
-    "note": "Show the RFQ stage whose line item is being checked."
+    "note": "Enable the case-required deletion configuration before interacting with the draft."
    },
    {
-    "step": "go_to",
+    "step": "click",
     "args": {
-     "screen": "tab",
-     "name": "Overview"
+     "role": "button",
+     "name": "Items"
     },
-    "note": "Open the RFQ stage's Overview tab as required by the case."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "text": "⋮",
-     "within": "QA_Platform Item A"
-    },
-    "note": "Reveal the line item's overflow actions."
+    "note": "Open the line-item drawer containing the single line item's overflow controls."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Delete"
     },
-    "note": "Verify Delete is greyed out for the sole active line item."
+    "note": "Verify the Delete action for the only active line item is greyed out."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "text": "⋮"
+    },
+    "note": "Hover the line item's overflow control to reveal the deletion guard tooltip."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "tooltip",
-     "on": "Delete",
+     "on": "⋮",
      "text": "You cannot delete this line item from the project"
     },
-    "note": "Verify the required refusal tooltip is shown."
+    "note": "Verify the required guard explanation is shown."
    }
   ]
  }

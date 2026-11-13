@@ -4,43 +4,45 @@
   "title": "Recreate with Event End Time Duration 60 Mins",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:41:15.675Z",
+  "compiledAt": "2026-11-12T13:09:46.260Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the new event has a different RFX/stage code from the old event.",
-   "Verify the recreated event has the same product identity and delivery location as the old event.",
-   "Verify the recreated event has exactly the same participants as the old event."
+   "Assert that Evaluation Duration remains exactly 30 Mins and that no schedule is selected in the Recreate Order dialog.",
+   "Assert that the recreated event has a new RFX/stage code.",
+   "Assert that the recreated event preserves the exact product and delivery location.",
+   "Assert that the recreated event has exactly the same participants as the old event."
   ],
   "warnings": [
-   "resolved: “Verify the old event remains unchanged after recreation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “Verify Bidding Ends At equals the new start time plus exactly 60 minutes.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “Verify that no schedule was selected in the recreate dialog beyond leaving the default unchanged.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "can only test part of this — no step for: Verify the new event has a different RFX/stage code from the old event.; Verify the recreated event has the same product identity and delivery location as the old event.; Verify the recreated event has exactly the same participants as the old event."
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Assert that Bidding Ends At equals the new start time plus exactly 60 minutes.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Assert that the old event is unchanged after recreation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: Assert that Evaluation Duration remains exactly 30 Mins and that no schedule is selected in the Recreate Order dialog.; Assert that the recreated event has a new RFX/stage code.; Assert that the recreated event preserves the exact product and delivery location.; Assert that the recreated event has exactly the same participants as the old event."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "expect_visible",
    "expect_text",
    "expect_text",
    "expect_text",
-   "expect_text",
    "expect_options",
-   "select",
+   "click",
    "expect_value",
    "click",
-   "expect_navigated",
-   "expect_text",
-   "expect_text",
    "expect_api_value",
-   "expect_no_error"
+   "expect_api_value",
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 19037
+  "ms": 19046
  },
  "plan": {
   "title": "Recreate Order with 60-Minute End Time",
@@ -50,14 +52,22 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's project summary as required for prepared-state cases."
+    "note": "Open the prepared closed RFQ rather than creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project capability before navigating."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order dialog from the stage Settings menu."
+    "note": "Open Recreate Order from the stage Settings menu."
    },
    {
     "step": "expect_visible",
@@ -66,7 +76,7 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm the Recreate Order pop-up opened."
+    "note": "Verify that the Recreate Order pop-up opened."
    },
    {
     "step": "expect_text",
@@ -75,7 +85,7 @@
      "present": true,
      "within": "dialog"
     },
-    "note": "Verify the recreate dialog includes Product Sheet."
+    "note": "Confirm the recreation dialog contains the expected Product Sheet section."
    },
    {
     "step": "expect_text",
@@ -84,7 +94,7 @@
      "present": true,
      "within": "dialog"
     },
-    "note": "Verify the recreate dialog includes Auction Configurations."
+    "note": "Confirm the recreation dialog contains auction configuration controls."
    },
    {
     "step": "expect_text",
@@ -93,16 +103,7 @@
      "present": true,
      "within": "dialog"
     },
-    "note": "Verify the recreate dialog includes Delivery Date."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Schedule this event?",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Verify the scheduling choice is present."
+    "note": "Confirm the recreation dialog contains delivery-date controls."
    },
    {
     "step": "expect_options",
@@ -112,15 +113,15 @@
       "60 Mins"
      ]
     },
-    "note": "Check that the requested 60-minute end-time duration is offered."
+    "note": "Verify that the requested 60-minute duration is offered."
    },
    {
-    "step": "select",
+    "step": "click",
     "args": {
-     "label": "Event End Time Duration",
-     "option": "60 Mins"
+     "text": "60 Mins",
+     "within": "dialog"
     },
-    "note": "Set the recreated event's end-time duration to 60 minutes."
+    "note": "Select the requested event end-time duration."
    },
    {
     "step": "expect_value",
@@ -128,30 +129,30 @@
      "label": "Event End Time Duration",
      "value": "60 Mins"
     },
-    "note": "Confirm the duration control shows 60 Mins."
+    "note": "Verify that the duration field shows the selected 60-minute value."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Create Order"
+     "name": "Create Order",
+     "within": "dialog"
     },
-    "note": "Create the recreated order while retaining the default 30-minute evaluation and no schedule selection."
+    "note": "Create the recreated event using the configured duration."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_api_value",
     "args": {
-     "screen": "event"
+     "key": "quantity"
     },
-    "note": "Confirm the new event page opened."
+    "note": "Verify that the recreated event retains the prepared event's line-item quantity."
    },
    {
-    "step": "expect_text",
+    "step": "expect_api_value",
     "args": {
-     "text": "Live",
-     "present": true
+     "key": "unit"
     },
-    "note": "Verify the recreated event is live immediately."
+    "note": "Verify that the recreated event retains the prepared event's line-item unit."
    },
    {
     "step": "expect_text",
@@ -159,19 +160,7 @@
      "text": "Bidding Ends At",
      "present": true
     },
-    "note": "Verify the live event page exposes its bidding end time."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity"
-    },
-    "note": "Verify the recreated event retains the prepared RFQ's quantity."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm recreation completed without an application error."
+    "note": "Confirm that the newly opened live event displays its bidding end-time information."
    }
   ]
  }

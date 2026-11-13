@@ -4,59 +4,154 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"RFQ\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:42:02.230Z",
+  "compiledAt": "2026-11-12T13:44:06.505Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that the company setting lock_vendors_addition_in_event_creation is Off.",
-   "Select an unspecified draft and prove it is specifically an eRFX draft before checking its stage menu."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify that the company setting lock_vendors_addition_in_event_creation is Off.; Select an unspecified draft and prove it is specifically an eRFX draft before checking its stage menu."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 18,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
+   "expect_event_in_list",
    "open_first_event",
    "open_add_stage_menu",
    "expect_add_stage_options"
   ],
-  "ms": 9589
+  "ms": 11383
  },
  "plan": {
-  "title": "Saved eRFX Draft RFQ Option",
+  "title": "EXP-DRAFT-027 RFQ Hidden in eRFX Draft",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen to build the saved draft."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the setting whose effect on the draft's available stages is being tested."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional stage-configuration prerequisite from the case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-027 RFQ Lock Draft"
+    },
+    "note": "Give the draft a stable title so it can be located and reopened."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the initial stage so the draft can be saved."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for a valid draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft required by the scenario."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save did not produce an application error."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved drafts."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Navigate to the Events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab as required by the case."
+    "note": "Open the Drafts tab specified by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-027 RFQ Lock Draft"
+    },
+    "note": "Verify the newly saved draft appears in Drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-027 RFQ Lock Draft"
     },
-    "note": "Open the first saved draft; a draft reopens on its create screen."
+    "note": "Open the created draft from the Drafts list."
    },
    {
     "step": "open_add_stage_menu",
     "args": {},
-    "note": "Open the Add Stages menu where the RFQ option would be offered."
+    "note": "Open the Add Stages menu whose RFQ availability is under test."
    },
    {
     "step": "expect_add_stage_options",
@@ -65,7 +160,7 @@
       "RFQ"
      ]
     },
-    "note": "Assert that RFQ is not offered in the draft's Add Stages menu."
+    "note": "Assert that RFQ is not offered in the saved draft."
    }
   ]
  }

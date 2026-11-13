@@ -5,7 +5,7 @@
  * setup did not build one" (8 of 46 prompts, 22 Oct). This builds the state first, the way the
  * Screens page does, so the plan opens a real event in the state the words ask for.
  */
-import { buildUiState, type UiState } from "./uiSetup.js";
+import { buildUiState, type StateShape, type UiState } from "./uiSetup.js";
 import { prepFor } from "./uiCasePrep.js";
 
 export interface PlanLike {
@@ -40,13 +40,13 @@ export async function contextForPlan(
   companyId: number,
   onLine?: (l: string) => void,
   /** the state the case's own pre-conditions name (a test-case sheet) — used instead of guessing from the words */
-  explicit?: { state: UiState; technical?: boolean; auction?: boolean },
+  explicit?: { state: UiState; technical?: boolean; auction?: boolean; shape?: StateShape },
 ): Promise<{ context?: Record<string, unknown>; state?: UiState; why?: string }> {
   const guessed = stateForPlan(text, plan);
   const need = guessed && explicit ? { ...guessed, state: explicit.state, technical: !!explicit.technical, auction: explicit.auction } : guessed;
   if (!need) return {};
   onLine?.(`building a "${need.state}" event through the API${need.state === "bid" || need.state === "closed" ? " (a vendor's bid in)" : ""} — the case starts from an existing event`);
-  const b: any = await buildUiState(companyId, need.state, { technical: need.technical, auction: need.auction, onLine }).catch((e) => ({ ok: false, why: (e as Error).message }));
+  const b: any = await buildUiState(companyId, need.state, { technical: need.technical, auction: need.auction, onLine, ...(explicit?.shape ? { shape: explicit.shape } : {}) }).catch((e) => ({ ok: false, why: (e as Error).message }));
   const x = b.ok ? b.context : null;
   if (!x) return { state: need.state, why: `the API could not build the ${need.state} state this case starts from: ${b.why}` };
   onLine?.(`event ready: "${x.title ?? x.eventGroupUuid}" (${need.state})${x.vendorName ? ` · vendor ${x.vendorName}` : ""}`);

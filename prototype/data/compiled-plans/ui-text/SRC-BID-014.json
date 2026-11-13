@@ -4,21 +4,22 @@
   "title": "RFQ bid: Quote only one of two products",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:12:48.154Z",
+  "compiledAt": "2026-11-12T16:26:10.001Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit a vendor bid with a price entered for product 1 only while leaving product 2 unquoted."
+   "Conditionally accept either the refusal message \"Please quote prices for all the products.\" / \"You have to place bid on atleast one product\" or a successful partial bid while recording which behavior occurred."
   ],
   "warnings": [
-   "can only test part of this — no step for: Submit a vendor bid with a price entered for product 1 only while leaving product 2 unquoted."
+   "can only test part of this — no step for: Conditionally accept either the refusal message \"Please quote prices for all the products.\" / \"You have to place bid on atleast one product\" or a successful partial bid while recording which behavior occurred."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -28,25 +29,26 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
-   "expect_toast"
+   "set_sheet_cell",
+   "click",
+   "expect_message"
   ],
-  "ms": 75171
+  "ms": 13935
  },
  "plan": {
-  "title": "RFQ Partial Product Quote",
+  "title": "RFQ Partial Quote Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage event create flow."
+    "note": "Open the eRFX creation flow for the RFQ test event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-BID-014 Partial Quote"
+     "title": "SRC-BID-014 Partial Quote RFQ"
     },
     "note": "Provide the required event title."
    },
@@ -60,9 +62,16 @@
     "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and items."
+   },
+   {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding products."
+    "note": "Apply an RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -74,7 +83,7 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet for the created products."
+    "note": "Complete the buyer-side pricing sheet so the RFQ can be published."
    },
    {
     "step": "set_schedule",
@@ -88,12 +97,12 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the vendor account that will test the portal bid."
+    "note": "Invite the QA vendor used for the vendor-portal submission."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so it is available in the vendor portal."
+    "note": "Publish the live RFQ."
    },
    {
     "step": "expect_published",
@@ -105,28 +114,38 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Open the separate supplier-portal session while keeping the buyer session available."
+    "note": "Use the separate vendor session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing round from the vendor event list."
+    "note": "Open this event from the vendor's event list at its RFQ pricing sheet."
    },
    {
-    "step": "ask_tester",
+    "step": "set_sheet_cell",
     "args": {
-     "need": "in the vendor portal, enter a price for product 1 only, leave product 2 unquoted, submit the bid, and report whether Procol refuses it or allows the partial quote"
+     "row": 1,
+     "column": "Price",
+     "value": "100"
     },
-    "note": "The catalog has no vendor-bid step that leaves one product unquoted."
+    "note": "Enter a quote for product 1 only and leave product 2 unquoted."
    },
    {
-    "step": "expect_toast",
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote"
+    },
+    "note": "Attempt to submit the partial quote."
+   },
+   {
+    "step": "expect_message",
     "args": {
      "kind": "any"
     },
-    "note": "Observe and record the resulting refusal or acceptance feedback after the partial-quote submission."
+    "note": "Capture the refusal or success response produced by the partial submission attempt."
    }
   ]
  }

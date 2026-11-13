@@ -4,25 +4,30 @@
   "title": "Double-click Send Counter Offer",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:38:04.531Z",
+  "compiledAt": "2026-11-12T13:03:47.029Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Rapidly click Send twice and verify that exactly one counter offer is created"
+   "Perform two rapid clicks on Send Counter Offer and verify that exactly one counter offer is created",
+   "Verify the RFQ in evaluation state specifically; the prepared-state catalog exposes the available response state instead"
   ],
   "warnings": [
-   "can only test part of this — no step for: Rapidly click Send twice and verify that exactly one counter offer is created"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Perform two rapid clicks on Send Counter Offer and verify that exactly one counter offer is created; Verify the RFQ in evaluation state specifically; the prepared-state catalog exposes the available response state instead"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 8197
+  "ms": 13193
  },
  "plan": {
   "title": "Double-click Send Counter Offer",
@@ -32,17 +37,33 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses view containing the vendor bid."
+    "note": "Open the prepared RFQ Responses screen with the vendor bids already present."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable the RFQ counter-offer UI required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "place_counter_offer",
     "args": {},
-    "note": "Enter and send a counter offer from the buyer's Responses view; the step performs one submission."
+    "note": "Send one counter offer from the buyer on the vendor's normal bid; this is the closest available action to the requested Send click."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that the vendor's bid is marked as having a counter offer initiated."
+    "note": "Assert that the response grid records the counter offer as initiated."
    }
   ]
  }

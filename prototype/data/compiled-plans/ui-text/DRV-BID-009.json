@@ -1,35 +1,31 @@
 {
  "meta": {
   "caseId": "DRV-BID-009",
-  "title": "Master QCS correctly computes line-level totals based on vendor quotes",
+  "title": "Unverified vendor submission is refused when event blocks unverified vendors",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T22:59:20.254Z",
+  "compiledAt": "2026-11-12T13:34:28.370Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Verify or change the allow_multiple_po_on_same_bid tenant setting",
-   "Verify that the prepared RFQ has an existing PO for Vendor A before rejection",
-   "Perform and observe the complete Reject Bid workflow and confirm the bid is rejected",
-   "Verify that the existing PO remains and that no new PO is generated"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify or change the allow_multiple_po_on_same_bid tenant setting; Verify that the prepared RFQ has an existing PO for Vendor A before rejection; Perform and observe the complete Reject Bid workflow and confirm the bid is rejected; Verify that the existing PO remains and that no new PO is generated"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
+   "require_setting",
    "do_on_screen",
    "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 9895
+  "ms": 16910
  },
  "plan": {
-  "title": "Reject Bid With Existing PO",
+  "title": "Reject Bid with Single-PO Setting",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,25 +35,24 @@
     "note": "Open the prepared closed RFQ on the buyer's Responses tab."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Reject",
-     "visible": true
+     "key": "allow_multiple_po_on_same_bid",
+     "value": "Off"
     },
-    "note": "Confirm the Responses screen exposes the Reject control for the bid."
+    "note": "Ensure the tenant blocks multiple purchase orders from the same bid."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "reject Vendor A's bid and verify on the buyer screen that the bid is rejected, the existing purchase order remains, and no new purchase order is generated"
+     "goal": "On Vendor A's bid in the Responses tab, click Reject Bid and confirm the rejection; verify the bid is shown as rejected, the existing purchase order remains, and no new purchase order is generated."
     },
-    "note": "The catalog has no dedicated bid-rejection or purchase-order assertion step, so this is the closest buyer-side action."
+    "note": "Perform and verify the buyer-side rejection flow and its purchase-order behavior."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the buyer screen has no rendering or server error after the attempted workflow."
+    "note": "Confirm the resulting screen has no rendering or server errors."
    }
   ]
  }

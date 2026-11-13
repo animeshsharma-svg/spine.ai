@@ -4,89 +4,99 @@
   "title": "RFQ bid: Upload an attachment with the bid",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:12:54.024Z",
+  "compiledAt": "2026-11-12T16:26:17.263Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the buyer can open the uploaded quote.pdf file; the catalog can only check that the filename is visible, not that the file opens successfully."
+   "The catalog has no dedicated assertion that the buyer can open the uploaded quote.pdf from Vendor A's bid."
   ],
   "warnings": [
-   "resolved: “Attach quote.pdf in the vendor portal bid form because no catalog step targets vendor bid attachments.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Verify that the buyer can open the uploaded quote.pdf file; the catalog can only check that the filename is visible, not that the file opens successfully."
+   "resolved: “The vendor portal's exact bid-attachment control label is not defined in the catalog; using the guessed label \"Attachmen” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: The catalog has no dedicated assertion that the buyer can open the uploaded quote.pdf from Vendor A's bid."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
+   "upload",
    "vendor_bid",
    "expect_bid_submitted",
    "switch_portal",
    "go_to",
+   "expect_responses",
    "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12328
+  "ms": 14300
  },
  "plan": {
-  "title": "SRC-BID-016 RFQ Bid Attachment",
+  "title": "RFQ bid attachment upload",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event without bids."
+    "note": "Open the prepared live RFQ without recreating or republishing it."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in Vendor A's separate supplier-portal session while keeping the buyer session open."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ bid sheet in the vendor portal."
+    "note": "Open the prepared live RFQ's pricing round from the vendor event list."
    },
    {
-    "step": "ask_tester",
+    "step": "upload",
     "args": {
-     "need": "attach quote.pdf to the open RFQ bid in the vendor portal, without submitting it"
+     "label": "Attachment",
+     "file": "quote.pdf"
     },
-    "note": "The catalog has no vendor-bid attachment step, so the tester must perform the upload before the quote is submitted."
+    "note": "Attempt to attach quote.pdf to the vendor bid; the attachment label is not catalog-confirmed."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit Vendor A's quote for 100 after the attachment has been added."
+    "note": "Enter the requested quote and submit the vendor bid."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the vendor portal accepted the bid."
+    "note": "Assert that the vendor portal accepted the submitted quote."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's session to inspect the submitted response."
+    "note": "Return to the buyer's console to inspect the submitted response."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the RFQ."
+    "note": "Open the buyer's Responses view for the RFQ bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Assert that the buyer sees Vendor A's direct response."
    },
    {
     "step": "expect_text",
@@ -94,7 +104,7 @@
      "text": "quote.pdf",
      "present": true
     },
-    "note": "Assert that the buyer's response view exposes the uploaded attachment filename."
+    "note": "Check whether the uploaded filename is visible in the buyer's response view, as the closest available evidence of file availability."
    }
   ]
  }

@@ -1,48 +1,59 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-016",
-  "title": "Splitting with duplicate lot name shows warning but allows creation",
+  "title": "User without \"unlock_commercials\" permission cannot see the \"Open Commercials\" button",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:10:40.900Z",
+  "compiledAt": "2026-11-12T13:38:48.371Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a buyer user who specifically lacks the unlock_commercials permission",
+   "Signing in as a buyer user who lacks the unlock_commercials permission",
    "unconfirmed label \"Open Commercials\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"Open Commercials\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Sign in as a buyer user who specifically lacks the unlock_commercials permission"
+   "can only test part of this — no step for: Signing in as a buyer user who lacks the unlock_commercials permission"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "ask_tester",
    "go_to",
    "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8844
+  "ms": 16537
  },
  "plan": {
-  "title": "Restricted RFQ Commercials Button",
+  "title": "RFQ Commercials Hidden Without Permission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ before checking its commercial controls."
+    "note": "Open the prepared live RFQ without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable commercial masking so the RFQ remains sealed."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a buyer user without the unlock_commercials permission and open this prepared RFQ"
+     "need": "sign in as the buyer user who lacks the unlock_commercials permission"
     },
-    "note": "The catalog cannot select or authenticate a buyer account with a specific missing permission."
+    "note": "The required permission-specific buyer session is not available through catalog steps."
    },
    {
     "step": "go_to",
@@ -50,16 +61,15 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where the Open Commercials control would be offered."
+    "note": "Navigate to the RFQ stage where the commercial-unlock control would appear."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Open Commercials",
+     "text": "Open Commercials",
      "visible": false
     },
-    "note": "Assert that the restricted buyer does not see the Open Commercials button."
+    "note": "Verify that the Open Commercials button is absent for the permissionless buyer."
    }
   ]
  }

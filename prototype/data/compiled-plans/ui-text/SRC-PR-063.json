@@ -4,54 +4,58 @@
   "title": "A given PR that is already completed",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:34:05.205Z",
+  "compiledAt": "2026-11-12T13:08:16.961Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Search for the specific completed PR number because no PR number is provided and the catalog has no PR search step.",
-   "Verify the user picks another PR or reports that the given PR is already ordered.",
-   "unconfirmed label \"Purchase Items\" (expect_disabled) — not among the labels known from the app nor in the case"
+   "Search for the given PR number because no PR number was provided and the catalog has no dedicated PR search step.",
+   "Assert that the application reports the PR is already ordered or prompts the buyer to pick another PR.",
+   "unconfirmed label \"Purchase Items\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Items\" (expect_disabled) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Search for the specific completed PR number because no PR number is provided and the catalog has no PR search step.; Verify the user picks another PR or reports that the given PR is already ordered."
+   "coverage partial: unconfirmed label \"Purchase Items\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Search for the given PR number because no PR number was provided and the catalog has no dedicated PR search step.; Assert that the application reports the PR is already ordered or prompts the buyer to pick another PR."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "expect_disabled"
+   "pr_tab",
+   "expect_visible"
   ],
-  "ms": 8771
+  "ms": 9335
  },
  "plan": {
-  "title": "Completed PR Cannot Be Resourced",
+  "title": "Completed PR cannot be sourced again",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area from the buyer portal."
+    "note": "Open the Purchase Requisitions area."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Confirm the normal starting tab before moving to completed requisitions."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Completed"
     },
-    "note": "Show completed requisitions, where the target PR is expected to appear."
+    "note": "Open the tab containing completed PRs, which should not be sourceable again."
    },
    {
-    "step": "select_pr",
-    "args": {},
-    "note": "Select the first completed PR to test whether it can be sourced again."
-   },
-   {
-    "step": "expect_disabled",
+    "step": "expect_visible",
     "args": {
-     "control": "Purchase Items"
+     "role": "button",
+     "name": "Purchase Items",
+     "visible": false
     },
-    "note": "Assert that sourcing is unavailable for a completed PR."
+    "note": "Verify that the sourcing action is unavailable for completed PRs."
    }
   ]
  }

@@ -4,45 +4,76 @@
   "title": "Recreate Order: Double-click Create Order",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:44:04.211Z",
+  "compiledAt": "2026-11-12T13:10:40.443Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Verify that exactly one new event is created after two rapid Create Order clicks.",
-   "Verify the timing-sensitive double-click handling or deduplication behavior."
+   "Verify that two rapid clicks on Create Order create exactly one new event rather than duplicate events.",
+   "Guarantee that the two Create Order clicks occur within the required double-click timing window."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify that exactly one new event is created after two rapid Create Order clicks.; Verify the timing-sensitive double-click handling or deduplication behavior."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that two rapid clicks on Create Order create exactly one new event rather than duplicate events.; Guarantee that the two Create Order clicks occur within the required double-click timing window."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "event_menu",
+   "expect_visible",
    "click",
    "click",
-   "expect_toast"
+   "expect_no_error"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 71117
+  "ms": 18033
  },
  "plan": {
-  "title": "Recreate Order Double-Click Protection",
+  "title": "Recreate Order double-click deduplication",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's project summary as the existing event under test."
+    "note": "Open the prepared closed RFQ summary; the event already exists and must not be recreated through the create flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the stage Settings menu contains Recreate Order."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order dialog from the event's stage settings."
+    "note": "Open the Recreate Order dialog from the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order pop-up opened before attempting creation."
    },
    {
     "step": "click",
@@ -50,7 +81,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Perform the first Create Order action."
+    "note": "Perform the first Create Order click."
    },
    {
     "step": "click",
@@ -58,14 +89,12 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Perform the second immediate Create Order action to exercise the duplicate-click scenario."
+    "note": "Perform the second immediate Create Order click to exercise duplicate-submission handling."
    },
    {
-    "step": "expect_toast",
-    "args": {
-     "kind": "any"
-    },
-    "note": "Check for any application response after the duplicate actions, although this does not prove the exact number of created events."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify that the double submission did not produce an application error."
    }
   ]
  }

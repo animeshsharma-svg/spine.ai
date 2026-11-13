@@ -4,30 +4,33 @@
   "title": "Withdraw an event that is live with two bids with a reason",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:22:44.614Z",
+  "compiledAt": "2026-11-12T13:23:05.215Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify this prepared event's specific row moves to the History tab because its title is not exposed as a prepared-state value for a list-row assertion.",
-   "Directly assert that both buyer-side bid cells are read-only after withdrawal.",
-   "Open a second vendor's own portal session to verify that vendor can no longer revise.",
-   "Verify that a purchase-request line returns to Open when the event was created from a PR."
+   "Assert that both buyer-side bid records are read-only after withdrawal.",
+   "Verify that the second vendor's own supplier-portal session cannot revise its bid.",
+   "Verify that a purchase-request line returns to Open when the event originated from a PR."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify this prepared event's specific row moves to the History tab because its title is not exposed as a prepared-state value for a list-row assertion.; Directly assert that both buyer-side bid cells are read-only after withdrawal.; Open a second vendor's own portal session to verify that vendor can no longer revise.; Verify that a purchase-request line returns to Open when the event was created from a PR."
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that both buyer-side bid records are read-only after withdrawal.; Verify that the second vendor's own supplier-portal session cannot revise its bid.; Verify that a purchase-request line returns to Open when the event originated from a PR."
   ],
   "source": "llm",
   "steps": 16,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "expect_responses",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn",
    "event_menu",
    "expect_text",
+   "filter_events",
+   "expect_event_in_list",
    "go_to",
    "expect_responses",
    "switch_portal",
@@ -38,41 +41,33 @@
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 20641
+  "ms": 18707
  },
  "plan": {
-  "title": "SRC-WDR-007 — Withdraw live RFQ with two bids",
+  "title": "Withdraw live RFQ with two bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing buyer-side RFQ prepared for the two-bid scenario."
+    "note": "Open the prepared live RFQ with two bids without creating or searching for another event."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the published event's Participants list so a second bid can be entered on behalf of another invited vendor."
-   },
-   {
-    "step": "place_surrogate_bid",
+    "step": "require_setting",
     "args": {
-     "price": 90
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Add the second bid for the other invited vendor, matching the scenario's lower bid."
+    "note": "Ensure the Withdraw Project action is available."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the surrogate bid was accepted."
-   },
-   {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "count": 2
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Confirm the buyer sees both bids before withdrawal."
+    "note": "Ensure the RFQ project flow is enabled for the prepared event."
    },
    {
     "step": "withdraw_event",
@@ -80,68 +75,82 @@
      "scope": "project",
      "reason": "QA test withdraw"
     },
-    "note": "Withdraw the whole project using the required audit reason."
+    "note": "Withdraw the live project using the required withdrawal reason."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Assert that the event is recorded as withdrawn."
+    "note": "Assert that Procol records the project as withdrawn."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "rfq"
     },
-    "note": "Open the Order Activity drawer to inspect the withdrawal audit entry."
+    "note": "Open the RFQ activity drawer to inspect the withdrawal record."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "QA test withdraw"
     },
-    "note": "Verify the withdrawal reason is recorded in Order Activity."
+    "note": "Assert that the withdrawal reason appears in Order Activity."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where withdrawn events should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that the prepared event appears in the History list."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Return to the buyer's Responses view after withdrawal."
+    "note": "Open the buyer's Responses view to confirm the two bid responses remain visible after withdrawal."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2
+     "count": 2,
+     "stage": "rfq"
     },
-    "note": "Confirm both bid responses remain visible after withdrawal."
+    "note": "Assert that both bid responses remain visible to the buyer."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the available invited vendor's supplier portal session."
+    "note": "Inspect the invited vendor's supplier-portal view after withdrawal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the withdrawn event in the vendor portal overview."
+    "note": "Open the prepared event's overview in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Withdrawn"
     },
-    "note": "Confirm the vendor sees the event as withdrawn."
+    "note": "Assert that the vendor sees the event as withdrawn."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the pricing round to attempt a revision from the vendor side."
+    "note": "Open the pricing round to test whether the vendor can revise after withdrawal."
    },
    {
     "step": "attempt",
@@ -152,7 +161,7 @@
      },
      "expect": "refused"
     },
-    "note": "Verify the vendor cannot revise or submit a new bid after withdrawal."
+    "note": "Assert that a vendor bid revision is refused after the event is withdrawn."
    }
   ]
  }

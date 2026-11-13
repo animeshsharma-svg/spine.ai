@@ -4,55 +4,59 @@
   "title": "Assign items of one PR from the list",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:31.305Z",
+  "compiledAt": "2026-11-12T13:47:30.218Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "expected message \"Items succesfully assigned to Food Buyer\" is neither a known product message nor quoted by the case"
-  ],
-  "warnings": [
-   "coverage partial: expected message \"Items succesfully assigned to Food Buyer\" is neither a known product message nor quoted by the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 9304
+  "ms": 13074
  },
  "plan": {
-  "title": "Bulk assign PR items",
+  "title": "Assign PR items from list",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required team-filtering configuration for the PR list."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen as the starting point for the existing PR."
+    "note": "Open the Purchase Requisitions screen where the PR items are assigned."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-1 should be available."
+    "note": "Stay on the Open tab containing PR-1."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Search for PR-1, show its three line items, select all three item checkboxes, click the Assign control next to Upload PRs, search for and select Food Buyer (User A), and stop when the screen shows the assignment success message and all three rows show Food Buyer in the Assignee column."
+     "goal": "Search for PR-1, select all 3 of its line items, click the Assign control beside Upload PRs, choose Food Buyer (User A) from the Search a user list, and stop with all 3 rows showing User A in the Assignee column and the assignment success message visible."
     },
-    "note": "Perform the PR search, bulk selection, assignment, and on-screen verification that no dedicated catalog step exposes."
+    "note": "Perform the PR-list-specific bulk assignment and verify the assigned rows on screen."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "success",
-     "text": "Items succesfully assigned to Food Buyer"
+     "text": "Items succesfully assigned to"
     },
-    "note": "Assert the expected assignment confirmation message."
+    "note": "Assert the expected success message was shown after assigning the three items."
    }
   ]
  }

@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { CONFIG, NAV } from "../config.js";
 import { BasePage } from "../pages/BasePage.js";
 import type { PlanStep } from "./steps.js";
-import { SCREENS, resolveScreen, type PlanContext } from "./screens.js";
+import { SCREENS, resolveScreen, screenState, type PlanContext } from "./screens.js";
 import { EXPECTATION_NAMES } from "./expectCatalog.js";
 import { observe, responsesSince, waitForCalls } from "./observe.js";
 import { findVisible, describe, norm, targetFromArgs } from "./generic/find.js";
@@ -40,8 +40,8 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
     case "open_prepared": {
       const screen = String(a.screen ?? "").toLowerCase().replace(/[\s-]+/g, "_");
       const { path, feeds, spec } = resolveScreen(screen, x.context);
-      const state = x.context.state ?? "none";
-      if (!spec.needs.includes(state)) throw new Error(`the screen "${screen}" needs one of the states ${spec.needs.join("/")}, and this case's state is ${state} — automation needs update`);
+      const state = screenState(x.context.state);
+      if (!spec.needs.includes(state)) throw new Error(`the screen "${screen}" needs one of the states ${spec.needs.join("/")}, and this case's state is ${x.context.state ?? "none"} — automation needs update`);
       const since = Date.now();
       await page.goto(`${CONFIG.appUrl.replace(/\/$/, "")}${path}`, NAV);
       await new BasePage(page).dismissDistractions().catch(() => false);

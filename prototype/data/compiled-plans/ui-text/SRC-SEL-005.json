@@ -4,26 +4,29 @@
   "title": "No selection while bidding is live",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:28.678Z",
+  "compiledAt": "2026-11-12T13:14:31.719Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Force the live RFQ to close early and verify the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\".",
+   "Force the live order to close or attempt Select Quote to observe the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\".",
    "unconfirmed label \"Select Quote\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"Select Quote\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Force the live RFQ to close early and verify the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\"."
+   "can only test part of this — no step for: Force the live order to close or attempt Select Quote to observe the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\"."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_visible"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 6763
+  "ms": 10038
  },
  "plan": {
   "title": "Select Quote unavailable while bidding is live",
@@ -33,7 +36,15 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with two bids directly on the buyer's Responses screen."
+    "note": "Open the prepared live RFQ with two bids on the buyer's Responses view."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
    },
    {
     "step": "expect_visible",
@@ -41,7 +52,7 @@
      "text": "Select Quote",
      "visible": false
     },
-    "note": "Assert that Select Quote is not available while bidding remains live."
+    "note": "Verify that Select Quote is not available while bidding remains live."
    }
   ]
  }

@@ -4,26 +4,29 @@
   "title": "Surrogate bid with price abc",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:38.300Z",
+  "compiledAt": "2026-11-12T13:18:40.492Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Start from the specifically prepared live RFQ with no bids; the available prepared state has one existing bid.",
-   "Add a reference alongside the surrogate bid; place_surrogate_bid has no reference argument or assertion.",
-   "Verify the exact Vendor A row unless that vendor is selected by the prepared state; vendor names cannot be invented."
+   "Verify that the surrogate bid price cell specifically does not retain the letters \"abc\".",
+   "Add a reference to the surrogate bid before saving."
   ],
   "warnings": [
-   "can only test part of this — no step for: Start from the specifically prepared live RFQ with no bids; the available prepared state has one existing bid.; Add a reference alongside the surrogate bid; place_surrogate_bid has no reference argument or assertion.; Verify the exact Vendor A row unless that vendor is selected by the prepared state; vendor names cannot be invented."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the surrogate bid price cell specifically does not retain the letters \"abc\".; Add a reference to the surrogate bid before saving."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 10541
+  "ms": 9809
  },
  "plan": {
   "title": "Surrogate bid rejects alphabetic price",
@@ -33,7 +36,23 @@
     "args": {
      "screen": "participants"
     },
-    "note": "Open the existing prepared event directly on its Participants tab; the catalog does not use the events-list search for prepared-state cases."
+    "note": "Open the prepared live RFQ with no bids on the buyer's Participants screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the configured price validation needed for the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
    },
    {
     "step": "attempt",
@@ -44,7 +63,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt to submit the buyer's surrogate bid with alphabetic price text and require positive evidence that Procol refuses it."
+    "note": "Attempt to submit the alphabetic surrogate price and require positive evidence that Procol refuses it."
    }
   ]
  }

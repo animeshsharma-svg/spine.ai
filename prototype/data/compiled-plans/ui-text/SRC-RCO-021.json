@@ -4,37 +4,38 @@
   "title": "Recreate Order: Edit More Details",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:43:47.332Z",
+  "compiledAt": "2026-11-12T13:10:15.968Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the recreated event's participants are pre-filled with the old event's participant identities or selection state.",
-   "Verify that the recreated event's terms and conditions are pre-filled with the old event's exact contents.",
-   "Verify that every old-event field is preserved on the full create screen beyond the template, line-item count, and rendered sheet columns."
+   "Directly verify that participants were pre-filled in the recreated event.",
+   "Directly verify that T&Cs were pre-filled in the recreated event."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the recreated event's participants are pre-filled with the old event's participant identities or selection state.; Verify that the recreated event's terms and conditions are pre-filled with the old event's exact contents.; Verify that every old-event field is preserved on the full create screen beyond the template, line-item count, and rendered sheet columns."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly verify that participants were pre-filled in the recreated event.; Directly verify that T&Cs were pre-filled in the recreated event."
   ],
   "source": "llm",
   "steps": 13,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "event_menu",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "click",
    "expect_navigated",
    "expect_template_selected",
    "expect_line_items",
-   "expect_sheet_columns",
-   "expect_visible",
-   "expect_visible"
+   "expect_sheet_columns"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 71161
+  "ms": 11265
  },
  "plan": {
   "title": "Recreate Order: Edit More Details",
@@ -44,46 +45,59 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's project summary without searching the events list."
+    "note": "Open the prepared closed RFQ summary; the case specifies an existing event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project capability before accessing the event flow."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the stage Settings menu is available."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the stage Settings action that launches the Recreate Order flow."
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Product Sheet",
-     "visible": true
+     "text": "Product Sheet"
     },
-    "note": "Confirm the Recreate Order popup opened with the Product Sheet option."
+    "note": "Verify the Recreate Order pop-up opened and shows its Product Sheet option."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Auction Configurations",
-     "visible": true
+     "text": "Auction Configurations"
     },
-    "note": "Confirm the popup includes Auction Configurations."
+    "note": "Verify the recreated-order options are present in the pop-up."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Delivery Date",
-     "visible": true
+     "text": "Delivery Date"
     },
-    "note": "Confirm the popup includes Delivery Date."
+    "note": "Verify the pop-up includes Delivery Date."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Schedule this event?",
-     "visible": true
+     "text": "Schedule this event?"
     },
-    "note": "Confirm the popup includes the scheduling choice."
+    "note": "Verify the scheduling choice is present in the pop-up."
    },
    {
     "step": "click",
@@ -91,60 +105,37 @@
      "role": "button",
      "name": "Edit More Details"
     },
-    "note": "Choose the path that should open the full editable create screen."
+    "note": "Choose the path that should open the complete editable create screen."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify that Edit More Details opened the full event create screen."
+    "note": "Confirm the full event create screen opened."
    },
    {
     "step": "expect_template_selected",
     "args": {},
-    "note": "Verify the recreated screen has a template applied rather than an empty template picker."
+    "note": "Verify the recreated screen has a template already applied."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Verify the old RFQ's single product line item was carried into the recreated event."
+    "note": "Verify the prepared RFQ's line item was carried into the recreated create screen."
    },
    {
     "step": "expect_sheet_columns",
     "args": {
      "columns": [
       "Product",
-      "Product Variant",
       "Quantity Requested",
-      "Delivery location",
-      "Price",
-      "Quantity Available",
-      "GST",
-      "Total Amount"
+      "Price"
      ]
     },
-    "note": "Verify the recreated pricing sheet rendered with the expected product and pricing columns."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Participants",
-     "visible": true
-    },
-    "note": "Confirm the recreated create screen exposes its participant configuration section."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Terms & Conditions",
-     "visible": true
-    },
-    "note": "Confirm the recreated create screen exposes its terms and conditions section."
+    "note": "Verify the copied pricing sheet rendered with the expected RFQ columns."
    }
   ]
  }

@@ -4,30 +4,29 @@
   "title": "Withdraw is disabled on a live auction when the company blocks it during submission time",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:20.603Z",
+  "compiledAt": "2026-11-12T13:23:18.566Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify or enable the company setting \"withdraw disabled during submission time\".",
-   "Guarantee that the existing event selected by open_event is a live reverse auction on the configured company.",
-   "Verify that Withdraw becomes available after the bidding time ends because the prepared live event cannot be closed or transitioned to that later state."
+   "Verify that Withdraw becomes available after the bidding time ends."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify or enable the company setting \"withdraw disabled during submission time\".; Guarantee that the existing event selected by open_event is a live reverse auction on the configured company.; Verify that Withdraw becomes available after the bidding time ends because the prepared live event cannot be closed or transitioned to that later state."
+   "can only test part of this — no step for: Verify that Withdraw becomes available after the bidding time ends."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "open_event_settings",
    "expect_menu_item"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8234
+  "ms": 12092
  },
  "plan": {
   "title": "Live Auction Withdraw Disabled",
@@ -40,6 +39,14 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration that blocks withdrawal while submission is live."
+   },
+   {
     "step": "open_event_settings",
     "args": {},
     "note": "Open the stage Settings menu where Withdraw is offered."
@@ -48,10 +55,9 @@
     "step": "expect_menu_item",
     "args": {
      "item": "Withdraw",
-     "stage": "auction",
      "enabled": false
     },
-    "note": "Assert that Withdraw is present but greyed out and that its tooltip explains that an auction cannot be withdrawn while live."
+    "note": "Assert Withdraw is greyed out and its tooltip explains that an auction cannot be withdrawn while live."
    }
   ]
  }

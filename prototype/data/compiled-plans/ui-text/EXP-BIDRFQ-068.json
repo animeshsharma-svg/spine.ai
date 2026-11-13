@@ -4,36 +4,81 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time when buyer edit permission is disabled",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:13.894Z",
+  "compiledAt": "2026-11-12T13:40:44.889Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Change the company setting can_buyer_edit_bid to Off or verify that the tenant setting is disabled, and attribute any refusal specifically to that setting."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Change the company setting can_buyer_edit_bid to Off or verify that the tenant setting is disabled, and attribute any refusal specifically to that setting."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Change can_buyer_edit_bid from On to Off during the same run and then perform the second buyer login and re-open flow.” — require_setting switches that company setting before the case and back after"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "extend_time"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9332
+  "ms": 13317
  },
  "plan": {
-  "title": "Edit Evaluation Time with Buyer Edit Disabled",
+  "title": "Edit Evaluation Time With Buyer Bid Editing Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with the vendor bid."
+    "note": "Open the existing prepared live RFQ with Vendor A's bid; prepared-state cases must start here."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQs as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Allow bid rejection during bidding as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "Off"
+    },
+    "note": "Set the final condition being tested: buyer bid editing is disabled."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case configuration."
    },
    {
     "step": "go_to",
@@ -41,14 +86,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage referenced by the case."
+    "note": "Open the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses view before opening its settings action."
+    "note": "Open the Responses view where the buyer accesses stage actions."
    },
    {
     "step": "extend_time",
@@ -57,7 +102,7 @@
      "option": "custom",
      "expect": "refused"
     },
-    "note": "Open Edit Evaluation Time, attempt to confirm the change, and assert that Procol refuses it; the refusal cannot be tied to the disabled tenant setting."
+    "note": "Open Edit Evaluation Time, attempt to confirm the unchanged evaluation-time form, and assert Procol refuses the action under the disabled buyer-edit permission."
    }
   ]
  }

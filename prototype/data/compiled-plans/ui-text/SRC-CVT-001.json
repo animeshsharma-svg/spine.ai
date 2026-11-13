@@ -4,32 +4,39 @@
   "title": "Convert to Auction — reuse RFQ quotes and participants",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:22:09.084Z",
+  "compiledAt": "2026-11-12T12:58:16.472Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect the conversion pop-up options and tick specifically reuse RFQ quotes and participants before continuing",
-   "Verify both Vendor A and Vendor B are carried over with RFQ prices 100 and 90; the prepared state exposes only one invited vendor and one bid",
-   "Fill or assert auction configuration specific to the converted eRFX auction stage"
+   "Assert that the conversion pop-up offers separate options for reusing RFQ quotes, participants, and weights.",
+   "Tick and independently verify the reuse RFQ quotes and participants options before continuing.",
+   "Verify that the conversion opened in a new browser tab rather than merely reaching the converted create screen.",
+   "Fill or assert auction configuration choices on the converted auction screen; no catalog step exposes those controls for a converted event."
   ],
   "warnings": [
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Inspect the conversion pop-up options and tick specifically reuse RFQ quotes and participants before continuing; Verify both Vendor A and Vendor B are carried over with RFQ prices 100 and 90; the prepared state exposes only one invited vendor and one bid; Fill or assert auction configuration specific to the converted eRFX auction stage"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that the conversion pop-up offers separate options for reusing RFQ quotes, participants, and weights.; Tick and independently verify the reuse RFQ quotes and participants options before continuing.; Verify that the conversion opened in a new browser tab rather than merely reaching the converted create screen.; Fill or assert auction configuration choices on the converted auction screen; no catalog step exposes those controls for a converted event."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "expect_navigated",
+   "require_setting",
    "convert_to_auction",
    "expect_navigated",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value",
    "set_schedule",
    "publish"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14359
+  "ms": 20912
  },
  "plan": {
   "title": "Convert Closed RFQ to Auction",
@@ -39,33 +46,60 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ without recreating or searching for it."
+    "note": "Open the prepared closed RFQ instead of creating or searching for another event."
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
     "args": {
-     "screen": "summary"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Confirm the buyer is on the prepared RFQ project summary."
+    "note": "Enable the required eRFX capability for the conversion case."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Perform the supported RFQ-to-Auction conversion; this opens the converted event's create screen."
+    "note": "Start the supported RFQ-to-Auction conversion flow and continue to the converted auction create screen."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify conversion landed on the auction create screen."
+    "note": "Verify that conversion reached the auction create screen."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the converted screen retains the first RFQ participant."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "secondVendorName"
+    },
+    "note": "Verify the converted screen retains the second RFQ participant."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the first retained RFQ quote is shown as the starting price."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice2"
+    },
+    "note": "Verify the second retained RFQ quote is shown as the starting price."
    },
    {
     "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Configure and commit the auction schedule using the supported duration control."
+    "args": {},
+    "note": "Commit the auction schedule before publishing."
    },
    {
     "step": "publish",

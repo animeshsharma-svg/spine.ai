@@ -4,21 +4,23 @@
   "title": "Create a Single Stage RFP from an open service PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:32:11.103Z",
+  "compiledAt": "2026-11-12T13:07:36.755Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that the PR item's quantity, unit, and delivery location are filled and locked to the PR on the create screen.",
-   "Directly verify that service activities render as rows and that the price column is converted to a rate per activity.",
-   "Directly verify the published event's explicit indicator that it originated from a PR."
+   "Selecting specifically a service-type PR line rather than the first suitable open PR line",
+   "Verifying the PR line's delivery location is filled and locked",
+   "Verifying service activities appear as rows with a rate-per-activity price column",
+   "Verifying the PR moves to In Progress with this event's number",
+   "Verifying the published event explicitly displays that it came from a PR",
+   "Verifying that the PR-derived quantity, unit, and other fields are locked to the PR rather than merely present"
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 12 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 12 step(s) that would open a blank event or replace the PR's items",
-   "resolved: “Directly verify that the In Progress PR row contains this specific event number.” — expect_table reads the rows and cells; expect_remembered{delta} checks a count that rises or falls",
-   "can only test part of this — no step for: Directly verify that the PR item's quantity, unit, and delivery location are filled and locked to the PR on the create screen.; Directly verify that service activities render as rows and that the price column is converted to a rate per activity.; Directly verify the published event's explicit indicator that it originated from a PR."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting specifically a service-type PR line rather than the first suitable open PR line; Verifying the PR line's delivery location is filled and locked; Verifying service activities appear as rows with a rate-per-activity price column; Verifying the PR moves to In Progress with this event's number; Verifying the published event explicitly displays that it came from a PR; Verifying that the PR-derived quantity, unit, and other fields are locked to the PR rather than merely present"
   ],
   "source": "llm",
   "steps": 17,
@@ -32,16 +34,16 @@
    "select_template",
    "fill_questionnaires",
    "assign_evaluator",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
-   "expect_table",
-   "open_event",
    "expect_menu_item"
   ],
-  "ms": 23303
+  "ms": 20017
  },
  "plan": {
   "title": "Create Single-Stage RFP from Service PR",
@@ -56,10 +58,7 @@
     }
    },
    {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
+    "step": "select_pr"
    },
    {
     "step": "purchase_items"
@@ -85,16 +84,27 @@
     "step": "assign_evaluator"
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so publication can proceed."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
    },
    {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Allow vendors to be added during event creation and publishing."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-039 Service RFP"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "invite_vendor",
@@ -104,29 +114,24 @@
       "Vendor B"
      ]
     },
-    "note": "Add the two vendors named by the test case."
+    "note": "Add both vendors named in the case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule while retaining the default immediate start."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed PR-derived RFP."
+    "note": "Publish the completed single-stage RFP."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real project page."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "min": 1
-    },
-    "note": "Assert that at least one PR entry is present in In Progress."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Return to the event created by this plan to inspect its event actions."
+    "note": "Assert that publishing reached a real project page."
    },
    {
     "step": "expect_menu_item",
@@ -134,7 +139,7 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Assert that recreating the order is disabled for an event made from a PR."
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

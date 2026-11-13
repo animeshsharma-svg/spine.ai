@@ -4,36 +4,42 @@
   "title": "Remove a participant before publishing",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:57:13.505Z",
+  "compiledAt": "2026-11-12T13:06:17.109Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select the CYLINDER product and CYLINDER WITH KEY & KNOB variant using a dedicated product-selection step.",
-   "Pick Plant Name (LOC-0001) from the Delivery location picker using a dedicated location-selection step.",
    "unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
    "coverage partial: unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Select the CYLINDER product and CYLINDER WITH KEY & KNOB variant using a dedicated product-selection step.; Pick Plant Name (LOC-0001) from the Delivery location picker using a dedicated location-selection step."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "add_line_items",
+   "invite_vendor",
    "do_on_screen",
    "expect_text",
    "expect_text"
   ],
-  "ms": 28587
+  "ms": 17546
  },
  "plan": {
   "title": "Remove participant before publishing",
@@ -43,31 +49,80 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen specified by the case."
+    "note": "Opens the single-stage event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allows vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required before choosing its template."
+    "note": "Sets the event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the create flow is valid."
+    "args": {
+     "title": "SRC-PAR-013 Participant Removal"
+    },
+    "note": "Provides the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first offered RFQ template so the product sheet and participant controls are available."
+    "note": "Applies the RFQ template so the sourcing sheet is available."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "value": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Selects the specified product from the Product dropdown."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enters the requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Selects the specified delivery location."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Adds two QA test vendors to the event audience."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ create screen, configure the first product row as CYLINDER with the CYLINDER WITH KEY & KNOB variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, add Vendor A and Vendor B under Participants, remove Vendor B using its chip cross, and stop with only Vendor A remaining."
+     "goal": "On the participant chips for the two invited QA vendors, remove Vendor B using its cross control; stop on the create screen showing only Vendor A remains in the participant list."
     },
-    "note": "Perform the product, location, vendor-selection, and participant-removal interactions that no dedicated catalog step can express."
+    "note": "Performs the participant-chip removal that has no dedicated catalog action and verifies the resulting audience on screen."
    },
    {
     "step": "expect_text",
@@ -75,7 +130,7 @@
      "text": "Vendor A",
      "present": true
     },
-    "note": "Confirm the remaining participant is Vendor A."
+    "note": "Confirms the retained participant remains visible."
    },
    {
     "step": "expect_text",
@@ -83,7 +138,7 @@
      "text": "Vendor B",
      "present": false
     },
-    "note": "Confirm Vendor B was removed before publishing."
+    "note": "Confirms the removed participant is no longer visible."
    }
   ]
  }

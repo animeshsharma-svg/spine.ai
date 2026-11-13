@@ -17,7 +17,8 @@ import { tmpdir } from "node:os";
 
 import { apiAttempt, classify, documentedCodes, redactSecrets, runCheck, type Check, type CheckOutcome } from "../src/checks/engine.js";
 import { appOf, appRefusal } from "../src/checks/appAccess.js";
-import { bridgeLifecycle, lintPlan } from "../src/agents/planner.js";
+import { bridgeLifecycle, labelGuesses, lintPlan, normLabel, resolveCoveredGaps } from "../src/agents/planner.js";
+import { mapTestData, shapeFromWords, sheetPrep, type SheetCase } from "../src/checks/sheetCases.js";
 import * as M from "../src/eval/metrics.js";
 import { mutatorFor, plantsFor, alterValues } from "../src/eval/mutate.js";
 import { endpointOf, evaluateStepAssertions, type AssertionCatalog } from "../src/checks/apiAssertions.js";
@@ -853,5 +854,38 @@ describe("vendor revalidation helpers mirror the engine", () => {
     assert.deepEqual(orphans.map((c: any) => c.id), []);
     const silent = cases.filter((c: any) => !["read", "audit", "listing", "config", "run"].includes(c.reval.tier) && !c.reval.why);
     assert.deepEqual(silent.map((c: any) => c.id), []);
+  });
+});
+
+describe("gap closing (12 Nov): what makes a written case runnable", () => {
+  test("a case's own words give the event's shape — only numbers it states", () => {
+    assert.deepEqual(shapeFromWords("A closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90."), { quantity: 10, prices: [100, 90] });
+    assert.deepEqual(shapeFromWords("A live RFQ with two line items"), { lines: 2 });
+    assert.equal(shapeFromWords("A live RFQ"), undefined);
+  });
+  test("the sourcing set-up events start from the event they describe: closed, two bids, A 100 / B 90, 10 units", () => {
+    const c = { id: "SRC-AWD-900", sheet: "t", module: "m", scenario: "-", title: "Award 6 to B and 4 to A", role: "Buyer", portal: "Buyer portal", preconditions: 'Set-up case SRC-SET-004 done ("the closed RFQ").', testData: "-", steps: ["Open Master QCS", "Click \"Start Awarding\""], expected: "x", priority: "High", testType: "Positive", status: "Not Run", layer: "ui" } as SheetCase;
+    const p = sheetPrep(c)!;
+    assert.equal(p.state, "closed_two_bids");
+    assert.deepEqual(p.shape, { quantity: 10, prices: [100, 90] });
+  });
+  test("a label the product's source renders is not a guess; a near miss still is (exact match only)", () => {
+    const steps = [{ step: "click", args: { role: "button", name: "Ok" } }, { step: "click", args: { role: "button", name: "Okay then" } }];
+    const g = labelGuesses(steps as any, "case text", {}, new Set([normLabel("Ok"), normLabel("Increase Event Time")]));
+    assert.equal(g.length, 1);
+    assert.match(g[0], /Okay then/);
+    assert.equal(normLabel("Withdrawing Order..."), "withdrawing order");
+  });
+  test("a settings gap is dropped only when the plan holds require_setting for that setting", () => {
+    const gap = "Set or verify lock_vendors_addition_in_event_creation is Off";
+    assert.deepEqual(resolveCoveredGaps([gap], [{ step: "require_setting", args: { key: "lock_vendors_addition_in_event_creation", value: "Off" } }] as any).gaps, []);
+    assert.deepEqual(resolveCoveredGaps([gap], [{ step: "require_setting", args: { key: "rfx_project_enabled", value: "On" } }] as any).gaps, [gap]);
+    assert.deepEqual(resolveCoveredGaps(["Verify the tenant is on the Growth plan setting"], [{ step: "require_setting", args: { phrase: "growth plan", value: "On" } }] as any).gaps.length, 1);
+  });
+  test("another company's test data is mapped and the text says so", () => {
+    const t = mapTestData('"Product Variant" fills itself with "Default Variant"', 198678);
+    assert.match(t, /Variant 1/);
+    assert.match(t, /Test data mapped to this company: "Default Variant" → "Variant 1"/);
+    assert.equal(mapTestData("nothing to map", 198678), "nothing to map");
   });
 });

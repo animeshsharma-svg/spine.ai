@@ -4,28 +4,32 @@
   "title": "Hide fields",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:40:07.436Z",
+  "compiledAt": "2026-11-12T13:09:07.757Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared Master QCS state has one vendor and one bid, so the specific two-bid comparison for vendor A at 100 and vendor B at 90 cannot be asserted."
+   "Toggle a specific Master QCS column off and verify that the column disappears and the Hide fields count updates.",
+   "Toggle the hidden column back on and verify that it is restored."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared Master QCS state has one vendor and one bid, so the specific two-bid comparison for vendor A at 100 and vendor B at 90 cannot be asserted."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Toggle a specific Master QCS column off and verify that the column disappears and the Hide fields count updates.; Toggle the hidden column back on and verify that it is restored."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_ranks",
    "expect_qcs_amounts",
-   "do_on_screen",
-   "expect_visible"
+   "click",
+   "expect_options"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 76714
+  "ms": 17932
  },
  "plan": {
   "title": "Master QCS Hide Fields",
@@ -35,40 +39,61 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared Master QCS screen for the RFQ comparison."
+    "note": "Open the prepared RFQ with two bids directly in Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
      "realNames": true
     },
-    "note": "Verify that the comparison grid shows real vendor columns."
+    "note": "Verify that both real bidder columns are present."
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {},
-    "note": "Read and verify the ranks shown in the comparison grid."
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that the lower bid ranks better."
    },
    {
     "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify the displayed per-line amounts and vendor total arithmetic."
-   },
-   {
-    "step": "do_on_screen",
     "args": {
-     "goal": "open the Hide fields control, hide one available comparison column, verify that the column disappears and the hidden-field count appears on the control, then open it again, show the hidden column, and verify that the column is restored"
+     "rate": "RFQ Rate",
+     "qty": "Qty Offer",
+     "amount": "RFQ Amount",
+     "total": "Sum Total"
     },
-    "note": "Perform and observe the hide-and-restore interaction that has no dedicated domain action."
+    "note": "Verify the displayed line amounts and vendor totals."
    },
    {
-    "step": "expect_visible",
+    "step": "click",
     "args": {
      "role": "button",
-     "name": "Hide fields",
-     "visible": true
+     "name": "Hide fields"
     },
-    "note": "Confirm the Hide fields control remains available after restoring the column."
+    "note": "Open the Master QCS field-hiding control."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "name": "Hide fields"
+    },
+    "note": "Read the options exposed by the Hide fields control."
    }
   ]
  }

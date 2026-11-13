@@ -4,25 +4,25 @@
   "title": "Create a Single Stage RFP from an open asset PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:32:41.748Z",
+  "compiledAt": "2026-11-12T13:08:08.047Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select specifically an asset PR line when multiple eligible open PR lines may exist.",
-   "Verify the PR line's item, quantity, unit, delivery location, and locked/read-only state on the RFP questionnaire screen.",
-   "Verify that Account Assignment A is retained and carried to the resulting purchase order.",
-   "Verify that this exact PR line moves to In Progress with this event's number.",
-   "Verify that the published event visibly indicates it came from a purchase requisition."
+   "The PR line's delivery location is filled and locked to the PR.",
+   "The PR line's Account Assignment A is preserved and carried to the resulting purchase order.",
+   "The exact selected PR line moves to In Progress with this event's number.",
+   "The published event visibly proves that it came from a PR.",
+   "The exact questionnaire screen structure proving there is no price column beyond the absence check."
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 12 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 12 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Select specifically an asset PR line when multiple eligible open PR lines may exist.; Verify the PR line's item, quantity, unit, delivery location, and locked/read-only state on the RFP questionnaire screen.; Verify that Account Assignment A is retained and carried to the resulting purchase order.; Verify that this exact PR line moves to In Progress with this event's number.; Verify that the published event visibly indicates it came from a purchase requisition."
+   "can only test part of this — no step for: The PR line's delivery location is filled and locked to the PR.; The PR line's Account Assignment A is preserved and carried to the resulting purchase order.; The exact selected PR line moves to In Progress with this event's number.; The published event visibly proves that it came from a PR.; The exact questionnaire screen structure proving there is no price column beyond the absence check."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 22,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -33,21 +33,24 @@
    "select_template",
    "fill_questionnaires",
    "assign_evaluator",
+   "require_setting",
+   "require_setting",
+   "expect_text",
+   "expect_api_value",
+   "expect_api_value",
    "set_title",
    "invite_vendor",
    "set_schedule",
-   "expect_text",
    "publish",
    "expect_published",
    "expect_table",
    "open_event",
-   "open_event_settings",
    "expect_menu_item"
   ],
-  "ms": 20900
+  "ms": 21652
  },
  "plan": {
-  "title": "Create Single-Stage RFP from Open Asset PR",
+  "title": "Create Single-Stage RFP from Asset PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -59,10 +62,7 @@
     }
    },
    {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
+    "step": "select_pr"
    },
    {
     "step": "purchase_items"
@@ -88,9 +88,47 @@
     "step": "assign_evaluator"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and prevent publish from being disabled by this setting."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": false
+    },
+    "note": "Check that the RFP questionnaire screen does not show a pricing column."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify that the PR quantity is shown on the event screen."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify that the PR unit is shown on the event screen."
+   },
+   {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title required for publishing."
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "invite_vendor",
@@ -100,49 +138,36 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named by the case."
+    "note": "Add the two vendors named by the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested Start now and 30-minute schedule."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Price",
-     "present": false
-    },
-    "note": "Assert that the RFP create screen does not show a pricing column."
+    "note": "Commit the 30-minute schedule with the event starting now."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured single-stage RFP."
+    "note": "Publish the completed single-stage RFP and confirm the publish dialog."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "expect_table",
     "args": {
      "min": 1
     },
-    "note": "Assert that the In Progress PR list contains at least one row; the catalog cannot correlate it to this exact event number."
+    "note": "Verify that at least one requisition is present in the In Progress tab; the catalog cannot identify the exact selected PR row or event number here."
    },
    {
     "step": "open_event",
     "args": {},
-    "note": "Return to the event created by this plan for its post-publish menu check."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the published event's Settings menu."
+    "note": "Return to the event created by this plan for its post-publish action checks."
    },
    {
     "step": "expect_menu_item",
@@ -150,7 +175,7 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Assert that Recreate Order is greyed out for an event created from a PR."
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

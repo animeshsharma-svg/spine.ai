@@ -4,53 +4,51 @@
   "title": "Allow bids in USD and INR",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:30.989Z",
+  "compiledAt": "2026-11-12T12:57:58.141Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure Add Bid Currencies with USD and exchange rate 83",
-   "Select CYLINDER, CYLINDER WITH KEY & KNOB, quantity 10, and Plant Name (LOC-0001) using the product picker and delivery-location picker",
-   "Verify that the buyer sees 1.2 USD converted to 99.6 INR in the comparison",
-   "Use the specifically named Vendor A and Vendor B accounts because their exact catalog-recognized names are not provided"
+   "Add USD as a bid currency with exchange rate 83 and save it",
+   "Allow Vendor A to choose USD and submit a 1.2 USD quote",
+   "Verify the buyer converts 1.2 USD to 99.6 INR in the comparison"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "resolved: “Verify that Vendor A can choose USD in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "cannot test this case yet — no step can observe: Configure Add Bid Currencies with USD and exchange rate 83; Select CYLINDER, CYLINDER WITH KEY & KNOB, quantity 10, and Plant Name (LOC-0001) using the product picker and delivery-location picker; Verify that the buyer sees 1.2 USD converted to 99.6 INR in the comparison; Use the specifically named Vendor A and Vendor B accounts because their exact catalog-recognized names are not provided"
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Add USD as a bid currency with exchange rate 83 and save it; Allow Vendor A to choose USD and submit a 1.2 USD quote; Verify the buyer converts 1.2 USD to 99.6 INR in the comparison"
   ],
   "source": "llm",
   "steps": 18,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "switch_portal",
-   "vendor_open_event",
-   "vendor_bid",
+   "place_bid",
    "expect_bid_submitted",
-   "switch_portal",
-   "close_event",
+   "expect_responses",
    "open_master_qcs",
    "expect_qcs_vendors"
   ],
-  "ms": 16609
+  "ms": 15404
  },
  "plan": {
-  "title": "USD and INR bid currency support",
+  "title": "USD and INR Bid Currency Conversion",
   "steps": [
    {
     "step": "open_create",
@@ -60,99 +58,106 @@
     "note": "Open the single-stage event creation screen described by the case."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX functionality required for event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and keep Publish available."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the event type to RFQ and use the single-vendor lot-award mode."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "USD INR Currency Test"
+     "title": "USD INR Currency Conversion RFQ"
     },
-    "note": "Every create flow requires a title before publication."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "note": "Apply the RFQ pricing template so the product sheet is available."
+    "note": "Apply the RFQ pricing template before adding the product."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add one line item as the closest available substitute for selecting the requested CYLINDER product."
+    "note": "Add the specified product and quantity; the product's configured variant should populate as Variant 1."
    },
    {
-    "step": "fill_sheet",
-    "note": "Populate the available pricing sheet fields."
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 3
+     "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors to approximate Vendor A and Vendor B without inventing their names."
+    "note": "Invite two QA vendors corresponding to Vendor A and Vendor B without inventing company names."
    },
    {
     "step": "publish",
-    "note": "Publish the RFQ so a vendor can submit a quote."
+    "note": "Publish the RFQ after its creation prerequisites are complete."
    },
    {
     "step": "expect_published",
-    "note": "Confirm publication reached a real event page."
+    "note": "Confirm that the event reached a published project page."
    },
    {
-    "step": "switch_portal",
+    "step": "place_bid",
     "args": {
-     "to": "vendor"
-    },
-    "note": "Move to the available invited QA vendor portal session."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the event's RFQ pricing sheet in the vendor portal."
-   },
-   {
-    "step": "vendor_bid",
-    "args": {
+     "vendor": 1,
      "price": 1.2
     },
-    "note": "Submit the numeric 1.2 quote as the closest available representation of the requested USD bid."
+    "note": "Submit a numeric bid for the first invited QA vendor; the catalog cannot select or label its currency."
    },
    {
     "step": "expect_bid_submitted",
-    "note": "Confirm the vendor portal accepted the quote."
+    "note": "Confirm that the vendor bid was accepted by the vendor portal."
    },
    {
-    "step": "switch_portal",
+    "step": "expect_responses",
     "args": {
-     "to": "buyer"
+     "count": 1,
+     "direct": 1
     },
-    "note": "Return to the buyer's event page."
-   },
-   {
-    "step": "close_event",
-    "args": {
-     "natural": false
-    },
-    "note": "Close the published event so the buyer comparison can be opened."
+    "note": "Verify that the buyer sees the direct vendor response on the RFQ."
    },
    {
     "step": "open_master_qcs",
-    "note": "Open the buyer's Master QCS and assert that the comparison grid rendered with the submitted bid."
+    "note": "Open the buyer's comparison grid, the closest available observation point for the expected converted comparison."
    },
    {
     "step": "expect_qcs_vendors",
@@ -160,7 +165,7 @@
      "count": 1,
      "realNames": true
     },
-    "note": "Confirm the buyer comparison contains a real vendor column for the submitted quote."
+    "note": "Assert that the comparison grid contains the responding vendor with a real company name."
    }
   ]
  }

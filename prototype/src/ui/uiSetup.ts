@@ -33,6 +33,8 @@
  *   forward     a live FORWARD auction round (order_type "sell": the price climbs, the best bid is the highest)
  *   masked      live with the vendor's bid and VENDOR MASKING on for the round (is_vendor_masking_enabled on the stage;
  *               the company's is_vendor_masking_allowed_for_everyone makes it count — read on DEMO 10 Nov: on)
+ *   closed_two_bids (12 Nov) the bidding window CLOSED after TWO QA vendors each submitted their own bid — the awarding
+ *               cases' "a closed RFQ where Vendor A quoted 100 and Vendor B quoted 90"
  *   pr_rfq      a live RFQ made from an open purchase request's material line (the journey's fromPr: the line's own
  *               product, unit and open quantity, linked by pr_line_item_uuid) — values.prNo names the PR
  *
@@ -53,10 +55,17 @@ import { qaVendorsFor } from "../checks/matrixVendors.js";
 
 export type UiState =
   | "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted"
-  | "two_invited" | "two_bids" | "uninvited" | "withdrawn" | "amended" | "amendment" | "dutch" | "knockout" | "forward" | "masked" | "pr_rfq";
+  | "two_invited" | "two_bids" | "closed_two_bids" | "uninvited" | "withdrawn" | "amended" | "amendment" | "dutch" | "knockout" | "forward" | "masked" | "pr_rfq";
+
+/**
+ * The event's shape when the case states it (12 Nov): its line items, the quantity on each, and each bidder's
+ * price per unit in bidding order — "a closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90"
+ * is {quantity:10, prices:[100, 90]}. Vendor A is the first QA vendor, Vendor B the second.
+ */
+export interface StateShape { lines?: number; quantity?: number; prices?: number[] }
 export const UI_STATES: UiState[] = [
   "none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted",
-  "two_invited", "two_bids", "uninvited", "withdrawn", "amended", "amendment", "dutch", "knockout", "forward", "masked", "pr_rfq",
+  "two_invited", "two_bids", "closed_two_bids", "uninvited", "withdrawn", "amended", "amendment", "dutch", "knockout", "forward", "masked", "pr_rfq",
 ];
 
 /** What the browser (and the screen assertions) get from the build. */
@@ -106,6 +115,7 @@ const PREFIX: Record<Exclude<UiState, "none">, string> = {
   two_invited: "read_back",
   // the LAST bid_submit of the plan (the second vendor's)
   two_bids: "bid_submit",
+  closed_two_bids: "wait_close",
   uninvited: "read_back",
   withdrawn: "read_back",
   amended: "bid_submit",
@@ -120,7 +130,9 @@ const PREFIX: Record<Exclude<UiState, "none">, string> = {
 /** The states that are a live AUCTION round of a particular kind (the plan builds an auction, not an RFQ). */
 const AUCTION_VARIANT: Partial<Record<UiState, "dutch" | "knockout" | "forward">> = { dutch: "dutch", knockout: "knockout", forward: "forward" };
 /** The states that invite a second QA vendor besides the one that bids. */
-const WANTS_SECOND_VENDOR = new Set<UiState>(["two_invited", "two_bids", "dutch", "knockout", "forward"]);
+const WANTS_SECOND_VENDOR = new Set<UiState>(["two_invited", "two_bids", "closed_two_bids", "dutch", "knockout", "forward"]);
+/** The states in which two QA vendors each place their own bid. */
+const TWO_BIDDERS = new Set<UiState>(["two_bids", "closed_two_bids"]);
 
 /**
  * The dutch / knockout strategy of a QA_Platform round, on the TOTAL amount (not the base price), as the
@@ -328,7 +340,7 @@ async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?:
 export async function buildUiState(
   companyId: number,
   state: UiState,
-  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void } = {},
+  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void; shape?: StateShape } = {},
 ): Promise<UiSetupResult> {
   const t0 = Date.now();
   if (state === "none") return { ok: true, context: { state, technical: false, companyId, made: {}, values: {}, builtInMs: 0 } };
@@ -351,9 +363,9 @@ export async function buildUiState(
   let second: { companyUuid: string; email: string; name: string } | null = null;
   if (WANTS_SECOND_VENDOR.has(state) || state === "uninvited") {
     second = await secondQaVendor(companyId, client);
-    if (!second && (state === "two_bids" || state === "two_invited" || state === "uninvited"))
+    if (!second && (TWO_BIDDERS.has(state) || state === "two_invited" || state === "uninvited"))
       return { ok: false, why: `client ${companyId} has only one QA test vendor with a login — the ${state} state needs a second one (QA vendors only; a real supplier is never invited)` };
-    if (second) opts.onLine?.(state === "uninvited" ? `${second.name} is the QA vendor the event will NOT be sent to` : `${second.name} is the second QA vendor on the event${state === "two_bids" ? " and bids after the first" : ""}`);
+    if (second) opts.onLine?.(state === "uninvited" ? `${second.name} is the QA vendor the event will NOT be sent to` : `${second.name} is the second QA vendor on the event${TWO_BIDDERS.has(state) ? " and bids after the first" : ""}`);
   }
   // An RFQ from a purchase request: the PR line is picked first, so a company without an open PR is said plainly.
   let fromPr: Exclude<Awaited<ReturnType<typeof openPrLine>>, { why: string }> | undefined;
@@ -368,16 +380,19 @@ export async function buildUiState(
   const wantsAuction = !!opts.auction || !!variant;
   const plan = journeyPlan(
     [wantsAuction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only", ...(state === "converted" ? ["auction.convert"] : [])],
-    { bidders: state === "two_bids" ? 2 : 1 },
+    { bidders: TWO_BIDDERS.has(state) ? 2 : 1 },
   );
   const stop = state === "two_bids" ? plan.steps.lastIndexOf(PREFIX[state] as any) : plan.steps.indexOf(PREFIX[state] as any);
+  const shape = opts.shape ?? {};
+  if (shape.prices?.length || shape.quantity || (shape.lines ?? 1) > 1)
+    opts.onLine?.(`the event is built as the case describes it: ${shape.lines && shape.lines > 1 ? `${shape.lines} line items, ` : ""}${shape.quantity ? `${shape.quantity} units each, ` : ""}${shape.prices?.length ? `bids of ${shape.prices.join(" and ")} per unit, in that order` : ""}`.replace(/, $/, ""));
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
   plan.steps = plan.steps.slice(0, stop + 1);
   // A technical event's vendor answers the technical round too before the pricing bid.
   // States that must stay open get an hour; closed/awarded get a short window the run can wait out
   // — 3 minutes, not 75 s: on 23 Oct (C04) one vendor GET took 30 s on UAT and the bid arrived after
   // a 75 s round had closed ("Order not active"), so the state was never built.
-  const stageSeconds = state === "closed" || state === "proposal" || state === "awarded" ? 180 : 3600;
+  const stageSeconds = state === "closed" || state === "closed_two_bids" || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
   // The round's variant, written into the stage body just before it is sent (JourneyRunOptions.stageBody).
   const bidTotal = 100 * 50; // the sibling test data's default bid (price × quantity); strategyFor only needs the scale
   const stageBody =
@@ -400,7 +415,10 @@ export async function buildUiState(
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
         eventVendors,
-        ...(second && state === "two_bids" ? { extraBidders: [second] } : second && WANTS_SECOND_VENDOR.has(state) ? { alsoInvite: [second.companyUuid] } : {}),
+        ...(second && TWO_BIDDERS.has(state) ? { extraBidders: [second] } : second && WANTS_SECOND_VENDOR.has(state) ? { alsoInvite: [second.companyUuid] } : {}),
+        ...(shape.prices?.length ? { bidPrices: shape.prices } : {}),
+        ...(shape.quantity ? { quantity: shape.quantity } : {}),
+        ...((shape.lines ?? 1) > 1 ? { lineItemCount: shape.lines } : {}),
         ...(stageBody ? { stageBody } : {}),
         ...(fromPr ? { fromPr } : {}),
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
@@ -437,7 +455,7 @@ export async function buildUiState(
     otherVendorName = second.name;
     otherVendorEmail = second.email;
     values.secondVendorName = second.name;
-    if (state === "two_bids") values.bidders = "2";
+    if (TWO_BIDDERS.has(state)) values.bidders = "2";
   }
   if (state === "uninvited" && second) {
     // the context's vendor is the one the event was NOT sent to; the invited one stays in values

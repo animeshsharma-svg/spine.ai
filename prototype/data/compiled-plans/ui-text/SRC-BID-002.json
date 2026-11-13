@@ -4,12 +4,12 @@
   "title": "An upcoming event can be seen but not bid on",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:09.187Z",
+  "compiledAt": "2026-11-12T16:25:11.505Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "resolved: “Assert that the upcoming event's start time is shown in the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "resolved: “Verify the exact upcoming event start time value displayed in the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
   "steps": 5,
@@ -17,43 +17,36 @@
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_disabled",
-   "attempt"
+   "attempt",
+   "expect_disabled"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 11751
+  "ms": 16405
  },
  "plan": {
-  "title": "Upcoming event cannot be bid on",
+  "title": "Upcoming vendor bid is blocked",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ without creating or searching for another event."
+    "note": "Open the prepared upcoming RFQ without recreating or searching for it."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the upcoming RFQ's pricing round from the vendor event list."
-   },
-   {
-    "step": "expect_disabled",
-    "args": {
-     "control": "Submit Quote"
-    },
-    "note": "Verify the vendor cannot submit a quote before the event start time."
+    "note": "Open the upcoming RFQ's pricing round in the vendor portal."
    },
    {
     "step": "attempt",
@@ -64,7 +57,14 @@
      },
      "expect": "refused"
     },
-    "note": "Try entering and submitting a price, requiring the portal to refuse the bid."
+    "note": "Try to enter and submit a price; this must be refused because the event has not started."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Submit Quote"
+    },
+    "note": "Assert that the vendor cannot submit the quote before the scheduled start time."
    }
   ]
  }

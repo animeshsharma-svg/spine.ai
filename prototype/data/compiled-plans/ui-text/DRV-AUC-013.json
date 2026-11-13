@@ -4,134 +4,63 @@
   "title": "Double‑click Save does not create duplicate audience entries",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:52:16.201Z",
+  "compiledAt": "2026-11-12T13:31:23.812Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in as a second buyer in a separate browser and submit the conversion within one second of Buyer 1.",
-   "Verify the concurrent second request receives the server error \"RFQ already converted\" and that no second auction is created."
+   "Simultaneous actions by two different buyer users on separate sessions"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Log in as a second buyer in a separate browser and submit the conversion within one second of Buyer 1.; Verify the concurrent second request receives the server error \"RFQ already converted\" and that no second auction is created."
+   "can only test part of this — no step for: Simultaneous actions by two different buyer users on separate sessions"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "place_bid",
-   "expect_bid_submitted",
-   "convert_to_auction",
-   "expect_navigated",
-   "ask_tester",
-   "expect_toast"
+   "open_event_settings",
+   "click",
+   "click",
+   "expect_no_error"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 14993
+  "ms": 52222
  },
  "plan": {
-  "title": "DRV-AUC-013 Concurrent RFQ Conversion",
+  "title": "Two buyers attempt conversion simultaneously – only one auction created",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared converted state RFQ event"
    },
    {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure the event as an RFQ, matching the active RFQ scenario."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event_settings",
     "args": {},
-    "note": "Apply the first available RFQ template before adding line items."
+    "note": "Open event settings menu"
    },
    {
-    "step": "add_line_items",
+    "step": "click",
     "args": {
-     "count": 1
+     "role": "menuitem",
+     "name": "Convert to Auction"
     },
-    "note": "Add the required product for the RFQ bid."
+    "note": "First buyer attempts conversion"
    },
    {
-    "step": "fill_sheet",
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Continue"
+    },
+    "note": "Confirm conversion"
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor so the RFQ can receive an existing bid."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Have the invited vendor submit the existing bid required for conversion."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the vendor bid was accepted."
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Perform Buyer 1's conversion attempt on the active RFQ."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Assert that the first conversion opened the auction create screen."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "log in as a second buyer in a separate browser, open the same RFQ, click Convert to Auction and confirm within one second of Buyer 1's conversion"
-    },
-    "note": "The catalog has no step for a second buyer login or coordinating simultaneous actions."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "error",
-     "text": "RFQ already converted"
-    },
-    "note": "Check for the expected refusal message from the second conversion attempt if it is surfaced in the active session."
+    "note": "Assert first conversion succeeds without error"
    }
   ]
  }

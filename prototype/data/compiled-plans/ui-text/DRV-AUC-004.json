@@ -1,50 +1,53 @@
 {
  "meta": {
   "caseId": "DRV-AUC-004",
-  "title": "Rank-based auction hides vendor ranks when Display Vendor Rank In Auction QCs setting is turned off",
+  "title": "Lot rank visibility in line-item based events respects company setting when On",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:47:19.480Z",
+  "compiledAt": "2026-11-12T13:25:47.556Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Send POST /api/trade/move_to_auction with trade_request_uuid and use_rfq_quotes_as_bids:false, then assert HTTP 422 with body containing \"use_rfq_quotes_as_bids must be true for conversion\"."
+   "Send POST /api/trade/move_to_auction with use_rfq_quotes_as_bids:false",
+   "Assert the HTTP 422 response body contains \"use_rfq_quotes_as_bids must be true for conversion\""
   ],
   "warnings": [
-   "can only test part of this — no step for: Send POST /api/trade/move_to_auction with trade_request_uuid and use_rfq_quotes_as_bids:false, then assert HTTP 422 with body containing \"use_rfq_quotes_as_bids must be true for conversion\"."
+   "cannot test this case yet — no step can observe: Send POST /api/trade/move_to_auction with use_rfq_quotes_as_bids:false; Assert the HTTP 422 response body contains \"use_rfq_quotes_as_bids must be true for conversion\""
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
-   "ask_tester",
-   "expect_screen_clean"
+   "convert_to_auction",
+   "expect_request"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 839
+  "ms": 16251
  },
  "plan": {
-  "title": "Refuse Auction Conversion Without RFQ Quotes Flag",
+  "title": "Reject RFQ conversion without quote-bid flag",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with an existing vendor bid on the buyer side."
+    "note": "Open the prepared live RFQ with an existing vendor bid."
    },
    {
-    "step": "ask_tester",
-    "args": {
-     "need": "send the specified POST /api/trade/move_to_auction request as the buyer API user and verify HTTP 422 with the required refusal message"
-    },
-    "note": "The catalog has no step for sending or asserting an API request, status code, or response body."
-   },
-   {
-    "step": "expect_screen_clean",
+    "step": "convert_to_auction",
     "args": {},
-    "note": "Assert the prepared buyer screen remains free of rendering or server errors after the unavailable API check."
+    "note": "Attempt the closest supported RFQ-to-auction conversion action."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/trade/move_to_auction",
+     "method": "POST",
+     "bodyContains": "use_rfq_quotes_as_bids"
+    },
+    "note": "Observe whether the UI conversion sends the relevant backend request, without claiming the required false payload or response-body refusal."
    }
   ]
  }

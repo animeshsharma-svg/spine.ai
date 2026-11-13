@@ -4,24 +4,27 @@
   "title": "Forward auction: bid for less than the auction quantity",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:15:04.913Z",
+  "compiledAt": "2026-11-12T16:28:00.676Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
-   "vendor_bid",
    "fill",
    "attempt"
   ],
   "state": "forward",
   "screen": "summary",
-  "ms": 12418
+  "ms": 12123
  },
  "plan": {
   "title": "Forward auction rejects under-quantity bid",
@@ -31,28 +34,30 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live forward auction without recreating or changing its state."
+    "note": "Open the prepared live forward auction without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_quantity_less_auction",
+     "value": "Off"
+    },
+    "note": "Enforce bidding for the full auction quantity."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's supplier-portal session while leaving the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction's vendor bid sheet."
-   },
-   {
-    "step": "vendor_bid",
-    "args": {
-     "submit": false
-    },
-    "note": "Enter the default bid price without submitting so the invalid quantity can be set first."
+    "note": "Open the live auction's pricing bid sheet in the vendor portal."
    },
    {
     "step": "fill",
@@ -60,20 +65,16 @@
      "label": "Quantity Available",
      "value": "6"
     },
-    "note": "Set the offered quantity to 6, below the auction quantity of 10."
+    "note": "Enter an offered quantity of 6 against the auction quantity of 10."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit Quote"
-     },
-     "because": "Offer Quantity should be equal to the Auction Quantity",
-     "expect": "refused"
+     "step": "vendor_bid",
+     "expect": "refused",
+     "because": "Offer Quantity should be equal to the Auction Quantity"
     },
-    "note": "Submit the under-quantity bid and require Procol to refuse it with the expected validation message."
+    "note": "Submit the vendor bid and require Procol to refuse it with the expected full-quantity validation message."
    }
   ]
  }

@@ -4,22 +4,45 @@
   "title": "A live RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:33.273Z",
+  "compiledAt": "2026-11-12T13:46:02.055Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that event status, times, vendors, and bids are unchanged after cancellation",
-   "unconfirmed label \"Are you sure you want to create a new version?\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Directly compare that the event's status is unchanged after cancellation",
+   "Directly compare that the event's times are unchanged after cancellation",
+   "Directly compare that the vendor list is unchanged after cancellation",
+   "Directly compare that the bid list is unchanged after cancellation"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Are you sure you want to create a new version?\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Directly verify that event status, times, vendors, and bids are unchanged after cancellation"
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Directly compare that the event's status is unchanged after cancellation; Directly compare that the event's times are unchanged after cancellation; Directly compare that the vendor list is unchanged after cancellation; Directly compare that the bid list is unchanged after cancellation"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 20,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "go_to",
+   "go_to",
    "click",
+   "expect_text",
    "expect_visible",
    "click",
    "expect_visible",
@@ -28,17 +51,102 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9972
+  "ms": 19412
  },
  "plan": {
-  "title": "Cancel Create New Version on Live RFQ",
+  "title": "Cancel New Version Confirmation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on its Responses tab, as required for prepared-state cases."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the RFQ setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Keep withdrawal available during live submission time as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor masking configuration."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ-only project."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Invite the QA vendors supplied by the product configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage of the live project."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab specified by the case."
    },
    {
     "step": "click",
@@ -49,43 +157,48 @@
     "note": "Open the new-version confirmation window."
    },
    {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to create a new version?",
+     "present": true
+    },
+    "note": "Verify the confirmation asks for new-version confirmation."
+   },
+   {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Are you sure you want to create a new version?",
      "visible": true
     },
-    "note": "Verify that the expected confirmation dialog opened."
+    "note": "Confirm the new-version confirmation window is open."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "name": "Cancel"
     },
-    "note": "Cancel version creation without confirming."
+    "note": "Cancel creation of the new version."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Are you sure you want to create a new version?",
      "visible": false
     },
-    "note": "Verify that the confirmation window closed."
+    "note": "Verify the confirmation window closes after cancellation."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "responses"
     },
-    "note": "Verify that cancellation leaves the buyer on the RFQ Responses tab."
+    "note": "Verify cancellation leaves the buyer on the same Responses screen."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify that cancelling did not produce an error or broken screen."
+    "note": "Confirm cancellation did not produce an error or corrupt the event screen."
    }
   ]
  }

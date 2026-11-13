@@ -4,20 +4,16 @@
   "title": "The invited vendor opens a live RFQ",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:00.901Z",
+  "compiledAt": "2026-11-12T16:25:14.049Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the dynamic countdown is shown and correct",
-   "Verify the product sheet shows the buyer's specific product identity",
-   "Verify the Price column is editable without entering a bid"
+   "Assert the live countdown is displayed or has the expected remaining time",
+   "Assert the specific buyer product name shown in the vendor product sheet",
+   "Assert the delivery location's displayed value"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "resolved: “Verify the delivery location is read-only in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Verify the dynamic countdown is shown and correct; Verify the product sheet shows the buyer's specific product identity; Verify the Price column is editable without entering a bid"
+   "can only test part of this — no step for: Assert the live countdown is displayed or has the expected remaining time; Assert the specific buyer product name shown in the vendor product sheet; Assert the delivery location's displayed value"
   ],
   "source": "llm",
   "steps": 11,
@@ -26,83 +22,98 @@
    "switch_portal",
    "vendor_open_event",
    "expect_api_value",
-   "expect_text",
-   "expect_text",
-   "expect_text",
    "expect_api_value",
    "expect_api_value",
-   "expect_visible",
-   "expect_text"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_sheet_cells",
+   "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10260
+  "ms": 20116
  },
  "plan": {
-  "title": "Invited Vendor Opens Live RFQ",
+  "title": "SRC-BID-001 — Invited vendor opens live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the API-prepared live RFQ summary as the required first step."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate vendor session while keeping the buyer session available."
+    "note": "Move to the invited Vendor A supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ from Vendor A's event list and land on its pricing sheet."
+    "note": "Open the live RFQ from the vendor's event list and enter its pricing round."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "title"
     },
-    "note": "Verify the vendor portal shows the live RFQ's event title."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Terms & Conditions"
-    },
-    "note": "Verify the bid page contains the Terms & Conditions block."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Quotation Templates"
-    },
-    "note": "Verify the quotation-template section is present."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Download"
-    },
-    "note": "Verify a Download control is available with the quotation templates."
+    "note": "Verify the vendor page shows the live RFQ title."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "quantity"
     },
-    "note": "Verify the product sheet displays the buyer-provided quantity."
+    "note": "Verify the vendor's product sheet shows the buyer-requested quantity."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "unit"
     },
-    "note": "Verify the product sheet displays the buyer-provided unit."
+    "note": "Verify the vendor's product sheet shows the buyer-requested unit."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms and Conditions"
+    },
+    "note": "Assert that the terms block is present on the vendor bid page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Quotation Templates"
+    },
+    "note": "Assert that the quotation-template section is rendered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Download"
+    },
+    "note": "Assert that the quotation-template download control or label is available."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "editable": [
+      "Price"
+     ],
+     "readonly": [
+      "Product",
+      "Quantity Requested",
+      "Delivery location"
+     ]
+    },
+    "note": "Verify the vendor can edit Price while the buyer-provided product, quantity, and delivery location remain read-only."
    },
    {
     "step": "expect_visible",
@@ -111,14 +122,7 @@
      "name": "Submit Quote",
      "visible": true
     },
-    "note": "Verify the vendor can see the quote submission control."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Price"
-    },
-    "note": "Verify the pricing column is present in the vendor's bid sheet."
+    "note": "Assert that the vendor can see the quote submission button."
    }
   ]
  }

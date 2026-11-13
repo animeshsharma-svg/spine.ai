@@ -4,13 +4,12 @@
   "title": "Asset PR → RFQ converted to an auction → complete award to L1 → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:16:10.788Z",
+  "compiledAt": "2026-11-12T13:00:05.312Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create a Single Stage RFQ directly from the purchase-request flow; the catalog's PR path only exposes choose_stages for project stages.",
-   "Verify that asset assignment A reaches the created purchase order.",
-   "Verify approval performed by a separate approver identity when that approver is not the configured pending approver."
+   "Directly verify that the original PR line status is marked Ordered.",
+   "Verify that asset assignment A reaches the created purchase order."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -23,10 +22,10 @@
    "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction",
-   "can only test part of this — no step for: Create a Single Stage RFQ directly from the purchase-request flow; the catalog's PR path only exposes choose_stages for project stages.; Verify that asset assignment A reaches the created purchase order.; Verify approval performed by a separate approver identity when that approver is not the configured pending approver."
+   "can only test part of this — no step for: Directly verify that the original PR line status is marked Ordered.; Verify that asset assignment A reaches the created purchase order."
   ],
   "source": "llm",
-  "steps": 36,
+  "steps": 46,
   "stepNames": [
    "compose_stages",
    "open_purchase_requisitions",
@@ -37,6 +36,9 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
@@ -56,6 +58,13 @@
    "place_bid",
    "expect_bid_submitted",
    "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
    "award_event",
    "expect_awarded",
    "approve_award",
@@ -65,7 +74,7 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 23632
+  "ms": 27215
  },
  "plan": {
   "title": "Asset PR to Auction Award and PO",
@@ -88,10 +97,7 @@
     }
    },
    {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
+    "step": "select_pr"
    },
    {
     "step": "purchase_items"
@@ -114,11 +120,35 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "Off"
+    },
+    "note": "Ensure the award is full rather than partial."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation from purchase requisitions."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-E2E-025 Asset PR Auction"
+     "title": "SRC-E2E-025 Asset PR RFQ"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title."
    },
    {
     "step": "set_schedule",
@@ -139,7 +169,7 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named in the case."
+    "note": "Add the two vendors named in the case."
    },
    {
     "step": "publish",
@@ -149,7 +179,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the RFQ reached a published project page."
+    "note": "Confirm the RFQ reached its published project page."
    },
    {
     "step": "place_bid",
@@ -157,12 +187,12 @@
      "vendor": "Vendor A",
      "price": 100
     },
-    "note": "Submit Vendor A's RFQ quote of 100."
+    "note": "Submit Vendor A's initial RFQ quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal accepted the quote."
+    "note": "Confirm Vendor A's quote was accepted."
    },
    {
     "step": "place_bid",
@@ -170,12 +200,12 @@
      "vendor": "Vendor B",
      "price": 90
     },
-    "note": "Submit Vendor B's RFQ quote of 90."
+    "note": "Submit Vendor B's initial RFQ quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor's quote was accepted."
+    "note": "Confirm Vendor B's quote was accepted."
    },
    {
     "step": "close_event",
@@ -187,14 +217,14 @@
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the closed RFQ into the auction round."
+    "note": "Convert the published RFQ while retaining its quotes and participants."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the converted auction's schedule before publishing its new version."
+    "note": "Commit the converted auction's bidding schedule."
    },
    {
     "step": "publish",
@@ -204,7 +234,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the converted auction is published."
+    "note": "Confirm the converted auction is published."
    },
    {
     "step": "place_bid",
@@ -217,7 +247,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor A's auction bid was accepted."
+    "note": "Confirm Vendor A's auction bid was accepted."
    },
    {
     "step": "place_bid",
@@ -230,7 +260,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor B's auction bid was accepted."
+    "note": "Confirm Vendor B's auction bid was accepted."
    },
    {
     "step": "close_event",
@@ -240,28 +270,83 @@
     "note": "Wait for the auction to close before awarding."
    },
    {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the comparison grid for both auction bidders."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the lowest auction amount ranks first."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "85"
+    },
+    "note": "Verify Vendor A's winning rate is 85."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the awarded line amount and total use rate multiplied by quantity."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the award allocation flow."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Allocate all available line quantity to Vendor A."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Confirm the complete line and vendor allocation."
+   },
+   {
     "step": "award_event",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Award all available line items to Vendor A through Master QCS."
+    "note": "Create and submit the award proposal to Vendor A."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify the award proposal was created and submitted."
+    "note": "Confirm the award proposal was created and submitted."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for asset PR award to Vendor A."
+     "remark": "Approved for full award to Vendor A at 85."
     },
-    "note": "Approve the submitted award with the required remark using the configured approver context."
+    "note": "Approve the submitted proposal with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approval-to-PO flow."
+    "note": "Complete approval and create the purchase order."
    },
    {
     "step": "expect_po_items",
@@ -286,9 +371,9 @@
    {
     "step": "expect_event_in_list",
     "args": {
-     "title": "SRC-E2E-025 Asset PR Auction"
+     "title": "SRC-E2E-025 Asset PR RFQ"
     },
-    "note": "Verify the converted and awarded event appears in History."
+    "note": "Confirm the plan's completed event appears in History."
    }
   ]
  }

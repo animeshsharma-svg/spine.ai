@@ -4,51 +4,55 @@
   "title": "Three-dots menu of a project that is live with every vendor bid",
   "group": "SRC-PRJ",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:35:52.105Z",
+  "compiledAt": "2026-11-12T13:08:20.684Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Record either that Send Reminders is hidden or that it is available but has nobody to remind as an alternative outcome.",
-   "unconfirmed label \"0 Pending\" (expect_text) — not among the labels known from the app nor in the case"
+   "Conditionally record whether Send Reminders is hidden or offered with no vendors to remind."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"0 Pending\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Record either that Send Reminders is hidden or that it is available but has nobody to remind as an alternative outcome."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Conditionally record whether Send Reminders is hidden or offered with no vendors to remind."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "expect_responses",
+   "require_setting",
+   "require_setting",
    "expect_menu_item",
-   "event_menu",
-   "expect_text",
-   "expect_text"
+   "expect_menu_item"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 13089
+  "ms": 12636
  },
  "plan": {
-  "title": "Live RFQ Three-Dots Menu",
+  "title": "Live RFQ project menu options",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared live RFQ project summary as the buyer."
    },
    {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "count": 2,
-     "stage": "rfq"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Confirm that the RFQ has responses from both invited vendors."
+    "note": "Ensure the tenant configuration allows Withdraw Project to appear."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ event."
    },
    {
     "step": "expect_menu_item",
@@ -56,28 +60,14 @@
      "item": "Withdraw Project",
      "enabled": true
     },
-    "note": "Assert that the project-level three-dots menu offers an enabled Withdraw Project action."
+    "note": "Assert that the project three-dots menu offers an enabled Withdraw Project action."
    },
    {
-    "step": "event_menu",
+    "step": "expect_menu_item",
     "args": {
      "item": "Send Reminders"
     },
-    "note": "Open the Send Reminders drawer from the project-level menu."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Offer submissions"
-    },
-    "note": "Confirm that Send Reminders opened the expected drawer."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "0 Pending"
-    },
-    "note": "Verify that the drawer reports nobody pending a submission."
+    "note": "Check whether Send Reminders is offered in the project menu; the catalog cannot also accept the hidden-or-no-reminders alternative conditionally."
    }
   ]
  }

@@ -4,21 +4,17 @@
   "title": "RFQ: delivery location must come from the list",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:18:35.074Z",
+  "compiledAt": "2026-11-12T16:32:34.705Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select the exact CYLINDER WITH KEY & KNOB product and verify Product Variant is automatically set to Default Variant.",
-   "Observe that the delivery-location autocomplete offers no match while typing Mars."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Select the exact CYLINDER WITH KEY & KNOB product and verify Product Variant is automatically set to Default Variant.; Observe that the delivery-location autocomplete offers no match while typing Mars."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
   "steps": 7,
@@ -31,7 +27,7 @@
    "set_sheet_cell",
    "expect_sheet_cell"
   ],
-  "ms": 12672
+  "ms": 88322
  },
  "plan": {
   "title": "SRC-CRE-031 RFQ Delivery Location Validation",
@@ -46,20 +42,21 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and configure whole-lot awarding."
+    "note": "Switch the event type from the default RFP to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the sheet can be configured."
+    "args": {
+     "title": "SRC-CRE-031 RFQ Delivery Location"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template to render the pricing sheet."
+    "note": "Apply the available RFQ template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
@@ -68,7 +65,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product line with quantity 10; exact variant selection is not expressible by the catalog."
+    "note": "Add the specified product and set its requested quantity to 10."
    },
    {
     "step": "set_sheet_cell",
@@ -77,7 +74,7 @@
      "column": "Delivery location",
      "value": "Mars"
     },
-    "note": "Attempt to enter an invalid non-plant delivery location."
+    "note": "Attempt to enter the non-plant free-text delivery location; the dropdown should offer no matching option and retain no valid value."
    },
    {
     "step": "expect_sheet_cell",
@@ -86,7 +83,7 @@
      "column": "Delivery location",
      "refused": true
     },
-    "note": "Verify that the invalid free-text location is not retained by the sheet."
+    "note": "Assert that the invalid delivery-location value was not kept."
    }
   ]
  }

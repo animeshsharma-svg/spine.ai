@@ -4,35 +4,37 @@
   "title": "Increase Event Time: Window stays open and shows error when no radio option is selected and Ok is pressed",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:11.420Z",
+  "compiledAt": "2026-11-12T13:40:30.848Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case"
+   "Explicitly deselecting the selected duration radio option before pressing Ok"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Explicitly deselecting the selected duration radio option before pressing Ok"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "event_menu",
-   "expect_visible",
-   "do_on_screen",
-   "click",
-   "expect_message",
+   "extend_time",
    "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 13372
+  "ms": 15324
  },
  "plan": {
-  "title": "Increase Time With No Option Selected",
+  "title": "RFQ Increase Time Without Selection",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,6 +42,46 @@
      "screen": "summary"
     },
     "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "go_to",
@@ -54,46 +96,18 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab where the stage Settings menu is available."
+    "note": "Reach the Responses view described in the scenario."
    },
    {
-    "step": "event_menu",
+    "step": "extend_time",
     "args": {
-     "item": "Extend Submission Time",
-     "stage": "rfq"
+     "which": "submission",
+     "option": "custom",
+     "amount": "",
+     "expect": "refused",
+     "confirm": true
     },
-    "note": "Open the Increase Event Time window from the RFQ Settings menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
-     "visible": true
-    },
-    "note": "Confirm the Increase Event Time window opened before modifying its selection."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "deselect any selected Increase Event Time radio option, if the buyer UI permits, and leave the Increase Event Time window open with no option selected"
-    },
-    "note": "Perform the case-specific UI interaction that has no dedicated catalog action."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Ok"
-    },
-    "note": "Submit the dialog with no duration option selected."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "error"
-    },
-    "note": "Assert that Procol reports a validation error for the missing duration selection."
+    "note": "Attempt to confirm Increase Event Time with no duration value, using the closest supported negative-path operation for the requested missing radio selection."
    },
    {
     "step": "expect_visible",
@@ -102,7 +116,7 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Assert that the Increase Event Time window stays open after the refused submission."
+    "note": "Verify the Increase Event Time window remains open after the refusal."
    }
   ]
  }

@@ -4,25 +4,26 @@
   "title": "Technical stage \"NDA signed\" Required, RFQ stage no clauses: the vendor accepts the NDA on the technical stage",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:17:46.445Z",
+  "compiledAt": "2026-11-12T13:21:06.136Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact buyer-side Terms & Conditions configuration flow and saved required-clause state are handled through on-screen exploration rather than a dedicated catalog assertion.",
    "unconfirmed label \"NDA signed\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "coverage partial: unconfirmed label \"NDA signed\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: The exact buyer-side Terms & Conditions configuration flow and saved required-clause state are handled through on-screen exploration rather than a dedicated catalog assertion."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 23,
+  "steps": 28,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -34,22 +35,25 @@
    "select_template",
    "fill_sheet",
    "set_schedule",
+   "switch_stage",
+   "set_schedule",
+   "switch_stage",
    "invite_vendor",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "toggle",
+   "expect_text",
+   "click",
    "click",
    "expect_text",
    "vendor_open_event",
-   "expect_text",
-   "expect_bid_submitted"
+   "expect_text"
   ],
-  "ms": 19709
+  "ms": 23277
  },
  "plan": {
-  "title": "Technical NDA acceptance with clause-free RFQ",
+  "title": "Technical NDA Required, RFQ Has No Terms",
   "steps": [
    {
     "step": "open_create",
@@ -59,9 +63,25 @@
     "note": "Open the eRFX project creation flow."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add the QA vendor during event creation."
+   },
+   {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required project title."
    },
    {
     "step": "compose_stages",
@@ -71,7 +91,7 @@
       "rfq"
      ]
     },
-    "note": "Create the required Technical Stage and RFQ stages."
+    "note": "Create the Technical and RFQ stages required by the case."
    },
    {
     "step": "switch_stage",
@@ -116,14 +136,35 @@
     "args": {
      "minutes": 30
     },
-    "note": "Schedule both stages before publishing."
+    "note": "Commit the RFQ stage schedule."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Return to the Technical stage to schedule it."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the Technical stage schedule."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Return to the RFQ stage before inviting and publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the available QA vendor for Vendor A's session."
+    "note": "Invite one QA vendor for Vendor A."
    },
    {
     "step": "publish",
@@ -133,29 +174,37 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached its published project page."
+    "note": "Confirm that publishing reached the project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal while keeping the buyer session open."
+    "note": "Open the invited vendor's separate supplier session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the Technical Stage before the RFQ pricing round."
+    "note": "Open the Technical stage in the vendor portal."
    },
    {
-    "step": "toggle",
+    "step": "expect_text",
     "args": {
-     "label": "NDA signed",
-     "on": true
+     "text": "NDA signed",
+     "present": true
     },
-    "note": "Accept the required NDA clause as the vendor."
+    "note": "Confirm the vendor can see the required NDA term."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "name": "NDA signed"
+    },
+    "note": "Have the vendor accept the required NDA."
    },
    {
     "step": "click",
@@ -168,16 +217,17 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted"
+     "text": "Submitted",
+     "present": true
     },
-    "note": "Confirm the technical response was submitted."
+    "note": "Confirm that the technical response was submitted successfully."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing stage."
+    "note": "Open the RFQ pricing stage for the same vendor."
    },
    {
     "step": "expect_text",
@@ -185,12 +235,7 @@
      "text": "NDA signed",
      "present": false
     },
-    "note": "Confirm the RFQ stage does not show the Technical Stage NDA clause or acceptance block."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the RFQ bid was accepted by the vendor portal."
+    "note": "Confirm that the RFQ stage does not show the Technical-stage NDA as a terms block."
    }
   ]
  }

@@ -4,20 +4,22 @@
   "title": "Create a Single Stage reverse auction from an open material PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:41.578Z",
+  "compiledAt": "2026-11-12T13:07:16.737Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Choose the PR flow's Single Stage mode and configure the resulting event as a single-stage reverse auction; the PR flow only exposes choose_stages with an auction stage.",
-   "Directly verify that the selected PR line specifically moved to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+   "Selecting Single Stage from the PR stage-selection flow and verifying the resulting event is specifically single-stage rather than an eRFX auction stage",
+   "Choosing a reverse-auction template through the Single Stage configuration drawer from a PR-created event",
+   "Verifying the published event explicitly shows that it came from a PR",
+   "Verifying that this exact PR line moved to In Progress with this event's number"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Choose the PR flow's Single Stage mode and configure the resulting event as a single-stage reverse auction; the PR flow only exposes choose_stages with an auction stage.; Directly verify that the selected PR line specifically moved to In Progress with this event's number and that the published event explicitly shows it came from a PR."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting Single Stage from the PR stage-selection flow and verifying the resulting event is specifically single-stage rather than an eRFX auction stage; Choosing a reverse-auction template through the Single Stage configuration drawer from a PR-created event; Verifying the published event explicitly shows that it came from a PR; Verifying that this exact PR line moved to In Progress with this event's number"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 20,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -27,22 +29,23 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "set_title",
-   "expect_template_selected",
-   "expect_sheet_columns",
+   "require_setting",
+   "require_setting",
    "expect_sheet_cells",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value",
+   "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "open_event_settings",
-   "expect_menu_item",
-   "expect_table"
+   "expect_menu_item"
   ],
-  "ms": 16870
+  "ms": 19653
  },
  "plan": {
-  "title": "Create reverse auction from material PR",
+  "title": "PR to Auction Event Creation",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -80,19 +83,20 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Assert that an auction template is applied."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {},
-    "note": "Verify that the auction pricing sheet rendered."
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and prevent publish from being disabled by this setting."
    },
    {
     "step": "expect_sheet_cells",
@@ -101,11 +105,39 @@
      "readonly": [
       "Product",
       "Product Variant",
-      "Quantity Requested",
-      "Delivery location"
+      "Quantity Requested"
      ]
     },
-    "note": "Check that the PR-derived line fields are locked against editing."
+    "note": "Assert that core PR-populated item fields are locked on the sheet."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Line Items"
+    },
+    "note": "Verify that the PR quantity is present in the created event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit",
+     "within": "Line Items"
+    },
+    "note": "Verify that the PR unit is present in the created event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Participants"
+    },
+    "note": "Confirm a configured participant value is available after participant setup."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title needed for publishing."
    },
    {
     "step": "set_schedule",
@@ -122,12 +154,12 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named in the case."
+    "note": "Add the two vendors named in the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction event."
+    "note": "Publish the completed PR-derived auction event."
    },
    {
     "step": "expect_published",
@@ -135,24 +167,12 @@
     "note": "Assert that publishing reached a real project page."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the published event's Settings menu to inspect PR restrictions."
-   },
-   {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Verify that Recreate Order is present but greyed out."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "min": 1
-    },
-    "note": "Assert that at least one in-progress PR row is rendered."
+    "note": "Verify that Recreate Order is greyed out for the published event."
    }
   ]
  }

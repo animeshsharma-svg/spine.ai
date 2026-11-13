@@ -4,43 +4,48 @@
   "title": "Single stage RFQ: invite one named vendor by search",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:41:17.360Z",
+  "compiledAt": "2026-11-12T13:05:52.642Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the invitation is delivered to the vendor's QA mailbox.",
-   "Select and verify the specific delivery location Plant Name (LOC-0001) on the product sheet."
+   "Verify that each participant receives the invitation in their QA mailbox."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Verify that the invitation is delivered to the vendor's QA mailbox.; Select and verify the specific delivery location Plant Name (LOC-0001) on the product sheet."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Verify that each participant receives the invitation in their QA mailbox."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "open_participants",
+   "search_participants",
    "expect_participant",
    "expect_participant_count"
   ],
-  "ms": 15498
+  "ms": 12648
  },
  "plan": {
-  "title": "Single-stage RFQ named-vendor invitation",
+  "title": "SRC-PAR-002 Named Vendor Invitation",
   "steps": [
    {
     "step": "open_create",
@@ -50,45 +55,60 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and the named lot-award mode."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-PAR-002 Single Stage RFQ"
     },
-    "note": "Provide the mandatory event title required before publishing."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template so the product sheet is available."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER line item with quantity 10."
+    "note": "Add the specified product and set its requested quantity."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the remaining required pricing-sheet fields so the event can be published."
+    "step": "fill_sheet"
    },
    {
-    "step": "set_schedule",
+    "step": "set_sheet_cell",
     "args": {
-     "minutes": 30
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Commit the 30-minute schedule before publishing."
+    "note": "Set the requested delivery location in the pricing sheet."
    },
    {
     "step": "invite_vendor",
@@ -97,12 +117,19 @@
       "Vendor A"
      ]
     },
-    "note": "Search for and invite the specifically named vendor."
+    "note": "Add the specifically named vendor during event creation."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule with the event starting now."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured single-stage RFQ."
+    "note": "Publish the configured RFQ."
    },
    {
     "step": "expect_published",
@@ -112,7 +139,14 @@
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the published stage's Participants list."
+    "note": "Open the published RFQ stage's Participants list."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Find the named vendor's participant row."
    },
    {
     "step": "expect_participant",
@@ -121,14 +155,14 @@
      "present": true,
      "selected": true
     },
-    "note": "Verify that Vendor A is listed and selected for the stage."
+    "note": "Confirm Vendor A is listed and selected for the stage."
    },
    {
     "step": "expect_participant_count",
     "args": {
      "count": 1
     },
-    "note": "Verify that Vendor A is the only participant."
+    "note": "Confirm that Vendor A is the only participant."
    }
   ]
  }

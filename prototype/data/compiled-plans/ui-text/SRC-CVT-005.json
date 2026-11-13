@@ -4,48 +4,51 @@
   "title": "Starting price above the L1 sum total",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:22:20.361Z",
+  "compiledAt": "2026-11-12T12:58:34.875Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "The prepared state provides one bid, not the named A 100 and B 90 bids needed to establish an RFQ L1 sum total of 900.",
-   "Inspect the conversion popup options for reusing RFQ quotes, participants and weights.",
-   "Set an auction starting price above 900 on the converted auction screen.",
-   "Publish the converted auction and observe the refusal message \"Starting price cannot be more than the lowest RFQ (L1) Sum Total\"."
-  ],
-  "warnings": [
-   "cannot test this case yet — no step can observe: The prepared state provides one bid, not the named A 100 and B 90 bids needed to establish an RFQ L1 sum total of 900.; Inspect the conversion popup options for reusing RFQ quotes, participants and weights.; Set an auction starting price above 900 on the converted auction screen.; Publish the converted auction and observe the refusal message \"Starting price cannot be more than the lowest RFQ (L1) Sum Total\"."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "convert_to_auction",
-   "expect_no_error"
+   "do_on_screen",
+   "expect_error"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 8245
+  "ms": 23979
  },
  "plan": {
-  "title": "Reject auction start price above RFQ L1",
+  "title": "Convert RFQ with Starting Price Above L1",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ summary as the required starting point."
+    "note": "Open the prepared closed RFQ with bids of 100 and 90."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Begin RFQ-to-Auction conversion and reach the converted auction create screen."
+    "note": "Convert the published RFQ to an auction and continue to the converted auction create screen."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the conversion screen rendered without an immediate application error; this does not assert the requested starting-price rule."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the converted auction create screen, set the starting price above 900, publish the auction, and stop when the refusal is shown."
+    },
+    "note": "The catalog has no dedicated step for setting the converted auction starting price or publishing this conversion-specific negative case."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Starting price cannot be more than the lowest RFQ (L1) Sum Total"
+    },
+    "note": "Assert the exact refusal for a starting price above the RFQ L1 sum total."
    }
   ]
  }

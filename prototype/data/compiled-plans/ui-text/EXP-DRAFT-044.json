@@ -4,52 +4,151 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Publish\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:44:45.365Z",
+  "compiledAt": "2026-11-12T13:45:10.129Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that lock_vendors_addition_in_event_creation is Off for the company."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify that lock_vendors_addition_in_event_creation is Off for the company."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 18,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
-   "open_first_event",
+   "expect_event_in_list",
+   "expect_event_status",
+   "open_event",
    "expect_visible"
   ],
-  "ms": 67032
+  "ms": 12487
  },
  "plan": {
-  "title": "Draft Publish Control Hidden",
+  "title": "EXP-DRAFT-044 Publish Hidden on Saved eRFX Draft",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Set the company configuration under test so vendors cannot be added during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration specified for the saved-draft scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-044 eRFX Draft"
+    },
+    "note": "Give the draft a title so it can be saved and located in the Drafts list."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available template required for a valid draft setup."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item to create a realistic saved eRFX draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the draft line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft contains the normal event configuration."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX event as a draft."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save did not produce an application error."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab where the saved eRFX draft should be listed."
+    "note": "Open the Drafts tab specified by the scenario."
    },
    {
-    "step": "open_first_event",
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify that the draft created by this plan appears in the Drafts list."
+   },
+   {
+    "step": "expect_event_status",
     "args": {
-     "tab": "Drafts"
+     "status": "Draft"
     },
-    "note": "Open the first saved draft and land on its create screen."
+    "note": "Confirm the listed event has Draft status."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the draft event from the Drafts list."
    },
    {
     "step": "expect_visible",
@@ -58,7 +157,7 @@
      "name": "Publish",
      "visible": false
     },
-    "note": "Assert that the Publish control is not offered on the saved draft."
+    "note": "Assert the Publish control is not offered on the reopened eRFX draft."
    }
   ]
  }

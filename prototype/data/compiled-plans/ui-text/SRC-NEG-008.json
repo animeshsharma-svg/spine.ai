@@ -4,120 +4,157 @@
   "title": "Counter offer during evaluation time: the vendor does not answer",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:36:54.994Z",
+  "compiledAt": "2026-11-12T13:02:49.007Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Establish or verify the specific RFQ-in-evaluation state from SRC-SET-003 before sending the counter offer"
+   "Independently verify that the prepared RFQ is in the evaluation-time state rather than another closed or bidding state"
   ],
   "warnings": [
-   "can only test part of this — no step for: Establish or verify the specific RFQ-in-evaluation state from SRC-SET-003 before sending the counter offer"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Independently verify that the prepared RFQ is in the evaluation-time state rather than another closed or bidding state"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
-   "expect_text",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
-   "expect_text",
+   "attempt",
    "switch_portal",
-   "expect_text",
+   "go_to",
+   "expect_visible",
    "open_master_qcs",
    "expect_qcs_cell"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 11046
+  "ms": 24578
  },
  "plan": {
-  "title": "Counter Offer Remains Pending During Evaluation",
+  "title": "Counter offer remains pending during evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen with the existing vendor bid."
+    "note": "Open the prepared RFQ Responses screen containing Vendor A’s 100 bid and Vendor B’s 90 bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are visible on RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled."
    },
    {
     "step": "place_counter_offer",
     "args": {
+     "vendor": "Vendor A",
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send the buyer's counter offer on the vendor's own bid at the requested price and remark."
+    "note": "Send the buyer’s counter offer for Vendor A’s line at price 90."
    },
    {
     "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify the buyer's grid marks the counter offer as initiated."
-   },
-   {
-    "step": "expect_text",
     "args": {
-     "text": "Revoke Counter Offer"
+     "vendor": "Vendor A"
     },
-    "note": "Verify the counter offer remains pending on the buyer side."
+    "note": "Confirm the buyer grid marks Vendor A’s counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Switch to Vendor A's supplier-portal session while leaving the buyer session available."
+    "note": "Move to Vendor A’s supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing round in the vendor portal."
+    "note": "Open the prepared RFQ pricing round where Vendor A’s pending counter offer is shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Counter Offer"
+     "text": "Counter Offer",
+     "present": true
     },
-    "note": "Verify the vendor sees the pending counter offer without taking an answer action."
+    "note": "Verify the vendor portal shows the pending counter offer rather than an answered offer."
    },
    {
-    "step": "expect_text",
+    "step": "attempt",
     "args": {
-     "text": "You have a counter offer pending on this bid"
+     "step": "vendor_bid",
+     "args": {
+      "price": 90
+     },
+     "expect": "refused",
+     "because": "You have a counter offer pending on this bid"
     },
-    "note": "Verify the vendor-side restriction preventing a revision while the counter offer is pending."
+    "note": "Verify Vendor A cannot revise the bid while the counter offer is pending."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's session after leaving the vendor's counter offer unanswered."
+    "note": "Return to the buyer’s event page."
    },
    {
-    "step": "expect_text",
+    "step": "go_to",
     "args": {
-     "text": "Revoke Counter Offer"
+     "screen": "responses"
     },
-    "note": "Verify the counter offer is still pending after the vendor takes no action."
+    "note": "Return to the RFQ Responses tab for the buyer-side pending-state checks."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "visible": true
+    },
+    "note": "Confirm the counter offer remains pending and can still be revoked by the buyer."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison."
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the buyer’s comparison grid for both bidding vendors."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
+     "vendor": "Vendor A",
+     "equals": "100"
     },
-    "note": "Verify the comparison retains Vendor A's original bid price of 100."
+    "note": "Confirm Vendor A’s original comparison price remains 100 despite the counter offer."
    }
   ]
  }

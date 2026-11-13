@@ -4,47 +4,75 @@
   "title": "Events list and the Create Event menu: with boq_in_erfx_allowed Off — blocked",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:36:13.225Z",
+  "compiledAt": "2026-11-12T13:42:55.691Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Open the tenant/company settings and click boq_in_erfx_allowed.",
-   "Observe or record what opens or changes on the setting screen with boq_in_erfx_allowed set to Off.",
-   "Change or verify the tenant setting value itself."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open the tenant/company settings and click boq_in_erfx_allowed.; Observe or record what opens or changes on the setting screen with boq_in_erfx_allowed set to Off.; Change or verify the tenant setting value itself."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "expect_create_options"
   ],
-  "ms": 5889
+  "ms": 7142
  },
  "plan": {
-  "title": "Create Event menu with BOQ disabled",
+  "title": "Create menu hides BOQ when disabled",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list, the screen containing the Create Event control."
+    "note": "Open the Events list, the screen whose Create Event menu is under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable RFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "Off"
+    },
+    "note": "Set the subject configuration so BOQ creation should be blocked."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Preserve the scheduled-events configuration specified by the case."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Assert that the Events list rendered successfully before opening its menu."
+    "note": "Confirm the events list rendered successfully before opening its menu."
    },
    {
     "step": "expect_create_options",
     "args": {
+     "options": [
+      "eRFX",
+      "Single Stage"
+     ],
      "absent": [
       "BOQ"
      ]
     },
-    "note": "Check the closest observable consequence: the Create Event menu must not offer the BOQ path."
+    "note": "Assert the enabled creation paths remain available and the BOQ-based path is not offered."
    }
   ]
  }

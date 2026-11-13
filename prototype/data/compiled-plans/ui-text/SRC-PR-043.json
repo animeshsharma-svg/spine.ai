@@ -4,23 +4,26 @@
   "title": "Create a Single Stage RFQ from an open asset PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:32:39.057Z",
+  "compiledAt": "2026-11-12T13:07:58.982Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the asset line retains Account Assignment A and that this assignment is carried to a subsequently created purchase order.",
-   "Verify the specific PR line moves to In Progress with this event's number and that the published event explicitly shows it came from that PR.",
-   "Verify the PR-derived delivery location is locked if the screen does not expose it as a locked sheet cell."
+   "Selecting the specific open asset PR line when its identity is not provided",
+   "Choosing Single Stage from the PR flow and configuring its RFQ event type through a catalog step",
+   "Verifying the asset line retains Account Assignment A and that it is carried to the purchase order",
+   "Verifying the source PR moves to In Progress with this event number",
+   "Verifying the published event explicitly displays that it came from a PR",
+   "Verifying the PR-populated delivery location is locked, because the available sheet-cell step does not establish that PR-specific lock behavior"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Verify the asset line retains Account Assignment A and that this assignment is carried to a subsequently created purchase order.; Verify the specific PR line moves to In Progress with this event's number and that the published event explicitly shows it came from that PR.; Verify the PR-derived delivery location is locked if the screen does not expose it as a locked sheet cell."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting the specific open asset PR line when its identity is not provided; Choosing Single Stage from the PR flow and configuring its RFQ event type through a catalog step; Verifying the asset line retains Account Assignment A and that it is carried to the purchase order; Verifying the source PR moves to In Progress with this event number; Verifying the published event explicitly displays that it came from a PR; Verifying the PR-populated delivery location is locked, because the available sheet-cell step does not establish that PR-specific lock behavior"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 21,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -30,18 +33,21 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "expect_api_value",
-   "expect_api_value",
-   "expect_sheet_cells",
+   "require_setting",
+   "require_setting",
+   "ask_tester",
    "set_title",
-   "invite_vendor",
+   "expect_template_selected",
+   "expect_sheet_columns",
+   "expect_sheet_cells",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "open_event",
+   "open_event_settings",
    "expect_menu_item"
   ],
-  "ms": 19665
+  "ms": 22226
  },
  "plan": {
   "title": "Create Single-Stage RFQ from Asset PR",
@@ -79,18 +85,49 @@
     "step": "fill_sheet"
    },
    {
-    "step": "expect_api_value",
+    "step": "require_setting",
     "args": {
-     "key": "quantity"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify the PR quantity is shown on the created event."
+    "note": "Enable eRFX project creation required by the case."
    },
    {
-    "step": "expect_api_value",
+    "step": "require_setting",
     "args": {
-     "key": "unit"
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
     },
-    "note": "Verify the PR unit is shown on the created event."
+    "note": "Allow vendors to be added during event creation as required by the case."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "choose Single Stage, select RFQ as the event type, and stop on the RFQ create screen"
+    },
+    "note": "The catalog has no PR-flow step for choosing Single Stage or configuring its RFQ event type."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that an RFQ template is applied before configuring the sheet."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location"
+     ]
+    },
+    "note": "Verify that the create screen exposes the PR-derived item, quantity, variant, and delivery-location columns."
    },
    {
     "step": "expect_sheet_cells",
@@ -102,22 +139,7 @@
       "Quantity Requested"
      ]
     },
-    "note": "Assert that PR-derived product, variant, and requested quantity cells are locked."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title using the product's generated title behavior."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ]
-    },
-    "note": "Add the two vendors named in the test case."
+    "note": "Assert that core PR-derived item fields are read-only on the pricing sheet."
    },
    {
     "step": "set_schedule",
@@ -127,19 +149,29 @@
     "note": "Commit the required 30-minute schedule."
    },
    {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named in the case to the event."
+   },
+   {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed single-stage RFQ."
+    "note": "Publish the completed PR-derived RFQ; this step handles the publish confirmation."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Assert that publishing reached a real event project page."
    },
    {
-    "step": "open_event",
+    "step": "open_event_settings",
     "args": {},
-    "note": "Return to the event created by this plan for post-publish checks."
+    "note": "Open the published event's Settings menu to inspect PR-specific actions."
    },
    {
     "step": "expect_menu_item",

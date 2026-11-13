@@ -4,42 +4,76 @@
   "title": "Recreate Order: Attempt to create order with Delivery Date not selected",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:29:48.090Z",
+  "compiledAt": "2026-11-12T13:41:59.920Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Open Vendor A's bid-row ⋮ menu and choose Settings → Recreate Order; the catalog only opens Recreate Order from the RFQ stage Settings menu."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Open Vendor A's bid-row ⋮ menu and choose Settings → Recreate Order; the catalog only opens Recreate Order from the RFQ stage Settings menu."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
-   "expect_visible",
    "select",
    "fill",
    "click",
    "expect_field_error",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10444
+  "ms": 12239
  },
  "plan": {
-  "title": "Recreate Order Missing Delivery Date",
+  "title": "Recreate Order Requires Delivery Date",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ with one invited vendor bid."
+    "note": "Open the prepared closed RFQ summary; the event and Vendor A bid already exist."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Configure post-expiry surrogate bidding as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening as required."
    },
    {
     "step": "go_to",
@@ -47,14 +81,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab containing the vendor bid."
+    "note": "Open the RFQ Responses tab containing the bid and Settings control."
    },
    {
     "step": "event_menu",
@@ -62,15 +96,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order window using the available RFQ Settings action."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Recreate Order",
-     "visible": true
-    },
-    "note": "Confirm the Recreate Order window opened."
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
    },
    {
     "step": "select",
@@ -78,7 +104,7 @@
      "label": "Event End Time Duration",
      "option": "15"
     },
-    "note": "Set the requested event end-time duration."
+    "note": "Select the requested event-end duration."
    },
    {
     "step": "fill",
@@ -94,7 +120,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the form while deliberately leaving Delivery Date empty."
+    "note": "Submit while deliberately leaving Delivery Date empty."
    },
    {
     "step": "expect_field_error",
@@ -102,7 +128,7 @@
      "field": "Delivery Date",
      "message": "Please select a delivery date"
     },
-    "note": "Verify creation is blocked by the delivery-date validation message."
+    "note": "Verify the required Delivery Date validation message."
    },
    {
     "step": "expect_visible",
@@ -110,7 +136,7 @@
      "text": "Recreate Order",
      "visible": true
     },
-    "note": "Verify the validation leaves the Recreate Order window open."
+    "note": "Verify the Recreate Order window remains open after the refused submission."
    }
   ]
  }

@@ -1,19 +1,18 @@
 {
  "meta": {
   "caseId": "DRV-BID-010",
-  "title": "Loading factor configurations are preserved and applied when converting RFQ to Auction",
+  "title": "Item-wise awarding in BOQ allows selecting individual un-regretted lines when enabled",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T23:00:27.717Z",
+  "compiledAt": "2026-11-12T13:34:39.648Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A true rapid double-click gesture on Reject Bid with timing control",
-   "Verifying that exactly one rejection record was created rather than only observing the resulting Rejected status",
-   "Asserting specifically that the second click was ignored and produced no error"
+   "A rapid double-click as one timing-sensitive browser action",
+   "Verifying that exactly one rejection record was persisted and that the second click was ignored"
   ],
   "warnings": [
-   "can only test part of this — no step for: A true rapid double-click gesture on Reject Bid with timing control; Verifying that exactly one rejection record was created rather than only observing the resulting Rejected status; Asserting specifically that the second click was ignored and produced no error"
+   "can only test part of this — no step for: A rapid double-click as one timing-sensitive browser action; Verifying that exactly one rejection record was persisted and that the second click was ignored"
   ],
   "source": "llm",
   "steps": 5,
@@ -26,17 +25,17 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 61129
+  "ms": 11187
  },
  "plan": {
-  "title": "Reject Bid Double-Click Idempotency",
+  "title": "DRV-BID-010 Reject Bid Double-Click",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab containing Vendor A's active bid."
+    "note": "Open the prepared live RFQ Responses tab with Vendor A's active bid."
    },
    {
     "step": "click",
@@ -44,7 +43,7 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Activate the visible Reject Bid control for the vendor response."
+    "note": "Reject Vendor A's bid from the Responses view."
    },
    {
     "step": "click",
@@ -52,19 +51,20 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Attempt the second immediate activation to approximate the double-click scenario."
+    "note": "Attempt the second rejection click to approximate the duplicate-click scenario."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rejected"
+     "text": "Rejected",
+     "present": true
     },
-    "note": "Verify that the bid is shown as rejected after the attempted duplicate action."
+    "note": "Verify the bid status is visibly rejected."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Check that no application error, crash, or raw server error appeared during the rejection attempt."
+    "note": "Verify no server error or page crash is shown after the repeated clicks."
    }
   ]
  }

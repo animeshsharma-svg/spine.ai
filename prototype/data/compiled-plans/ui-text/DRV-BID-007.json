@@ -4,16 +4,14 @@
   "title": "Vendor cannot submit discount percentage below 0",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T22:59:10.359Z",
+  "compiledAt": "2026-11-12T13:34:12.659Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Reject Bid\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "resolved: “Open the RFQ stage's Responses tab in the vendor portal; the catalog only exposes the vendor's event overview and pricin” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "coverage partial: unconfirmed label \"Reject Bid\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
   "steps": 5,
@@ -26,38 +24,38 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 61269
+  "ms": 9227
  },
  "plan": {
-  "title": "Vendor Portal Hides Reject Bid",
+  "title": "Vendor Cannot Reject Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with Vendor A's active bid."
+    "note": "the API built this case's state"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the invited vendor's supplier portal session."
+    "note": "Continue in the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing round where the vendor's submitted bid status is visible."
+    "note": "Open the event's RFQ pricing round where the vendor's bid status is shown."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Submitted"
     },
-    "note": "Verify the vendor portal shows the vendor's own bid as submitted."
+    "note": "Assert that the vendor can see its own bid status."
    },
    {
     "step": "expect_visible",
@@ -66,7 +64,7 @@
      "name": "Reject Bid",
      "visible": false
     },
-    "note": "Verify the vendor portal does not expose a Reject Bid button."
+    "note": "Assert that the buyer-only Reject Bid control is not visible to the vendor."
    }
   ]
  }

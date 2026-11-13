@@ -4,30 +4,29 @@
   "title": "Settings menu on a closed Auction",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:33:31.497Z",
+  "compiledAt": "2026-11-12T13:01:56.430Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the specifically named closed reverse auction with bids A 100 and B 90 because no event title or ID is provided.",
-   "Assert the tenant-specific conditional outcome where Extend Submission Time may be listed but greyed out; the plan checks it as absent for the standard closed-state expectation."
+   "The case allows Extend Submission Time to be either absent or present but greyed out depending on whether the company allows reopening events; the catalog cannot express this conditional either/or outcome."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Open the specifically named closed reverse auction with bids A 100 and B 90 because no event title or ID is provided.; Assert the tenant-specific conditional outcome where Extend Submission Time may be listed but greyed out; the plan checks it as absent for the standard closed-state expectation."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The case allows Extend Submission Time to be either absent or present but greyed out depending on whether the company allows reopening events; the catalog cannot express this conditional either/or outcome."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "open_event_settings",
    "expect_settings_menu"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 12339
+  "ms": 13496
  },
  "plan": {
   "title": "Closed Auction Settings Menu",
@@ -37,7 +36,23 @@
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared closed auction event as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure Withdraw would be shown when permitted by the event state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the tenant."
    },
    {
     "step": "go_to",
@@ -45,12 +60,7 @@
      "screen": "stage",
      "stage": "auction"
     },
-    "note": "Ensure the inspected stage is the auction stage named by the case."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the auction stage's Settings menu."
+    "note": "Navigate from the summary to the closed auction stage page where the Settings menu is available."
    },
    {
     "step": "expect_settings_menu",
@@ -68,13 +78,9 @@
       "Edit Evaluation Time",
       "Send Bulk Counter Offer"
      ],
-     "enabled": [
-      "Recreate Order",
-      "Rejected Bids",
-      "Order Activity"
-     ]
+     "stage": "auction"
     },
-    "note": "Assert the complete requested closed-auction menu behavior, including enabled offered actions and actions that must not be shown."
+    "note": "Assert the enabled actions and the actions that must not be offered on a closed auction; tooltip checks cover any greyed menu items that are present."
    }
   ]
  }

@@ -4,24 +4,26 @@
   "title": "RFQ bid: Quote above the budget tolerance",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:12:51.360Z",
+  "compiledAt": "2026-11-12T16:26:12.417Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Configure the line budget as 100 with a 10% tolerance."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Configure the line budget as 100 with a 10% tolerance."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -30,24 +32,32 @@
    "vendor_open_event",
    "attempt"
   ],
-  "ms": 67774
+  "ms": 10767
  },
  "plan": {
-  "title": "RFQ bid above budget tolerance",
+  "title": "RFQ vendor bid above budget tolerance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an RFQ event creation flow."
+    "note": "Open the multi-stage event creation flow used for an RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "budget_tolerance_limit",
+     "value": 10
+    },
+    "note": "Configure the tenant with the required 10% budget tolerance before creating the RFQ."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-BID-015 Budget Tolerance RFQ"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title so the RFQ can be published."
    },
    {
     "step": "compose_stages",
@@ -56,22 +66,42 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Set the event to an RFQ rather than the default auction stage."
    },
    {
     "step": "select_template",
-    "note": "Apply an RFQ pricing template before adding line items."
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the RFQ line item needed for bidding."
+    "note": "Add one line item for the budget-controlled quote."
    },
    {
     "step": "fill_sheet",
-    "note": "Complete the RFQ pricing sheet."
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "100"
+    },
+    "note": "Set the line budget/reference price to 100 for the tolerance check."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "100"
+    },
+    "note": "Verify that the RFQ line shows the intended budget value."
    },
    {
     "step": "set_schedule",
@@ -83,31 +113,36 @@
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Invite the QA vendor so the vendor portal can access the event."
+    "note": "Invite the vendor named in the case."
    },
    {
     "step": "publish",
-    "note": "Publish the RFQ for vendor bidding."
+    "args": {},
+    "note": "Publish the RFQ without placing any bid."
    },
    {
     "step": "expect_published",
-    "note": "Confirm the event reached a published project page."
+    "args": {},
+    "note": "Confirm the RFQ reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate vendor portal session while keeping the buyer session available."
+    "note": "Open the separate supplier session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ from the vendor event list and enter its pricing sheet."
+    "note": "Open the live RFQ from Vendor A's supplier event list."
    },
    {
     "step": "attempt",
@@ -119,7 +154,7 @@
      "expect": "refused",
      "because": "Bid price exceeds the budget tolerance limit"
     },
-    "note": "Submit the above-tolerance quote and assert that the vendor portal refuses it with the required message."
+    "note": "Submit the quote of 120 and assert Procol refuses it with the required budget-tolerance message."
    }
   ]
  }

@@ -4,89 +4,140 @@
   "title": "Withdrawing Order...: Withdraw event is cancelled when clicking the Cancel button",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:20.226Z",
+  "compiledAt": "2026-11-12T13:46:31.579Z",
   "tier": "fast",
   "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Withdrawing Order...\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "resolved: “Open the Withdrawing Order dialog and click Cancel to verify the dialog closes, because hide_withdraw_in_intake_and_even” — require_setting switches that company setting before the case and back after",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
-   "event_menu",
-   "fill",
-   "click",
-   "expect_visible",
-   "expect_text",
-   "expect_menu_item"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "open_event_settings",
+   "expect_menu_item",
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9746
+  "ms": 18252
  },
  "plan": {
-  "title": "Cancel RFQ Withdrawal",
+  "title": "Withdraw Cancel With Hidden Withdraw Control",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage named in the case."
+    "note": "Enable eRFX projects as required for the RFQ event."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Open the RFQ Responses tab before accessing Settings."
+    "note": "Apply the required setting that removes Withdraw from event menus."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the required setting that would otherwise block withdrawal during bidding."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as RFQ-only."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a QA vendor without submitting a bid."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the live RFQ Settings menu where Withdraw would normally be available."
+   },
+   {
+    "step": "expect_menu_item",
     "args": {
      "item": "Withdraw",
-     "stage": "rfq"
+     "present": false
     },
-    "note": "Open the RFQ stage withdrawal dialog."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Enter reason",
-     "value": "Temporary pause"
-    },
-    "note": "Enter the requested withdrawal reason before cancelling."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Cancel"
-    },
-    "note": "Cancel the withdrawal instead of confirming it."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Withdrawing Order...",
-     "visible": false
-    },
-    "note": "Verify the withdrawal dialog closed."
+    "note": "Verify the required configuration removes Withdraw, preventing the withdrawal dialog from being opened."
    },
    {
     "step": "expect_text",
@@ -94,16 +145,7 @@
      "text": "Live",
      "present": true
     },
-    "note": "Verify the RFQ remains live after cancellation."
-   },
-   {
-    "step": "expect_menu_item",
-    "args": {
-     "item": "Withdraw",
-     "stage": "rfq",
-     "enabled": true
-    },
-    "note": "Verify the event was not withdrawn and the withdrawal action remains available."
+    "note": "Confirm the RFQ remains live and unchanged."
    }
   ]
  }

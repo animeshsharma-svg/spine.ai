@@ -24,7 +24,7 @@ import { contextForPlan } from "../ui/prepareForPlan.js";
 import { VALUE_KEYS } from "../agents/screenModel.js";
 import { stepWords, expectedWords } from "../agents/journeyCases.js";
 import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
-import { settingsFor, withSettings } from "./companySettings.js";
+import { isSettingKey, settingsFor, withSettings } from "./companySettings.js";
 import { parseConfigs } from "../agents/caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -146,10 +146,17 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       const t0 = Date.now();
       let r: SheetRunCase;
       try {
-        const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
         // A case that needs a company set up a certain way: its "Configs Needed" names the settings (else they are
         // looked up from the pre-condition's words); switch them for this case, switch them back.
         const listed = parseConfigs(c.configs);
+        // …and the settings its stored plan asks for (require_setting{key}) — the compiler writes one for a
+        // needed setting instead of calling it a gap (12 Nov: 181 sourcing cases were partial for this alone)
+        if (c.layer === "ui")
+          for (const st of storedTextPlan(c.id)?.plan?.steps ?? [])
+            if (st.step === "require_setting" && typeof st.args?.key === "string" && !listed.some((n) => n.key === st.args!.key) && (await isSettingKey(st.args.key)))
+              listed.push(...parseConfigs(`${st.args.key} = ${String(st.args.value ?? "On")}`).map((n) => ({ ...n, why: "the case's plan needs it (require_setting)" })));
+        const caseOpts = { ...opts, applied: listed.map((n) => n.key) };
+        const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, caseOpts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
         // The single-stage drawer re-renders when its event type is changed and loses the choice (the drawer
         // "closed before Save"): 6 cases in a row on 10 Nov, 20 min each. The create screen opens with the
         // company's default event type, so a case whose plan configures one (rfq / rfp / auction — the values
@@ -209,7 +216,7 @@ export function companySetting(pre: string): string | null {
   return m ? m[1].trim().replace(/^(a|the) /i, "a ") : null;
 }
 
-async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?: boolean; repair?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void): Promise<SheetRunCase> {
+async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?: boolean; repair?: boolean; applied?: string[] }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void): Promise<SheetRunCase> {
   const t0 = Date.now();
   const r = await runUiCase(c, opts, line, setStop, emit);
   if (opts.repair === false) return r;
@@ -275,7 +282,7 @@ async function runUiWithRepair(c: SheetCase, opts: { companyId: number; headed?:
   return again;
 }
 
-async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround): Promise<SheetRunCase> {
+async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boolean; applied?: string[] }, line: (l: string) => void, setStop: (s: () => void) => void, emit: (e: SheetEvent) => void, ground?: ScreenGround, precompiled?: Compiled): Promise<SheetRunCase> {
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return { ...base(c, "Not run", `It starts from this: ${sp.why} ${sp.unbuilt[0].toUpperCase() + sp.unbuilt.slice(1)}. Run its set-up case first and give that event's title, or run it by hand.`, 0), startedFrom: sp.why };
   const prose = sheetCaseProse(c);
@@ -283,27 +290,47 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   // The night compile (scripts/night-compile.ts) stored this case's plan already: reuse it while it is
   // newer than the compiler and the step catalog, and was compiled for the same start state. A repair
   // (ground) or a stale plan compiles afresh, as before. Saves the 20–60 s and the model call per case.
-  const stored = !ground ? storedTextPlan(c.id) : undefined;
+  const stored = !ground && !precompiled ? storedTextPlan(c.id) : undefined;
   const reuse = stored && stored.meta.source !== "fallback" && textPlanIsFresh(stored) && (stored.meta.state ?? "none") === (sp?.prepared && !sp.unbuilt ? sp.state : "none") && stored.plan?.steps?.length;
   if (reuse) line(`Plan reused from the stored compile (${stored!.meta.compiledAt.slice(0, 16).replace("T", " ")} UTC, ${stored!.meta.coverage}).`);
-  const compiled = reuse
+  const compiled: Compiled = precompiled
+    ? precompiled
+    : reuse
     ? { plan: structuredClone(stored!.plan), coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
     : await compileTestCase(prose, "events", {
-        ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {}),
+        ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical, ...(sp.shape ? { shape: sp.shape } : {}) } } : {}),
         ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
       });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
   if (compiled.source === "fallback") return { ...base(c, "Not run", "The steps could not be turned into browser actions (the model gave no usable plan). Nothing was run in its place.", 0), startedFrom: sp?.why };
   if (compiled.coverage === "none" || !plan.steps.length)
     return { ...base(c, "Not run", `The automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}. Nothing was run in its place.`, 0), startedFrom: sp?.why };
+  // Settings the plan needs (require_setting) that were not switched before the case (a fresh compile, or a
+  // setting named in the case's words): switch them now, run, switch them back — the same path as Configs Needed.
+  const applied = opts.applied ?? [];
+  const wanted = plan.steps.filter((st) => st.step === "require_setting").filter((st) => !applied.includes(settingMark(st.args)));
+  if (wanted.length) {
+    const needed = await resolveRequiredSettings(wanted);
+    if ("why" in needed) return { ...base(c, "Not run", needed.why, 0), startedFrom: sp?.why };
+    line(`This plan needs the company setting ${needed.list.map((n) => `${n.key} = ${JSON.stringify(n.value)}`).join(", ")} — switching it for this case.`);
+    const out = await withSettings(opts.companyId, needed.list, c.id, line, () => runUiCase(c, { ...opts, applied: [...applied, ...needed.marks] }, line, setStop, emit, ground, compiled));
+    if ("refused" in out)
+      return {
+        ...base(c, "Not run", /^BLOCKED/.test(out.refused) ? `Blocked: it needs ${needed.list.map((n) => `${n.key} = ${JSON.stringify(n.value)}`).join(", ")}, and that setting cannot be switched on the test company (${out.refused.replace(/^BLOCKED — /, "")}).` : `It needs ${needed.list.map((n) => n.key).join(", ")}, but the setting could not be switched: ${out.refused}.`, 0),
+        startedFrom: sp?.why,
+      };
+    out.result.settings = [...(out.result.settings ?? []), ...out.changed];
+    if (out.changed.length) out.result.why += ` Ran with ${out.changed.map((ch) => `${ch.key} switched from ${JSON.stringify(ch.from)} to ${JSON.stringify(ch.to)}`).join(", ")}; switched back afterwards.`;
+    return out.result;
+  }
   line(`Plan: ${plan.steps.length} steps — ${plan.steps.map((s) => s.step).join(" → ")}`);
-  const prep = await contextForPlan(prose, plan, opts.companyId, line, sp?.prepared ? { state: sp.state, technical: sp.technical, auction: sp.auction } : undefined);
+  const prep = await contextForPlan(prose, plan, opts.companyId, line, sp?.prepared ? { state: sp.state, technical: sp.technical, auction: sp.auction, ...(sp.shape ? { shape: sp.shape } : {}) } : undefined);
   if (prep.why) return { ...base(c, "Couldn't tell", `The starting event could not be built: ${mask(prep.why)}.`, 0), startedFrom: sp?.why };
   const planRunId = `sheet-${c.id}-${Date.now().toString(36)}`;
   const toRun = prep.context ? { ...plan, context: prep.context } : plan;
   await new Promise<void>((resolve) => {
     // a sheet runs unattended: a question to the tester waits 2 minutes, not 15, then the case ends "Couldn't tell"
-    const h = runUiPlan({ plan: toRun, companyId: opts.companyId, runId: planRunId, headed: !!opts.headed, askMs: 120_000 }, (e: any) => {
+    const h = runUiPlan({ plan: toRun, companyId: opts.companyId, runId: planRunId, headed: !!opts.headed, askMs: 120_000, settingsApplied: applied }, (e: any) => {
       if (e.type === "frame" && e.frame) emit({ type: "frame", frame: e.frame });
       if (e.type === "spot") emit({ type: "spot", spot: e.spot ?? e });
       if (e.type === "log" && /\[plan\] \d+\/\d+/.test(String(e.line ?? ""))) line(String(e.line).replace(/^.*\[plan\]\s*/, ""));
@@ -464,4 +491,32 @@ async function runApiCase(c: SheetCase, companyId: number, line: (l: string) => 
     };
   }
   return r;
+}
+
+type Compiled = { plan: unknown; coverage: "full" | "partial" | "none"; gaps: string[]; warnings: string[]; source: "llm" | "fallback"; errors?: string[] };
+
+/** How a require_setting step is recorded as applied: its key, or "phrase:<words>" when the case named no key. */
+function settingMark(args: Record<string, unknown> | undefined): string {
+  return typeof args?.key === "string" && args.key ? args.key : `phrase:${String(args?.phrase ?? "")}`;
+}
+
+/** require_setting steps → the settings to switch (a phrase is looked up in Procol's settings catalogue). */
+async function resolveRequiredSettings(steps: Array<{ args?: Record<string, unknown> }>): Promise<{ list: Array<{ key: string; value: unknown; why: string }>; marks: string[] } | { why: string }> {
+  const list: Array<{ key: string; value: unknown; why: string }> = [];
+  const marks: string[] = [];
+  for (const st of steps) {
+    const a = st.args ?? {};
+    // a key the catalogue does not have (the model made it up) is looked up by its words instead
+    if (typeof a.key === "string" && a.key && (await isSettingKey(a.key))) {
+      list.push(...parseConfigs(`${a.key} = ${String(a.value ?? "On")}`).map((n) => ({ key: n.key, value: n.value, why: "the case's plan needs it (require_setting)" })));
+      marks.push(a.key);
+      continue;
+    }
+    const phrase = String(a.phrase ?? (typeof a.key === "string" ? a.key.replace(/_/g, " ") : "")).trim();
+    const found = phrase ? await settingsFor(`${phrase} ${String(a.value ?? "")}`.trim()).catch(() => null) : null;
+    if (!found?.length) return { why: `It needs the company setting "${phrase || "(unnamed)"}" ${String(a.value ?? "")}, and no setting in Procol's settings catalogue clearly means that, so the company could not be set up for it.` };
+    list.push(...found);
+    marks.push(typeof a.key === "string" && a.key ? a.key : `phrase:${phrase}`);
+  }
+  return { list, marks };
 }

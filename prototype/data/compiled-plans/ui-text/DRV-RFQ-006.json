@@ -1,70 +1,158 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-006",
-  "title": "Attempt to split a line already in an active lot returns 422 error",
+  "title": "Manual open attempt rejected after technical evaluation when restrict_unlock_bid_before_evaluation is true",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:09:09.637Z",
+  "compiledAt": "2026-11-12T13:38:06.288Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify or configure the tenant setting restrict_unlock_bid_before_evaluation=true",
-   "Directly assert the commercials' sealed state after the rejected unlock attempt beyond the refusal message"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify or configure the tenant setting restrict_unlock_bid_before_evaluation=true; Directly assert the commercials' sealed state after the rejected unlock attempt beyond the refusal message"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "open_event_settings",
+   "require_setting",
+   "require_setting",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
    "click",
    "do_on_screen",
    "expect_message"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 17106
+  "ms": 17961
  },
  "plan": {
-  "title": "RFQ commercial unlock blocked before technical evaluation",
+  "title": "DRV-RFQ-006 — Reject Early Commercial Unlock",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer side."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "On"
+    },
+    "note": "Enables the configuration that blocks unlocking before technical evaluation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "commercial masking",
+     "value": "On"
+    },
+    "note": "Ensures the RFQ commercials are sealed and require an unlock attempt."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Creates the technical and commercial stages required by the scenario."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Moves to the technical stage for configuration."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies a technical-stage template."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Completes the technical questionnaire while leaving the stage unevaluated."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Satisfies the technical-stage evaluator requirement without performing evaluation."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
      "stage": "rfq"
     },
-    "note": "Navigate to the commercial RFQ stage where the unlock action is available."
+    "note": "Moves to the RFQ commercial stage."
    },
    {
-    "step": "open_event_settings",
+    "step": "select_template",
     "args": {},
-    "note": "Open the stage event settings menu to reach the commercial unlock action."
+    "note": "Applies the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds a commercial line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the event schedule so it can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds the required participant."
    },
    {
     "step": "click",
     "args": {
-     "role": "menuitem",
-     "name": "Unlock Bids"
+     "text": "Open Commercials"
     },
-    "note": "Start the manual commercial unlock attempt."
+    "note": "Opens the commercial-unlock flow for the live masked RFQ."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "enter a valid OTP and password in the unlock dialog, submit the Open Commercials attempt, and stop when the screen shows the refusal that bids cannot be unlocked until technical evaluation is done"
+     "goal": "enter a valid OTP and password in the commercial unlock flow and submit the attempt; stop on the RFQ screen showing that unlocking is refused and the commercials remain sealed"
     },
-    "note": "Perform the unlock dialog interaction and capture the buyer-side refusal, which has no dedicated catalog action."
+    "note": "Handles the OTP and password interaction that requires the current buyer session and confirms the commercials remain sealed."
    },
    {
     "step": "expect_message",
@@ -72,7 +160,7 @@
      "kind": "error",
      "text": "Bids can't be unlocked until technical evaluation is done"
     },
-    "note": "Assert the expected rejection message."
+    "note": "Verifies the required refusal message."
    }
   ]
  }

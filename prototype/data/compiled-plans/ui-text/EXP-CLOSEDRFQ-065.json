@@ -4,34 +4,72 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time rejects past dates in the evaluation ending time field",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:33:16.346Z",
+  "compiledAt": "2026-11-12T13:42:48.430Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact absolute date and time 01 January 2020 12:00 PM cannot be entered; the catalog only supports a relative past time for this control."
+   "Set the Edit evaluation ending time field to the exact absolute value 01 January 2020 12:00 PM."
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact absolute date and time 01 January 2020 12:00 PM cannot be entered; the catalog only supports a relative past time for this control."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Set the Edit evaluation ending time field to the exact absolute value 01 January 2020 12:00 PM."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 8564
+  "ms": 20035
  },
  "plan": {
-  "title": "Closed RFQ rejects past evaluation end time",
+  "title": "Edit Evaluation Time Rejects Past End",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Opens the prepared closed RFQ on the buyer's Responses tab, satisfying the required starting state."
+    "note": "Open the prepared closed RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Ensure post-expiry surrogate bidding is disabled."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening according to the case configuration."
    },
    {
     "step": "extend_time",
@@ -41,7 +79,7 @@
      "at": "-10m",
      "expect": "refused"
     },
-    "note": "Opens Edit Evaluation Time, enters a time in the past, and asserts that Procol refuses to save it."
+    "note": "Open Edit Evaluation Time and verify that a past evaluation ending time is refused."
    }
   ]
  }

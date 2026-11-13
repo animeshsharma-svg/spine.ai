@@ -4,22 +4,22 @@
   "title": "RFQ: keep the same price (100 → 100)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:46:31.383Z",
+  "compiledAt": "2026-11-12T13:11:15.366Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact event-list search-and-open flow for the named RFQ cannot be used because the prepared event must be opened directly and has no named title."
+   "Whether the same-price submission creates no new revision or creates revision 2."
   ],
   "warnings": [
-   "resolved: “The vendor portal's revision history cannot be inspected to distinguish no new revision from a saved revision 2.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: The exact event-list search-and-open flow for the named RFQ cannot be used because the prepared event must be opened directly and has no named title."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether the same-price submission creates no new revision or creates revision 2."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
@@ -27,14 +27,12 @@
    "switch_portal",
    "go_to",
    "expect_responses",
-   "go_to",
-   "expect_qcs_vendors",
-   "expect_qcs_cell",
+   "open_master_qcs",
    "expect_qcs_cell"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 14931
+  "ms": 10619
  },
  "plan": {
   "title": "SRC-REV-003 RFQ Same-Price Revision",
@@ -44,101 +42,82 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ on the buyer side; this is the required starting point for the existing event."
+    "note": "Open the prepared RFQ with Vendor A at 100 and Vendor B at 90; this is the required starting screen for the prepared state."
    },
    {
-    "step": "place_surrogate_bid",
+    "step": "require_setting",
     "args": {
-     "price": 90
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Add the second bid at 90 so the event matches the two-bid comparison while keeping the prepared vendor's 100 bid available for revision."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the buyer-side surrogate bid at 90 was accepted."
+    "note": "Enable the required eRFX project configuration before using the prepared RFQ."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Open the invited vendor's supplier-portal session while leaving the buyer session available."
+    "note": "Switch to Vendor A's supplier portal while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared RFQ's pricing round in the vendor portal, where Vendor A's existing bid can be revised."
+    "note": "Open the prepared RFQ's pricing round in Vendor A's portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Resubmit the vendor's bid at the unchanged price of 100, exercising the revise/edit submission."
+    "note": "Resubmit Vendor A's bid at the same price to exercise the revision flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor portal shows the RFQ bid as submitted after the same-price revision."
+    "note": "Confirm the vendor portal accepted the submission."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's project page to inspect the resulting bids."
+    "note": "Return to the buyer's console to verify the resulting buyer-side records."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the revised RFQ."
+    "note": "Open the RFQ Responses view for the buyer-side bid verification."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2,
-     "direct": 1,
-     "surrogate": 1
+     "count": 2
     },
-    "note": "Confirm both the vendor's direct bid and the surrogate bid are visible to the buyer."
+    "note": "Confirm both Vendor A and Vendor B responses remain visible after the resubmission."
    },
    {
-    "step": "go_to",
+    "step": "open_master_qcs",
     "args": {
-     "screen": "master_qcs"
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Open Master QCS to verify the comparison values after revision."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 2,
-     "realNames": true
-    },
-    "note": "Confirm the comparison grid contains two real vendor columns."
+    "note": "Open the comparison grid containing both bidding vendors."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
+     "vendor": "Vendor A",
+     "equals": "100"
     },
-    "note": "Verify the revising vendor's RFQ rate remains 100."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 2,
-     "number": 90
-    },
-    "note": "Verify the other bid remains 90, preserving the two-bid comparison."
+    "note": "Verify Vendor A's current RFQ price remains 100 after the same-price revision."
    }
   ]
  }

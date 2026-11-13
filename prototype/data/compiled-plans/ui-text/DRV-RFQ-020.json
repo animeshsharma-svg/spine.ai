@@ -4,28 +4,27 @@
   "title": "Push notifications and pending tasks are generated successfully upon publishing best offer",
   "group": "DRV-RFQ",
   "sheet": "derived-buyer-can-create-a-request-for-best-offe",
-  "compiledAt": "2026-11-09T23:10:59.671Z",
+  "compiledAt": "2026-11-12T13:38:52.742Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Publish a Request for Best Offer specifically targeting Vendor A",
    "Inspect background task queues and pending task creation logs",
-   "Verify push notifications were created for Vendor A's users",
-   "Verify pending best-offer submission tasks were created for Vendor A's users"
+   "Verify push notifications were created for Vendor A's users"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Publish a Request for Best Offer specifically targeting Vendor A; Inspect background task queues and pending task creation logs; Verify push notifications were created for Vendor A's users; Verify pending best-offer submission tasks were created for Vendor A's users"
+   "cannot test this case yet — no step can observe: Inspect background task queues and pending task creation logs; Verify push notifications were created for Vendor A's users"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "go_to",
    "event_menu",
-   "expect_screen_clean"
+   "expect_toast"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9143
+  "ms": 9711
  },
  "plan": {
   "title": "RFQ Best Offer Task Generation",
@@ -35,19 +34,30 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ that has vendor bids ready for a best-offer request."
+    "note": "Open the prepared closed RFQ with vendor bids."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where the best-offer action is available."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Request Best Offers"
+     "item": "Request Best Offers",
+     "stage": "rfq"
     },
-    "note": "Attempt the closest available buyer-side action for requesting best offers."
+    "note": "Trigger the buyer's Request for Best Offers action for the closed RFQ."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the buyer screen remains free of rendering errors after the action."
+    "step": "expect_toast",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Check for a successful UI response after requesting best offers, while noting this does not verify backend tasks or notifications."
    }
   ]
  }

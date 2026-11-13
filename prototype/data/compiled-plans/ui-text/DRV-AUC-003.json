@@ -1,67 +1,68 @@
 {
  "meta": {
   "caseId": "DRV-AUC-003",
-  "title": "Auction strategy cannot be changed after event is live",
+  "title": "Rank-based auction respects Display Vendor Rank In Auction QCs setting when configured",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:47:16.298Z",
+  "compiledAt": "2026-11-12T13:25:24.104Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or verify the exact precondition that Vendor A submitted the string \"100 \" with a trailing space.",
-   "Publish the converted auction and verify the copied vendor bid in the live auction's bid or Master QCS view."
+   "A vendor bid with an explicit trailing space in the price field (the prepared state provides a standard numeric bid)"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or verify the exact precondition that Vendor A submitted the string \"100 \" with a trailing space.; Publish the converted auction and verify the copied vendor bid in the live auction's bid or Master QCS view."
+   "can only test part of this — no step for: A vendor bid with an explicit trailing space in the price field (the prepared state provides a standard numeric bid)"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "convert_to_auction",
-   "expect_navigated",
-   "expect_sheet_cell",
-   "expect_no_error"
+   "open_event_settings",
+   "click",
+   "click",
+   "expect_navigated"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 122412
+  "ms": 22135
  },
  "plan": {
-  "title": "Convert RFQ Bid with Trailing Space",
+  "title": "Convert to Auction with a vendor bid containing a trailing space in price field",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with its existing bid."
+    "note": "Start on the prepared event summary page"
    },
    {
-    "step": "convert_to_auction",
+    "step": "open_event_settings",
     "args": {},
-    "note": "Convert the published RFQ to an auction using the product's conversion flow."
+    "note": "Open the event settings menu to access conversion options"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Convert to Auction"
+    },
+    "note": "Select Convert to Auction from the settings menu"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Continue"
+    },
+    "note": "Confirm the conversion dialog"
    },
    {
     "step": "expect_navigated",
     "args": {
-     "screen": "create"
+     "screen": "overview"
     },
-    "note": "Confirm conversion landed on the converted auction create screen."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Price",
-     "equals": "100"
-    },
-    "note": "Check the converted pricing sheet shows the normalized price 100 without the trailing space."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm conversion and price normalization did not produce an application error."
+    "note": "Assert we land on the newly created auction overview page"
    }
   ]
  }

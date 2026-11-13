@@ -4,42 +4,59 @@
   "title": "Start Awarding while bidding is on",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:06:46.713Z",
+  "compiledAt": "2026-11-12T16:20:45.372Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Establishing and verifying the RFQ with exactly two bids (A 100 and B 90) is not possible because the prepared state has one bid and bidding actions are unavailable.",
-   "Verifying the exact backend refusal message \"You are not allowed to award in bidding time\" is not guaranteed by the available disabled-control assertion."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Establishing and verifying the RFQ with exactly two bids (A 100 and B 90) is not possible because the prepared state has one bid and bidding actions are unavailable.; Verifying the exact backend refusal message \"You are not allowed to award in bidding time\" is not guaranteed by the available disabled-control assertion."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_disabled"
+   "require_setting",
+   "expect_disabled",
+   "attempt"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 10163
+  "ms": 6493
  },
  "plan": {
-  "title": "Start Awarding blocked during bidding",
+  "title": "Block Awarding During Bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared live RFQ without searching the events list."
+    "note": "Open the prepared RFQ with two bids directly on Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Start Awarding"
     },
-    "note": "Assert that awarding is unavailable while bidding remains open."
+    "note": "Verify awarding is disabled while bidding is still in progress."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "start_awarding",
+     "expect": "refused",
+     "because": "You are not allowed to award in bidding time"
+    },
+    "note": "Try Start Awarding and require the backend refusal message."
    }
   ]
  }

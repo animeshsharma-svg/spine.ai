@@ -1,46 +1,54 @@
 {
  "meta": {
   "caseId": "DRV-AUC-018",
-  "title": "Vendor cannot change auction strategy via vendor portal",
+  "title": "Lot creation and scheduling on auctions is permitted when lot scheduling configuration is enabled",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-09T22:55:58.340Z",
+  "compiledAt": "2026-11-12T13:33:12.004Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or open the specific rescheduled knockout auction state with all vendors knocked out in the pre-round",
+   "Knock out all vendors in the pre-round and trigger the final elimination",
    "Observe that the auction timer stops immediately after the last vendor is knocked out"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or open the specific rescheduled knockout auction state with all vendors knocked out in the pre-round; Observe that the auction timer stops immediately after the last vendor is knocked out"
+   "can only test part of this — no step for: Knock out all vendors in the pre-round and trigger the final elimination; Observe that the auction timer stops immediately after the last vendor is knocked out"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "go_to",
    "expect_text"
   ],
   "state": "knockout",
   "screen": "summary",
-  "ms": 124984
+  "ms": 10135
  },
  "plan": {
-  "title": "Knockout Closes After All Vendors Are Out",
+  "title": "Knockout auction closes after all vendors are knocked out",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared knockout auction on the buyer-side summary screen."
+    "note": "Open the prepared knockout auction without recreating or searching for the event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "auction"
+    },
+    "note": "Navigate to the knockout auction stage where its status and timer would be shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Closed",
-     "present": true
+     "text": "Closed"
     },
-    "note": "Verify that the auction status is shown as Closed."
+    "note": "Assert that the auction stage displays the expected Closed status."
    }
   ]
  }

@@ -4,41 +4,54 @@
   "title": "Responses — bid revisions",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:05:23.684Z",
+  "compiledAt": "2026-11-12T13:17:05.851Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Step through Vendor A's bid revisions using the revision arrows and verify each revision's price and time.",
-   "Verify that the latest revision is marked Current Bid N.",
-   "Search the events list for the RFQ with two bids and open that specific event without a supplied title or ID."
+   "Navigate Vendor A's bid revisions using the on-screen arrows",
+   "Assert each revision's price and time are shown",
+   "Assert the latest revision is marked Current Bid N"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Step through Vendor A's bid revisions using the revision arrows and verify each revision's price and time.; Verify that the latest revision is marked Current Bid N.; Search the events list for the RFQ with two bids and open that specific event without a supplied title or ID."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: Navigate Vendor A's bid revisions using the on-screen arrows; Assert each revision's price and time are shown; Assert the latest revision is marked Current Bid N"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_screen_clean"
+   "require_setting",
+   "expect_api_value"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 9368
+  "ms": 18029
  },
  "plan": {
-  "title": "Responses bid revision history",
+  "title": "Responses bid revisions",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared buyer-side Responses screen for the existing bidding event; this is the closest available screen to the requested subject."
+    "note": "Open the prepared RFQ with two bids directly on its buyer-side Responses tab."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the Responses screen rendered without crashes, raw values, or server errors, though this does not verify revision behavior."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before opening the prepared event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the prepared event's current bid price is available on the Responses screen, as the closest observable bid value."
    }
   ]
  }

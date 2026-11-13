@@ -4,66 +4,79 @@
   "title": "Forward auction: Quantity Requested = a decimal 2.5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:18:20.105Z",
+  "compiledAt": "2026-11-12T16:31:02.423Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting and verifying the specific forward (sell) auction template because no template name is provided and the catalog cannot assert auction direction from the selected template.",
-   "Setting and verifying Plant Name (LOC-0001) for the added product because no product-location selection step is available.",
-   "Expressing the conditional expected result that whole-number units may round or refuse while decimal-capable units retain 2.5."
+   "Explicitly select or verify that the auction is forward/sell rather than another auction direction.",
+   "Assert either keeping 2.5 or, alternatively, rounding or refusing it as a conditional outcome."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Selecting and verifying the specific forward (sell) auction template because no template name is provided and the catalog cannot assert auction direction from the selected template.; Setting and verifying Plant Name (LOC-0001) for the added product because no product-location selection step is available.; Expressing the conditional expected result that whole-number units may round or refuse while decimal-capable units retain 2.5."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Explicitly select or verify that the auction is forward/sell rather than another auction direction.; Assert either keeping 2.5 or, alternatively, rounding or refusing it as a conditional outcome."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_sheet_cell",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 18018
+  "ms": 16186
  },
  "plan": {
-  "title": "Single-stage auction decimal quantity",
+  "title": "Forward Auction Decimal Quantity 2.5",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the required Single Stage create screen."
+    "note": "Open the Single Stage create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensure vendors can be added during event creation, as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Changes the event type from the default RFP to Auction."
+    "note": "Switch the event type to Auction; the catalog requires an auction strategy and awarding rule."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provides the mandatory event title without replacing any title under test."
+    "note": "Provide the mandatory event title using an automatically generated unique title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available auction template; the exact forward template cannot be identified from the case."
+    "note": "Apply the first offered auction template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -72,7 +85,19 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "2.5"
     },
-    "note": "Adds the requested product and enters the decimal quantity in the first row."
+    "note": "Add the specified product with the decimal requested quantity."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the first product row."
    },
    {
     "step": "expect_sheet_cell",
@@ -81,36 +106,31 @@
      "column": "Quantity Requested",
      "equals": "2.5"
     },
-    "note": "Checks whether the quantity cell preserves 2.5 after entry."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Completes any remaining required pricing-sheet fields so the event can continue if the quantity is accepted."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commits the required 30-minute schedule."
+    "note": "Verify whether the sheet displays the decimal quantity as 2.5."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Adds one available QA vendor before publishing."
+    "note": "Add one QA test vendor to satisfy the participant requirement."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Attempts to publish the completed auction after the quantity observation."
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirms publication succeeded when the entered quantity is accepted."
+    "note": "Verify that publication reached a real event project page."
    }
   ]
  }

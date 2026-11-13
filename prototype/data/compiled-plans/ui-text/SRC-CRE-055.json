@@ -4,25 +4,28 @@
   "title": "Buyer downloads the bid template",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:20.033Z",
+  "compiledAt": "2026-11-12T12:57:55.559Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the downloaded workbook's product rows and vendor columns beyond the generic download evidence.",
-   "unconfirmed label \"Download Bid Template\" (click) — not among the labels known from the app nor in the case"
+   "Verify the downloaded workbook's product and vendor-column contents beyond the downloadable file evidence",
+   "The exact visible label/control for the bid-template download is not confirmed in the catalog",
+   "unconfirmed label \"Download bid template\" (click) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "coverage partial: unconfirmed label \"Download Bid Template\" (click) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Verify the downloaded workbook's product rows and vendor columns beyond the generic download evidence."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "coverage partial: unconfirmed label \"Download bid template\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify the downloaded workbook's product and vendor-column contents beyond the downloadable file evidence; The exact visible label/control for the bid-template download is not confirmed in the catalog"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -30,6 +33,10 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -37,7 +44,7 @@
    "click",
    "expect_download"
   ],
-  "ms": 9694
+  "ms": 14293
  },
  "plan": {
   "title": "Buyer downloads bid template",
@@ -58,61 +65,100 @@
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so publishing can proceed."
+    "args": {
+     "title": "SRC-CRE-055 Bid Template Test"
+    },
+    "note": "Provide the mandatory event title required for publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is rendered."
+    "note": "Select the available RFQ template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
+     "search": "CYLINDER"
     },
-    "note": "Add the requested CYLINDER product and set its quantity to 10."
+    "note": "Add the CYLINDER product and select the matching product option."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet fields required for publishing."
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Set the first product quantity to 10."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10",
+     "kept": true
+    },
+    "note": "Confirm the requested quantity was retained."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the required delivery location from the sheet dropdown."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)",
+     "kept": true
+    },
+    "note": "Confirm the delivery location was retained."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Add the available QA test vendor required for publishing and vendor-column generation."
+    "args": {
+     "count": 1
+    },
+    "note": "Add one QA vendor so the event can be published and the resulting template can include a vendor column."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ before attempting the bid-template download."
+    "note": "Publish the configured RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirm the event reached its published project page."
    },
    {
     "step": "click",
     "args": {
-     "text": "Download Bid Template"
+     "text": "Download bid template"
     },
-    "note": "Click the bid-template download control on the published stage; the catalog does not confirm its exact label."
+    "note": "Attempt to activate the bid-template download control on the published event."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that a file was downloaded."
+    "note": "Confirm that a file was downloaded."
    }
   ]
  }

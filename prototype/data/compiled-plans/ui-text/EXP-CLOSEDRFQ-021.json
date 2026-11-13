@@ -4,21 +4,25 @@
   "title": "A closed RFQ: \"Extend Submission Time\" opens the \"Increase Event Time\" window",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:36.623Z",
+  "compiledAt": "2026-11-12T13:40:57.418Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that the event's end time or other state remains unchanged before pressing Cancel or Ok.",
-   "unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case"
+   "Directly assert that the event state or end time remains unchanged before pressing a dialog button"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Directly verify that the event's end time or other state remains unchanged before pressing Cancel or Ok."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that the event state or end time remains unchanged before pressing a dialog button"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
@@ -27,19 +31,51 @@
    "expect_visible",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 8809
+  "ms": 12528
  },
  "plan": {
-  "title": "Closed RFQ Extend Submission Time Dialog",
+  "title": "Closed RFQ Extend Submission Time Window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ event as the buyer."
+    "note": "Open the prepared closed RFQ event without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -47,14 +83,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Navigate to the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab as required by the scenario."
+    "note": "Open the RFQ Responses tab before accessing its Settings menu."
    },
    {
     "step": "event_menu",
@@ -62,7 +98,7 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open Settings and choose Extend Submission Time, leaving the Increase Event Time window open."
+    "note": "Open the Increase Event Time window without confirming a time change."
    },
    {
     "step": "expect_text",
@@ -83,7 +119,7 @@
      ],
      "only": true
     },
-    "note": "Assert that the window offers exactly the expected duration and time-mode choices."
+    "note": "Assert that the window offers exactly the expected time choices."
    },
    {
     "step": "expect_visible",
@@ -92,7 +128,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Assert that Cancel is available without submitting a change."
+    "note": "Assert that the dialog provides a Cancel button."
    },
    {
     "step": "expect_visible",
@@ -101,7 +137,7 @@
      "name": "Ok",
      "visible": true
     },
-    "note": "Assert that Ok is available to submit the change."
+    "note": "Assert that the dialog provides an Ok button."
    }
   ]
  }

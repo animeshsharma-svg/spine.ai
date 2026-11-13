@@ -4,51 +4,61 @@
   "title": "A user whose team has a different category is not shown for the PR",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:27.274Z",
+  "compiledAt": "2026-11-12T13:48:10.480Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting exactly one line item of PR-1 rather than the PR-level checkbox",
-   "The PR-specific Assign person-icon flow is not represented by a domain step",
-   "unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"User C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Selecting exactly one line item of PR-1 rather than the PR-level checkbox; The PR-specific Assign person-icon flow is not represented by a domain step"
+   "coverage partial: unconfirmed label \"User C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "click",
+   "expect_visible",
+   "expect_text",
    "fill",
    "expect_text"
   ],
-  "ms": 14148
+  "ms": 20202
  },
  "plan": {
-  "title": "Wrong-category user hidden from PR assignee search",
+  "title": "PR Assignee Category Filtering",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required for category-based PR assignee filtering."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area where the PR manager can work with open PRs."
+    "note": "Open the Purchase Requisitions screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-1 is expected to be available."
+    "note": "Stay on the Open PR tab where PR-1 is available."
    },
    {
     "step": "select_pr",
     "args": {
-     "pr": "PR-1"
+     "pr": "PR-1",
+     "items": 1
     },
-    "note": "Select PR-1 as the closest catalog-supported way to activate actions for its items."
+    "note": "Select one line item from the named PR so assignment controls become available."
    },
    {
     "step": "click",
@@ -56,7 +66,23 @@
      "role": "button",
      "name": "Assign"
     },
-    "note": "Open the assignee picker described by the test case."
+    "note": "Open the assignee chooser for the selected PR line item."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Search a user",
+     "visible": true
+    },
+    "note": "Confirm the user-assignment search field is open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "User C",
+     "present": false
+    },
+    "note": "Assert the wrong-category user is not present in the unfiltered assignee list."
    },
    {
     "step": "fill",
@@ -64,15 +90,15 @@
      "label": "Search a user",
      "value": "Engg"
     },
-    "note": "Search for the user whose different category should exclude them."
+    "note": "Search the assignee list for the excluded user's name."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Engg Buyer",
+     "text": "User C",
      "present": false
     },
-    "note": "Assert that Engg Buyer does not appear in the assignee results."
+    "note": "Assert Engg Buyer/User C does not appear even when searched by name."
    }
   ]
  }

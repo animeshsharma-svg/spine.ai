@@ -4,93 +4,105 @@
   "title": "Start later with no date",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:03.612Z",
+  "compiledAt": "2026-11-12T13:14:10.771Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly select CYLINDER WITH KEY & KNOB and verify Product Variant becomes Default Variant",
-   "Explicitly choose Plant Name (LOC-0001) for Delivery location"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Explicitly select CYLINDER WITH KEY & KNOB and verify Product Variant becomes Default Variant; Explicitly choose Plant Name (LOC-0001) for Delivery location"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_required",
+   "set_sheet_cell",
    "invite_vendor",
    "click",
    "click",
    "click",
    "expect_field_error"
   ],
-  "ms": 12400
+  "ms": 11251
  },
  "plan": {
-  "title": "SRC-SCH-010 — Reject later start without date",
+  "title": "RFQ start later without date",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the schedule validation is isolated."
+    "args": {
+     "title": "SRC-SCH-010 Start Later No Date"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template so the pricing sheet is available."
+    "note": "Apply the RFQ pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity using the available product-search flow."
+    "note": "Add the specified product and quantity."
    },
    {
-    "step": "fill_required",
-    "args": {},
-    "note": "Complete any remaining mandatory create-screen fields before testing schedule validation."
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the pricing sheet."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a QA vendor so the event setup is otherwise complete."
+    "note": "Add one available QA vendor to satisfy the participant requirement."
    },
    {
     "step": "click",
     "args": {
-     "text": "Schedule"
+     "role": "button",
+     "name": "Schedule"
     },
-    "note": "Open the schedule drawer from the footer schedule control."
+    "note": "Open the Schedule Event drawer from the footer schedule control."
    },
    {
     "step": "click",
@@ -98,7 +110,7 @@
      "role": "menuitem",
      "name": "Schedule for later"
     },
-    "note": "Choose the later-start scheduling mode while leaving its date empty."
+    "note": "Select the later-start scheduling mode."
    },
    {
     "step": "click",
@@ -106,14 +118,14 @@
      "role": "button",
      "name": "Save Schedule"
     },
-    "note": "Attempt to save the incomplete later-start schedule."
+    "note": "Attempt to save with the start date intentionally left empty."
    },
    {
     "step": "expect_field_error",
     "args": {
      "field": "Start time"
     },
-    "note": "Assert that the missing start date/time is marked as required."
+    "note": "Verify that the missing date/start-time field is marked required."
    }
   ]
  }

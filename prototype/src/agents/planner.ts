@@ -74,6 +74,8 @@ interface Catalog {
   names: string[];
   /** Labels the product is known to render, by screen (from its source + live finds). */
   labels?: Record<string, string[]>;
+  /** every UI string in the product's source (scan-dashboard-labels.ts) — the guard's exact-match list, not the prompt's */
+  sourceLabels?: string[];
 }
 
 function loadCatalog(): Catalog {
@@ -289,7 +291,7 @@ GENERIC STEPS — reading, verifying, navigating and acting on any screen:
 - NEGATIVE TESTS (the case says the app must REFUSE / BLOCK / NOT ALLOW something): leave the enabling step out and mark it skip{step, reason}; then assert the block — expect_publish_blocked{because} for a refused publish, attempt{step, args, because} for any other refused action (attempt passes only on visible evidence: a message, a disabled control, or with expect:"nothing_opens" no drawer/dialog opening). Several refusals in one case = several skip → block pairs in order; put the left-out step back after its block before testing the next. NEVER use skip in a case that expects success.
 - A message the case quotes ("Please add participants to proceed!") belongs in expect_message{kind, text} or in the block step's because.
 - Tooltip: expect_message{kind:"tooltip", on:"<control>", text}. Before/after comparisons: remember{key, target} … expect_remembered{key, same}.
-- Procol is never changed: no step changes a company or tenant SETTING. switch_company only to a QA tenant the case names by id (198678, 32461, 47053). A case that needs a setting flipped, an API payload, a status code or a network request inspected cannot be tested on screen — list it in cannotExpress.
+- COMPANY SETTINGS: a case that needs the company set up a certain way ("with eRFX off", "lock_vendors_addition_in_event_creation = Off", "verify commercial masking is enabled for the tenant", its Configs Needed line) starts with require_setting{key, value} — or {phrase, value} in the case's words when it names no key — one per setting, BEFORE every other step. The runner switches it on the approved test company, confirms it from the app's answer and switches it back after the case. Never list a needed setting in cannotExpress and never open a settings screen for it. A case whose SUBJECT is a different company or a plan tier (Growth, Enterprise) is not a setting: switch_company only to a QA tenant the case names by id (198678, 32461, 47053), else cannotExpress. An API payload, a status code or a network request inspected cannot be tested on screen — list it in cannotExpress.
 `.trim();
 
 const SYSTEM = `You compile QA test cases into runnable plans for Procol, a B2B procurement product.
@@ -1605,7 +1607,7 @@ export interface CompileOptions {
    * the plan opens `screen` with open_prepared and holds only the steps the
    * case is about. `valueKeys` are the API values expect_api_value can compare.
    */
-  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string };
+  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string; shape?: { lines?: number; quantity?: number; prices?: number[] } };
   /**
    * The screen the case was written from (the explorer / screen cases): its path and the exact
    * names of its controls. The plan reaches it with go_to {screen:"path"} and acts on it with
@@ -1682,8 +1684,26 @@ function stepLabelWords(st: PlanStep): string[] {
  * full coverage. An ABSENCE check is stricter still: a misspelt name is always
  * absent, so it must use a known label, not merely the case's own words.
  */
-export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record<string, string[]> | undefined): string[] {
+/** A label as the guard compares it: lower case, one space, no role word, no trailing count or ellipsis. */
+export function normLabel(w: string): string {
+  return lc(w.replace(/^role\s+\w+\s+name\s+/i, "").replace(/^(button|link|tab|menu ?item|checkbox|switch|radio|textbox|combobox|row|heading|dialog|option|tooltip)\s+/i, ""))
+    .replace(/\s+/g, " ")
+    .replace(/(\s*\(\d+\)|\s+\d+)$/, "")
+    .replace(/(\.\.\.|…)$/, "")
+    .trim();
+}
+let sourceSet: { from: unknown; set: Set<string> } | null = null;
+function sourceLabelSet(catalog: Catalog): Set<string> | undefined {
+  if (!catalog.sourceLabels?.length) return undefined;
+  if (sourceSet?.from !== catalog.sourceLabels) sourceSet = { from: catalog.sourceLabels, set: new Set(catalog.sourceLabels.map(normLabel)) };
+  return sourceSet.set;
+}
+
+export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record<string, string[]> | undefined, sourceLabels?: Set<string>): string[] {
   const caseText = lc(testCase);
+  // a label the product's source renders word for word is not a guess (its spelling is the product's);
+  // EXACT match only — thousands of strings would let any short word through a substring test
+  const inSource = (w: string) => !!sourceLabels?.has(normLabel(w));
   // The plan's own data — the titles it gives or opens — is not a label guess:
   // finding "UI-BOQ-001 Draft Once" in the list is finding our own event.
   const ownData = steps
@@ -1697,22 +1717,34 @@ export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record
     if (!LABELLED_STEPS.has(st.step)) continue;
     const absence = isAbsenceCheck(st);
     for (const w of stepLabelWords(st)) {
-      if (labelIsKnown(w, labels) || isOwn(w)) continue;
+      if (labelIsKnown(w, labels) || isOwn(w) || inSource(w)) continue;
       if (absence) out.push(`unconfirmed label "${w}" in an absence check (${st.step}) — a name the product does not use is always absent, so this proves nothing until the label is confirmed`);
       else if (!inCase(w)) out.push(`unconfirmed label "${w}" (${st.step}) — not among the labels known from the app nor in the case`);
     }
-    if (st.step === "expect_message" && typeof st.args?.text === "string" && !labelIsKnown(st.args.text, labels) && !inCase(st.args.text)) {
+    if (st.step === "expect_message" && typeof st.args?.text === "string" && !labelIsKnown(st.args.text, labels) && !inSource(st.args.text) && !inCase(st.args.text)) {
       out.push(`expected message "${st.args.text}" is neither a known product message nor quoted by the case`);
     }
   }
   return [...new Set(out)];
 }
 
+/** What the API built when the case stated its numbers (12 Nov): said so the plan asserts them, never calls them a gap. */
+function shapeRules(p: NonNullable<CompileOptions["prepared"]>): string {
+  const sh = p.shape;
+  if (!sh || (!sh.prices?.length && !sh.quantity && !(sh.lines && sh.lines > 1))) return "";
+  const parts = [
+    sh.lines && sh.lines > 1 ? `${sh.lines} line items (the same product on each)` : "",
+    sh.quantity ? `${sh.quantity} units requested on ${sh.lines && sh.lines > 1 ? "each line" : "the line"}` : "",
+    sh.prices?.length === 2 ? `vendor 1 ("Vendor A") bid ${sh.prices[0]} per unit and vendor 2 ("Vendor B") bid ${sh.prices[1]} per unit` : sh.prices?.length === 1 ? `the vendor bid ${sh.prices[0]} per unit` : "",
+  ].filter(Boolean);
+  return `\n- THIS CASE'S NUMBERS WERE BUILT AS IT STATES THEM: ${parts.join("; ")}. So totals (price × quantity), ranks (the lower price is L1), "Awarded Vendors 1/2" counters and a split between the two vendors are assertable — never list these numbers or "the second vendor" as a gap; work the totals out in the assertion (e.g. 6 × 90 = 540). A title like "One bid: award all 10 units to Vendor A" means ONE of the two bids is chosen for the award — the event still has both bids; it is not a different state.`;
+}
+
 /** The prompt section for a case whose state the API builds (CompileOptions.prepared). */
 function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
   return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
-- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted).
-- The built event has exactly ONE line item, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings.${qaVendorsOnly() ? "" : `
+- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted; two_bids = live and TWO QA vendors have each submitted their own bid; closed_two_bids = the bidding window ended after TWO QA vendors each bid — Master QCS, ranks, Start Awarding and a split allocation between the two are all on screen).${shapeRules(p)}
+- ${/two_bids/.test(p.state) ? "The two bidders are QA vendors: vendor 1 (\"Vendor A\") bid first, vendor 2 (\"Vendor B\") second — expect_api_value{key:\"vendorName\"} / {key:\"secondVendorName\"} name them. Otherwise the" : "The"} built event has exactly ${p.shape?.lines && p.shape.lines > 1 ? `${p.shape.lines} line items` : "ONE line item"}, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings.${qaVendorsOnly() ? "" : `
 - A SECOND VENDOR'S BID on a live / bid state ("two vendors bid", "a second bid with a lower total", "Vendor B bids 90", "two bids with the same total", "a surrogate bid beside the vendor's own"): place_surrogate_bid{price} — the buyer enters it on the Participants tab for another invited vendor (its Add Bid row; the run picks a vendor who has not bid; a third bid is another place_surrogate_bid). After it, Master QCS / Responses show two vendor columns, so expect_qcs_vendors{count:2}, expect_qcs_ranks, expect_qcs_cell{vendor:2,…}, expect_responses{count:2, surrogate:1} and a counter offer on the vendor's own bid are all expressible — never list "a second vendor" as a gap on these states. Only a second vendor's OWN portal session (its sign-in, its view) stays a gap. Not on closed / proposal / awarded (bidding is over) and not on a technical stage.`} A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
 - The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".
 - After a click that opens a proposal, the URL is /project/<id>/proposal/<id>; the awarding screen is /awarding/<id>.
@@ -1720,7 +1752,7 @@ function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
 - THE SUPPLIER PORTAL: after open_prepared the browser is the VENDOR's — signed in as the invited QA vendor, on this event's bid sheet (the pricing round, with the bid form opened when the round offers one). The buyer's screens (summary, Responses, Master QCS, Participants) are NOT there. Read and act with the generic steps on what the vendor sees: expect_text / expect_visible / expect_count / expect_value for line items, quantities, units, locations, prices, ranks, the bid total, a disabled Submit; bid with vendor_bid{price} (types the price into every price cell and presses Submit Quote; submit:false only types, so the sheet can be read with expect_text / expect_value / expect_remembered); a refusal the vendor must get (a negative price, letters, a price above the cap, a bid after the deadline) is attempt{step:"vendor_bid", args:{price:<what the case types>}, expect:"refused", because:<the message, only if the case quotes it>}. vendor_open_event{overview:true} shows the Event Overview; vendor_open_event{stage:"technical"} the questionnaire. switch_portal{to:"buyer"} goes back to the buyer's event page when the case then checks the buyer's side (its Responses / Master QCS via go_to), and switch_portal{to:"vendor"} returns. Never place_bid here — the vendor is already signed in; bid with vendor_bid. The vendor's name and the title are ${p.valueKeys.includes("vendorName") ? "expect_api_value{key:\"vendorName\"} / {key:\"title\"}" : "expect_api_value on the keys above"}.` : ""} Do NOT open_create, set_title, compose_stages, publish, invite_vendor or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
 - Write ONLY the steps the case is about, then an assertion for EACH screen expectation${p.screenAssertions?.length ? ` — these are the ones a screen must show:\n${p.screenAssertions.map((a) => `  • ${a}`).join("\n")}` : "."}
 - A value the API holds and the screen must show (title, vendor name, quantity, bid price…) → expect_api_value{key} with key one of: ${p.valueKeys.join(", ") || "(none for this state)"}.
-- On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
+- On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (${/two_bids/.test(p.state) ? `the state has TWO bidding vendors${p.shape?.lines && p.shape.lines > 1 ? ` and ${p.shape.lines} line items` : " and ONE line item"}: two vendor columns and their ranks are on screen` : "the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress"}). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
 - Use expect_toast for a toast, expect_field_error for an error at a field, expect_navigated after a click that should move the screen, expect_order for order/sorting, expect_disabled/expect_enabled for control state, expect_visible/expect_text/expect_count for presence and absence, expect_screen_clean when the case is about the screen rendering correctly.
 - If the case needs a state this one is not (e.g. a second vendor, a setting flipped, a different event type), say so in cannotExpress and set coverage "partial" or "none".${p.examples ? `\n\n${p.examples}` : ""}`;
 }
@@ -1792,6 +1824,20 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
       gap: /\b(vendor|supplier)('s)?\b[^.]{0,40}\b(live )?(list|events)\b[^.]{0,60}\b(contain|list|show|has|includes?|appears?|present|visible|find|search)/i,
       covered: (g) => !otherVendor.test(g) && (has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
       by: "vendor_open_event opens THIS event from the vendor's list and fails as NOT INVITED when it is not listed",
+    },
+    {
+      // "set / verify lock_vendors_addition_in_event_creation is Off", "a company with eRFX switched off": the runner
+      // switches it — but only when the plan really holds a require_setting for THAT setting (its key or its words)
+      gap: /\b(setting|config(uration)?|tenant|company)\b[^.]{0,60}\b(on|off|enabled|disabled|switched|set|verify|change|true|false)\b|\b[a-z]+(_[a-z]+){2,}\b/i,
+      covered: (g) => {
+        if (/\b(growth|enterprise|starter|plan tier|rbac|role|another (tenant|company)|different (tenant|company))\b/i.test(g)) return false;
+        const reqs = steps.filter((st) => st.step === "require_setting");
+        const key = g.match(/\b[a-z]+(?:_[a-z]+){2,}\b/)?.[0];
+        if (key) return reqs.some((st) => st.args?.key === key);
+        const gw = new Set(g.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3));
+        return reqs.some((st) => String(st.args?.phrase ?? st.args?.key ?? "").toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3).some((w) => gw.has(w)));
+      },
+      by: "require_setting switches that company setting before the case and back after",
     },
     {
       gap: /tooltip|hover/i,
@@ -2090,7 +2136,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   const labelsKnown = opts.screen
     ? { ...(catalog.labels ?? {}), [`screen ${opts.screen.label}`]: [...opts.screen.controls.map((c) => c.replace(/^\w+\s+"(.*)"(\s+\(disabled\))?$/, "$1")), ...(opts.screen.headings ?? [])] }
     : catalog.labels;
-  const guesses = opts.withholdGeneric || opts.site ? [] : labelGuesses(linted.plan.steps, testCase, labelsKnown);
+  const guesses = opts.withholdGeneric || opts.site ? [] : labelGuesses(linted.plan.steps, testCase, labelsKnown, sourceLabelSet(catalog));
   if (guesses.length) {
     if (coverage === "full") coverage = "partial";
     warnings.push(...guesses.map((g) => `coverage partial: ${g}`));

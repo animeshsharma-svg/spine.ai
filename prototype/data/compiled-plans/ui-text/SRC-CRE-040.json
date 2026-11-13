@@ -4,19 +4,20 @@
   "title": "Product that is not in the catalogue",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:19:12.842Z",
+  "compiledAt": "2026-11-13T11:31:55.164Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot directly verify that the event cannot be published as a consequence of the invalid product without attempting publication; the invalid-value rules require stopping after the inline rejection."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added"
+   "can only test part of this — no step for: The catalog cannot directly verify that the event cannot be published as a consequence of the invalid product without attempting publication; the invalid-value rules require stopping after the inline rejection."
   ],
   "source": "llm",
   "steps": 9,
@@ -25,16 +26,16 @@
    "configure_single_stage",
    "set_title",
    "select_template",
-   "do_on_screen",
    "add_line_items",
-   "set_schedule",
-   "invite_vendor",
-   "expect_publish_blocked"
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell"
   ],
-  "ms": 13529
+  "ms": 12531
  },
  "plan": {
-  "title": "SRC-CRE-040 — Reject uncatalogued product",
+  "title": "SRC-CRE-040 — Reject product not in catalogue",
   "steps": [
    {
     "step": "open_create",
@@ -53,45 +54,59 @@
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-040 Uncatalogued Product"
+     "title": "SRC-CRE-040 Missing Catalogue Product"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is shown."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "On the RFQ product sheet, select the first Product cell, enter CYLINDER, choose CYLINDER WITH KEY & KNOB if offered, and verify Product Variant becomes Default Variant; enter Quantity Requested 10 and choose Plant Name (LOC-0001) for Delivery location; then enter no-such-product-xyz in the Product cell, verify no product option is offered, the row remains empty, and leave the screen showing that empty product row"
-    },
-    "note": "Perform and observe the product selection, dependent variant, quantity and location behavior, including rejection of the uncatalogued product."
+    "note": "Choose the available RFQ template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
-    "args": {},
-    "note": "a product is needed before participants or publishing"
-   },
-   {
-    "step": "set_schedule",
     "args": {
-     "minutes": 30
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Commit a valid event schedule before checking publication."
+    "note": "Add the mapped catalogue product and establish the sheet row used by the case."
    },
    {
-    "step": "invite_vendor",
+    "step": "set_sheet_cell",
     "args": {
-     "count": 1
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
     },
-    "note": "Add the required participant so the publication check isolates the missing product."
+    "note": "Enter the requested quantity from the scenario."
    },
    {
-    "step": "expect_publish_blocked",
-    "args": {},
-    "note": "Assert that the event cannot be published while the product row is empty."
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Select the specified delivery location."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "value": "no-such-product-xyz"
+    },
+    "note": "Search the Product dropdown for the nonexistent product; the step records that no matching option is offered."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "refused": true,
+     "empty": true
+    },
+    "note": "Assert that the invalid product is not retained and the product cell remains empty."
    }
   ]
  }

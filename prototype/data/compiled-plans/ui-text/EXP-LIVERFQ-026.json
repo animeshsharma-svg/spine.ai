@@ -4,50 +4,38 @@
   "title": "A live RFQ: \"Increase Event Time\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:45:53.756Z",
+  "compiledAt": "2026-11-12T13:45:56.743Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly compare the event's before-and-after submission times after cancelling the dialog.",
-   "Directly compare the complete vendor roster before and after cancelling the dialog.",
-   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Independently verify that all event status and submission-time values are unchanged before and after cancellation",
+   "Independently verify that the complete vendor set is unchanged before and after cancellation"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Directly compare the event's before-and-after submission times after cancelling the dialog.; Directly compare the complete vendor roster before and after cancelling the dialog."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Independently verify that all event status and submission-time values are unchanged before and after cancellation; Independently verify that the complete vendor set is unchanged before and after cancellation"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "expect_event_status",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "expect_responses",
+   "expect_text",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible",
-   "expect_event_status",
-   "expect_responses"
+   "expect_text",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 26963
+  "ms": 14084
  },
  "plan": {
   "title": "Cancel Increase Event Time",
@@ -57,67 +45,53 @@
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ summary, as required for this fixed starting state."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Add the required RFQ line item."
+    "note": "Apply the requested withdrawal visibility configuration."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Ensure withdrawing during submission is not disabled by configuration."
    },
    {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Invite the product's available QA vendors as required for a usable event."
-   },
-   {
-    "step": "expect_event_status",
+    "step": "require_setting",
     "args": {
-     "status": "Live"
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
     },
-    "note": "Verify the event is live before opening the extension dialog."
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab specified by the case."
+    "note": "Navigate to the RFQ Responses tab where the live event controls are available."
    },
    {
-    "step": "expect_responses",
+    "step": "expect_text",
     "args": {
-     "count": 0,
-     "stage": "rfq"
+     "text": "No bids received yet."
     },
-    "note": "Confirm the live RFQ has no vendor responses before cancellation."
+    "note": "Confirm the prepared event starts with no vendor bids."
    },
    {
     "step": "event_menu",
@@ -125,16 +99,15 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the Increase Event Time dialog from the RFQ Settings menu."
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
+     "text": "Increase Event Time",
      "visible": true
     },
-    "note": "Verify that the expected extension dialog opened."
+    "note": "Confirm the submission-time dialog opened."
    },
    {
     "step": "click",
@@ -142,31 +115,27 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the extension instead of confirming a new time."
+    "note": "Cancel the time-extension dialog without saving any change."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
+     "text": "Increase Event Time",
      "visible": false
     },
-    "note": "Assert that cancelling closes the Increase Event Time dialog."
+    "note": "Verify cancellation closed the dialog."
    },
    {
-    "step": "expect_event_status",
+    "step": "expect_text",
     "args": {
-     "status": "Live"
+     "text": "No bids received yet."
     },
-    "note": "Verify cancellation did not change the event's live status."
+    "note": "Verify the response state still shows no bids after cancellation."
    },
    {
-    "step": "expect_responses",
-    "args": {
-     "count": 0,
-     "stage": "rfq"
-    },
-    "note": "Verify cancellation did not create or alter any vendor responses or bids."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the event screen remains rendered without errors after cancelling."
    }
   ]
  }

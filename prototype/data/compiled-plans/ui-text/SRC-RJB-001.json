@@ -4,30 +4,29 @@
   "title": "Reject Bid is disabled while bidding is on",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:48:53.892Z",
+  "compiledAt": "2026-11-12T13:12:05.484Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify the backend refusal message \"Bid rejection is disabled while bidding is in progress\" for Reject Bid."
+   "The backend refusal response/message: \"Bid rejection is disabled while bidding is in progress\""
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly verify the backend refusal message \"Bid rejection is disabled while bidding is in progress\" for Reject Bid."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The backend refusal response/message: \"Bid rejection is disabled while bidding is in progress\""
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "go_to",
-   "expect_responses",
+   "require_setting",
+   "require_setting",
    "expect_disabled",
    "expect_message"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 13248
+  "ms": 16091
  },
  "plan": {
   "title": "Reject Bid Disabled During Bidding",
@@ -37,56 +36,39 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ responses screen as required for this state."
+    "note": "Open the prepared live RFQ with two bids directly on the Responses tab."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the participant list so a second invited vendor can receive the surrogate bid."
-   },
-   {
-    "step": "place_surrogate_bid",
+    "step": "require_setting",
     "args": {
-     "price": 90
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "On"
     },
-    "note": "Add the second bid at 90 to reproduce the RFQ with two bids."
+    "note": "Enable the tenant rule that disables bid rejection during bidding."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the surrogate bid was submitted."
-   },
-   {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Return to the RFQ Responses tab where the Reject control is shown."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 2,
-     "surrogate": 1,
-     "direct": 1
-    },
-    "note": "Confirm both bids are visible before checking the rejection control."
+    "note": "Ensure eRFX projects are enabled for the RFQ scenario."
    },
    {
     "step": "expect_disabled",
     "args": {
-     "control": "Reject"
+     "control": "Reject Bid"
     },
-    "note": "Assert the Reject Bid control is greyed out during bidding."
+    "note": "Verify Reject Bid is greyed out while bidding is in progress."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "tooltip",
-     "on": "Reject",
+     "on": "Reject Bid",
      "text": "Disabled during Bidding time."
     },
-    "note": "Verify the disabled control explains that rejection is unavailable during bidding."
+    "note": "Verify the disabled control explains why rejection is unavailable."
    }
   ]
  }

@@ -106,7 +106,7 @@ async function compileOne(c: CatalogCase): Promise<TextPlanMeta> {
   const sp = sheet ? sheetPrep(sheet) : null;
   const prose = sheet ? sheetCaseProse(sheet) : caseAsProse(c);
   const prepared = sp?.prepared && !sp.unbuilt
-    ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } }
+    ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical, ...(sp.shape ? { shape: sp.shape } : {}) } }
     : {};
   const r = await withWatchdog(compileTestCase(prose, "events", { tier: "fast", ...prepared }), 300_000, `compiling ${c.id}`);
   const plan = (r.plan ?? { steps: [] }) as { steps?: Array<{ step: string }> };
@@ -127,6 +127,10 @@ async function compileOne(c: CatalogCase): Promise<TextPlanMeta> {
     ...(sp?.unbuilt ? { unbuilt: `${sp.why} ${sp.unbuilt}`.trim() } : {}),
     ms: Date.now() - t0,
   };
+  // A compile the model did not answer (fallback: a generic plan) never replaces a real stored plan — a rate-limited
+  // gateway turned SRC-AWD-057's partial plan into a fallback on 12 Nov. It is counted, and tried again next run.
+  const prev = storedTextPlan(c.id);
+  if (r.source === "fallback" && prev && prev.meta.source !== "fallback") return { ...meta, kept: prev.meta.coverage } as TextPlanMeta;
   saveTextPlan({ meta, plan: r.plan });
   return meta;
 }

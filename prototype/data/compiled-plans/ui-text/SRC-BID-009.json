@@ -4,11 +4,15 @@
   "title": "RFQ bid: Price 100.55 (decimals)",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:26.495Z",
+  "compiledAt": "2026-11-12T16:25:38.345Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
   "steps": 9,
   "stepNames": [
@@ -24,71 +28,69 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6890
+  "ms": 11751
  },
  "plan": {
-  "title": "SRC-BID-009 — RFQ decimal bid",
+  "title": "RFQ decimal bid 100.55",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ while keeping the buyer session available."
+    "note": "the API built this case's state"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate vendor portal session for Vendor A."
+    "note": "Sign in to the invited vendor's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the live RFQ’s pricing round from the vendor event list."
+    "args": {},
+    "note": "Open this event from the vendor's event list and enter its pricing round."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100.55
     },
-    "note": "Enter and submit the decimal price of 100.55 for every price cell."
+    "note": "Enter the decimal price in the vendor bid sheet and submit the quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the vendor portal accepted the submitted bid."
+    "note": "Assert that the vendor portal accepted the bid and shows the round as submitted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer’s event page to inspect the recorded bid."
+    "note": "Return to the buyer's event page to inspect the recorded bid and calculated totals."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer’s comparison grid containing the submitted vendor bid."
+    "note": "Open the buyer's comparison grid containing the submitted bid."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "equals": "100.55",
-     "vendor": 1
+     "vendor": 1,
+     "key": "bidPrice"
     },
-    "note": "Verify that the buyer’s grid preserves the bid rate as 100.55."
+    "note": "Assert that the buyer-side rate matches the submitted 100.55 bid held by the event."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
      "vendor": 1
     },
-    "note": "Verify that each line amount and the sum total equal the submitted rate multiplied by the requested quantity."
+    "note": "Assert that each line amount and the sum total equal the submitted rate multiplied by the requested quantity."
    }
   ]
  }

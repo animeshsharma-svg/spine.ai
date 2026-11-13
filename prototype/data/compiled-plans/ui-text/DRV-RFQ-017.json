@@ -1,67 +1,95 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-017",
-  "title": "Mobile app access to Request for Best Offer restricts uninvited vendors identically to web portal",
+  "title": "Master QCS option reappears after withdrawing line items from lots",
   "group": "DRV-RFQ",
   "sheet": "derived-buyer-can-create-a-request-for-best-offe",
-  "compiledAt": "2026-11-09T23:10:52.440Z",
+  "compiledAt": "2026-11-12T13:38:44.243Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to and navigate the Procol mobile app as uninvited Vendor B.",
-   "Verify that the mobile app hides the targeted Request for Best Offer prompt and prevents price submission."
+   "Sign in to the Procol mobile app as uninvited Vendor B and verify that the active Request for Best Offer prompt is not visible and that Vendor B cannot submit prices."
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to and navigate the Procol mobile app as uninvited Vendor B.; Verify that the mobile app hides the targeted Request for Best Offer prompt and prevents price submission."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "added set_title — publishing without a title is refused",
+   "added publish — a bid needs a published event to bid on",
+   "inserted select_template + add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "added set_title — publishing without a title is refused",
+   "added publish — a bid needs a published event to bid on",
+   "inserted select_template + add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "can only test part of this — no step for: Sign in to the Procol mobile app as uninvited Vendor B and verify that the active Request for Best Offer prompt is not visible and that Vendor B cannot submit prices."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
-   "open_event",
-   "switch_portal",
-   "vendor_open_event",
+   "open_create",
+   "compose_stages",
+   "set_title",
    "ask_tester",
-   "expect_visible"
+   "expect_visible",
+   "select_template",
+   "add_line_items",
+   "publish",
+   "place_bid"
   ],
-  "ms": 12872
+  "ms": 1571
  },
  "plan": {
-  "title": "Mobile RFO access for uninvited vendor",
+  "title": "Mobile best-offer access for uninvited vendor",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the existing live event as the closest available setup for inspecting vendor access."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
    },
    {
-    "step": "switch_portal",
+    "step": "compose_stages",
     "args": {
-     "to": "vendor"
-    },
-    "note": "Move to the available supplier-portal session; this is only a web-portal approximation and not Vendor B's mobile session."
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the event overview in the available vendor portal as the closest observable vendor-access state."
+    "step": "set_title"
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to the Procol mobile app as uninvited Vendor B, open the events list, and verify that the targeted Request for Best Offer prompt is unavailable and prices cannot be submitted"
+     "need": "sign in to the Procol mobile app as uninvited Vendor B, open the active Request for Best Offer, and verify that the best-offer prompt is not visible and prices cannot be submitted"
     },
-    "note": "The mobile app, uninvited Vendor B identity, and best-offer access restriction cannot be exercised by catalog steps."
+    "note": "The catalog cannot access the mobile app or a second, uninvited vendor session."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Submit Quote",
-     "visible": false
+     "text": "Continue with email",
+     "visible": true
     },
-    "note": "Closest available assertion that a vendor cannot submit a quote; it does not validate the mobile-app or uninvited-vendor condition."
+    "note": "Provides a known-label assertion for the available vendor sign-in surface after the tester interaction; it does not assert the mobile best-offer restriction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "a template comes first on the create screen"
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "place_bid"
    }
   ]
  }

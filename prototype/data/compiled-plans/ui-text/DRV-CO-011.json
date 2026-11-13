@@ -1,30 +1,31 @@
 {
  "meta": {
   "caseId": "DRV-CO-011",
-  "title": "Counter Offer with extremely large rate value is accepted and displayed",
+  "title": "Vendor from another company cannot view or respond to Vendor A's counter offer",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-09T23:03:46.222Z",
+  "compiledAt": "2026-11-12T13:36:00.687Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the counter-offer notification email was successfully triggered and delivered to all active users of Vendor A's company, including access to their email inbox and confirmation that send_mail_to_vendors is enabled."
+   "Verify that a counter-offer notification email is triggered and sent to all active users of Vendor A's company."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the counter-offer notification email was successfully triggered and delivered to all active users of Vendor A's company, including access to their email inbox and confirmation that send_mail_to_vendors is enabled."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that a counter-offer notification email is triggered and sent to all active users of Vendor A's company."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "place_counter_offer",
-   "expect_counter_offer_sent",
-   "ask_tester",
-   "expect_screen_clean"
+   "expect_counter_offer_sent"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 10392
+  "ms": 1819
  },
  "plan": {
   "title": "Vendor Counter-Offer Notification",
@@ -37,28 +38,24 @@
     "note": "Open the prepared live RFQ Responses tab with the vendor's active bid."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "send_mail_to_vendors",
+     "value": "On"
+    },
+    "note": "Enable the required tenant setting before testing the counter-offer flow."
+   },
+   {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send the buyer's counter offer at the specified price of 90."
+    "note": "Send the buyer's counter offer of 90 to the vendor with the active bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that Procol marks the counter offer as initiated on the buyer-side grid."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "access Vendor A's company email inbox and verify that the counter-offer notification was triggered and delivered to its active users"
-    },
-    "note": "Email delivery and recipient verification are not observable through the catalog."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the buyer-side screen remains rendered without errors after the counter offer."
+    "note": "Assert that the Responses grid records the counter offer as initiated."
    }
   ]
  }

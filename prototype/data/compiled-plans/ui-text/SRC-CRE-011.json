@@ -4,7 +4,7 @@
   "title": "RFQ: Quantity Requested = -5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:16:44.066Z",
+  "compiledAt": "2026-11-12T16:29:39.242Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,61 +17,70 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "expect_error"
   ],
-  "ms": 9835
+  "ms": 11225
  },
  "plan": {
-  "title": "RFQ rejects negative quantity",
+  "title": "Single-Stage RFQ Rejects Negative Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Opens the single-stage event creation screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Changes the default event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-CRE-011 Negative Quantity"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provides the mandatory event title needed to proceed through the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
+    "note": "Applies an RFQ template so the pricing sheet and Quantity Requested column are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "-5"
     },
-    "note": "Add the CYLINDER line item while entering the invalid Quantity Requested value -5."
+    "note": "Adds the specified product and enters the test quantity of -5 directly into the line-item quantity field."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Quantity"
     },
-    "note": "Assert that the negative quantity is refused by the inline validation."
+    "note": "Asserts the negative Quantity Requested value is refused inline, such as by a red or cleared cell with a quantity-related error."
    }
   ]
  }

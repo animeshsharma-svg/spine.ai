@@ -4,94 +4,168 @@
   "title": "Reverse auction: Quantity Requested = a very large number 99999999",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:18:11.396Z",
+  "compiledAt": "2026-11-13T11:31:34.035Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"99,999,999\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+   "coverage partial: unconfirmed label \"99,999,999\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_text",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
-   "expect_published"
+   "expect_published",
+   "expect_screen_clean"
   ],
-  "ms": 50384
+  "ms": 22978
  },
  "plan": {
-  "title": "Reverse auction with very large quantity",
+  "title": "Reverse auction large requested quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start on the single-stage create screen as requested"
+    "note": "Opens the specified Single Stage create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allows vendors to be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank"
     },
-    "note": "Switch event type to Auction"
+    "note": "Switches the event type to a reverse auction using the supported auction strategy configuration."
    },
    {
     "step": "set_title",
-    "note": "Give the event a title"
+    "args": {},
+    "note": "Provides the mandatory event title required for publishing."
    },
    {
     "step": "select_template",
-    "note": "Select a pricing template to reveal the product sheet"
+    "args": {},
+    "note": "Applies the first available auction pricing template so the product sheet can be populated."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "quantity": "99999999",
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "99999999"
     },
-    "note": "Add line item with the very large quantity requested"
+    "note": "Adds the requested product and enters the very large requested quantity."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes the pricing sheet fields needed for the quantity and totals to render."
    },
    {
-    "step": "set_schedule",
+    "step": "set_sheet_cell",
     "args": {
-     "minutes": 30
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "99999999"
     },
-    "note": "Set event schedule"
+    "note": "Ensures the exact test quantity is entered in the pricing sheet cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "99999999",
+     "kept": true
+    },
+    "note": "Asserts the large quantity is retained without a cell error."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "99,999,999",
+     "present": true
+    },
+    "note": "Asserts the displayed quantity uses thousands separators."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the delivery location required by the case."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirms the requested delivery location is shown in the first row."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a QA vendor"
+    "note": "Adds one available QA vendor so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the required 30-minute schedule."
    },
    {
     "step": "publish",
-    "note": "Publish the event"
+    "args": {},
+    "note": "Publishes the completed reverse auction as required by the scenario."
    },
    {
     "step": "expect_published",
-    "note": "Assert the event published successfully"
+    "args": {},
+    "note": "Confirms publication reached a real project page."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Checks that the published event has no overflow symptoms, NaN/undefined values, server errors, or page crash."
    }
   ]
  }

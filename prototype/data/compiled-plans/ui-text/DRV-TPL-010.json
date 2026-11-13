@@ -4,12 +4,10 @@
   "title": "Bid masking configuration applies correctly without displaying premature messages",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-09T23:12:28.780Z",
+  "compiledAt": "2026-11-12T13:39:11.704Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly set or verify bid masking is disabled for the tenant/event."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
@@ -19,13 +17,13 @@
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Explicitly set or verify bid masking is disabled for the tenant/event."
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "compose_stages",
    "select_template",
    "add_line_items",
@@ -36,10 +34,10 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10616
+  "ms": 8321
  },
  "plan": {
-  "title": "DRV-TPL-010 Bid masking banner absence",
+  "title": "RFQ Bid Masking Disabled Banner Check",
   "steps": [
    {
     "step": "open_prepared",
@@ -49,44 +47,52 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "bid masking",
+     "value": "Off"
+    },
+    "note": "Ensure bid masking is explicitly disabled before creating the event."
+   },
+   {
     "step": "compose_stages",
     "args": {
      "stages": [
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ so the dashboard can be opened before bids exist."
+    "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template required for line-item configuration."
+    "note": "Apply an available RFQ template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required RFQ line item."
+    "note": "Add the minimum line item needed for a publishable event."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Populate the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule before publishing."
+    "note": "Commit a bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participant so the event can be published."
+    "note": "Add the minimum participant required to publish."
    },
    {
     "step": "expect_text",
@@ -94,7 +100,7 @@
      "text": "Bids of participated vendors will be visible once the event duration is over.",
      "present": false
     },
-    "note": "Assert that the premature masking restriction banner is not displayed before any bids are placed."
+    "note": "Verify that the misleading premature masking restriction banner is not displayed."
    }
   ]
  }

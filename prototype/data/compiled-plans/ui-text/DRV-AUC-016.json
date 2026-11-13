@@ -1,35 +1,36 @@
 {
  "meta": {
   "caseId": "DRV-AUC-016",
-  "title": "Global rank reflects cost with loading while line-item rank reflects landed cost accurately",
+  "title": "Auction strategy selection fails if required formula variables are missing",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-09T22:53:43.985Z",
+  "compiledAt": "2026-11-12T13:32:53.015Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Log in to the mobile app as the same buyer and view the same auction",
-   "Compare the vendor's rank between the laptop and mobile app and fail on any discrepancy"
+   "Log in to the mobile app with the same buyer user, open the same auction, and compare its vendor rank with the laptop rank"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Log in to the mobile app as the same buyer and view the same auction; Compare the vendor's rank between the laptop and mobile app and fail on any discrepancy"
+   "can only test part of this — no step for: Log in to the mobile app with the same buyer user, open the same auction, and compare its vendor rank with the laptop rank"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "open_master_qcs",
-   "expect_qcs_ranks"
+   "expect_qcs_cell",
+   "ask_tester",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 944
+  "ms": 15300
  },
  "plan": {
-  "title": "DRV-AUC-016 Cross-device vendor rank visibility",
+  "title": "Auction rank consistency across devices",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,15 +41,32 @@
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the buyer's comparison grid where the calculated vendor rank is visible."
+    "args": {
+     "vendors": [
+      "QA_Platform_Vendor_A"
+     ]
+    },
+    "note": "Open the buyer comparison grid and verify the named vendor is present."
    },
    {
-    "step": "expect_qcs_ranks",
+    "step": "expect_qcs_cell",
     "args": {
-     "atLeast": 1
+     "row": "Rank",
+     "vendor": "QA_Platform_Vendor_A"
     },
-    "note": "Confirm that the buyer console displays calculated rank data, without claiming cross-device consistency."
+    "note": "Read and record the buyer-side rank number for QA_Platform_Vendor_A."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "log in to the mobile app with the same buyer user, open the same live rank-based auction, read QA_Platform_Vendor_A's rank, and compare it with the laptop rank"
+    },
+    "note": "The mobile-app view and cross-device comparison are not available in the catalog."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the currently inspected screen remains free of rendering errors after the comparison attempt."
    }
   ]
  }

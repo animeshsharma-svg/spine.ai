@@ -4,32 +4,29 @@
   "title": "Extend Submission Time is offered on an RFQ whose bidding has ended and is in its evaluation time",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:55:07.629Z",
+  "compiledAt": "2026-11-12T13:13:15.181Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Reach or establish the specific RFQ-in-evaluation state; the prepared-state catalog does not provide an RFQ evaluation state selector.",
-   "unconfirmed label \"Increase Event Time\" (expect_visible) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Increase Event Time\" (expect_visible) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Reach or establish the specific RFQ-in-evaluation state; the prepared-state catalog does not provide an RFQ evaluation state selector."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_settings_menu",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10037
+  "ms": 9716
  },
  "plan": {
   "title": "Extend Submission Time in RFQ Evaluation",
@@ -39,26 +36,31 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared event instead of creating or searching for another event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "expect_settings_menu",
     "args": {
-     "offered": [
-      "Extend Submission Time"
-     ],
      "enabled": [
       "Extend Submission Time"
      ]
     },
-    "note": "Assert the Settings menu offers Extend Submission Time and that it is clickable."
+    "note": "Verify the stage Settings menu offers Extend Submission Time as clickable."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Extend Submission Time"
     },
-    "note": "Click the offered action to open its extension dialog."
+    "note": "Select the action to verify that its extension window opens."
    },
    {
     "step": "expect_visible",
@@ -67,7 +69,7 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Assert that selecting the action opens the Increase Event Time window."
+    "note": "Assert that the extension dialog is open before any confirmation."
    },
    {
     "step": "click",
@@ -75,7 +77,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the dialog so no submission-time change is committed."
+    "note": "Cancel the extension so no event time changes are committed."
    },
    {
     "step": "expect_visible",
@@ -84,7 +86,7 @@
      "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Assert the dialog closed after cancellation."
+    "note": "Confirm the extension window closed after cancellation."
    }
   ]
  }

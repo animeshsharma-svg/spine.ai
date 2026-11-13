@@ -4,56 +4,110 @@
   "title": "Select Quote on an RFQ during evaluation",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:14.757Z",
+  "compiledAt": "2026-11-12T13:14:28.495Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Select Vendor B's quote",
-   "Edit the selected quote quantity to 10 units",
-   "Enter counter-offer remarks during quote selection",
-   "Confirm the selection and verify it enters the award or approval path"
+   "The dedicated Select Quote/Edit Bid workflow and its vendor-specific confirmation semantics are not represented by a domain step.",
+   "Verifying the selected quote is specifically Vendor B's 10-unit allocation in the award data is not directly exposed by a catalog assertion."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Select Vendor B's quote; Edit the selected quote quantity to 10 units; Enter counter-offer remarks during quote selection; Confirm the selection and verify it enters the award or approval path"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The dedicated Select Quote/Edit Bid workflow and its vendor-specific confirmation semantics are not represented by a domain step.; Verifying the selected quote is specifically Vendor B's 10-unit allocation in the award data is not directly exposed by a catalog assertion."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "expect_responses"
+   "require_setting",
+   "require_setting",
+   "expect_visible",
+   "click",
+   "fill",
+   "fill",
+   "click",
+   "expect_navigated"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 12103
+  "ms": 16496
  },
  "plan": {
-  "title": "Select Quote During RFQ Evaluation",
+  "title": "Select RFQ Quote During Evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ's buyer Responses screen, which is the subject of the selection action."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Navigate to the Responses tab where the vendor quotes can be viewed."
+    "note": "Ensure the RFQ response actions, including counter-offer-related controls, are available."
    },
    {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "atLeast": 2,
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Confirm that the RFQ Responses view contains at least two vendor responses before the unsupported selection action."
+    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Select",
+     "visible": true,
+     "within": "Vendor B"
+    },
+    "note": "Check that Vendor B's response exposes the quote-selection control."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Select",
+     "within": "Vendor B"
+    },
+    "note": "Initiate selection of Vendor B's quote from the Responses grid."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "10"
+    },
+    "note": "Set the selected allocation quantity to the required 10 units."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter remarks",
+     "value": "Select Vendor B quote for 10 units"
+    },
+    "note": "Provide the selection remark if the confirmation form exposes the remarks field."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Confirm"
+    },
+    "note": "Confirm the quote selection and allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the confirmed selection enters the award or approval proposal path."
    }
   ]
  }

@@ -4,49 +4,49 @@
   "title": "RFQ bid: Price left empty",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:19.604Z",
+  "compiledAt": "2026-11-12T16:25:20.820Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
    "attempt",
    "switch_portal",
+   "go_to",
    "expect_responses"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10416
+  "ms": 6770
  },
  "plan": {
-  "title": "SRC-BID-005 — Empty RFQ price refused",
+  "title": "RFQ Empty Price Submission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ event without changing its state."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+    "note": "Move to the separate vendor portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing sheet in the vendor portal."
+    "note": "Open the live RFQ’s pricing bid sheet as the vendor."
    },
    {
     "step": "attempt",
@@ -58,22 +58,28 @@
      "expect": "refused",
      "because": "Please quote prices for all the products."
     },
-    "note": "Submit with no price entered and require Procol to refuse the bid with the expected validation message."
+    "note": "Attempt to submit with no price and require the vendor portal to refuse the bid."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's session to verify that the refused submission created no response."
+    "note": "Return to the buyer’s event page to verify that no response was recorded."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses view."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 0,
-     "stage": "rfq"
+     "count": 0
     },
-    "note": "Assert that the buyer sees no RFQ responses after the empty-price submission was refused."
+    "note": "Confirm that the empty submission did not reach the buyer as a response."
    }
   ]
  }

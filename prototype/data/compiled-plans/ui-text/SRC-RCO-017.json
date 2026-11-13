@@ -4,32 +4,37 @@
   "title": "Recreate Order: Delivery date next month",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:42:33.698Z",
+  "compiledAt": "2026-11-12T13:10:22.409Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert the dynamically selected next-month Delivery Date on the recreated event as shown to vendors"
+   "Verify that the newly recreated event displays the selected next-month delivery date to vendors."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert the dynamically selected next-month Delivery Date on the recreated event as shown to vendors"
+   "can only test part of this — no step for: Verify that the newly recreated event displays the selected next-month delivery date to vendors."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "do_on_screen",
    "expect_no_error"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9214
+  "ms": 24220
  },
  "plan": {
-  "title": "Recreate Closed RFQ with Next-Month Delivery Date",
+  "title": "Recreate closed RFQ with next-month delivery date",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,18 +44,54 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX capability required by the scenario."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order dialog from the event's stage settings menu."
+    "note": "Open the stage Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet"
+    },
+    "note": "Verify the Recreate Order dialog includes Product Sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction Configurations"
+    },
+    "note": "Verify the dialog includes Auction Configurations."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date"
+    },
+    "note": "Verify the dialog includes Delivery Date."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Schedule this event?"
+    },
+    "note": "Verify the dialog includes the scheduling choice."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the Recreate Order dialog, select a Delivery Date in the next calendar month, create the order, and stop on the recreated event or confirmation showing the order was created"
+     "goal": "select a Delivery Date in the next calendar month, create the order, and stop on the newly created event screen"
     },
-    "note": "Perform the date selection and Create Order action that no dedicated catalog step supports."
+    "note": "Perform the relative next-month date selection and Create Order action, which has no dedicated catalog step."
    },
    {
     "step": "expect_no_error",

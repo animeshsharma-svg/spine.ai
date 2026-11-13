@@ -149,6 +149,11 @@ export interface JourneyRunOptions {
   /** The line item's quantity (the dashboard's input); the sibling's test data otherwise. */
   quantity?: number;
   /**
+   * Each bidder's price per unit, in bidding order (the first vendor, then extraBidders): a case's "Vendor A
+   * quoted 100 and Vendor B quoted 90" (12 Nov). A bidder without one bids the sibling's test-data price.
+   */
+  bidPrices?: number[];
+  /**
    * How many line items the draft is created with (default 1): the catalog
    * product repeated, which the backend accepts. Every later step still works
    * on the first line item.
@@ -400,6 +405,8 @@ interface Journey {
   vendorEmail?: string;
   /** 0 while the first vendor acts; k while the (k+1)th vendor bids (opts.extraBidders) */
   bidderIndex: number;
+  /** the first vendor's price, kept while later bidders bid their own (opts.bidPrices) */
+  firstPrice?: number;
   /** everyone invited, when the audience is Procol's suggestion (opts.eventVendors) */
   audience?: string[];
   /** why no vendor bids, when none of the invited can sign in */
@@ -2030,6 +2037,10 @@ const switchVendor: StepSpec = {
     j.vendorCompanyUuid = next.companyUuid;
     j.vendorName = next.name;
     j.vendorEmail = next.email;
+    // this bidder's own price, when the case gives one ("Vendor B quoted 90")
+    j.firstPrice ??= j.price;
+    const own = j.opts.bidPrices?.[j.bidderIndex];
+    if (own && own > 0) j.price = own;
     delete j.made.bidUuid;
     delete j.made.templateResponseUuid;
     j.bidTotal = undefined;
@@ -2053,6 +2064,7 @@ function restoreFirstVendor(j: Journey): void {
     else j.made[k] = v;
   }
   j.bidTotal = f.bidTotal;
+  if (j.firstPrice !== undefined) j.price = j.firstPrice;
   j.firstVendor = undefined;
   j.bidderIndex = 0;
 }
@@ -2867,6 +2879,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     j.vendorName = ch.vendor.name ?? ch.vendor.email;
   }
   if (opts.quantity && opts.quantity > 0) j.qty = opts.quantity;
+  if (opts.bidPrices?.[0] && opts.bidPrices[0] > 0) j.price = opts.bidPrices[0];
   // From a PR: its first line is the product, unit, quantity and place every single-row body uses.
   if (opts.fromPr?.lines.length) {
     const l0 = opts.fromPr.lines[0];

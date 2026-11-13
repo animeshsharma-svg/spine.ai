@@ -4,27 +4,30 @@
   "title": "Participant Remarks",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:05:35.351Z",
+  "compiledAt": "2026-11-12T13:17:20.698Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The prepared state is not the requested RFQ with two bids; it contains one invited vendor bid, so remarks from both vendors A and B cannot be verified.",
-   "The catalog cannot assert that each remarks row is associated with a specific vendor when the prepared vendor names and remark contents are not provided."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The prepared state is not the requested RFQ with two bids; it contains one invited vendor bid, so remarks from both vendors A and B cannot be verified.; The catalog cannot assert that each remarks row is associated with a specific vendor when the prepared vendor names and remark contents are not provided."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "expect_visible",
-   "expect_table"
+   "go_to",
+   "expect_text",
+   "expect_table",
+   "expect_api_value",
+   "expect_api_value"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 8319
+  "ms": 12922
  },
  "plan": {
   "title": "Participant Remarks by Vendor",
@@ -34,30 +37,67 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared event summary instead of searching the events list, as required for prepared-state cases."
+    "note": "Open the prepared RFQ with two bids on its summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "show_participant_remark_in_comparison_report",
+     "value": "On"
+    },
+    "note": "Enable vendor remarks in the comparison report as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project support is enabled for the prepared RFQ."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "participant_remarks"
     },
-    "note": "Navigate to the stage's Participant Remarks sub-tab."
+    "note": "Open the Participant Remarks sub-tab."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Participant Remarks",
-     "visible": true
+     "text": "Participant Remarks"
     },
-    "note": "Verify that the requested Participant Remarks screen is open."
+    "note": "Confirm the requested Participant Remarks view is displayed."
    },
    {
     "step": "expect_table",
     "args": {
-     "within": "Participant Remarks",
-     "min": 1
+     "min": 2,
+     "row": "Vendor"
     },
-    "note": "Verify that the remarks table contains at least one available remark entry."
+    "note": "Assert that remarks are rendered in vendor-associated rows for the two bidding vendors."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the first bidding vendor's real name is shown in the remarks view."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "secondVendorName"
+    },
+    "note": "Verify the second bidding vendor's real name is shown in the remarks view."
    }
   ]
  }

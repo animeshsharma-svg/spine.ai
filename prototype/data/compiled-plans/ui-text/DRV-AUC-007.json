@@ -1,18 +1,18 @@
 {
  "meta": {
   "caseId": "DRV-AUC-007",
-  "title": "Auction strategy selection is rejected if saved after the configuration window closes",
+  "title": "Dummy quotes are generated during the auction ranking calculation phase after close",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:49:49.485Z",
+  "compiledAt": "2026-11-12T13:27:40.093Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the RFQ fixture has a negative global charge causing the starting total to be below zero",
-   "Verify that the conversion request returned HTTP 422"
+   "Create a live RFQ bid whose copied auction starting total is below zero because of a negative global charge",
+   "Verify the conversion response has HTTP status 422"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the RFQ fixture has a negative global charge causing the starting total to be below zero; Verify that the conversion request returned HTTP 422"
+   "can only test part of this — no step for: Create a live RFQ bid whose copied auction starting total is below zero because of a negative global charge; Verify the conversion response has HTTP status 422"
   ],
   "source": "llm",
   "steps": 3,
@@ -23,22 +23,22 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 60859
+  "ms": 1111
  },
  "plan": {
-  "title": "RFQ-to-Auction Conversion Rejects Negative Starting Price",
+  "title": "DRV-AUC-007 — Reject auction conversion below global charge",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ that contains the existing bid and configured negative global charge."
+    "note": "Open the prepared live RFQ with an existing bid."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Attempt the RFQ-to-Auction conversion that should be rejected."
+    "note": "Attempt the buyer-side RFQ-to-Auction conversion."
    },
    {
     "step": "expect_message",
@@ -46,7 +46,7 @@
      "kind": "modal",
      "text": "Starting price cannot be less than the maximum global charge of RFQ bids"
     },
-    "note": "Assert that the conversion displays the required validation error dialog."
+    "note": "Assert that conversion is refused with the required error dialog."
    }
   ]
  }

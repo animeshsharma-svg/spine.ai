@@ -1,22 +1,26 @@
 {
  "meta": {
   "caseId": "DRV-BID-001",
-  "title": "Vendor submits a partial bid when partial bidding is enabled",
+  "title": "Vendor can submit discount percentage per line in Quote Mode",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T22:56:13.697Z",
+  "compiledAt": "2026-11-12T13:33:22.665Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that Vendor A is removed from the ranking column's best-offer list after rejection."
+   "Direct verification that the rejection remark is persisted in the bid record.",
+   "Direct verification that Vendor A is removed from the best-offer ranking column."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that Vendor A is removed from the ranking column's best-offer list after rejection."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Direct verification that the rejection remark is persisted in the bid record.; Direct verification that Vendor A is removed from the best-offer ranking column."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "click",
    "fill",
    "click",
@@ -26,7 +30,7 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 12477
+  "ms": 10660
  },
  "plan": {
   "title": "Reject active vendor bid",
@@ -36,7 +40,15 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab where Vendor A has an active bid."
+    "note": "Open the prepared live RFQ Responses tab with Vendor A's active bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Enable the configuration required for rejecting bids during bidding."
    },
    {
     "step": "click",
@@ -45,25 +57,23 @@
      "name": "Reject",
      "within": "Vendor A"
     },
-    "note": "Open the rejection control for Vendor A's bid."
+    "note": "Open the rejection action for Vendor A's bid."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Enter remarks",
-     "value": "Pricing too high",
-     "within": "dialog"
+     "label": "Remarks",
+     "value": "Pricing too high"
     },
-    "note": "Enter the required rejection remark."
+    "note": "Enter the rejection reason requested by the case."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Confirm",
-     "within": "dialog"
+     "name": "Confirm"
     },
-    "note": "Submit the bid rejection."
+    "note": "Confirm the bid rejection."
    },
    {
     "step": "expect_visible",
@@ -73,7 +83,7 @@
      "within": "Vendor A",
      "visible": false
     },
-    "note": "Verify the Reject control disappears after the bid is rejected."
+    "note": "Verify the Reject action no longer appears for the rejected bid."
    },
    {
     "step": "expect_text",
@@ -81,14 +91,14 @@
      "text": "Rejected",
      "within": "Vendor A"
     },
-    "note": "Verify Vendor A's bid is visibly marked Rejected."
+    "note": "Verify Vendor A's bid status changed to Rejected."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Pricing too high"
     },
-    "note": "Verify the rejection remark is visible and saved."
+    "note": "Check whether the submitted rejection remark remains visible on the resulting screen."
    }
   ]
  }

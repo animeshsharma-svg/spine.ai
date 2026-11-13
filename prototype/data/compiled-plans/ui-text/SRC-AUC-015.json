@@ -4,7 +4,7 @@
   "title": "Auction with basket auction without interval time",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:03:42.941Z",
+  "compiledAt": "2026-11-12T16:17:55.034Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,30 +17,40 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
    "fill_sheet",
    "do_on_screen",
-   "invite_vendor",
    "set_schedule",
+   "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 15258
+  "ms": 18404
  },
  "plan": {
-  "title": "Basket Auction Without Interval",
+  "title": "SRC-AUC-015 Basket Auction Without Interval",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the Single Stage creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Enables adding participants during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
@@ -49,17 +59,19 @@
      "auctionSubtype": "price",
      "awarding": "lot"
     },
-    "note": "Configure a reverse price-based auction with lot awarding."
+    "note": "Sets the event to a reverse price-based auction."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title."
+    "args": {
+     "title": "SRC-AUC-015 Basket Auction Without Interval"
+    },
+    "note": "Provides the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available reverse auction template so the pricing sheet can be configured."
+    "note": "Applies the first offered reverse-auction template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -68,40 +80,49 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product with quantity 10."
+    "note": "Adds the requested product with quantity 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the requested delivery location on the first line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet, including the requested line-item fields where available."
+    "note": "Completes remaining mandatory pricing-sheet fields before publishing."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage auction create screen, set the first line item's Plant Name or delivery location to LOC-0001, enable the basket auction option, and leave the basket auction interval time empty; stop with the basket-auction configuration visible and unchanged otherwise"
+     "goal": "configure the auction as a basket auction and leave the basket auction interval time empty; stop on the auction configuration showing the empty interval"
     },
-    "note": "Configure the basket auction and deliberately omit its interval because no dedicated catalog step controls that setting."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Add the two QA test vendors required by the scenario."
+    "note": "Performs the basket-auction configuration and deliberately leaves its interval blank, which has no dedicated catalog step."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the default Start now and 30-minute schedule."
+    "note": "Commits the required 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Adds two QA test vendors for the auction audience."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add basked auction interval time"
     },
-    "note": "Attempt publishing and assert Procol refuses it with the app's exact spelling."
+    "note": "Asserts that Publish Event is refused with Procol's stated spelling and message."
    }
   ]
  }

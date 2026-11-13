@@ -4,26 +4,32 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time saves successfully with valid new duration and end time",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:33:10.762Z",
+  "compiledAt": "2026-11-12T13:42:51.117Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set and verify the exact absolute evaluation ending time of 30 October 2026 05:49 PM; extend_time only supports relative fixed times or duration-based changes."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Set and verify the exact absolute evaluation ending time of 30 October 2026 05:49 PM; extend_time only supports relative fixed times or duration-based changes."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
-   "expect_visible",
-   "extend_time"
+   "extend_time",
+   "fill",
+   "click",
+   "expect_no_error",
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 13395
+  "ms": 24141
  },
  "plan": {
   "title": "Edit Evaluation Time on Closed RFQ",
@@ -36,20 +42,44 @@
     "note": "Open the prepared closed RFQ on its Responses tab."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Edit Evaluation Time"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ Settings action that launches the Edit Evaluation Time window."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "dialog",
-     "name": "Edit Evaluation Time",
-     "visible": true
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
     },
-    "note": "Verify that the Edit Evaluation Time window opened."
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings menu and launch the Edit Evaluation Time window."
    },
    {
     "step": "extend_time",
@@ -58,10 +88,37 @@
      "option": "custom",
      "amount": 2,
      "unit": "hours",
-     "direction": "increase",
-     "expect": "saved"
+     "confirm": false
     },
-    "note": "Save a valid two-hour evaluation duration and verify Procol reports the change was saved."
+    "note": "Enter the valid two-hour evaluation duration while leaving the dialog open for the specified ending time."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Edit evaluation ending time",
+     "value": "30 October 2026 05:49 PM"
+    },
+    "note": "Set the requested evaluation ending time in the open dialog."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Ok"
+    },
+    "note": "Save the evaluation-time changes."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify that saving did not produce an application error."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 October 2026 05:49 PM"
+    },
+    "note": "Verify that the RFQ page reflects the requested new evaluation end time."
    }
   ]
  }

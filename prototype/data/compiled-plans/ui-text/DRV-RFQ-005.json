@@ -1,22 +1,25 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-005",
-  "title": "Splitting a line item with a trailing space in description works",
+  "title": "Submitting a Request for Best Offer with zero duration or past end time is refused",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:08:52.531Z",
+  "compiledAt": "2026-11-12T13:37:50.640Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Close the prepared live RFQ and verify that the vendor price is displayed as \"100\" after closure."
+   "Verify that after the RFQ closes the displayed price is exactly \"100\" with the trailing space trimmed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Close the prepared live RFQ and verify that the vendor price is displayed as \"100\" after closure."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that after the RFQ closes the displayed price is exactly \"100\" with the trailing space trimmed."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
@@ -24,31 +27,39 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 7678
+  "ms": 11006
  },
  "plan": {
-  "title": "DRV-RFQ-005 Trailing-space price submission",
+  "title": "RFQ trailing-space price acceptance",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ required by the scenario."
+    "note": "Open the prepared live RFQ rather than creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable sealed-bid masking required by the scenario."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor-side session."
+    "note": "Move to the vendor session required for the commercial bid."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the assigned RFQ's commercial bid sheet."
+    "note": "Open the assigned RFQ pricing sheet in the vendor portal."
    },
    {
     "step": "vendor_bid",
@@ -60,7 +71,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the vendor portal accepted the bid and shows the stage as submitted."
+    "note": "Assert that Procol accepted the vendor bid and marked it Submitted."
    }
   ]
  }

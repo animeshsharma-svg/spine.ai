@@ -4,54 +4,39 @@
   "title": "Counter offer while bidding is live on both lines; the vendor does not answer",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:39:54.264Z",
+  "compiledAt": "2026-11-12T13:04:43.411Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter and verify distinct per-line bid prices of 100 and 50, then distinct counter-offer prices of 90 and 45; place_bid and place_counter_offer accept only one price value for the sheet.",
-   "Verify that the Counter Offer control was opened specifically from the Responses screen; the catalog's place_counter_offer flow operates from Master QCS."
+   "Countering both lines with distinct prices of 90 and 45 from original prices of 100 and 50; the prepared state has only one line item and one bid.",
+   "Verifying Master QCS totals for both lines; the prepared state exposes only one line item."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Enter and verify distinct per-line bid prices of 100 and 50, then distinct counter-offer prices of 90 and 45; place_bid and place_counter_offer accept only one price value for the sheet.; Verify that the Counter Offer control was opened specifically from the Responses screen; the catalog's place_counter_offer flow operates from Master QCS."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Countering both lines with distinct prices of 90 and 45 from original prices of 100 and 50; the prepared state has only one line item and one bid.; Verifying Master QCS totals for both lines; the prepared state exposes only one line item."
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "place_bid",
-   "expect_bid_submitted",
-   "go_to",
-   "expect_responses",
-   "open_master_qcs",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible",
+   "expect_text",
    "attempt",
    "switch_portal",
-   "open_master_qcs",
-   "expect_counter_offer_sent",
+   "open_prepared",
+   "expect_visible",
+   "open_prepared",
    "expect_qcs_amounts"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 85509
+  "ms": 16037
  },
  "plan": {
   "title": "Live RFQ counter offer remains pending",
@@ -61,114 +46,57 @@
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ Responses screen with the vendor's bid."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Use an RFQ pricing stage rather than the default auction stage."
+    "note": "Ensure counter offers are visible on RFQ rounds."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template before adding line items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 2
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Create the two-line event required by the scenario."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding window."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor whose bid will receive the counter offer."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit a normal vendor bid; the single supported price is used for both lines."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the vendor bid was accepted."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Reach the buyer's Responses view and confirm the vendor response is available."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 1,
-     "direct": 1
-    },
-    "note": "Verify the buyer sees one normal, non-surrogate vendor response."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid, which is the catalog-supported surface for initiating a counter offer."
+    "note": "Ensure the RFQ project flow is enabled."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send a counter offer while bidding remains live; the supported action applies one counter price across the sheet."
+    "note": "Send the closest representable buyer counter offer against the vendor's own bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Confirm the vendor bid is marked as having a counter offer initiated."
+    "note": "Assert that the buyer's Responses grid marks the vendor's bid as having a counter offer."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session open."
+    "note": "Move to the vendor portal while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ pricing round in the vendor portal."
+    "note": "Open the prepared RFQ pricing round as the vendor."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Accept Counter Offer",
-     "visible": true
+     "text": "Counter Offer",
+     "present": true
     },
-    "note": "Verify the vendor sees the pending counter offer and has not answered it."
+    "note": "Verify that the vendor sees the pending counter offer without accepting it."
    },
    {
     "step": "attempt",
@@ -179,29 +107,42 @@
      },
      "expect": "refused"
     },
-    "note": "Try a vendor revision while the counter offer is pending; the action must be refused."
+    "note": "Verify that the vendor cannot revise the bid while the counter offer is pending."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's event page without accepting the counter offer."
+    "note": "Return to the buyer's Responses screen."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reopen the buyer's Master QCS after the vendor leaves the offer unanswered."
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reload the buyer-side Responses view to verify the offer remains pending."
    },
    {
-    "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Confirm the counter offer remains pending/initiated rather than accepted."
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "visible": true
+    },
+    "note": "The revoke control indicates the counter offer is still pending and has not been answered."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared Master QCS view."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {},
-    "note": "Verify the Master QCS still shows internally consistent current rate, quantity, line amount, and total arithmetic."
+    "note": "Assert the available Master QCS line amount and total arithmetic for the single prepared line."
    }
   ]
  }

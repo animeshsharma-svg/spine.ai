@@ -4,51 +4,105 @@
   "title": "Two bids: award all 10 units to the L1 vendor (B); no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:04:33.826Z",
+  "compiledAt": "2026-11-12T16:18:50.959Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared closed RFQ has only one bid, so the two bids A 100 and B 90 and identification of Vendor B as L1 cannot be tested.",
-   "Allocating exactly 10 units to Vendor B and asserting Awarded Vendors is 1/2 cannot be tested because the prepared state has one vendor and allocate_award only supports vendor-level allocation.",
-   "Filling and submitting the proposal with the requested two-bid allocation cannot be verified for Vendor B; award_event can only submit the available lowest-bid award.",
-   "Verifying that the award is final without any approval flow cannot be distinguished from the catalog's create_po flow, which completes approval internally."
+   "Directly assert that no approval flow occurred, because the catalog has no dedicated assertion for the absence of approval routing.",
+   "Directly identify this prepared event's row in History after submission, because no event title is supplied and the prepared event is not this plan's own created event."
   ],
   "warnings": [
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The prepared closed RFQ has only one bid, so the two bids A 100 and B 90 and identification of Vendor B as L1 cannot be tested.; Allocating exactly 10 units to Vendor B and asserting Awarded Vendors is 1/2 cannot be tested because the prepared state has one vendor and allocate_award only supports vendor-level allocation.; Filling and submitting the proposal with the requested two-bid allocation cannot be verified for Vendor B; award_event can only submit the available lowest-bid award.; Verifying that the award is final without any approval flow cannot be distinguished from the catalog's create_po flow, which completes approval internally."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that no approval flow occurred, because the catalog has no dedicated assertion for the absence of approval routing.; Directly identify this prepared event's row in History after submission, because no event title is supplied and the prepared event is not this plan's own created event."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "award_event",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
    "expect_awarded",
    "create_po",
-   "expect_po_items",
-   "filter_events",
-   "expect_event_in_list"
+   "expect_po_items"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 17936
+  "ms": 18872
  },
  "plan": {
-  "title": "Award Lowest Bid and Create PO",
+  "title": "Award two-bid RFQ to L1 vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with its available bid."
+    "note": "Open the prepared closed RFQ with two bids directly on Master QCS."
    },
    {
-    "step": "award_event",
+    "step": "require_setting",
     "args": {
-     "vendor": "lowest"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Award the available lowest bid and submit the award proposal in the supported one-bid state."
+    "note": "Ensure the required eRFX project configuration is enabled for the case."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10
+    },
+    "note": "Allocate all 10 requested units to the L1 vendor, Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify one line is selected, exactly one of two vendors is awarded, and Vendor B's 10 × 90 allocation totals 900."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the completed allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Fill any mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal to finalize the award."
    },
    {
     "step": "expect_awarded",
@@ -58,7 +112,7 @@
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the supported award flow and create the purchase order."
+    "note": "Create the purchase order from the submitted award and read the resulting PO."
    },
    {
     "step": "expect_po_items",
@@ -66,19 +120,7 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Assert that the resulting purchase order contains the event's single awarded line with quantity 10."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Open the History tab where completed events should appear."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert that this plan's awarded event appears in History."
+    "note": "Verify the PO contains the single awarded line with all 10 units."
    }
   ]
  }

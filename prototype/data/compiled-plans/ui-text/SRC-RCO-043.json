@@ -4,36 +4,36 @@
   "title": "Recreate Order from a closed forward auction",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:46:05.454Z",
+  "compiledAt": "2026-11-12T13:11:04.746Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the new event has exactly the same products as the original event",
-   "Verify the new event has exactly the same participants as the original event",
-   "Verify all original event settings are preserved",
+   "Verify the recreated event has the same event kind as the closed forward auction",
+   "Verify the recreated event has the same products",
+   "Verify the recreated event has the same participants",
+   "Verify the recreated event has the same settings",
    "Determine whether an eRFX stage is recreated as a single-stage event or as a new project"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify the new event has exactly the same products as the original event; Verify the new event has exactly the same participants as the original event; Verify all original event settings are preserved; Determine whether an eRFX stage is recreated as a single-stage event or as a new project"
+   "can only test part of this — no step for: Verify the recreated event has the same event kind as the closed forward auction; Verify the recreated event has the same products; Verify the recreated event has the same participants; Verify the recreated event has the same settings; Determine whether an eRFX stage is recreated as a single-stage event or as a new project"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "click",
-   "expect_navigated",
    "expect_no_error"
   ],
   "state": "forward",
   "screen": "summary",
-  "ms": 9533
+  "ms": 16874
  },
  "plan": {
-  "title": "Recreate Order from Closed Forward Auction",
+  "title": "Recreate Closed Forward Auction",
   "steps": [
    {
     "step": "open_prepared",
@@ -43,32 +43,25 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the event."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order",
      "stage": "auction"
     },
-    "note": "Open the auction stage Settings menu and choose Recreate Order."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order"
-    },
-    "note": "Submit the recreate-order dialog using its default settings."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Verify that the recreate action reaches a new event create screen."
+    "note": "Open the auction stage Settings menu and choose Recreate Order, keeping the product's default creation behavior."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that the recreated event flow did not show an application error."
+    "note": "Verify that the recreate action did not produce an application error."
    }
   ]
  }

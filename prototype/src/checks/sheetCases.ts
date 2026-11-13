@@ -205,15 +205,38 @@ export function sheetCatalogCases(): CatalogCase[] {
 }
 
 /** The case as the prose the compilers read: every column a tester would read, in order. */
-export function sheetCaseProse(c: SheetCase): string {
-  return [
+export function sheetCaseProse(c: SheetCase, companyId = Number(process.env.SHEET_COMPANY_ID) || 198678): string {
+  const configs = c.configs && !/^(none|-|)$/i.test(c.configs.trim()) ? c.configs.trim() : "";
+  const text = [
     `${c.id} — ${c.title}`,
     `Module: ${c.module}. Scenario: ${c.scenario}. Who: ${c.role} on the ${c.portal}.`,
     c.preconditions !== "-" ? `Before you start: ${c.preconditions}` : "",
+    // the settings the runner switches for the case — the compiler writes require_setting for them, not a gap
+    configs ? `Configs needed (the runner sets these for the case):\n${configs}` : "",
     c.testData !== "-" ? `Test data: ${c.testData}` : "",
     `Steps:\n${c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
     `Expected: ${c.expected}`,
   ].filter(Boolean).join("\n");
+  return mapTestData(text, companyId);
+}
+
+/**
+ * Test data written for another company, mapped to what this company really has (config/test-data-map.json,
+ * each entry read from the company's own records first). The text says which values were mapped and why,
+ * so neither the plan nor the report hides it.
+ */
+export function mapTestData(text: string, companyId: number): string {
+  let map: Array<{ from: string; to: string; why: string }> = [];
+  try {
+    map = (JSON.parse(readFileSync(join(ROOT, "config", "test-data-map.json"), "utf8")).companies?.[String(companyId)] ?? []) as typeof map;
+  } catch {
+    return text;
+  }
+  const used = map.filter((m) => text.includes(m.from));
+  if (!used.length) return text;
+  let out = text;
+  for (const m of used) out = out.split(m.from).join(m.to);
+  return `${out}\nTest data mapped to this company: ${used.map((m) => `"${m.from}" → "${m.to}" (${m.why})`).join("; ")}.`;
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -247,12 +270,14 @@ export function findSheetCase(text: string): SheetCase | null {
 }
 
 // ── where a case starts: the set-up events of the sourcing sheet, and free-text pre-conditions ──
-interface SetupEvent { names: RegExp; state: UiState | null; technical?: boolean; auction?: boolean; setup: string; note?: string }
+interface SetupEvent { names: RegExp; state: UiState | null; technical?: boolean; auction?: boolean; setup: string; note?: string; shape?: SheetPrep["shape"] }
+/** The sourcing sheet's set-up events are all the same RFQ: 10 units, Vendor A quoted 100 and Vendor B quoted 90 (SRC-SET-002..004 test data). */
+const A100_B90 = { quantity: 10, prices: [100, 90] };
 const SETUP_EVENTS: Record<string, SetupEvent> = {
   "SRC-SET-001": { names: /live rfq \(no bids\)/i, state: "live", setup: "A live RFQ published with QA vendors invited and no bid yet." },
-  "SRC-SET-002": { names: /rfq with two bids/i, state: "two_bids", setup: "A live RFQ with a bid from each of two QA vendors." },
-  "SRC-SET-003": { names: /rfq in evaluation/i, state: "closed", setup: "A closed RFQ with a vendor's bid, just after bidding ended.", note: "the API set-up closes bidding; whether an evaluation window is still running depends on the company's default evaluation time" },
-  "SRC-SET-004": { names: /closed rfq/i, state: "closed", setup: "A closed RFQ with a vendor's bid, not awarded." },
+  "SRC-SET-002": { names: /rfq with two bids/i, state: "two_bids", shape: A100_B90, setup: "A live RFQ for 10 units where Vendor A (the first QA vendor) quoted 100 and Vendor B (the second) quoted 90." },
+  "SRC-SET-003": { names: /rfq in evaluation/i, state: "closed_two_bids", shape: A100_B90, setup: "A closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90, just after bidding ended.", note: "the API set-up closes bidding; whether an evaluation window is still running depends on the company's default evaluation time" },
+  "SRC-SET-004": { names: /closed rfq/i, state: "closed_two_bids", shape: A100_B90, setup: "A closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90, not awarded." },
   "SRC-SET-005": { names: /upcoming rfq/i, state: "upcoming", setup: "An upcoming RFQ whose bidding starts later." },
   "SRC-SET-006": { names: /live reverse auction/i, state: "live", auction: true, setup: "A live reverse auction." },
   "SRC-SET-007": { names: /live forward auction/i, state: "forward", auction: true, setup: "A live forward auction (a sell-side auction round: the price climbs) with two QA vendors invited." },
@@ -278,6 +303,8 @@ export interface SheetPrep {
   note?: string;
   /** the case starts from something the API cannot build: the run says so instead of guessing */
   unbuilt?: string;
+  /** the event's shape when the pre-conditions state it: line items, quantity, each bidder's price (uiSetup StateShape) */
+  shape?: { lines?: number; quantity?: number; prices?: number[] };
 }
 
 const WHAT: Record<string, string> = {
@@ -318,7 +345,10 @@ function stateFromWords(pre: string): UiState | null {
   if (/forward auction/.test(t)) return "forward";
   if (/dutch/.test(t) && !/convert/.test(t)) return "dutch";
   if (/knock-?out|japanese/.test(t) && !/convert/.test(t)) return "knockout";
-  if (/two bids|two vendors|2 vendors|both vendors|second vendor/.test(t) && /\bbids?\b|quoted/.test(t)) return "two_bids";
+  const twoBids = (/two bids|two vendors|2 vendors|both vendors|second vendor/.test(t) && /\bbids?\b|quoted/.test(t)) || /vendor a\b[^.]{0,40}\b(quoted|bid|bids|at)\b[^.]{0,60}\bvendor b\b/.test(t);
+  // two bids AND the window over: the awarding cases' "a closed RFQ where Vendor A quoted 100 and Vendor B quoted 90"
+  if (twoBids && /closed|evaluation|ended|is over|finished|after the close|award/.test(t)) return "closed_two_bids";
+  if (twoBids) return "two_bids";
   if (/closed|evaluation|ended|is over|finished|after the close/.test(t)) return "closed";
   // "no bid yet" / "without a bid" is the live state, not the bid state
   if (/\bno bids?\b|without (a |any )?bids?\b|not (yet )?bid|unbid/.test(t)) return /\blive\b|published/.test(t) ? "live" : "upcoming";
@@ -344,5 +374,25 @@ export function sheetPrep(c: SheetCase): SheetPrep | null {
   const technical = !!ev?.technical || /technical stage|tech\+rfq|technical \+ rfq/.test(t);
   const auction = ev?.auction ?? (/\bauction\b/.test(t) && !/convert/.test(t));
   const screen = screenFor(c, state);
-  return { prepared: true, state, screen, screenWhat: WHAT[screen] ?? screen, technical, auction: auction || undefined, why: ev?.setup ?? pre, note: ev?.note };
+  const shape = ev?.shape ?? shapeFromWords(`${pre} ${c.testData !== "-" ? c.testData : ""}`);
+  return { prepared: true, state, screen, screenWhat: WHAT[screen] ?? screen, technical, auction: auction || undefined, why: ev?.setup ?? pre, note: ev?.note, ...(shape ? { shape } : {}) };
+}
+
+/**
+ * The event's shape when the case's words state it — "a closed RFQ for 10 units where Vendor A quoted 100 and
+ * Vendor B quoted 90", "two line items", "Vendor A at 100 / 50" (per line: the first line's price is used). Only
+ * numbers the words give; nothing is guessed. Vendor A is the first QA vendor, Vendor B the second.
+ */
+export function shapeFromWords(text: string): SheetPrep["shape"] | undefined {
+  const t = text.replace(/₹\s*/g, "").replace(/,(?=\d{2,3}\b)/g, "");
+  const shape: NonNullable<SheetPrep["shape"]> = {};
+  const lines = t.match(/\b(two|three|four|2|3|4) (line items|lines|products)\b/i)?.[1];
+  if (lines) shape.lines = ({ two: 2, three: 3, four: 4 } as Record<string, number>)[lines.toLowerCase()] ?? Number(lines);
+  const qty = t.match(/\b(\d{1,5}) (units|unit|nos|pcs|pieces|kg|kgs)\b/i) ?? t.match(/\bquantity (?:of |requested )?(\d{1,5})\b/i);
+  if (qty) shape.quantity = Number(qty[1]);
+  const price = (who: string) => t.match(new RegExp(`\\bvendor ${who}\\b[^.;]{0,25}?\\b(?:quoted|quotes|bid|bids|at|priced at|offered)\\s+(\\d+(?:\\.\\d+)?)`, "i"))?.[1];
+  const a = price("a"), b = price("b");
+  if (a && b) shape.prices = [Number(a), Number(b)];
+  else if (a) shape.prices = [Number(a)];
+  return Object.keys(shape).length ? shape : undefined;
 }

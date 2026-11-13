@@ -4,26 +4,28 @@
   "title": "Asset PR → single stage reverse auction → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:14:55.178Z",
+  "compiledAt": "2026-11-12T12:59:48.711Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select and verify the exact single-stage event configuration during PR conversion beyond choosing one auction stage",
-   "Verify that a separate approver account approves the proposal when the approver is not the current buyer session",
-   "Verify the PR transitions exactly from Open to In Progress to ordered",
-   "Verify asset account assignment A is present on the created purchase order",
-   "Verify that the split produces exactly one PO per vendor with Vendor A receiving 4 units and Vendor B receiving 6 units",
-   "Verify Vendor B by company name because the case does not provide the exact QA vendor names; the plan identifies the second bidder by position"
+   "Selecting specifically an asset PR with Account Assignment A rather than another open one-line PR",
+   "Creating a single-stage reverse auction from a PR with the reverse-auction strategy explicitly selected",
+   "Setting and verifying a separate 30-minute evaluation duration in the PR create flow",
+   "Verifying that Vendor A and Vendor B use two distinct named vendor portal sessions",
+   "Allocating 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A",
+   "Creating and approving a split award proposal with one PO per awarded vendor at each vendor's own price",
+   "Opening Purchase Orders, Events History, and the originating PR to verify the PR lifecycle and event history",
+   "Verifying Asset Account Assignment A on the resulting purchase order"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Select and verify the exact single-stage event configuration during PR conversion beyond choosing one auction stage; Verify that a separate approver account approves the proposal when the approver is not the current buyer session; Verify the PR transitions exactly from Open to In Progress to ordered; Verify asset account assignment A is present on the created purchase order; Verify that the split produces exactly one PO per vendor with Vendor A receiving 4 units and Vendor B receiving 6 units; Verify Vendor B by company name because the case does not provide the exact QA vendor names; the plan identifies the second bidder by position"
+   "can only test part of this — no step for: Selecting specifically an asset PR with Account Assignment A rather than another open one-line PR; Creating a single-stage reverse auction from a PR with the reverse-auction strategy explicitly selected; Setting and verifying a separate 30-minute evaluation duration in the PR create flow; Verifying that Vendor A and Vendor B use two distinct named vendor portal sessions; Allocating 6 units to Vendor B and 4 units to Vendor A, or activity 1 to B and activity 2 to A; Creating and approving a split award proposal with one PO per awarded vendor at each vendor's own price; Opening Purchase Orders, Events History, and the originating PR to verify the PR lifecycle and event history; Verifying Asset Account Assignment A on the resulting purchase order"
   ],
   "source": "llm",
-  "steps": 30,
+  "steps": 26,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -33,9 +35,10 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "set_title",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_schedule",
-   "do_on_screen",
    "do_on_screen",
    "invite_vendor",
    "publish",
@@ -46,20 +49,15 @@
    "expect_bid_submitted",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_cell",
+   "expect_qcs_ranks",
    "start_awarding",
-   "expect_awarded",
-   "approve_award",
-   "create_po",
-   "expect_po_items",
-   "open_events_list",
-   "filter_events",
-   "expect_event_in_list"
+   "allocate_award",
+   "expect_award_counters"
   ],
-  "ms": 39190
+  "ms": 33232
  },
  "plan": {
-  "title": "Asset PR to Split-Award POs",
+  "title": "PR Auction Split Award to PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -97,47 +95,59 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the event can be published and found later."
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial awarding required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the sourcing event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the required 30-minute auction duration."
+    "note": "Commit the 30-minute event duration."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "set the auction evaluation duration to 30 minutes, save the schedule, and stop on the create screen showing the saved schedule"
+     "goal": "add one Required T&C clause on the buyer's event create screen and stop with the clause visibly added"
     },
-    "note": "The schedule domain step cannot set the separate evaluation duration, so complete that buyer-side configuration on screen."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "add one required Terms and Conditions clause and stop on the create screen showing the added clause"
-    },
-    "note": "No dedicated catalog step adds a required T&C clause, so perform and verify it on the buyer create screen."
+    "note": "Add the required T&C because no dedicated catalog step performs this action."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite exactly two QA vendors for the two competing bids."
+    "note": "Invite two QA vendors so two independent bids can be submitted without inventing real supplier names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the configured event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm publication reached a real project page."
    },
    {
     "step": "place_bid",
@@ -145,12 +155,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's conceptual first bid at 100 from the vendor portal."
+    "note": "Submit the first vendor's quote of 100 through the vendor bidding flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the first vendor bid was submitted."
+    "note": "Verify the first quote was accepted."
    },
    {
     "step": "place_bid",
@@ -158,77 +168,51 @@
      "vendor": 2,
      "price": 90
     },
-    "note": "Submit Vendor B's conceptual second bid at 90 from a separate vendor portal session."
+    "note": "Submit the second vendor's quote of 90 through the next vendor bidding flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor bid was submitted."
+    "note": "Verify the second quote was accepted."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for the bidding window to end before evaluating and awarding."
+    "note": "Wait for bidding to end before reading ranking and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid after bidding closes."
+    "note": "Open the buyer's comparison grid after bidding closes."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_qcs_ranks",
     "args": {
-     "row": "Rank",
-     "vendor": 2,
-     "number": 1
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
     },
-    "note": "Assert that the second bidder, who quoted 90, is ranked first."
+    "note": "Verify that the lower quote ranks better and that both vendor bids are ranked."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow to allocate the PR quantity."
+    "note": "Enter the award allocation screen, the closest available screen for the requested split award."
    },
    {
-    "step": "expect_awarded",
+    "step": "allocate_award",
     "args": {},
-    "note": "Verify that the award proposal was created and submitted."
+    "note": "Allocate the line to an available vendor to exercise the supported awarding flow; quantity splitting is not expressible."
    },
    {
-    "step": "approve_award",
+    "step": "expect_award_counters",
     "args": {
-     "remark": "Approved for the split award."
+     "items": "1/1",
+     "vendors": "1/2"
     },
-    "note": "Attempt approval with the available pending approver session."
-   },
-   {
-    "step": "create_po",
-    "args": {},
-    "note": "Complete the available PO creation flow after approval."
-   },
-   {
-    "step": "expect_po_items",
-    "args": {},
-    "note": "Verify that the created purchase orders contain the awarded event items."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to inspect the resulting event history."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Open the History tab where the closed auction should appear."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert that this plan's event is present in event history."
+    "note": "Assert the award screen records one selected line and one selected vendor, while documenting that the requested two-vendor split cannot be performed."
    }
   ]
  }

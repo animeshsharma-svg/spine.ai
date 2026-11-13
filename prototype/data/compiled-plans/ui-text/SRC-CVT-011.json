@@ -4,31 +4,34 @@
   "title": "Convert while vendors owe a bid justification",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:23:50.940Z",
+  "compiledAt": "2026-11-12T12:58:46.832Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or verify a vendor bid justification is pending on the closed RFQ.",
-   "Verify the exact A 100 and B 90 bid values and the specific pending-justification prompt text."
+   "The exact pending bid-justification prompt/message and the absence of the conversion-options pop-up cannot be reliably asserted because no catalog step exposes that conversion-specific UI state."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Create or verify a vendor bid justification is pending on the closed RFQ.; Verify the exact A 100 and B 90 bid values and the specific pending-justification prompt text."
+   "can only test part of this — no step for: The exact pending bid-justification prompt/message and the absence of the conversion-options pop-up cannot be reliably asserted because no catalog step exposes that conversion-specific UI state."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "attempt"
+   "require_setting",
+   "open_event_settings",
+   "expect_menu_item",
+   "event_menu",
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 70851
+  "ms": 14270
  },
  "plan": {
-  "title": "Block RFQ-to-Auction Conversion for Pending Justification",
+  "title": "Block RFQ conversion with pending bid justification",
   "steps": [
    {
     "step": "open_prepared",
@@ -38,15 +41,39 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "attempt",
+    "step": "require_setting",
     "args": {
-     "step": "event_menu",
-     "args": {
-      "item": "Convert to Auction"
-     },
-     "expect": "refused"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Attempt conversion and require the application to provide refusal evidence instead of opening the conversion pop-up."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "open_event_settings",
+    "note": "Open the stage Settings menu where Convert to Auction is offered."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Convert to Auction",
+     "enabled": true
+    },
+    "note": "Verify the conversion action is offered before attempting it."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Convert to Auction"
+    },
+    "note": "Attempt the conversion; this is the point where a pending bid justification should block the conversion flow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "justification",
+     "present": true
+    },
+    "note": "Check for visible evidence that the conversion is waiting on or blocked by bid justification."
    }
   ]
  }

@@ -4,31 +4,32 @@
   "title": "Approval chain: two approvers, both approve",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:10:49.979Z",
+  "compiledAt": "2026-11-12T16:24:41.572Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Approver 1 and Approver 2, approve the proposal in order with remarks, and verify that the proposal waits after the first approval before becoming approved after the second."
+   "Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Sign in as Approver 1 and Approver 2, approve the proposal in order with remarks, and verify that the proposal waits after the first approval before becoming approved after the second."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "award_event",
-   "expect_awarded",
    "ask_tester",
+   "expect_awarded",
    "create_po",
    "expect_po_items"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 27430
+  "ms": 13028
  },
  "plan": {
   "title": "Two-Approver Award Approval Chain",
@@ -38,38 +39,55 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared closed RFQ with the two bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_po_enabled",
+     "value": "On"
+    },
+    "note": "Enable PO creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required by the case."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Allocate the closed RFQ to the named Vendor B and submit the award proposal."
-   },
-   {
-    "step": "expect_awarded",
-    "args": {},
-    "note": "Verify that the award proposal was created and submitted for approval."
+    "note": "Allocate all requested units to Vendor B and submit the award proposal."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Approver 1 and Approver 2, approve the proposal in order with remarks, and verify that the proposal waits after the first approval before becoming approved after the second"
+     "need": "have Approver 1 and then Approver 2 approve the submitted proposal with remarks, verifying it waits after the first approval"
     },
-    "note": "The catalog has no step for separate approver identities or ordered multi-approver approval."
+    "note": "The catalog has no distinct approver-session or approval-chain step."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the proposal is approved after the tester completes the approval chain."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "After the approval chain is completed, finish the award and read back the resulting purchase order."
+    "note": "Create the purchase order after the award approval is complete."
    },
    {
     "step": "expect_po_items",
     "args": {
+     "count": 1,
      "quantity": 10
     },
-    "note": "Verify that the resulting purchase order carries the awarded quantity of 10."
+    "note": "Verify the PO contains the awarded line with the full quantity."
    }
   ]
  }

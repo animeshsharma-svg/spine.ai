@@ -4,40 +4,35 @@
   "title": "A live RFQ with a vendor's bid: \"Increase Event Time\": \"Ok\" with the values it opens with goes through",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:35.865Z",
+  "compiledAt": "2026-11-12T13:39:42.221Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly verify that all Extend Submission Time dialog values were unchanged from opening through save",
-   "unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case"
-  ],
-  "warnings": [
-   "coverage partial: unconfirmed label \"Ok\" (click) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Directly verify that all Extend Submission Time dialog values were unchanged from opening through save"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "go_to",
    "go_to",
-   "event_menu",
+   "open_event_settings",
    "click",
+   "extend_time",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9317
+  "ms": 19680
  },
  "plan": {
-  "title": "Increase RFQ Submission Time with Default Values",
+  "title": "Extend submission time with default window values on a live RFQ with a vendor bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event with one vendor bid."
+    "note": "Open the prepared event summary page"
    },
    {
     "step": "go_to",
@@ -45,30 +40,37 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage requested by the case."
+    "note": "Go to the RFQ stage tab"
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab before accessing its Settings menu."
+    "note": "Go to the Responses sub-tab"
    },
    {
-    "step": "event_menu",
-    "args": {
-     "item": "Extend Submission Time",
-     "stage": "rfq"
-    },
-    "note": "Open the RFQ Settings action and leave the Increase Event Time window open with its initial values."
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event Settings menu"
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Ok"
+     "role": "menuitem",
+     "name": "Extend Submission Time"
     },
-    "note": "Confirm the dialog without changing its prefilled values."
+    "note": "Click Extend Submission Time from the settings menu"
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "preset",
+     "preset": "15 minutes",
+     "expect": "saved"
+    },
+    "note": "Extend submission time using default preset and save"
    },
    {
     "step": "expect_toast",
@@ -76,7 +78,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify that Procol saved the unchanged submission-time values and showed the expected confirmation."
+    "note": "Assert the success toast confirms the time update"
    }
   ]
  }

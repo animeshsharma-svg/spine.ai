@@ -4,52 +4,38 @@
   "title": "Cancel the rejection pop-up",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:49:25.342Z",
+  "compiledAt": "2026-11-12T13:13:16.357Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select the specifically named RFQ in evaluation because the case provides no event title or ID and the catalog has no RFQ-evaluation state selector.",
-   "Assert the bid's exact active status after cancellation; the closest observable check is that the bid price remains visible.",
-   "The rejection-reason field label is not confirmed by the catalog; using the generic label \"Reason\" is a best-effort interaction."
+   "unconfirmed label \"Please enter reason…\" (fill) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Select the specifically named RFQ in evaluation because the case provides no event title or ID and the catalog has no RFQ-evaluation state selector.; Assert the bid's exact active status after cancellation; the closest observable check is that the bid price remains visible.; The rejection-reason field label is not confirmed by the catalog; using the generic label \"Reason\" is a best-effort interaction."
+   "coverage partial: unconfirmed label \"Please enter reason…\" (fill) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "go_to",
    "click",
-   "expect_visible",
    "fill",
    "click",
-   "expect_visible",
-   "expect_api_value"
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 13390
+  "ms": 51164
  },
  "plan": {
-  "title": "Cancel Reject Bid Dialog",
+  "title": "Cancel the rejection pop-up",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses tab where the Reject control is available."
+    "note": "Start on the responses tab of the prepared event in evaluation"
    },
    {
     "step": "click",
@@ -57,24 +43,15 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Open the rejection dialog for the submitted bid."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Reject",
-     "visible": true
-    },
-    "note": "Verify that the rejection dialog opened."
+    "note": "Click Reject Bid on the vendor's response"
    },
    {
     "step": "fill",
     "args": {
-     "label": "Reason",
-     "value": "Test rejection reason"
+     "label": "Please enter reason…",
+     "value": "Not compliant"
     },
-    "note": "Enter the required reason using the best-effort generic field label."
+    "note": "Type a reason in the rejection modal"
    },
    {
     "step": "click",
@@ -82,23 +59,15 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the rejection instead of submitting it."
+    "note": "Click Cancel to close the rejection prompt"
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Reject",
-     "visible": false
+     "text": "Responses",
+     "present": true
     },
-    "note": "Verify that the rejection dialog closed without submission."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify that the submitted bid remains visible after cancellation, the closest available check that it was not removed."
+    "note": "Assert nothing changed and the bid remains active on the responses page"
    }
   ]
  }

@@ -4,54 +4,67 @@
   "title": "Award a service activity-wise",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:08:30.738Z",
+  "compiledAt": "2026-11-12T16:23:16.496Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit a proposal assigning activity 1 to Vendor A and activity 2 to Vendor B at each vendor's rate",
-   "Verify that the split award creates exactly two purchase orders, one per vendor"
+   "Create and submit the proposal while preserving the specified activity-wise split after manual allocation",
+   "Verify that the result creates exactly two purchase orders, one for each vendor, with each vendor receiving its assigned activity"
   ],
   "warnings": [
-   "can only test part of this — no step for: Submit a proposal assigning activity 1 to Vendor A and activity 2 to Vendor B at each vendor's rate; Verify that the split award creates exactly two purchase orders, one per vendor"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Create and submit the proposal while preserving the specified activity-wise split after manual allocation; Verify that the result creates exactly two purchase orders, one for each vendor, with each vendor receiving its assigned activity"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
    "start_awarding",
    "allocate_award",
    "allocate_award",
    "expect_award_counters"
   ],
   "unbuilt": "A service RFQ. the API set-up does not build service events yet",
-  "ms": 8403
+  "ms": 12774
  },
  "plan": {
-  "title": "Award service activities to two vendors",
+  "title": "Award service activities to separate vendors",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing closed event with bids for awarding."
+    "note": "Open an existing closed RFQ with bids, letting the runner select the fitting prepared event rather than inventing an event title."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen for the closed RFQ."
+    "note": "Enter the awarding screen for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {
-     "vendor": "A"
+     "vendor": "A",
+     "line": 1
     },
-    "note": "Attempt to allocate an activity to Vendor A."
+    "note": "Allocate activity 1 to Vendor A."
    },
    {
     "step": "allocate_award",
     "args": {
-     "vendor": "B"
+     "vendor": "B",
+     "line": 2
     },
-    "note": "Attempt to allocate the other activity to Vendor B."
+    "note": "Allocate activity 2 to Vendor B."
    },
    {
     "step": "expect_award_counters",
@@ -59,7 +72,7 @@
      "items": "2/2",
      "vendors": "2/2"
     },
-    "note": "Verify that both activities and both vendors are represented in the allocation counters."
+    "note": "Verify that both activities and both vendors are selected in the activity-wise award."
    }
   ]
  }

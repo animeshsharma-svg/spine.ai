@@ -4,25 +4,26 @@
   "title": "Material PR → single stage reverse auction → complete award to L1 → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:23:37.174Z",
+  "compiledAt": "2026-11-12T12:59:09.009Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact single-stage reverse-auction strategy and its named reverse template cannot be selected or asserted on the PR creation path.",
-   "A separate 30-minute evaluation duration cannot be configured through set_schedule.",
-   "Adding exactly one required T&C clause cannot be performed or asserted.",
-   "The PR status transition to In Progress and ordered cannot be asserted after PO creation.",
-   "Opening the dedicated Purchase Orders list cannot be navigated; create_po and expect_po_items only verify the created PO contents."
+   "Sign in as the designated approver as a separate user and approve the proposal in that user's session",
+   "Set or verify the reverse auction tick size is exactly 1 during the PR single-stage configuration",
+   "Add and verify exactly one Required T&C clause on the PR-created event",
+   "Assert the PR transitions from Open to In Progress to ordered",
+   "Open Purchase Orders and verify the resulting PO there",
+   "Verify the awarded event's evaluation state transition separately from its presence in History"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: The exact single-stage reverse-auction strategy and its named reverse template cannot be selected or asserted on the PR creation path.; A separate 30-minute evaluation duration cannot be configured through set_schedule.; Adding exactly one required T&C clause cannot be performed or asserted.; The PR status transition to In Progress and ordered cannot be asserted after PO creation.; Opening the dedicated Purchase Orders list cannot be navigated; create_po and expect_po_items only verify the created PO contents."
+   "can only test part of this — no step for: Sign in as the designated approver as a separate user and approve the proposal in that user's session; Set or verify the reverse auction tick size is exactly 1 during the PR single-stage configuration; Add and verify exactly one Required T&C clause on the PR-created event; Assert the PR transitions from Open to In Progress to ordered; Open Purchase Orders and verify the resulting PO there; Verify the awarded event's evaluation state transition separately from its presence in History"
   ],
   "source": "llm",
-  "steps": 28,
+  "steps": 30,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -32,6 +33,8 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
@@ -53,7 +56,7 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 20653
+  "ms": 24563
  },
  "plan": {
   "title": "Material PR to Reverse Auction PO",
@@ -94,28 +97,44 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Provide the required event title while allowing the runner to generate a unique title."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the supported 30-minute event schedule."
+    "note": "Commit the required 30-minute bidding duration."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors so two distinct vendor bids can be submitted."
+    "note": "Invite exactly two QA test vendors for the two vendor bids."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction after the supported prerequisites are complete."
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
@@ -127,36 +146,37 @@
     "args": {
      "price": 100
     },
-    "note": "Submit the first vendor's portal bid at 100."
+    "note": "Have the first invited vendor submit a quote of 100 through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the first vendor's bid was accepted."
+    "note": "Verify the first vendor's bid was submitted."
    },
    {
     "step": "place_bid",
     "args": {
      "price": 90
     },
-    "note": "Submit a different vendor's portal bid at 90."
+    "note": "Have the second invited vendor submit a quote of 90 through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor's bid was accepted."
+    "note": "Verify the second vendor's bid was submitted."
    },
    {
     "step": "close_event",
     "args": {
-     "natural": true
+     "natural": true,
+     "maxWaitMinutes": 36
     },
-    "note": "Wait for the bidding window to end before evaluating and awarding."
+    "note": "Wait for the bidding window to end before comparing and awarding bids."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid after bidding has ended."
+    "note": "Open the buyer's comparison grid after bidding closes."
    },
    {
     "step": "expect_qcs_ranks",
@@ -165,55 +185,55 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Assert that the lower bid ranks better and at least two vendors are ranked."
+    "note": "Verify that the lower bid ranks first, representing Vendor B's rank-1 outcome without inventing vendor names."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "lowest"
     },
-    "note": "Allocate the complete award to the lowest-ranked vendor."
+    "note": "Award the complete lot to the lowest bidder."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify the award proposal was created and submitted."
+    "note": "Confirm the award proposal was created and submitted."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for purchase order creation."
+     "remark": "Approved for PR to PO test"
     },
-    "note": "Approve the submitted proposal with the required remark."
+    "note": "Approve the pending proposal with the required remark when the current buyer is the configured approver."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete approval and create the purchase order."
+    "note": "Complete PO creation from the awarded proposal."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 1
     },
-    "note": "Verify one PO contains exactly the awarded PR line."
+    "note": "Verify that one PO carries exactly the awarded PR line."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to inspect the event's history placement."
+    "note": "Return to the events list to verify the event is represented in History."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after the event has ended and been awarded."
+    "note": "Open the History tab after the completed award flow."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify this plan's event appears in event history."
+    "note": "Assert that this plan's event appears in event History."
    }
   ]
  }

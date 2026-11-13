@@ -4,42 +4,24 @@
   "title": "Two bids: award all 10 units to Vendor A (not the lowest); approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:05:23.516Z",
+  "compiledAt": "2026-11-12T16:19:14.235Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the approver, open the submitted proposal, reject it with a remark, verify that no purchase order is created, and verify the buyer can restart awarding after rejection."
+   "Sign in as the approver, open the submitted proposal, reject it with a remark, and verify that no purchase order is created."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Sign in as the approver, open the submitted proposal, reject it with a remark, verify that no purchase order is created, and verify the buyer can restart awarding after rejection."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Sign in as the approver, open the submitted proposal, reject it with a remark, and verify that no purchase order is created."
   ],
   "source": "llm",
-  "steps": 28,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "switch_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "place_bid",
-   "expect_bid_submitted",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "open_master_qcs",
+   "require_setting",
    "expect_qcs_vendors",
+   "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_ranks",
    "start_awarding",
@@ -48,153 +30,90 @@
    "click",
    "expect_navigated",
    "do_on_screen",
-   "expect_text",
    "ask_tester",
-   "open_master_qcs",
-   "start_awarding",
-   "expect_award_counters"
+   "go_to",
+   "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 22314
+  "ms": 12193
  },
  "plan": {
-  "title": "SRC-AWD-012 — Award non-lowest bid and reject proposal",
+  "title": "SRC-AWD-012 — Award Vendor A and reject proposal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared closed RFQ with two bids directly on Master QCS."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Use an RFQ stage rather than the default auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the RFQ stage before selecting its template and line items."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the pricing template required for the RFQ sheet."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "quantity": "10"
-    },
-    "note": "Create one line with the requested quantity of 10 units."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a bidding schedule before publishing."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two vendors so the event can receive the two competing bids."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit the higher-priced bid that represents Vendor A’s 10-unit bid."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the first vendor’s bid was accepted."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {
-     "price": 90
-    },
-    "note": "Submit the second, lower bid for another invited vendor so Vendor A is not the lowest bidder."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the second bid was accepted."
-   },
-   {
-    "step": "close_event",
-    "args": {},
-    "note": "Close bidding so awarding is available."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer comparison grid for the two submitted bids."
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 2,
-     "realNames": true
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Verify both vendor columns are present with real names."
+    "note": "Confirm both bidding vendors are present before awarding."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": "Vendor A",
+     "number": 10
+    },
+    "note": "Confirm Vendor A's bid covers the 10 requested units."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
+     "vendor": "Vendor A",
+     "equals": "100"
     },
-    "note": "Verify Vendor A’s bid rate is 100."
+    "note": "Confirm Vendor A's rate is 100 per unit."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the lower-priced bid ranks ahead of Vendor A."
+    "note": "Confirm the lower bid ranks first while preserving the case's choice to award Vendor A instead."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen."
+    "note": "Open the awarding page for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {
-     "vendor": "portal"
+     "vendor": "Vendor A",
+     "quantity": 10,
+     "line": 1
     },
-    "note": "Allocate the full 10-unit line to the portal bidder, Vendor A, rather than the lower bid."
+    "note": "Allocate all 10 units to Vendor A, the non-lowest bidder."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "1/1",
-     "vendors": "1/2"
+     "vendors": "1/2",
+     "proposal": 1000
     },
-    "note": "Verify the line is fully selected and only one of two vendors is awarded."
+    "note": "Verify one of two vendors is awarded and the proposal total is 10 × 100 = 1,000."
    },
    {
     "step": "click",
@@ -214,41 +133,32 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "fill the required proposal fields and submit the proposal; stop on the submitted proposal screen showing that it is awaiting approval"
+     "goal": "on the proposal page, verify the allocation shows Vendor A with 10 units at 100 each for a total of 1,000, fill all required proposal fields, and submit the proposal; stop when the submission is confirmed"
     },
-    "note": "Complete proposal fields that have no dedicated catalog step and submit the proposal."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Approval in Progress"
-    },
-    "note": "Confirm the submitted proposal is awaiting approval."
+    "note": "Complete the required proposal fields and submit the buyer-side proposal, including the allocation expected by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, verify no purchase order is created, return to the buyer, and verify awarding can be started again from Master QCS"
+     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, and confirm that no purchase order is created"
     },
-    "note": "The approver’s separate login and rejection workflow are not available to the catalog."
+    "note": "The catalog has no approver login or proposal-rejection step."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "After the tester completes the rejection and returns to the buyer, reopen Master QCS to check the recovery path."
-   },
-   {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Attempt to restart awarding after the rejected proposal."
-   },
-   {
-    "step": "expect_award_counters",
+    "step": "go_to",
     "args": {
-     "items": "0/1",
-     "vendors": "0/2"
+     "screen": "master_qcs"
     },
-    "note": "Assert that a fresh awarding flow is available with no current allocation."
+    "note": "Return to Master QCS after the rejection to check that the event is awardable again."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Start Awarding",
+     "visible": true
+    },
+    "note": "Verify the buyer can start awarding again after the rejected proposal."
    }
   ]
  }

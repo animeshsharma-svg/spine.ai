@@ -4,12 +4,11 @@
   "title": "Upload Sheet partially filled",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:19:43.784Z",
+  "compiledAt": "2026-11-12T12:57:26.865Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Upload a specifically malformed sheet containing a product row with no quantity; the available upload fixtures do not guarantee that content.",
-   "Populate the Product, Product Variant, Quantity Requested, and Delivery location cells with the exact values from the case before uploading."
+   "Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,7 +17,7 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Upload a specifically malformed sheet containing a product row with no quantity; the available upload fixtures do not guarantee that content.; Populate the Product, Product Variant, Quantity Requested, and Delivery location cells with the exact values from the case before uploading."
+   "can only test part of this — no step for: Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
   ],
   "source": "llm",
   "steps": 6,
@@ -28,36 +27,36 @@
    "set_title",
    "select_template",
    "upload",
-   "expect_error"
+   "expect_message"
   ],
-  "ms": 9678
+  "ms": 9768
  },
  "plan": {
-  "title": "Single-stage RFQ partially filled upload",
+  "title": "Single-stage RFQ partial sheet upload",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the required Single Stage creation screen."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Switch the single-stage event type from the default RFP to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title so the upload test is not blocked by an unrelated missing-title validation."
+    "note": "Provide the mandatory event title before interacting with the sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template so the product sheet and its upload controls are available."
+    "note": "Apply an RFQ template so the pricing sheet and Upload Sheet control are available."
    },
    {
     "step": "upload",
@@ -65,14 +64,15 @@
      "label": "Upload Sheet",
      "file": "sample.csv"
     },
-    "note": "Upload the closest available sheet fixture; the catalog cannot ensure it contains the required missing-quantity row."
+    "note": "Attempt the sheet upload using the available CSV fixture; the catalog cannot ensure its contents are partially filled."
    },
    {
-    "step": "expect_error",
+    "step": "expect_message",
     "args": {
-     "contains": "Sheet partially filled, please check again."
+     "kind": "error",
+     "text": "Sheet partially filled, please check again."
     },
-    "note": "Assert that Procol flags the uploaded sheet as partially filled with the expected validation message."
+    "note": "Verify that Procol refuses or flags the partially filled sheet with the expected message."
    }
   ]
  }

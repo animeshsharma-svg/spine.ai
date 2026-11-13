@@ -4,7 +4,7 @@
   "title": "All Vendors: Search for a non‑existent vendor shows no results",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:50.879Z",
+  "compiledAt": "2026-11-12T13:43:51.146Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
@@ -21,13 +21,17 @@
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "expect_line_items",
    "click",
    "click",
    "fill",
@@ -35,10 +39,10 @@
    "expect_text",
    "expect_text"
   ],
-  "ms": 9601
+  "ms": 19812
  },
  "plan": {
-  "title": "Single-stage RFQ Non-existent Vendor Search",
+  "title": "Single-stage RFQ non-existent vendor search",
   "steps": [
    {
     "step": "open_create",
@@ -46,6 +50,30 @@
      "path": "single-stage"
     },
     "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required for the participant window scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Apply the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
@@ -57,14 +85,16 @@
    {
     "step": "set_title",
     "args": {
-     "title": "Non-existent Vendor Search Test"
+     "title": "Non-existent vendor search test"
     },
-    "note": "Provide the mandatory event title for the create flow."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the available RFQ pricing template."
+    "args": {
+     "name": "Buy Template"
+    },
+    "note": "Apply the requested RFQ buying template."
    },
    {
     "step": "add_line_items",
@@ -76,12 +106,19 @@
     "note": "Add the specified product with quantity 10."
    },
    {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the requested product was added before opening participants."
+   },
+   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants panel."
+    "note": "Open the participants panel."
    },
    {
     "step": "click",
@@ -89,7 +126,7 @@
      "role": "button",
      "name": "All Vendors"
     },
-    "note": "Open the All Vendors window."
+    "note": "Open the All Vendors window used for vendor searching."
    },
    {
     "step": "fill",
@@ -97,7 +134,7 @@
      "label": "Search Vendors",
      "value": "NonExistentVendorXYZ"
     },
-    "note": "Search for the non-existent vendor named in the case."
+    "note": "Search for the specified non-existent vendor."
    },
    {
     "step": "press",
@@ -112,7 +149,7 @@
      "text": "No vendors to show",
      "present": true
     },
-    "note": "Verify the vendor list remains empty."
+    "note": "Verify the empty-state message remains visible."
    },
    {
     "step": "expect_text",

@@ -4,40 +4,65 @@
   "title": "Settings menu on a live Auction",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:33:23.346Z",
+  "compiledAt": "2026-11-12T13:01:48.301Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Open or create the specified live reverse Auction with two bids at A 100 and B 90 from the fixed prepared RFQ state.",
-   "Verify the Settings menu options specifically in the live Auction state, including Recreate Order, Extend Submission Time, Withdraw, Rejected Bids, Order Activity, Edit Evaluation Time, Send Bulk Counter Offer, and the absence of Reschedule Event and Convert to Auction."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open or create the specified live reverse Auction with two bids at A 100 and B 90 from the fixed prepared RFQ state.; Verify the Settings menu options specifically in the live Auction state, including Recreate Order, Extend Submission Time, Withdraw, Rejected Bids, Order Activity, Edit Evaluation Time, Send Bulk Counter Offer, and the absence of Reschedule Event and Convert to Auction."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "expect_settings_menu"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 9391
+  "ms": 10889
  },
  "plan": {
-  "title": "SRC-MNU-006 — Live Auction Settings Menu",
+  "title": "Live Auction Settings Menu",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Opens the closest available prepared event without searching or creating a different event."
+    "note": "Opens the existing prepared event rather than searching for or creating another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensures Withdraw is available for the menu check."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures the tenant supports the configured event flow."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "auction"
+    },
+    "note": "Moves to the live auction stage whose Settings menu is under test."
    },
    {
     "step": "expect_settings_menu",
     "args": {
-     "offered": [
+     "enabled": [
       "Recreate Order",
       "Extend Submission Time",
       "Withdraw",
@@ -51,7 +76,7 @@
       "Convert to Auction"
      ]
     },
-    "note": "Attempts the requested menu assertion, but the available prepared event is not the required live Auction state."
+    "note": "Verifies every expected enabled action is offered and the two actions that must not appear are absent."
    }
   ]
  }

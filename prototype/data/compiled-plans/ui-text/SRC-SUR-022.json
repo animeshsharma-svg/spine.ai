@@ -4,70 +4,87 @@
   "title": "Surrogate bid with price 95.75",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:43.784Z",
+  "compiledAt": "2026-11-12T13:18:45.092Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Adding a reference to the surrogate bid because place_surrogate_bid has no reference argument or assertion."
+   "Adding a reference during the surrogate bid because place_surrogate_bid has no reference argument",
+   "Verifying the numeric total because the test does not state the line-item quantity"
   ],
   "warnings": [
-   "can only test part of this — no step for: Adding a reference to the surrogate bid because place_surrogate_bid has no reference argument or assertion."
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Adding a reference during the surrogate bid because place_surrogate_bid has no reference argument; Verifying the numeric total because the test does not state the line-item quantity"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "open_participants",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "open_master_qcs",
-   "expect_qcs_cell",
-   "expect_qcs_amounts"
+   "expect_qcs_cell"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 7986
+  "ms": 10852
  },
  "plan": {
-  "title": "Surrogate bid with decimal price",
+  "title": "Surrogate bid accepts decimal price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ on its Participants tab."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project capability required by the setup."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the Participants list where Vendor A's Add Bid control is available."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
+     "vendor": "Vendor A",
      "price": 95.75
     },
-    "note": "Enter and save the buyer's surrogate bid at the requested decimal price."
+    "note": "Enter and save the buyer's surrogate bid for Vendor A at the requested decimal price."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that Procol accepted the surrogate bid."
+    "note": "Assert that the submitted bid was accepted."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid to verify the submitted price and totals."
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the comparison grid to verify the submitted decimal rate."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "number": 95.75
+     "vendor": "Vendor A",
+     "equals": "95.75"
     },
-    "note": "Assert that the bid rate is displayed as 95.75."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "rate": "RFQ Rate"
-    },
-    "note": "Assert that line amounts and the sum total are calculated from the submitted rate and quantity."
+    "note": "Assert that the buyer's surrogate bid is displayed as the exact 95.75 RFQ rate."
    }
   ]
  }

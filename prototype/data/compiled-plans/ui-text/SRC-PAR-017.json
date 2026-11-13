@@ -4,12 +4,13 @@
   "title": "Filter participants by city after publish",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:57:24.473Z",
+  "compiledAt": "2026-11-12T13:06:22.836Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting the specific Delivery location Plant Name (LOC-0001) in the pricing sheet is not directly expressible by a domain step.",
-   "The Participants screen's Filter by city control and its exact filtering and clearing behavior require do_on_screen."
+   "Select the intended city because the test case does not specify which city to choose.",
+   "Assert that every filtered vendor belongs to the selected city.",
+   "Clear the city filter and verify that the complete participant list is restored."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,26 +19,28 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Selecting the specific Delivery location Plant Name (LOC-0001) in the pricing sheet is not directly expressible by a domain step.; The Participants screen's Filter by city control and its exact filtering and clearing behavior require do_on_screen."
+   "can only test part of this — no step for: Select the intended city because the test case does not specify which city to choose.; Assert that every filtered vendor belongs to the selected city.; Clear the city filter and verify that the complete participant list is restored."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "open_participants",
-   "do_on_screen",
-   "expect_visible"
+   "expect_visible",
+   "expect_participant_count"
   ],
-  "ms": 10967
+  "ms": 16787
  },
  "plan": {
   "title": "Filter participants by city after publish",
@@ -47,19 +50,30 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Start the single-stage event creation flow."
+    "note": "Open the single-stage creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Set the event type to RFQ and use whole-lot awarding."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the event can be published."
+    "args": {
+     "title": "Filter participants by city"
+    },
+    "note": "Provide the required event title before publishing."
    },
    {
     "step": "select_template",
@@ -73,54 +87,63 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER product and set its requested quantity to 10."
+    "note": "Add the specified CYLINDER product and requested quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the remaining pricing-sheet fields required for publication."
+    "note": "Complete the remaining pricing-sheet fields, including the product variant."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the required delivery location from the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Commit a valid event schedule required for publishing."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Invite the mapped QA vendors required for the published Participants list."
+    "note": "Add the mapped QA vendors to the event."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ event."
+    "note": "Publish the configured RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the published stage's Participants list, the subject under test."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the buyer's Participants screen, use Filter by city to select a city, verify that only vendors from that city are listed, clear the city filter, and verify that all invited vendors are listed again"
-    },
-    "note": "Perform and verify the city filtering and clearing behavior that no catalog assertion can express directly."
+    "note": "Open the published stage's Participants list, the subject of the case."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Participants",
+     "label": "Filter by city",
      "visible": true
     },
-    "note": "Confirm the run ends on the Participants screen."
+    "note": "Verify that the participant city-filter control is present."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Confirm that the published participant list contains vendors before any unsupported filtering action."
    }
   ]
  }

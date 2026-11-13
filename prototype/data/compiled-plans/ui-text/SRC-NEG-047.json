@@ -4,72 +4,92 @@
   "title": "Vendor tries to accept after the evaluation time ended",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:41:02.795Z",
+  "compiledAt": "2026-11-12T13:05:39.993Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or locate the specifically named RFQ in evaluation from the events list and send the counter offer near the end of its evaluation window",
-   "Wait for the evaluation window to end as a timed transition"
+   "Place the counter offer specifically near the end of the evaluation period",
+   "Wait until the evaluation period ends before attempting acceptance"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or locate the specifically named RFQ in evaluation from the events list and send the counter offer near the end of its evaluation window; Wait for the evaluation window to end as a timed transition"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Place the counter offer specifically near the end of the evaluation period; Wait until the evaluation period ends before attempting acceptance"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
-   "expect_counter_offer_sent",
    "attempt",
-   "open_master_qcs",
+   "open_prepared",
    "expect_qcs_cell"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 12733
+  "ms": 19808
  },
  "plan": {
-  "title": "Reject counter-offer acceptance after evaluation",
+  "title": "Counter offer acceptance after evaluation ends",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ response state with the vendor's normal bid."
+    "note": "Open the prepared RFQ evaluation state on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable counter offers on RFQs as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "place_counter_offer",
     "args": {
-     "price": 90
+     "vendor": "Vendor A"
     },
-    "note": "Create the buyer's counter offer on the vendor's own bid."
-   },
-   {
-    "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify that the counter offer is pending before the vendor attempts acceptance."
+    "note": "Send a counter offer to Vendor A's normal bid; the case does not specify a counter price, so the step's default is used."
    },
    {
     "step": "attempt",
     "args": {
      "step": "accept_counter_offer",
+     "args": {
+      "vendor": "Vendor A"
+     },
      "expect": "refused"
     },
-    "note": "Attempt acceptance from the vendor side and require Procol to show that acceptance is refused after the round is closed."
+    "note": "Attempt acceptance from Vendor A's supplier portal and require evidence that the counter offer is no longer accepted."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Return to the buyer comparison grid to inspect the bid after the refused acceptance."
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to the prepared Master QCS to inspect the original bid after the refused acceptance."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "key": "bidPrice"
+     "vendor": "Vendor A",
+     "number": 100
     },
-    "note": "Verify the original bid price remains in the buyer's grid rather than being replaced by the counter offer."
+    "note": "Verify Vendor A's original rate remains 100 after the failed acceptance."
    }
   ]
  }

@@ -4,30 +4,32 @@
   "title": "Vendor view when event in evaluation",
   "group": "SRC-VEN",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:21:09.789Z",
+  "compiledAt": "2026-11-12T13:22:37.618Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The plan can verify that the vendor sees counter-offer information, but it cannot prove a counter offer can arrive asynchronously while the RFQ is in evaluation.",
-   "unconfirmed vendor-portal label: Read-only bid",
-   "unconfirmed vendor-portal label: waiting for the buyer's decision"
+   "The prepared-state catalog does not provide an RFQ-in-evaluation event state, so the exact evaluation-state behavior cannot be established.",
+   "The catalog cannot verify the future capability that counter offers can still arrive; it can only inspect visible Counter Offer text or controls."
   ],
   "warnings": [
-   "can only test part of this — no step for: The plan can verify that the vendor sees counter-offer information, but it cannot prove a counter offer can arrive asynchronously while the RFQ is in evaluation.; unconfirmed vendor-portal label: Read-only bid; unconfirmed vendor-portal label: waiting for the buyer's decision"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared-state catalog does not provide an RFQ-in-evaluation event state, so the exact evaluation-state behavior cannot be established.; The catalog cannot verify the future capability that counter offers can still arrive; it can only inspect visible Counter Offer text or controls."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 11327
+  "ms": 15096
  },
  "plan": {
   "title": "Vendor view during RFQ evaluation",
@@ -37,7 +39,15 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ event in its existing evaluation state without creating or changing the event."
+    "note": "Open the prepared RFQ event that is closest to the configured scenario while keeping the buyer session available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are enabled for the tenant before inspecting the vendor view."
    },
    {
     "step": "switch_portal",
@@ -45,7 +55,7 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to the separate vendor session while keeping the buyer session open."
+    "note": "Switch to Vendor A's separate supplier-portal session without leaving the buyer session."
    },
    {
     "step": "vendor_open_event",
@@ -59,21 +69,21 @@
     "args": {
      "text": "Read-only bid"
     },
-    "note": "Assert that the vendor's bid is shown as read-only during evaluation."
+    "note": "Assert that the vendor's bid is presented as read-only."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "waiting for the buyer's decision"
     },
-    "note": "Assert that the vendor is told the RFQ is awaiting the buyer's decision."
+    "note": "Assert the vendor-facing waiting-for-decision status."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Counter Offer"
     },
-    "note": "Assert that counter-offer information remains visible to the vendor."
+    "note": "Assert that the vendor view exposes the counter-offer concept or status."
    }
   ]
  }

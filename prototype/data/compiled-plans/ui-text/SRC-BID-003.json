@@ -4,39 +4,34 @@
   "title": "A closed event cannot be bid on",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:11.387Z",
+  "compiledAt": "2026-11-12T16:25:19.360Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The prepared closed RFQ has one bid rather than the specified two bids from Vendor A at 100 and Vendor B at 90, so those exact bid values and participants cannot be asserted."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: The prepared closed RFQ has one bid rather than the specified two bids from Vendor A at 100 and Vendor B at 90, so those exact bid values and participants cannot be asserted."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "attempt",
-   "expect_disabled",
-   "expect_visible",
-   "expect_text"
+   "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12646
+  "ms": 7853
  },
  "plan": {
-  "title": "Closed RFQ Rejects Vendor Bidding",
+  "title": "Closed RFQ is read-only in vendor portal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ without creating or searching for another event."
+    "note": "Open the prepared closed RFQ without creating or searching for another event."
    },
    {
     "step": "switch_portal",
@@ -44,33 +39,33 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Continue in a separate vendor portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while leaving the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the closed RFQ's pricing sheet as Vendor A."
+    "note": "Open the prepared closed RFQ in the vendor portal on its pricing sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed"
+    },
+    "note": "Assert that the vendor view identifies the RFQ as closed."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
      "args": {
-      "price": 80,
+      "price": 110,
       "submit": false
      },
      "expect": "refused"
     },
-    "note": "Try changing the bid price and require the vendor portal to refuse the edit because the event is closed."
-   },
-   {
-    "step": "expect_disabled",
-    "args": {
-     "control": "Price"
-    },
-    "note": "Assert that the vendor's price field is read-only."
+    "note": "Attempt to change the price without submitting; the read-only sheet must refuse the edit."
    },
    {
     "step": "expect_visible",
@@ -79,14 +74,7 @@
      "name": "Submit Quote",
      "visible": false
     },
-    "note": "Assert that submitting a quote is not available for the closed event."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Closed"
-    },
-    "note": "Assert that the vendor portal displays the closed status."
+    "note": "Assert that the closed vendor sheet does not offer Submit Quote."
    }
   ]
  }

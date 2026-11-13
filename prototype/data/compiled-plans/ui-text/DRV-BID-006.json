@@ -1,30 +1,35 @@
 {
  "meta": {
   "caseId": "DRV-BID-006",
-  "title": "Global rank and landed cost calculations correctly incorporate loading factor",
+  "title": "Rejecting a bid updates the ranking totals correctly",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T22:58:58.574Z",
+  "compiledAt": "2026-11-12T13:34:03.431Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "A closed RFQ with two active bids from Vendor A and Vendor B at totals 500 and 450; the prepared state has only one bid.",
-   "Rejecting Vendor B and verifying that Vendor B becomes Rejected while Vendor A becomes rank 1 with total 500 and the best-offer indicator moves to Vendor A. The available prepared state cannot establish the required two-vendor comparison."
+   "The requested 5-unit fixture and Vendor A total of 500 cannot be established because the fixed prepared closed_two_bids state contains 10 units."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: A closed RFQ with two active bids from Vendor A and Vendor B at totals 500 and 450; the prepared state has only one bid.; Rejecting Vendor B and verifying that Vendor B becomes Rejected while Vendor A becomes rank 1 with total 500 and the best-offer indicator moves to Vendor A. The available prepared state cannot establish the required two-vendor comparison."
+   "can only test part of this — no step for: The requested 5-unit fixture and Vendor A total of 500 cannot be established because the fixed prepared closed_two_bids state contains 10 units."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "expect_responses",
-   "open_prepared",
-   "expect_qcs_vendors"
+   "click",
+   "expect_visible",
+   "click",
+   "expect_text",
+   "expect_text",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 61235
+  "ms": 16003
  },
  "plan": {
   "title": "Rejecting a bid updates ranking totals",
@@ -34,29 +39,81 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses tab on the prepared closed RFQ."
+    "note": "Open the existing closed RFQ on the buyer's Responses tab."
    },
    {
-    "step": "expect_responses",
+    "step": "click",
     "args": {
-     "count": 1
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor B"
     },
-    "note": "Record the available response state; the prepared RFQ exposes only one bid rather than the two required by the case."
+    "note": "Reject Vendor B's bid from its response row."
    },
    {
-    "step": "open_prepared",
+    "step": "expect_visible",
     "args": {
-     "screen": "master_qcs"
+     "role": "dialog",
+     "visible": true
     },
-    "note": "Open the available Master QCS view to inspect the prepared bid comparison."
+    "note": "Confirm that the rejection confirmation dialog opened."
    },
    {
-    "step": "expect_qcs_vendors",
+    "step": "click",
     "args": {
-     "count": 1,
-     "realNames": true
+     "text": "Reject",
+     "within": "dialog"
     },
-    "note": "Assert the prepared QCS contains one real vendor column, confirming that the required two-vendor ranking scenario is unavailable."
+    "note": "Confirm rejection of Vendor B's bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "within": "Vendor B"
+    },
+    "note": "Verify Vendor B's row now shows the rejected status."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Price"
+    },
+    "note": "Verify the best-offer indicator is present after the rejection."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the comparison grid after rejection to inspect the surviving ranked bid."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify the remaining active bid is ranked according to the recalculated RFQ amount."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "equals": "1"
+    },
+    "note": "Verify Vendor A is now rank 1."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's displayed amount and total are recalculated consistently from its rate and quantity."
    }
   ]
  }

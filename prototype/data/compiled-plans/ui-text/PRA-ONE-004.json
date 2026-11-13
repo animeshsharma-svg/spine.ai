@@ -4,7 +4,7 @@
   "title": "A user removed from the team is not shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:37.015Z",
+  "compiledAt": "2026-11-12T13:48:19.164Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
@@ -15,45 +15,53 @@
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "do_on_screen",
    "expect_text"
   ],
-  "ms": 12361
+  "ms": 14983
  },
  "plan": {
-  "title": "Removed team member hidden from PR assignee list",
+  "title": "Removed PR team member hidden from assignee list",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration for this case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area."
+    "note": "Open the Purchase Requisitions area where PR-1 can be selected."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open purchase requisitions tab."
+    "note": "Stay on the Open tab, the only tab where PR assignment actions are available."
    },
    {
     "step": "select_pr",
     "args": {
-     "pr": "PR-1",
-     "items": 1
+     "pr": "PR-1"
     },
-    "note": "Select one line item from PR-1 so assignment can be opened."
+    "note": "Locate PR-1 and select it so its assignment controls become available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the selected PR-1 line item, click the Assign control next to Upload PRs, search for User I in the Search a user field, and stop with the assignee results visible."
+     "goal": "With PR-1 selected, click the Assign person icon next to Upload PRs, wait for the Search a user box and user list, type User I's name, and stop with the list showing that User I is not present."
     },
-    "note": "Perform the buyer-specific assignment interaction that has no dedicated catalog step."
+    "note": "Perform the assignment search and verify the removed team member is excluded from the results."
    },
    {
     "step": "expect_text",
@@ -61,7 +69,7 @@
      "text": "User I",
      "present": false
     },
-    "note": "Assert that the removed team member is not shown in the assignee results."
+    "note": "Assert that User I is absent from the displayed assignee search results."
    }
   ]
  }

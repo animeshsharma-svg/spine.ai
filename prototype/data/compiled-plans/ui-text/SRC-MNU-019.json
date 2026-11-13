@@ -4,37 +4,36 @@
   "title": "Unlock Bids after evaluation",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:35:10.302Z",
+  "compiledAt": "2026-11-12T13:02:24.429Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Provide or open an existing RFQ with bids locked by default, currently in evaluation, and with technical evaluation completed",
-   "Verify the exact bid-unlocking state transition beyond observing visible currency values in the Responses and Master QCS screens",
-   "unconfirmed label \"₹\" (expect_text) — not among the labels known from the app nor in the case"
+   "Reliably selecting an existing RFQ that simultaneously has bids locked by default, is in evaluation, and has completed technical evaluation."
   ],
   "warnings": [
    "added open_prepared(master_qcs) — the API built this case's state",
-   "coverage partial: unconfirmed label \"₹\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Provide or open an existing RFQ with bids locked by default, currently in evaluation, and with technical evaluation completed; Verify the exact bid-unlocking state transition beyond observing visible currency values in the Responses and Master QCS screens"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Reliably selecting an existing RFQ that simultaneously has bids locked by default, is in evaluation, and has completed technical evaluation."
   ],
   "source": "llm",
   "steps": 11,
   "stepNames": [
    "open_prepared",
-   "ask_tester",
+   "require_setting",
    "open_event_settings",
-   "expect_menu_item",
+   "expect_enabled",
    "click",
    "go_to",
-   "expect_text",
+   "expect_api_value",
    "go_to",
-   "expect_text",
+   "expect_qcs_cell",
    "click",
    "expect_download"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 19386
+  "ms": 34663
  },
  "plan": {
   "title": "Unlock Bids after technical evaluation",
@@ -47,24 +46,24 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "open an existing RFQ event with bids locked by default that is in evaluation and has completed technical evaluation, leaving the buyer on its project page"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "The catalog cannot create or select an event with this exact locked-bid and completed-evaluation state."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the stage Settings menu where Unlock Bids should be offered."
+    "note": "Open the stage Settings menu where Unlock Bids is offered."
    },
    {
-    "step": "expect_menu_item",
+    "step": "expect_enabled",
     "args": {
-     "item": "Unlock Bids",
-     "enabled": true
+     "control": "Unlock Bids"
     },
-    "note": "Verify that Unlock Bids is available and enabled in the required evaluation state."
+    "note": "Verify Unlock Bids is available and clickable in the current state."
    },
    {
     "step": "click",
@@ -72,35 +71,37 @@
      "role": "menuitem",
      "name": "Unlock Bids"
     },
-    "note": "Execute the bid-unlocking action requested by the case."
+    "note": "Unlock the RFQ bids."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to Responses to check that bid prices are visible after unlocking."
+    "note": "Navigate to Responses to verify that bid prices are visible after unlocking."
    },
    {
-    "step": "expect_text",
+    "step": "expect_api_value",
     "args": {
-     "text": "₹"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "A visible currency value provides evidence that prices are no longer masked in Responses."
+    "note": "Assert that a bid price is now displayed in Responses."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Navigate to Master QCS to check the comparison grid after unlocking."
+    "note": "Navigate to Master QCS to verify the unlocked commercial value there."
    },
    {
-    "step": "expect_text",
+    "step": "expect_qcs_cell",
     "args": {
-     "text": "₹"
+     "row": "RFQ Rate",
+     "key": "bidPrice"
     },
-    "note": "A visible currency value provides evidence that prices are no longer masked in Master QCS."
+    "note": "Assert that the RFQ rate is visible in the Master QCS grid."
    },
    {
     "step": "click",
@@ -108,7 +109,7 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the report to verify the report control works after bids are unlocked."
+    "note": "Download the report from the event page."
    },
    {
     "step": "expect_download",

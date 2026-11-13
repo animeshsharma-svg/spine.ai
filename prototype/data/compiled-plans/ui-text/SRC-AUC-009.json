@@ -4,125 +4,70 @@
   "title": "Auction with Knockout auction with an invalid base price",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:03:13.622Z",
+  "compiledAt": "2026-11-12T16:16:49.668Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Configure a fresh single-stage auction with the Knockout strategy and enter base price 0; the catalog only supports rank, price, and traffic-light strategies for fresh single-stage auctions."
+   "Configure a fresh single-stage auction with the Knockout strategy.",
+   "Enter a base price of 0 for the Knockout auction.",
+   "Click Publish Event and assert the refusal message \"Please enter valid base price\"."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_title — publishing without a title is refused",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Configure a fresh single-stage auction with the Knockout strategy and enter base price 0; the catalog only supports rank, price, and traffic-light strategies for fresh single-stage auctions."
+   "added set_title — publishing without a title is refused",
+   "cannot test this case yet — no step can observe: Configure a fresh single-stage auction with the Knockout strategy.; Enter a base price of 0 for the Knockout auction.; Click Publish Event and assert the refusal message \"Please enter valid base price\"."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 5,
   "stepNames": [
    "open_create",
-   "configure_single_stage",
    "set_title",
-   "ask_tester",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_sheet_cell",
-   "expect_sheet_cell",
-   "set_schedule",
-   "invite_vendor",
-   "expect_publish_blocked"
+   "require_setting",
+   "configure_single_stage",
+   "expect_no_error"
   ],
-  "ms": 21634
+  "ms": 12332
  },
  "plan": {
-  "title": "SRC-AUC-009 Knockout auction invalid base price",
+  "title": "Knockout auction invalid base price",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the single-stage creation flow specified by the case."
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Switch the event type to Auction; the catalog cannot select Knockout here."
+    "note": "Reaches the auction configuration screen, but Rank is the closest expressible strategy because Knockout is not supported by the catalog for fresh creation."
    },
    {
-    "step": "set_title",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Provide the mandatory event title so the later publish attempt reaches the auction validation."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "select the Knockout auction strategy on this fresh Auction create screen and enter base price 0"
-    },
-    "note": "This is the missing configuration required by the case."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available auction template so the pricing sheet can be populated."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
-    },
-    "note": "Add the specified product with quantity 10."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the remaining required pricing-sheet fields."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the first line item's delivery location."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
-    },
-    "note": "Verify the requested plant location was retained."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the required 30-minute schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite the two vendors required by the scenario."
-   },
-   {
-    "step": "expect_publish_blocked",
-    "args": {
-     "because": "Please enter valid base price"
-    },
-    "note": "Attempt publication and assert refusal for the invalid knockout base price."
+    "note": "Confirms the reachable auction configuration screen loaded without an application error."
    }
   ]
  }

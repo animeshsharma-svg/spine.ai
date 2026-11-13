@@ -4,11 +4,13 @@
   "title": "Vendor does not see other vendors' deleted line items in Open PR pool",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:07:07.274Z",
+  "compiledAt": "2026-11-12T13:36:57.768Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that every remaining line item shown is specifically one Vendor B is invited to, rather than merely asserting that the deleted item is absent.",
+   "Establish a live RFQ in which the buyer has deleted QA_Platform Item A before the test begins",
+   "Verify that the vendor sees every line item they are invited to, because the expected invited-item set is not specified",
+   "Confirm the Open PR pool is sourced from the deleted event line item rather than another vendor-portal data source",
    "unconfirmed label \"QA_Platform Item A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
@@ -16,7 +18,7 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "coverage partial: unconfirmed label \"QA_Platform Item A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Verify that every remaining line item shown is specifically one Vendor B is invited to, rather than merely asserting that the deleted item is absent."
+   "can only test part of this — no step for: Establish a live RFQ in which the buyer has deleted QA_Platform Item A before the test begins; Verify that the vendor sees every line item they are invited to, because the expected invited-item set is not specified; Confirm the Open PR pool is sourced from the deleted event line item rather than another vendor-portal data source"
   ],
   "source": "llm",
   "steps": 5,
@@ -29,10 +31,10 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9005
+  "ms": 10657
  },
  "plan": {
-  "title": "Vendor Open PR Deleted Item Visibility",
+  "title": "Vendor Open PR deleted line-item visibility",
   "steps": [
    {
     "step": "open_prepared",
@@ -47,14 +49,14 @@
      "to": "vendor",
      "vendor": "Vendor B"
     },
-    "note": "Continue in the vendor portal as the named Vendor B."
+    "note": "Switch to Vendor B’s supplier-portal session, which is the subject of the test."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Open the live RFQ in Vendor B's event overview."
+    "note": "Open the live RFQ in Vendor B’s portal."
    },
    {
     "step": "go_to",
@@ -62,7 +64,7 @@
      "screen": "tab",
      "name": "Open PR"
     },
-    "note": "Open the vendor-side Open PR tab requested by the case."
+    "note": "Navigate to the requested Open PR tab if the vendor portal exposes it."
    },
    {
     "step": "expect_text",
@@ -70,7 +72,7 @@
      "text": "QA_Platform Item A",
      "present": false
     },
-    "note": "Assert that the deleted line item is not visible in Vendor B's Open PR view."
+    "note": "Assert that the deleted line item is not visible in Vendor B’s Open PR view."
    }
   ]
  }

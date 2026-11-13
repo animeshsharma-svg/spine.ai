@@ -4,80 +4,79 @@
   "title": "Choose an existing event to test Recreate Order",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:21:35.311Z",
+  "compiledAt": "2026-11-12T13:00:35.681Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the selected event is specifically an RFQ or an auction as an either/or condition",
-   "Record the selected event title and RFX number in Test Data",
-   "Directly verify the event was not created from a purchase request; an enabled Recreate Order action is used as the closest observable proxy"
+   "Verify that the selected event was not created from a purchase request",
+   "Record the selected event's RFX number in Test Data"
   ],
   "warnings": [
-   "moved open_event to the front — the steps after it act on that event's page",
-   "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Assert that the selected event is specifically an RFQ or an auction as an either/or condition; Record the selected event title and RFX number in Test Data; Directly verify the event was not created from a purchase request; an enabled Recreate Order action is used as the closest observable proxy"
+   "can only test part of this — no step for: Verify that the selected event was not created from a purchase request; Record the selected event's RFX number in Test Data"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
-   "open_event",
    "open_events_list",
    "expect_events_list",
    "filter_events",
+   "open_first_event",
    "expect_text",
-   "expect_responses",
-   "expect_menu_item"
+   "expect_api_value",
+   "expect_responses"
   ],
-  "ms": 14063
+  "ms": 20465
  },
  "plan": {
-  "title": "Select Existing Closed Event for Recreate Order",
+  "title": "Select Existing Closed RFQ for Recreate Order",
   "steps": [
-   {
-    "step": "open_event",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Open a suitable existing historical event rather than creating a new one."
-   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the buyer's Events list."
+    "note": "Open the Events list where the Live, History, Drafts, and Recurring tabs are available."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list and its state tabs rendered without an error."
+    "note": "Confirm the events list rendered successfully before selecting an existing event."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Limit selection to historical events, where a closed event should be available."
+    "note": "Restrict selection to historical events, where a closed RFQ can be found."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "History",
+     "containing": "RFQ"
+    },
+    "note": "Open the first historical event whose card identifies it as an RFQ."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Closed"
+     "text": "Closed",
+     "present": true
     },
-    "note": "Verify the selected event is closed."
+    "note": "Verify the selected event displays a closed status badge."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Read and verify the selected event's title for the test data."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1
+     "atLeast": 1,
+     "stage": "rfq"
     },
-    "note": "Verify that at least one vendor response/bid exists on the selected event."
-   },
-   {
-    "step": "expect_menu_item",
-    "args": {
-     "item": "Recreate Order",
-     "enabled": true
-    },
-    "note": "Verify Recreate Order is enabled, providing the closest available check that the event is eligible and not a PR-created event."
+    "note": "Verify that the closed RFQ has at least one vendor response/bid."
    }
   ]
  }

@@ -4,41 +4,83 @@
   "title": "A live RFQ with a vendor's bid: \"Extend Submission Time\" opens the \"Increase Event Time\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:00.904Z",
+  "compiledAt": "2026-11-12T13:39:22.540Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
-   "expect_visible",
    "expect_options",
    "expect_visible",
    "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9973
+  "ms": 10893
  },
  "plan": {
-  "title": "Extend Submission Time dialog on live RFQ",
+  "title": "RFQ Extend Submission Time Window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as the buyer."
+    "note": "Open the API-prepared live RFQ with one vendor bid; this is the required starting screen for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the requested RFQ counter-offer visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "go_to",
@@ -46,14 +88,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage whose settings contain Extend Submission Time."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the Settings menu is available."
+    "note": "Open the Responses tab specified by the scenario."
    },
    {
     "step": "event_menu",
@@ -61,16 +103,7 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the Increase Event Time window without applying a change."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "heading",
-     "name": "Increase Event Time",
-     "visible": true
-    },
-    "note": "Verify the expected dialog is open."
+    "note": "Choose the RFQ Settings action and leave the Increase Event Time window open without confirming it."
    },
    {
     "step": "expect_options",
@@ -81,9 +114,10 @@
       "an hour",
       "Custom",
       "Fixed time"
-     ]
+     ],
+     "only": true
     },
-    "note": "Verify all required duration and time-mode options are offered."
+    "note": "Assert that the opened window offers exactly the required duration and timing options."
    },
    {
     "step": "expect_visible",
@@ -92,7 +126,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the dialog has a Cancel button."
+    "note": "Verify the dialog provides a Cancel button."
    },
    {
     "step": "expect_visible",
@@ -101,7 +135,7 @@
      "name": "Ok",
      "visible": true
     },
-    "note": "Verify the dialog has an Ok button; no button is pressed, so the event remains unchanged."
+    "note": "Verify the dialog provides an Ok button."
    }
   ]
  }

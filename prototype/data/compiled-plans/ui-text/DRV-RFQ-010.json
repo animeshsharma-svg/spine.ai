@@ -1,29 +1,27 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-010",
-  "title": "Vendor cannot see other vendors' sealed commercial prices while RFQ is live",
+  "title": "Lot total quantity equals sum of its line items after split",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:09:45.321Z",
+  "compiledAt": "2026-11-12T13:38:20.425Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Have Vendor B submit the competing bid from a separate vendor portal session rather than as a buyer-entered surrogate bid",
-   "Verify that commercial masking is enabled as a tenant setting",
-   "Accept every possible masking representation beyond the literal '---' text",
+   "The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'.",
    "unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Have Vendor B submit the competing bid from a separate vendor portal session rather than as a buyer-entered surrogate bid; Verify that commercial masking is enabled as a tenant setting; Accept every possible masking representation beyond the literal '---' text"
+   "can only test part of this — no step for: The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "expect_api_value",
@@ -31,60 +29,54 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 15863
+  "ms": 10031
  },
  "plan": {
-  "title": "RFQ vendor price masking",
+  "title": "Vendor sealed RFQ price visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared RFQ state with two vendors that have already submitted bids."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the published RFQ participants list where an additional invited vendor can receive a surrogate bid."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Create a competing bid for another invited vendor so the vendor view has another commercial response to conceal."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the surrogate bid was accepted."
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable sealed commercial bidding for the tenant as required by the case."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Continue in Vendor A's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the assigned RFQ's commercial bid view as the vendor."
+    "note": "Open the assigned live RFQ's commercial bid view."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Assert that the vendor's own bid price is visible in the commercial view."
+    "note": "Verify Vendor A can see its own submitted bid price."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "---"
     },
-    "note": "Assert that the competing commercial price is represented by the literal masking marker."
+    "note": "Verify the other vendor's commercial price is displayed as masked."
    }
   ]
  }

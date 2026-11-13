@@ -4,32 +4,36 @@
   "title": "Increase Event Time: Cancel button closes Increase Event Time window without changing end time",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:10.200Z",
+  "compiledAt": "2026-11-12T13:40:26.116Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The absence of any toast after cancellation cannot be asserted because the catalog has no negative toast assertion.",
-   "unconfirmed label \"Increase Event Time\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Directly assert that no toast appears after clicking Cancel"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: The absence of any toast after cancellation cannot be asserted because the catalog has no negative toast assertion."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that no toast appears after clicking Cancel"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "remember",
    "event_menu",
+   "expect_visible",
    "click",
-   "expect_text",
+   "expect_visible",
    "expect_remembered"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 12603
+  "ms": 12444
  },
  "plan": {
   "title": "Cancel Increase Event Time",
@@ -39,37 +43,71 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one vendor bid."
+    "note": "Open the prepared live RFQ summary containing the vendor's bid."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Open the RFQ Responses view specified by the case."
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "remember",
     "args": {
-     "key": "rfqEndTime",
+     "key": "original_end_time",
      "text": "Bidding Ends At"
     },
-    "note": "Capture the currently displayed RFQ end time before opening the extension dialog."
+    "note": "Capture the event end-time display before opening the extension dialog."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Extend Submission Time"
+     "item": "Extend Submission Time",
+     "stage": "rfq"
     },
-    "note": "Open the Increase Event Time window from the RFQ settings menu."
+    "note": "Open the RFQ's Increase Event Time window from Settings."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Confirm that the submission-time dialog opened."
    },
    {
     "step": "click",
@@ -77,24 +115,23 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the time extension without saving changes."
+    "note": "Cancel the time extension without submitting a new end time."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Increase Event Time",
-     "present": false
+     "visible": false
     },
-    "note": "Assert that the Increase Event Time window closed."
+    "note": "Verify that the Increase Event Time window closed."
    },
    {
     "step": "expect_remembered",
     "args": {
-     "key": "rfqEndTime",
-     "same": true,
-     "text": "Bidding Ends At"
+     "key": "original_end_time",
+     "same": true
     },
-    "note": "Assert that the displayed RFQ end time is unchanged."
+    "note": "Verify that the RFQ end-time display is unchanged after cancellation."
    }
   ]
  }

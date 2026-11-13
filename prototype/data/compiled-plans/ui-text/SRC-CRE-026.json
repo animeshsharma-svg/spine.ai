@@ -4,63 +4,67 @@
   "title": "Forward auction: Quantity Requested = letters \"abc\"",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:18:06.755Z",
+  "compiledAt": "2026-11-12T16:30:49.766Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Selecting or asserting Plant Name (LOC-0001) for the added product is not supported by the catalog."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Selecting or asserting Plant Name (LOC-0001) for the added product is not supported by the catalog."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "expect_error"
   ],
-  "ms": 11899
+  "ms": 10455
  },
  "plan": {
-  "title": "SRC-CRE-026 Forward Auction Rejects Letter Quantity",
+  "title": "Forward Auction Rejects Non-Numeric Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Opens the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "price",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Switch the event type to a forward auction; price-based auction is the closest explicit forward-auction configuration."
+    "note": "Changes the event type from the default RFP to Auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-026 Forward Auction Quantity Validation"
+     "title": "SRC-CRE-026 Forward Auction Quantity Letters"
     },
-    "note": "Provide the required event title before configuring the sheet."
+    "note": "Provides the mandatory event title required for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template so the pricing sheet is rendered."
+    "note": "Applies the first available auction template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
@@ -69,14 +73,14 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "abc"
     },
-    "note": "Add the requested product and enter the invalid letters value in Quantity Requested; the step exits the cell with Tab and records the inline validation."
+    "note": "Adds the specified product and enters the invalid letters value into its quantity during line-item creation."
    },
    {
     "step": "expect_error",
     "args": {
-     "contains": "Quantity"
+     "contains": "quantity"
     },
-    "note": "Assert that the application rejects the non-numeric quantity and reports a quantity-related error immediately."
+    "note": "Confirms the inline validation rejects the non-numeric Quantity Requested value."
    }
   ]
  }

@@ -4,33 +4,35 @@
   "title": "eRFX Auction project: reject a bid during evaluation",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:19.907Z",
+  "compiledAt": "2026-11-12T13:01:38.219Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Reject Vendor A's bid during evaluation with a reason",
-   "Verify the rejected bid leaves the ranking",
-   "Verify the rejected bid appears in Settings > Rejected Bids as a result of the rejection"
+   "Reliably select an existing eRFX Auction-only project by title and confirm it is in evaluation; the available event opener only chooses a fitting existing event.",
+   "A dedicated catalog action for rejecting a specific bid with a reason and verifying its removal from ranking."
   ],
   "warnings": [
    "added open_prepared(responses) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Reject Vendor A's bid during evaluation with a reason; Verify the rejected bid leaves the ranking; Verify the rejected bid appears in Settings > Rejected Bids as a result of the rejection"
+   "can only test part of this — no step for: Reliably select an existing eRFX Auction-only project by title and confirm it is in evaluation; the available event opener only chooses a fitting existing event.; A dedicated catalog action for rejecting a specific bid with a reason and verifying its removal from ranking."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "do_on_screen",
    "event_menu",
+   "expect_text",
    "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 11225
+  "ms": 26454
  },
  "plan": {
-  "title": "Reject Auction Bid During Evaluation",
+  "title": "Reject eRFX Auction Bid During Evaluation",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,19 +42,43 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's Responses screen for the existing eRFX Auction-only project during evaluation, reject Vendor A's bid with a reason and stop when the bid is shown as rejected and no longer appears in the ranking."
+    },
+    "note": "Perform the buyer-only rejection flow that has no dedicated catalog step."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Rejected Bids",
      "stage": "auction"
     },
-    "note": "Open the auction stage's Rejected Bids view, the closest available observation related to the requested outcome."
+    "note": "Open the auction stage's Rejected Bids view to verify the rejected bid is recorded."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rejected Bids"
+     "text": "Rejected Bids",
+     "present": true
     },
-    "note": "Assert that the Rejected Bids view opened, although the catalog cannot perform or verify the rejection itself."
+    "note": "Assert that the Rejected Bids view opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor A",
+     "present": true
+    },
+    "note": "Assert that Vendor A is listed among the rejected bids."
    }
   ]
  }

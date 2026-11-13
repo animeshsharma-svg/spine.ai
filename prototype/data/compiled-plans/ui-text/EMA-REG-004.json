@@ -4,40 +4,152 @@
   "title": "A company WITHOUT email approvals is not affected",
   "group": "EMA-REG",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:11.184Z",
+  "compiledAt": "2026-11-12T13:47:19.113Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Use a company with email approvals disabled and send an event for approval",
-   "Verify approvers receive in-app notifications or plain emails without Approve/Reject buttons",
-   "Verify there are no bounce-backs across the approver, colleague, deactivated-user, and outside-address mailboxes",
-   "Access the named users' mailboxes or sign in as the required users"
+   "Open Asha's mailbox and verify the in-app/plain-email notification, absence of Approve and Reject buttons, and absence of bounce-backs.",
+   "Verify the exact DLF Hospitality UAT company context and the second test company without a named QA company ID."
   ],
   "warnings": [
-   "can only test part of this — no step for: Use a company with email approvals disabled and send an event for approval; Verify approvers receive in-app notifications or plain emails without Approve/Reject buttons; Verify there are no bounce-backs across the approver, colleague, deactivated-user, and outside-address mailboxes; Access the named users' mailboxes or sign in as the required users"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Open Asha's mailbox and verify the in-app/plain-email notification, absence of Approve and Reject buttons, and absence of bounce-backs.; Verify the exact DLF Hospitality UAT company context and the second test company without a named QA company ID."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 18,
   "stepNames": [
+   "open_create",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "award_event",
+   "expect_awarded",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 13330
+  "ms": 22766
  },
  "plan": {
-  "title": "Email Approvals Off Regression",
+  "title": "Email approvals off does not add mailbox approval actions",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a minimal event that can proceed through award approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals",
+     "value": "Off"
+    },
+    "note": "Configure the company as required before creating the approval-triggering event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EMA-REG-004 Email Approvals Off"
+    },
+    "note": "Provide the mandatory project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the event can receive a bid and be awarded."
+   },
+   {
+    "step": "select_template",
+    "note": "Configure the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required for publishing and bidding."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the event so it can receive a response."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the event reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "note": "Submit the vendor response needed for awarding."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "note": "Close bidding so the event is eligible for awarding."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Create and submit the award proposal, the closest catalog action to sending an event for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "note": "Confirm the award proposal was created and submitted."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "use the second test company with email approvals off, send an event for approval, and inspect the approvers' in-app notifications and mailboxes to verify notifications still arrive without Approve or Reject buttons or bounce-backs"
+     "need": "open Asha's mailbox and the approver notification, then verify the expected notification appears without Approve or Reject buttons and without any bounce-back"
     },
-    "note": "The catalog has no step for configuring tenant email approvals, initiating an approval request, or inspecting the required user mailboxes."
+    "note": "Mailbox and notification behavior require access to another user's mailbox, which the catalog cannot provide."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "After the tester completes the missing workflow, verify the current screen has no visible crash or server error."
+    "step": "expect_text",
+    "args": {
+     "text": "Submit Proposal",
+     "present": true
+    },
+    "note": "Keep a final assertion on the approval proposal screen after the mailbox check."
    }
   ]
  }

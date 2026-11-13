@@ -4,14 +4,10 @@
   "title": "Auction with no auction strategy",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:03:49.516Z",
+  "compiledAt": "2026-11-12T16:17:54.180Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select the specific reverse auction template intended by the case; the catalog can select only a provided template substring or the first offered template.",
-   "Add the item specifically at Plant Name (LOC-0001); the catalog can add the named product and quantity but cannot target that plant/location value.",
-   "Select the exact Vendor A and Vendor B identities because the case provides placeholders rather than catalog-resolvable vendor names; the catalog can invite two vendors."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
@@ -20,48 +16,58 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Select the specific reverse auction template intended by the case; the catalog can select only a provided template substring or the first offered template.; Add the item specifically at Plant Name (LOC-0001); the catalog can add the named product and quantity but cannot target that plant/location value.; Select the exact Vendor A and Vendor B identities because the case provides placeholders rather than catalog-resolvable vendor names; the catalog can invite two vendors."
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 12,
   "stepNames": [
    "open_create",
-   "do_on_screen",
+   "require_setting",
+   "click",
    "set_title",
    "configure_single_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 14823
+  "ms": 14446
  },
  "plan": {
-  "title": "Auction Without Strategy Is Refused",
+  "title": "Auction publish without strategy",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the single-stage event creation flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "change Event Type from RFP to Auction in the configuration drawer while leaving the auction strategy unselected, then stop on the auction create screen"
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
     },
-    "note": "The catalog's configuration step always applies a default strategy, so this preserves the missing-strategy condition required by the test."
+    "note": "Allows vendors to be added during event creation as required by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "radio",
+     "name": "Auction"
+    },
+    "note": "Switches the event type to Auction without selecting an auction strategy."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-AUC-016 Auction No Strategy"
+     "title": "SRC-AUC-016 Auction Without Strategy"
     },
-    "note": "Provide the mandatory event title while keeping the strategy omission intact."
+    "note": "Completes the required title field so the strategy omission is the only publish blocker."
    },
    {
     "step": "configure_single_stage",
@@ -73,7 +79,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template; the exact reverse template cannot be selected without a known template name."
+    "note": "Applies the first offered auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -82,33 +88,42 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity to satisfy the line-item prerequisite."
+    "note": "Adds the requested product with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the auction pricing sheet before publishing."
+    "note": "Completes the pricing sheet required before publishing."
    },
    {
-    "step": "set_schedule",
+    "step": "set_sheet_cell",
     "args": {
-     "minutes": 30
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Sets the first line item's requested delivery location."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors to satisfy the participant prerequisite."
+    "note": "Adds the two QA vendors required for the publish setup."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the 30-minute start-now schedule."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please select a valid auction strategy"
     },
-    "note": "Assert that Publish Event is refused specifically because no valid auction strategy was selected."
+    "note": "Attempts Publish Event and asserts refusal because the auction strategy was left unselected."
    }
   ]
  }

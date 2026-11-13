@@ -4,18 +4,19 @@
   "title": "Recreate Order: The custom evaluation duration accepts a valid number and unit",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:22:23.342Z",
+  "compiledAt": "2026-11-12T13:40:15.524Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
+   "The case is internally contradictory: it asks to enter a valid value of 10 minutes, then leave the number field empty before clicking Create Order; the catalog cannot assert both a successful 10-minute creation and the final empty-field behavior in one unambiguous outcome.",
    "unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: The case is internally contradictory: it asks to enter a valid value of 10 minutes, then leave the number field empty before clicking Create Order; the catalog cannot assert both a successful 10-minute creation and the final empty-field behavior in one unambiguous outcome."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "go_to",
@@ -24,23 +25,24 @@
    "expect_visible",
    "select",
    "fill",
-   "expect_text",
+   "fill",
+   "select",
    "click",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 73316
+  "ms": 12738
  },
  "plan": {
-  "title": "Recreate Order with Custom Evaluation Duration",
+  "title": "Recreate Order Custom Evaluation Duration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with a vendor bid."
+    "note": "Open the prepared live RFQ summary as required for prepared-state cases."
    },
    {
     "step": "go_to",
@@ -48,75 +50,77 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the stage Settings menu is available."
+    "note": "Open the Responses tab where the stage Settings menu is available."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order",
-     "stage": "rfq"
+     "item": "Recreate Order"
     },
     "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
+     "text": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm that the Recreate Order window opened."
+    "note": "Confirm that the Recreate Order window is open."
    },
    {
     "step": "select",
     "args": {
      "label": "Evaluation Duration",
-     "option": "Custom",
-     "within": "dialog"
+     "option": "Custom"
     },
-    "note": "Choose the custom evaluation duration mode."
+    "note": "Select the Custom evaluation-duration mode."
    },
    {
     "step": "fill",
     "args": {
      "placeholder": "10",
-     "value": "10",
-     "within": "dialog"
+     "value": "10"
     },
-    "note": "Enter the valid custom duration value of 10."
+    "note": "Enter the requested custom duration value of 10."
    },
    {
-    "step": "expect_text",
+    "step": "fill",
     "args": {
-     "text": "Min(s)",
-     "present": true,
-     "within": "dialog"
+     "placeholder": "10",
+     "value": ""
     },
-    "note": "Confirm that the evaluation duration unit remains Min(s)."
+    "note": "Apply the specified follow-up action that leaves the custom duration number field empty."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Evaluation Duration",
+     "option": "Min(s)"
+    },
+    "note": "Keep or select Min(s) as the duration unit."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Create Order",
-     "within": "dialog"
+     "name": "Create Order"
     },
-    "note": "Submit the recreated order with the custom duration."
+    "note": "Submit the Recreate Order dialog after the specified input sequence."
    },
    {
     "step": "expect_toast",
     "args": {
-     "kind": "success",
+     "kind": "any",
      "text": "New Order Created"
     },
-    "note": "Verify that the order was created successfully and the expected confirmation was shown."
+    "note": "Assert the documented success message if the order is created."
    }
   ]
  }

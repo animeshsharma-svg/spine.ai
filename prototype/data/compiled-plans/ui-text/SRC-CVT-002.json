@@ -4,75 +4,64 @@
   "title": "Convert to Auction — reuse participants only",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:22:12.114Z",
+  "compiledAt": "2026-11-12T12:58:10.895Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select only the reuse participants option and exclude RFQ quotes and weights.",
-   "Continue the conversion, fill the auction configuration and schedule, and publish the converted auction.",
-   "Verify that Vendors A and B are present with no RFQ prices as starting bids.",
-   "unconfirmed label \"reuse RFQ quotes\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"reuse weights\" (expect_text) — not among the labels known from the app nor in the case"
+   "Ticking 'reuse participants only' in the conversion pop-up via a specific catalog step",
+   "Filling the auction configuration and schedule in the generated auction creation tab after conversion"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"reuse RFQ quotes\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"reuse weights\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Select only the reuse participants option and exclude RFQ quotes and weights.; Continue the conversion, fill the auction configuration and schedule, and publish the converted auction.; Verify that Vendors A and B are present with no RFQ prices as starting bids."
+   "can only test part of this — no step for: Ticking 'reuse participants only' in the conversion pop-up via a specific catalog step; Filling the auction configuration and schedule in the generated auction creation tab after conversion"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "expect_text",
-   "expect_text",
+   "open_event_settings",
+   "click",
+   "do_on_screen",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 16514
+  "ms": 12754
  },
  "plan": {
-  "title": "Convert RFQ with participant reuse",
+  "title": "Convert RFQ to Auction - reuse participants only",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Start from the prepared state representing the closed RFQ with bids"
    },
    {
-    "step": "event_menu",
-    "args": {
-     "item": "Convert to Auction",
-     "stage": "rfq"
-    },
-    "note": "Open the conversion flow from the RFQ stage settings."
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event settings menu on the project page"
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "reuse RFQ quotes"
+     "role": "menuitem",
+     "name": "Convert to Auction"
     },
-    "note": "Verify that the conversion dialog offers reuse of RFQ quotes."
+    "note": "Click Convert to Auction in the settings menu"
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "reuse participants"
-    },
-    "note": "Verify that the conversion dialog offers reuse of participants."
+    "step": "do_on_screen",
+    "goal": "In the conversion pop-up, tick 'reuse participants only' and click Continue, then handle the auction creation and publish; stop on the published auction page showing Vendors A and B without their RFQ prices as starting bids",
+    "note": "Perform the conversion popup selection and subsequent auction publish steps that require custom UI handling"
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "reuse weights"
+     "text": "Vendors A",
+     "present": true
     },
-    "note": "Verify that the conversion dialog offers reuse of weights."
+    "note": "Assert Vendor A is present in the new auction"
    }
   ]
  }

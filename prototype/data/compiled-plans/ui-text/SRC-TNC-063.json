@@ -4,35 +4,37 @@
   "title": "Recreate Order keeps the mandatory T&C setting",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:16:59.803Z",
+  "compiledAt": "2026-11-12T13:20:42.858Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly compare the recreated event's T&C clauses with the original event's complete clause and attachment set"
+   "Verify that the recreated event contains the exact same T&C clauses as the original event."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Directly compare the recreated event's T&C clauses with the original event's complete clause and attachment set"
+   "can only test part of this — no step for: Verify that the recreated event contains the exact same T&C clauses as the original event."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "do_on_screen",
+   "click",
+   "expect_no_error",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
+   "expect_visible",
    "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 13908
+  "ms": 13831
  },
  "plan": {
-  "title": "Recreated Order Preserves Mandatory T&C",
+  "title": "Recreate Order preserves mandatory T&C enforcement",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,6 +44,14 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
@@ -49,11 +59,17 @@
     "note": "Open the stage Settings menu and choose Recreate Order."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "keep the recreated order settings unchanged, click Create Order, and stop on the newly created event"
+     "role": "button",
+     "name": "Create Order"
     },
-    "note": "Complete the recreate flow and create the new order, which has no dedicated catalog action for the final confirmation."
+    "note": "Confirm recreation while keeping the existing event configuration."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify the recreated order completed without an application error."
    },
    {
     "step": "switch_portal",
@@ -61,33 +77,31 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's separate supplier portal while preserving the buyer session."
+    "note": "Move to Vendor A's supplier-portal session while retaining the buyer session."
    },
    {
     "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the recreated event's RFQ bid sheet in the vendor portal."
+    "args": {},
+    "note": "Open the recreated event in the vendor portal at its pricing round."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Terms and Conditions",
-     "present": true
+     "visible": true
     },
-    "note": "Confirm the recreated event exposes its terms section to the vendor."
+    "note": "Verify the vendor bid screen exposes the terms acceptance section."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
      "args": {
-      "price": 100
+      "submit": true
      },
      "expect": "refused"
     },
-    "note": "Try to submit without ticking the mandatory clauses; the action must be refused or remain disabled."
+    "note": "Attempt to submit without ticking the mandatory clauses and require the portal to refuse submission."
    }
   ]
  }

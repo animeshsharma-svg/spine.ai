@@ -4,13 +4,11 @@
   "title": "Forward auction: a typed title is never replaced by the auto title",
   "group": "SRC-TTL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:19:36.744Z",
+  "compiledAt": "2026-11-12T13:21:56.494Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Explicitly configure the auction as forward/sell because configure_single_stage has no direction argument.",
-   "Assert the exact forward auction template is selected because the template name is not provided and template selection only supports a name substring.",
-   "Verify the title after every internal product mutation within one add operation; the plan checks after each separate product addition instead."
+   "Selecting a specifically forward (sell) auction template when the test does not provide its template name or a catalog argument for auction direction."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -19,24 +17,27 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Explicitly configure the auction as forward/sell because configure_single_stage has no direction argument.; Assert the exact forward auction template is selected because the template name is not provided and template selection only supports a name substring.; Verify the title after every internal product mutation within one add operation; the plan checks after each separate product addition instead."
+   "can only test part of this — no step for: Selecting a specifically forward (sell) auction template when the test does not provide its template name or a catalog argument for auction direction."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "configure_single_stage",
-   "set_title",
    "select_template",
+   "set_title",
    "add_line_items",
    "expect_value",
+   "set_sheet_cell",
    "add_line_items",
+   "expect_value",
+   "set_sheet_cell",
    "expect_value"
   ],
-  "ms": 10926
+  "ms": 14493
  },
  "plan": {
-  "title": "Forward auction typed title persists",
+  "title": "Forward auction typed title persistence",
   "steps": [
    {
     "step": "open_create",
@@ -50,18 +51,19 @@
     "args": {
      "eventType": "auction"
     },
-    "note": "Set the event type to Auction; auction direction is not configurable by this step."
+    "note": "Switch the event type from the default RFP to Auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template so the pricing sheet can be used; the specific forward template cannot be identified from the case."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA_Platform my own title"
     },
-    "note": "Enter the buyer's title before changing the product list."
-   },
-   {
-    "step": "select_template",
-    "note": "Select the first available auction template so the product sheet can be used."
+    "note": "Enter the buyer-provided title before adding products."
    },
    {
     "step": "add_line_items",
@@ -69,7 +71,7 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the first named product and allow the title auto-generation logic to run."
+    "note": "Add the first specified product."
    },
    {
     "step": "expect_value",
@@ -80,12 +82,21 @@
     "note": "Verify the typed title was not replaced after the first product change."
    },
    {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name"
+    },
+    "note": "Set the first product's delivery location to Plant Name."
+   },
+   {
     "step": "add_line_items",
     "args": {
      "count": 1,
      "search": "AAC BLOCKS"
     },
-    "note": "Add the second named product and trigger the title logic again."
+    "note": "Add the second specified product."
    },
    {
     "step": "expect_value",
@@ -94,6 +105,23 @@
      "value": "QA_Platform my own title"
     },
     "note": "Verify the typed title remains unchanged after the second product change."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Delivery location",
+     "value": "Plant Name"
+    },
+    "note": "Set the second product's delivery location to Plant Name."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of this event",
+     "value": "QA_Platform my own title"
+    },
+    "note": "Confirm the title still matches the buyer-entered value after all requested product and location changes."
    }
   ]
  }

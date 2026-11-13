@@ -4,14 +4,15 @@
   "title": "Email notification placeholders evaluate correct recipient counts and details",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-09T23:12:03.216Z",
+  "compiledAt": "2026-11-12T13:39:06.061Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that every technical-stage-specific template is absent when the case does not identify the template names."
+   "Assert that all remaining options are exclusively commercial templates as a semantic category"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that every technical-stage-specific template is absent when the case does not identify the template names."
+   "resolved: “Assert that every tenant-specific technical-stage template is absent from the RFQ dropdown when its name does not contai” — expect_options opens the list and reads what it offers, with greyed-out items",
+   "can only test part of this — no step for: Assert that all remaining options are exclusively commercial templates as a semantic category"
   ],
   "source": "llm",
   "steps": 7,
@@ -24,7 +25,7 @@
    "switch_stage",
    "expect_options"
   ],
-  "ms": 10001
+  "ms": 12587
  },
  "plan": {
   "title": "Prevent Technical Templates in RFQ Dropdown",
@@ -34,12 +35,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage RFX creation flow."
+    "note": "Open the multi-stage eRFX creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the create flow is valid."
+    "args": {
+     "title": "DRV-TPL-006 Technical RFQ Template Isolation"
+    },
+    "note": "Provide the required project title so the configuration can proceed."
    },
    {
     "step": "compose_stages",
@@ -49,36 +52,37 @@
       "rfq"
      ]
     },
-    "note": "Create the Technical and Commercial RFQ stages required by the scenario."
+    "note": "Create the Technical and commercial RFQ stages required by the scenario."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Configure the technical stage before checking template separation."
+    "note": "Configure the technical stage before checking the commercial stage's template options."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a technical-stage template so the RFQ stage can be checked against it."
+    "note": "Apply a technical-stage template so the RFQ picker is evaluated after technical configuration exists."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Navigate to the commercial RFQ stage settings."
+    "note": "Navigate to the commercial RFQ stage where its template dropdown is tested."
    },
    {
     "step": "expect_options",
     "args": {
      "label": "Select Templates",
      "absent": [
-      "Test"
+      "Questionnaire",
+      "Technical"
      ]
     },
-    "note": "Inspect the RFQ template dropdown and assert that the known technical template is not offered."
+    "note": "Assert that the RFQ template dropdown does not offer options identified as technical-stage templates."
    }
   ]
  }

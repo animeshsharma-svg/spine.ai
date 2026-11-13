@@ -4,26 +4,21 @@
   "title": "Extend Submission Time is offered on a live RFQ where Vendor An and Vendor B have bid",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:55:05.374Z",
+  "compiledAt": "2026-11-12T13:13:13.415Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Increase Event Time\" (expect_visible) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Increase Event Time\" (expect_visible) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "open_event_settings",
-   "expect_menu_item",
+   "require_setting",
+   "go_to",
+   "expect_settings_menu",
    "event_menu",
    "expect_visible",
    "click",
@@ -31,47 +26,50 @@
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 9981
+  "ms": 10147
  },
  "plan": {
-  "title": "Extend Submission Time available on live RFQ with two bids",
+  "title": "Extend Submission Time offered on live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer side."
+    "note": "Open the prepared live RFQ with two bids, as required for prepared-state cases."
    },
    {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Add the second bid required by the scenario while keeping the test on the buyer side."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the additional bid was accepted."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the RFQ stage's Settings menu."
-   },
-   {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Extend Submission Time",
-     "enabled": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Assert that extending submission time is offered and clickable while bidding is live."
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where its Settings menu is available."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "enabled": [
+      "Extend Submission Time"
+     ]
+    },
+    "note": "Assert that Extend Submission Time is offered and clickable while bidding is live."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Extend Submission Time"
+     "item": "Extend Submission Time",
+     "stage": "rfq"
     },
-    "note": "Select the action to open its time-increase window."
+    "note": "Select the enabled menu action to open its time-extension dialog."
    },
    {
     "step": "expect_visible",
@@ -80,7 +78,7 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Verify that the extension window opens."
+    "note": "Assert that clicking the action opens the Increase Event Time window."
    },
    {
     "step": "click",
@@ -88,7 +86,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the window so no event timing changes are committed."
+    "note": "Cancel the dialog so no submission-time change is confirmed."
    },
    {
     "step": "expect_visible",
@@ -97,7 +95,7 @@
      "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify the extension window closed without confirmation."
+    "note": "Assert that the extension dialog closed without committing a change."
    }
   ]
  }

@@ -4,14 +4,14 @@
   "title": "Allow partial line quoting respects rfq.bid.allow_partial setting",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T23:01:56.802Z",
+  "compiledAt": "2026-11-12T13:35:06.858Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "No dedicated catalog step can verify that the saved remark preserves the trailing space exactly; the rejection dialog's remark field label is not confirmed by the catalog."
+   "Verify that the saved rejection remark preserves the trailing space exactly after confirmation."
   ],
   "warnings": [
-   "can only test part of this — no step for: No dedicated catalog step can verify that the saved remark preserves the trailing space exactly; the rejection dialog's remark field label is not confirmed by the catalog."
+   "can only test part of this — no step for: Verify that the saved rejection remark preserves the trailing space exactly after confirmation."
   ],
   "source": "llm",
   "steps": 6,
@@ -19,13 +19,13 @@
    "open_prepared",
    "click",
    "fill",
+   "expect_value",
    "click",
-   "expect_toast",
-   "expect_text"
+   "expect_toast"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 61176
+  "ms": 10565
  },
  "plan": {
   "title": "Reject bid with trailing-space remark",
@@ -35,48 +35,47 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on the buyer's Responses tab with the active vendor bid."
+    "note": "Open the prepared live RFQ on the buyer's Responses tab, where Vendor A already has an active bid."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Reject",
-     "within": "Vendor A"
+     "name": "Reject"
     },
-    "note": "Open rejection for Vendor A's submitted bid."
+    "note": "Open the rejection action for the submitted bid."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Enter remarks",
+     "label": "Remarks",
      "value": "Price too high "
     },
     "note": "Enter the specified remark, including its trailing space."
    },
    {
+    "step": "expect_value",
+    "args": {
+     "label": "Remarks",
+     "value": "Price too high "
+    },
+    "note": "Verify the rejection form contains the remark before confirmation."
+   },
+   {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Reject",
-     "within": "dialog"
+     "name": "Reject"
     },
-    "note": "Confirm the bid rejection from the rejection dialog."
+    "note": "Confirm rejection of the vendor bid."
    },
    {
     "step": "expect_toast",
     "args": {
-     "kind": "success"
+     "kind": "success",
+     "text": "rejected"
     },
-    "note": "Assert that the rejection was accepted without a validation error."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejected",
-     "within": "Vendor A"
-    },
-    "note": "Assert that Vendor A's bid is shown as rejected."
+    "note": "Verify the bid rejection completed successfully without a validation error."
    }
   ]
  }

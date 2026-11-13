@@ -4,14 +4,12 @@
   "title": "Single stage RFQ: invite every vendor mapped to the product (Invite Vendor)",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:41:15.592Z",
+  "compiledAt": "2026-11-12T13:05:41.591Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select delivery location Plant Name (LOC-0001) in the product sheet.",
-   "Assert the exact set of all vendors mapped to CYLINDER when the case provides no expected names or count.",
-   "Verify that each vendor received the invitation in QA mailboxes.",
-   "Assert that the dynamic Invite N more participant based on the products strip disappears."
+   "Assert the exact set of mapped vendor names and verify that each vendor received an invitation in its QA mailbox.",
+   "unconfirmed label \"participant based on the products\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -20,28 +18,34 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Select delivery location Plant Name (LOC-0001) in the product sheet.; Assert the exact set of all vendors mapped to CYLINDER when the case provides no expected names or count.; Verify that each vendor received the invitation in QA mailboxes.; Assert that the dynamic Invite N more participant based on the products strip disappears."
+   "coverage partial: unconfirmed label \"participant based on the products\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Assert the exact set of mapped vendor names and verify that each vendor received an invitation in its QA mailbox."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "invite_vendor",
+   "expect_text",
+   "set_schedule",
    "publish",
    "expect_published",
    "open_participants",
    "expect_participant_count"
   ],
-  "ms": 14492
+  "ms": 19363
  },
  "plan": {
-  "title": "Single-stage RFQ invites mapped vendors",
+  "title": "SRC-PAR-001 — Single-stage RFQ invites mapped vendors",
   "steps": [
    {
     "step": "open_create",
@@ -49,6 +53,22 @@
      "path": "single-stage"
     },
     "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -60,62 +80,88 @@
    {
     "step": "set_title",
     "args": {
-     "title": "Single-stage RFQ mapped vendor invitation"
+     "title": "SRC-PAR-001 Single Stage RFQ"
     },
-    "note": "Provide the mandatory event title required for publishing."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is available."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER product and set its requested quantity to 10."
+    "note": "Add the specified product and quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the remaining pricing-sheet fields that the catalog can fill."
+    "note": "Complete the pricing sheet required before scheduling and publishing."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the product row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the selected delivery location was retained."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Invite every vendor mapped to the selected product, as requested by the scenario."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "participant based on the products",
+     "present": false
+    },
+    "note": "Verify the mapped-vendor invitation strip is no longer shown."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Use the product's Invite Vendor flow to add every available mapped QA vendor."
+    "note": "Commit the 30-minute schedule."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured single-stage RFQ."
+    "note": "Publish the completed single-stage RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Verify publishing reached a real project page."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the published stage's Participants list to inspect the invited audience."
+    "note": "Open the published stage's Participants list."
    },
    {
     "step": "expect_participant_count",
     "args": {
      "atLeast": 1
     },
-    "note": "Assert that the published stage has at least one invited participant."
+    "note": "Verify that invited participants are present on the published stage."
    }
   ]
  }

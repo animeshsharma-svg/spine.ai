@@ -4,60 +4,56 @@
   "title": "Withdraw is offered on an RFQ whose bidding has ended and is in its evaluation time",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:56:41.775Z",
+  "compiledAt": "2026-11-12T13:13:34.334Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Withdrawal Remarks\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "expect_settings_menu",
+   "require_setting",
+   "expect_menu_item",
    "event_menu",
    "expect_text",
    "click",
-   "expect_settings_menu"
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10011
+  "ms": 17976
  },
  "plan": {
-  "title": "Withdraw Offered During RFQ Evaluation",
+  "title": "Withdraw available during RFQ evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event in its evaluation state on the buyer side."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage page where its Settings menu is available."
+    "note": "Enable the required eRFX project setting for the RFQ evaluation scenario."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "expect_menu_item",
     "args": {
-     "offered": [
-      "Withdraw"
-     ],
-     "enabled": [
-      "Withdraw"
-     ]
+     "item": "Withdraw",
+     "stage": "rfq",
+     "enabled": true
     },
-    "note": "Assert that Withdraw is offered and clickable during evaluation."
+    "note": "Verify Withdraw is offered and clickable in the RFQ stage Settings menu."
    },
    {
     "step": "event_menu",
@@ -65,14 +61,15 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Click Withdraw from the RFQ stage Settings menu and open its withdrawal window without confirming it."
+    "note": "Select Withdraw to open its confirmation window without confirming the withdrawal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Withdrawal Remarks"
+     "text": "Withdrawal Remarks",
+     "present": true
     },
-    "note": "Assert that the withdrawal window opened and is awaiting a remark."
+    "note": "Confirm the withdrawal window opened and requests withdrawal remarks."
    },
    {
     "step": "click",
@@ -80,19 +77,15 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the withdrawal so no event state changes occur."
+    "note": "Cancel the withdrawal so the event remains unchanged."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "expect_text",
     "args": {
-     "offered": [
-      "Withdraw"
-     ],
-     "enabled": [
-      "Withdraw"
-     ]
+     "text": "Withdrawal Remarks",
+     "present": false
     },
-    "note": "Confirm the RFQ remains withdrawable after cancelling the dialog."
+    "note": "Confirm the withdrawal window closed after cancellation."
    }
   ]
  }

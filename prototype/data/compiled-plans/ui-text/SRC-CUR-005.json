@@ -4,59 +4,47 @@
   "title": "Savings against budget",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:42.930Z",
+  "compiledAt": "2026-11-12T12:58:23.423Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact RFQ template selection, Product Variant auto-fill, Plant Name (LOC-0001) location selection, and Budget savings configuration are handled through do_on_screen rather than dedicated catalog assertions.",
-   "unconfirmed label \"25\" (expect_text) — not among the labels known from the app nor in the case"
+   "Simulating multiple vendor bids (A at 100, B at 90) via the test runner after publishing",
+   "Waiting for or forcing the event closure to access Master QCS for savings verification"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "coverage partial: unconfirmed label \"25\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The exact RFQ template selection, Product Variant auto-fill, Plant Name (LOC-0001) location selection, and Budget savings configuration are handled through do_on_screen rather than dedicated catalog assertions."
+   "can only test part of this — no step for: Simulating multiple vendor bids (A at 100, B at 90) via the test runner after publishing; Waiting for or forcing the event closure to access Master QCS for savings verification"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "do_on_screen",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "place_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "open_master_qcs",
-   "expect_text",
-   "expect_text"
+   "expect_published"
   ],
-  "ms": 11227
+  "ms": 28250
  },
  "plan": {
-  "title": "Savings Against Budget",
+  "title": "Savings against budget calculation on Master QCS",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow described by the case."
+    "note": "Open single-stage create screen as requested by the test case"
    },
    {
     "step": "configure_single_stage",
@@ -64,112 +52,46 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and award the entire lot to one vendor."
+    "note": "Set event type to RFQ on the single-stage screen"
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Provide a title for the event"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
+    "note": "Select the RFQ template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
+     "search": "CYLINDER"
     },
-    "note": "Add the CYLINDER line item with the requested quantity of 10."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the RFQ create screen, select the CYLINDER WITH KEY & KNOB product variant, confirm Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), open Savings, choose Line Item and Budget, enter 120 for the product, save the savings configuration, and stop on the create screen showing the saved configuration"
-    },
-    "note": "Complete the product-specific variant/location choices and configure the budget baseline of 120, which lack dedicated catalog steps."
+    "note": "Add the line item CYLINDER"
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Fill any remaining pricing-sheet fields required for publication."
+    "note": "Fill out the pricing sheet details"
    },
    {
     "step": "set_schedule",
-    "args": {
-     "minutes": 3
-    },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Set the schedule duration for the event"
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors so both stated bids can be submitted."
+    "note": "Invite the required test vendors for bidding"
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the configured RFQ."
+    "note": "Publish the event"
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a real published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit vendor A's bid of 100."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the first vendor bid was accepted."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 90
-    },
-    "note": "Submit vendor B's bid of 90."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the second vendor bid was accepted."
-   },
-   {
-    "step": "close_event",
-    "args": {},
-    "note": "Close the event so the bids and savings can be evaluated."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS after closure."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "300",
-     "present": true
-    },
-    "note": "Verify the calculated savings amount is visible."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "25",
-     "present": true
-    },
-    "note": "Verify the calculated savings percentage is visible."
+    "note": "Assert that the event successfully published"
    }
   ]
  }

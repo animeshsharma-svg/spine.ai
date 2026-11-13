@@ -4,11 +4,11 @@
   "title": "Single stage RFQ, one clause Required: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:11:12.320Z",
+  "compiledAt": "2026-11-12T13:18:57.616Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog has no dedicated step for adding named Terms & Conditions clauses and assigning one Required and one None state; do_on_screen is used for this buyer-side configuration."
+   "Directly verify that the vendor-side acceptance state for each named clause was persisted individually; the available assertion is the successful submitted bid after the clauses are checked."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,42 +17,70 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The catalog has no dedicated step for adding named Terms & Conditions clauses and assigning one Required and one None state; do_on_screen is used for this buyer-side configuration."
+   "can only test part of this — no step for: Directly verify that the vendor-side acceptance state for each named clause was persisted individually; the available assertion is the successful submitted bid after the clauses are checked."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 23,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
    "expect_text",
-   "toggle",
-   "toggle",
+   "click",
+   "click",
    "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 13069
+  "ms": 21738
  },
  "plan": {
-  "title": "Single-Stage RFQ Required and Optional Terms Acceptance",
+  "title": "SRC-TNC-005 Single-Stage RFQ T&C Acceptance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Ensure clauses are not automatically mandatory."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the single-stage RFQ creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow adding the QA vendor during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -60,52 +88,63 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ and award the lot to one vendor."
+    "note": "Set the single-stage event type to RFQ and award the entire lot."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "args": {
+     "title": "SRC-TNC-005 Single Stage RFQ"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template so the pricing sheet can be populated."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER line item with the requested quantity."
+    "note": "Add the specified product and quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet, including the delivery-location field."
+    "note": "Complete the remaining pricing-sheet fields required for publishing."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage RFQ create screen, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days as None, click Done, and stop with the configured terms visible or otherwise proven saved."
+     "goal": "open Terms & Conditions on the single-stage RFQ, add clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set \"Payment within 45 days\" to Required, leave \"Delivery within 7 days\" as None, click Done, and stop on the create screen"
     },
-    "note": "Configure the named event-wise terms because no dedicated catalog step can add or classify clauses."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Configure the event-wise terms with the required and optional modes requested by the case."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one available QA vendor for Vendor A's bid."
+    "note": "Invite the available QA test vendor for the vendor-side submission."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule."
    },
    {
     "step": "publish",
@@ -115,21 +154,21 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session while keeping the buyer session available."
+    "note": "Move to the invited vendor's supplier portal in a separate session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's RFQ pricing round as the vendor."
+    "note": "Open the event's RFQ pricing round."
    },
    {
     "step": "expect_text",
@@ -137,7 +176,7 @@
      "text": "Payment within 45 days",
      "present": true
     },
-    "note": "Verify that the required clause is visible to the vendor."
+    "note": "Verify the required clause is visible to the vendor."
    },
    {
     "step": "expect_text",
@@ -145,23 +184,23 @@
      "text": "Delivery within 7 days",
      "present": true
     },
-    "note": "Verify that the optional clause is also visible to the vendor."
+    "note": "Verify the optional clause is visible to the vendor."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Payment within 45 days",
-     "on": true
+     "role": "checkbox",
+     "name": "Payment within 45 days"
     },
-    "note": "Accept the required payment clause."
+    "note": "Accept the required clause."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Delivery within 7 days",
-     "on": true
+     "role": "checkbox",
+     "name": "Delivery within 7 days"
     },
-    "note": "Accept the delivery clause as required by the scenario."
+    "note": "Accept the optional clause."
    },
    {
     "step": "vendor_bid",
@@ -173,7 +212,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the vendor portal shows the bid as submitted."
+    "note": "Confirm the vendor bid was submitted successfully, demonstrating that the portal accepted the clause selections."
    }
   ]
  }

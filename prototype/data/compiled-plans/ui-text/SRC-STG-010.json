@@ -4,39 +4,63 @@
   "title": "Messages — send a message to a vendor",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:06:47.204Z",
+  "compiledAt": "2026-11-12T13:17:28.877Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "sign in as Vendor A in a separate vendor session, open the event's messages, reply to the buyer, and verify the buyer sees that reply in the thread"
+   "The catalog does not define the exact message composer/reply field label, so the plan uses the unconfirmed label \"Enter message\".",
+   "unconfirmed label \"Enter message\" (fill) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Confirmed, delivery is on schedule\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: sign in as Vendor A in a separate vendor session, open the event's messages, reply to the buyer, and verify the buyer sees that reply in the thread"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Enter message\" (fill) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Confirmed, delivery is on schedule\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The catalog does not define the exact message composer/reply field label, so the plan uses the unconfirmed label \"Enter message\"."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "click",
-   "do_on_screen",
+   "click",
+   "fill",
+   "click",
    "expect_text",
-   "ask_tester",
-   "expect_visible"
+   "switch_portal",
+   "vendor_open_event",
+   "click",
+   "expect_text",
+   "fill",
+   "click",
+   "expect_text",
+   "switch_portal",
+   "expect_text"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 76515
+  "ms": 20522
  },
  "plan": {
-  "title": "Send vendor message and verify thread",
+  "title": "Messages: buyer sends to Vendor A and receives reply",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event without searching the events list or recreating it."
+    "note": "Open the prepared RFQ event with two bids; this must be the first step for a prepared-state case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before opening the prepared event."
    },
    {
     "step": "go_to",
@@ -52,14 +76,30 @@
      "role": "button",
      "name": "Messages"
     },
-    "note": "Open the event's Messages interface from the buyer's stage page."
+    "note": "Open the buyer-side Messages drawer."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "on the buyer's Messages screen, choose Vendor A, enter \"Please confirm delivery\", send the message, and stop when the sent message is visibly shown in the thread"
+     "text": "Vendor A"
     },
-    "note": "Perform the buyer-side recipient selection, message entry, and send action that no dedicated catalog step exposes."
+    "note": "Select Vendor A as the message recipient."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter message",
+     "value": "Please confirm delivery"
+    },
+    "note": "Enter the message requested by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send"
+    },
+    "note": "Send the buyer's message to Vendor A."
    },
    {
     "step": "expect_text",
@@ -67,22 +107,76 @@
      "text": "Please confirm delivery",
      "present": true
     },
-    "note": "Verify the buyer's sent message is visible in the current thread."
+    "note": "Verify the sent message is visible in the buyer-side thread."
    },
    {
-    "step": "ask_tester",
+    "step": "switch_portal",
     "args": {
-     "need": "sign in as Vendor A in a separate vendor session, open this event's messages, read \"Please confirm delivery\", reply to it, then return to the buyer session and show the reply in the thread"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "The catalog cannot operate the second vendor session or validate the cross-session reply flow."
+    "note": "Switch to Vendor A's supplier portal while keeping the buyer session available."
    },
    {
-    "step": "expect_visible",
+    "step": "vendor_open_event",
     "args": {
-     "text": "Messages",
-     "visible": true
+     "overview": true
     },
-    "note": "Confirm the buyer remains on a screen showing the Messages interface after the cross-session interaction."
+    "note": "Open the prepared event's overview in Vendor A's portal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Messages"
+    },
+    "note": "Open the event messages from the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please confirm delivery",
+     "present": true
+    },
+    "note": "Verify Vendor A can see the buyer's message."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter message",
+     "value": "Confirmed, delivery is on schedule"
+    },
+    "note": "Enter a reply from Vendor A."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send"
+    },
+    "note": "Send Vendor A's reply."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Confirmed, delivery is on schedule",
+     "present": true
+    },
+    "note": "Verify the vendor portal shows the reply in the thread."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's browser session."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Confirmed, delivery is on schedule",
+     "present": true
+    },
+    "note": "Verify the buyer sees Vendor A's reply in the message thread."
    }
   ]
  }

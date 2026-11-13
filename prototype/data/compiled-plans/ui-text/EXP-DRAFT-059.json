@@ -4,64 +4,74 @@
   "title": "Configuration for Event: Technical Stage selection updates and saves successfully",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:08.719Z",
+  "compiledAt": "2026-11-12T13:45:22.268Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the Technical Stage setting remains saved after reopening the draft."
+   "The catalog has no dedicated assertion for the Configuration for Event setting's persisted value beyond the resulting stage tab."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the Technical Stage setting remains saved after reopening the draft."
+   "dropped expect_stages — this plan opens an existing event, it does not create one",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "dropped expect_stages — this plan opens an existing event, it does not create one",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: The catalog has no dedicated assertion for the Configuration for Event setting's persisted value beyond the resulting stage tab."
   ],
   "source": "llm",
   "steps": 10,
   "stepNames": [
-   "open_events_list",
-   "expect_events_list",
-   "filter_events",
-   "open_first_event",
+   "open_event",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_visible",
    "click",
    "click",
    "expect_visible",
-   "expect_text"
+   "open_event"
   ],
-  "ms": 13312
+  "ms": 12138
  },
  "plan": {
-  "title": "Draft Technical Stage Configuration Save",
+  "title": "Saved Draft Technical Stage Configuration",
   "steps": [
    {
-    "step": "open_events_list",
+    "step": "open_event",
     "args": {},
-    "note": "Open the events list to reach the saved draft."
+    "note": "Open the existing saved draft without inventing a draft title."
    },
    {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
-   },
-   {
-    "step": "filter_events",
+    "step": "require_setting",
     "args": {
-     "tab": "Drafts"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the Drafts tab containing the saved eRFX draft."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "open_first_event",
+    "step": "require_setting",
     "args": {
-     "tab": "Drafts"
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Open the first saved draft and return to its draft create screen."
+    "note": "Apply the tenant configuration required for the draft flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the tenant configuration required by the case."
    },
    {
     "step": "click",
     "args": {
-     "text": "RFQ"
+     "role": "button",
+     "name": "RFQ"
     },
-    "note": "Open the RFQ configuration for the draft."
+    "note": "Open the RFQ stage's Configuration for Event window."
    },
    {
     "step": "expect_visible",
@@ -70,24 +80,23 @@
      "name": "Configuration for Event",
      "visible": true
     },
-    "note": "Confirm that the Configuration for Event window opened."
+    "note": "Confirm the configuration window opened."
    },
    {
     "step": "click",
     "args": {
-     "text": "Technical Stage",
-     "within": "dialog"
+     "role": "radio",
+     "name": "Technical Stage"
     },
-    "note": "Select the Technical Stage option in the configuration window."
+    "note": "Select the Technical Stage event configuration."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save",
-     "within": "dialog"
+     "name": "Save"
     },
-    "note": "Save the updated technical-stage configuration."
+    "note": "Save the selected technical-stage configuration."
    },
    {
     "step": "expect_visible",
@@ -96,15 +105,12 @@
      "name": "Configuration for Event",
      "visible": false
     },
-    "note": "Confirm that the configuration window closed after saving."
+    "note": "Verify the configuration window closes after saving."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Technical Stage",
-     "present": true
-    },
-    "note": "Confirm the draft screen reflects the selected Technical Stage setting."
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen the saved draft to check the resulting stage configuration."
    }
   ]
  }

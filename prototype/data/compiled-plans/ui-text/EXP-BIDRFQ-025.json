@@ -4,21 +4,23 @@
   "title": "A live RFQ with a vendor's bid: \"Edit Evaluation Time\" opens the \"Edit Evaluation Time\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:18.029Z",
+  "compiledAt": "2026-11-12T13:39:21.118Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly verify that the event remains unchanged before pressing Cancel or Ok",
-   "unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Ok\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Directly verify that the event remains unchanged before pressing Cancel or Ok"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "expect_visible",
    "expect_text",
@@ -28,17 +30,57 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 10141
+  "ms": 9413
  },
  "plan": {
-  "title": "Edit Evaluation Time window on live RFQ",
+  "title": "Edit Evaluation Time Dialog",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen with the vendor bid already present."
+    "note": "Open the prepared live RFQ Responses screen with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case configuration."
    },
    {
     "step": "event_menu",
@@ -46,7 +88,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Edit Evaluation Time."
+    "note": "Open Edit Evaluation Time from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
@@ -55,7 +97,7 @@
      "name": "Edit Evaluation Time",
      "visible": true
     },
-    "note": "Verify that the Edit Evaluation Time window opened."
+    "note": "Assert that the Edit Evaluation Time window opened."
    },
    {
     "step": "expect_text",
@@ -81,7 +123,7 @@
      "within": "dialog",
      "visible": true
     },
-    "note": "Verify the dialog has a Cancel button."
+    "note": "Verify the dialog has a Cancel button without pressing it."
    },
    {
     "step": "expect_visible",
@@ -91,7 +133,7 @@
      "within": "dialog",
      "visible": true
     },
-    "note": "Verify the dialog has an Ok button."
+    "note": "Verify the dialog has an Ok button without pressing it."
    }
   ]
  }

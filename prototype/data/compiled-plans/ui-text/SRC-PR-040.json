@@ -4,23 +4,23 @@
   "title": "Create a Single Stage reverse auction from an open service PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:32:20.847Z",
+  "compiledAt": "2026-11-12T13:07:46.394Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting Single Stage from the PR flow and configuring it as a reverse auction; the catalog only supports choosing PR event stages, not the PR-to-single-stage configuration path.",
-   "Verifying that the service line's activities become separate rows and that the price column is a rate per activity.",
-   "Verifying that the PR-derived product quantity, unit, and delivery location are all locked to the PR; the available sheet-cell assertion does not support the required PR-specific lock behavior for delivery location.",
-   "Verifying that the source PR moves to In Progress with this event's number after publishing.",
-   "Verifying that the published event explicitly shows it came from a PR."
+   "The PR flow cannot create or assert the specific Single Stage configuration drawer with Auction selected as a reverse auction.",
+   "Cannot verify that the service item's quantity, unit, and delivery location values are populated exactly from the PR and locked.",
+   "Cannot verify that service activities appear as separate rows or that the price column is specifically a rate per activity.",
+   "Cannot verify that this exact PR line moves to In Progress with this event's number.",
+   "Cannot verify that the published event visibly identifies itself as originating from a PR."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Selecting Single Stage from the PR flow and configuring it as a reverse auction; the catalog only supports choosing PR event stages, not the PR-to-single-stage configuration path.; Verifying that the service line's activities become separate rows and that the price column is a rate per activity.; Verifying that the PR-derived product quantity, unit, and delivery location are all locked to the PR; the available sheet-cell assertion does not support the required PR-specific lock behavior for delivery location.; Verifying that the source PR moves to In Progress with this event's number after publishing.; Verifying that the published event explicitly shows it came from a PR."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: The PR flow cannot create or assert the specific Single Stage configuration drawer with Auction selected as a reverse auction.; Cannot verify that the service item's quantity, unit, and delivery location values are populated exactly from the PR and locked.; Cannot verify that service activities appear as separate rows or that the price column is specifically a rate per activity.; Cannot verify that this exact PR line moves to In Progress with this event's number.; Cannot verify that the published event visibly identifies itself as originating from a PR."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 20,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -30,21 +30,23 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "set_title",
+   "require_setting",
+   "require_setting",
+   "expect_template_selected",
    "expect_sheet_columns",
    "expect_sheet_cells",
-   "expect_api_value",
-   "expect_api_value",
+   "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_menu_item"
+   "expect_menu_item",
+   "expect_table"
   ],
-  "ms": 23260
+  "ms": 19804
  },
  "plan": {
-  "title": "Create Single-Stage Reverse Auction from Service PR",
+  "title": "Create single-stage reverse auction from service PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -82,22 +84,37 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the PR-to-event flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation as required by the case."
+   },
+   {
+    "step": "expect_template_selected",
     "args": {},
-    "note": "Provide the mandatory event title before publication."
+    "note": "Verify that an auction template is applied before configuring the sheet."
    },
    {
     "step": "expect_sheet_columns",
     "args": {
      "columns": [
       "Product",
-      "Product Variant",
       "Quantity Requested",
       "Delivery location",
       "Price"
      ]
     },
-    "note": "Verify that the transferred pricing sheet rendered the expected PR and pricing columns."
+    "note": "Verify that the expected PR auction sheet columns rendered."
    },
    {
     "step": "expect_sheet_cells",
@@ -105,32 +122,22 @@
      "row": 1,
      "readonly": [
       "Product",
-      "Product Variant",
       "Quantity Requested"
      ]
     },
-    "note": "Check the catalog-supported read-only PR-filled cells on the first row."
+    "note": "Check the PR-derived product and requested quantity cells are read-only."
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity"
-    },
-    "note": "Verify that the displayed quantity matches the event's PR-backed API value."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "unit"
-    },
-    "note": "Verify that the displayed unit matches the event's PR-backed API value."
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title needed for publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -140,25 +147,33 @@
       "Vendor B"
      ]
     },
-    "note": "Add the two vendors named in the case."
+    "note": "Add the two vendors named by the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured PR-derived auction."
+    "note": "Publish the configured auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real event page."
+    "note": "Assert that publishing reached a real project page."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
+     "stage": "auction",
      "enabled": false
     },
-    "note": "Verify that Recreate Order is greyed out for the published event."
+    "note": "Verify the PR-created event cannot use Recreate Order."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Assert that at least one PR is present in the In Progress list, though the catalog cannot tie it uniquely to this event."
    }
   ]
  }

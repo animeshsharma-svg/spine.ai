@@ -81,6 +81,15 @@ export async function currentValue(companyId: number, key: string): Promise<{ va
 }
 
 export interface NeededSetting { key: string; value: unknown; why: string }
+
+/** Is this a setting key in Procol's catalogue? (A compiled plan may name one the model made up.) True when the catalogue cannot be read. */
+export async function isSettingKey(key: string): Promise<boolean> {
+  try {
+    return (await settingsCatalog()).some((x) => x.key === key);
+  } catch {
+    return true;
+  }
+}
 const SYN: Array<[RegExp, string]> = [[/\be-?rfx\b/g, "rfx project"], [/\bmasked\b|\bmasking\b/g, "mask"], [/\bauto-?title\b/g, "auto title"], [/\bpr\b/g, "purchase request requisition"], [/\bpo\b/g, "purchase order"]];
 const stem = (w: string) => w.replace(/(ings|ing|ions|ion|ies|es|ed|s)$/, "") || w;
 const words = (t: string) => {

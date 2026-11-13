@@ -4,25 +4,25 @@
   "title": "Reverse auction: Quantity Requested = 10",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:17:38.303Z",
+  "compiledAt": "2026-11-12T16:30:29.097Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact Total Amount calculation cannot be asserted because the test case does not specify a price value to use."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The exact Total Amount calculation cannot be asserted because the test case does not specify a price value to use."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -30,43 +30,50 @@
    "fill_sheet",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "expect_sheet_cell",
+   "set_sheet_cell",
    "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published"
   ],
-  "ms": 15768
+  "ms": 20105
  },
  "plan": {
-  "title": "SRC-CRE-022 Reverse Auction Quantity 10",
+  "title": "Reverse Auction Quantity 10",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allows vendors to be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "price",
-     "awarding": "lot"
+     "auctionSubtype": "rank"
     },
-    "note": "Configure the event as a reverse buy auction with lot awarding."
+    "note": "Changes the event type to a reverse auction using the supported rank-based auction configuration."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title using the runner's generated title."
+    "note": "Provides the mandatory event title while allowing the runner to generate a unique title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the first available auction template so the pricing sheet can be configured."
+    "note": "Applies the first available auction pricing template so the product sheet can be populated."
    },
    {
     "step": "add_line_items",
@@ -75,39 +82,38 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the named product as one line item with the required quantity of 10."
+    "note": "Adds the specified product and enters the requested quantity of 10."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and fill the pricing sheet for the added line item."
+    "step": "fill_sheet"
    },
    {
     "step": "set_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
-     "value": "LOC-0001"
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the first row's plant or delivery location to LOC-0001."
+    "note": "Sets the first row's delivery location to the specified plant."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Quantity Requested",
-     "equals": "10"
+     "equals": "10",
+     "kept": true
     },
-    "note": "Verify that Quantity Requested remains 10 after moving through the sheet."
+    "note": "Verifies that the requested quantity remains 10 after entry."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "set_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Delivery location",
-     "equals": "LOC-0001"
+     "column": "Price",
+     "value": "100"
     },
-    "note": "Verify that the requested plant location is retained in the first row."
+    "note": "Creates a price value so the sheet can calculate the total amount."
    },
    {
     "step": "expect_sheet_cell",
@@ -116,31 +122,31 @@
      "column": "Total Amount",
      "empty": false
     },
-    "note": "Verify that the Total Amount cell is populated once the filled pricing sheet has a price value."
+    "note": "Verifies that a total amount is populated once a price exists."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Keep the default Start now schedule with a 30-minute duration and save it."
+    "note": "Commits the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one available QA test vendor so the event can be published."
+    "note": "Adds one QA test vendor to satisfy the publish precondition."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured reverse auction."
+    "note": "Publishes the configured reverse auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirms publishing reached a real project page."
    }
   ]
  }

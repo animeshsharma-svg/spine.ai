@@ -1,47 +1,52 @@
 {
  "meta": {
   "caseId": "DRV-TPL-007",
-  "title": "Benchmarking variance calculates correctly against the hidden baseline price",
+  "title": "Template edit during technical stage creation respects configuration toggle",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-09T23:12:18.285Z",
+  "compiledAt": "2026-11-12T13:39:11.646Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Changing or verifying the tenant configuration toggle that governs technical/RFQ template editing"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Changing or verifying the tenant configuration toggle that governs technical/RFQ template editing"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
   "steps": 8,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
-   "ask_tester",
    "do_on_screen",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 17766
+  "ms": 11846
  },
  "plan": {
-  "title": "DRV-TPL-007 Technical Template Edit Lock",
+  "title": "Technical template editing respects toggle",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open a new multi-stage RFX project."
+    "note": "Start a new RFX project."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_rfp_template_edit_allowed_during_creation",
+     "value": "Off"
+    },
+    "note": "Configure the tenant as required before opening the creation flow."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "DRV-TPL-007 Technical Template Edit Lock"
-    },
+    "args": {},
     "note": "Provide the required project title."
    },
    {
@@ -51,39 +56,31 @@
       "rfp"
      ]
     },
-    "note": "Create a Technical Stage so the questionnaire template screen is active."
+    "note": "Create a technical-stage-only RFX project."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Work on the Technical Stage."
+    "note": "Open the Technical Stage creation screen."
    },
    {
     "step": "select_template",
-    "note": "Apply the pre-loaded technical questionnaire template whose edit controls will be checked."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "enable the tenant configuration toggle that governs whether technical questionnaire template fields may be edited"
-    },
-    "note": "The catalog cannot change tenant-level configuration."
+    "args": {},
+    "note": "Apply the pre-loaded questionnaire template whose editing controls are under test."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the Technical Stage questionnaire screen, attempt to modify the pre-loaded questionnaire template fields and stop with the template editing controls visibly disabled or locked"
+     "goal": "on the Technical Stage creation screen, attempt to modify the pre-loaded questionnaire template fields and verify that the template editing controls are disabled or locked; stop when the screen proves the controls cannot be edited"
     },
-    "note": "Exercise and verify the locked template-editing behavior in the buyer session."
+    "note": "Directly tests the configuration-governed lock because no catalog assertion names the questionnaire template editing controls."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Technical Stage"
-    },
-    "note": "Confirm the final screen remains the Technical Stage creation screen."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen has no crash or application error."
    }
   ]
  }

@@ -4,39 +4,38 @@
   "title": "Two lines, different winners",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:40:09.512Z",
+  "compiledAt": "2026-11-12T13:09:15.273Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Find the RFQ by searching for its title because no title is provided",
-   "Assert the exact second-line cells without a product name identifying that line",
-   "Record which vendor is ranked overall, since the catalog only asserts ranks per line"
+   "Select an existing RFQ by the exact two-line bid fixture when no event title or product names are provided.",
+   "Assert that conceptual vendor B is L1 on line 1 and vendor A is L1 on line 2 when the case provides no real vendor names or line-item identifiers.",
+   "Create the specified two-line bid pattern with different prices per line if the required existing event is unavailable; bid-entry steps use one price across the sheet."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Find the RFQ by searching for its title because no title is provided; Assert the exact second-line cells without a product name identifying that line; Record which vendor is ranked overall, since the catalog only asserts ranks per line"
+   "can only test part of this — no step for: Select an existing RFQ by the exact two-line bid fixture when no event title or product names are provided.; Assert that conceptual vendor B is L1 on line 1 and vendor A is L1 on line 2 when the case provides no real vendor names or line-item identifiers.; Create the specified two-line bid pattern with different prices per line if the required existing event is unavailable; bid-entry steps use one price across the sheet."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
+   "go_to",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
    "expect_qcs_amounts",
-   "expect_qcs_ranks"
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_cell"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 71551
+  "ms": 19472
  },
  "plan": {
-  "title": "Master QCS line-specific winners",
+  "title": "Master QCS Different Line Winners",
   "steps": [
    {
     "step": "open_prepared",
@@ -46,9 +45,19 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigate to the Master QCS comparison grid."
    },
    {
     "step": "expect_qcs_vendors",
@@ -56,48 +65,14 @@
      "count": 2,
      "realNames": true
     },
-    "note": "Assert that both bidding vendors appear as real vendor columns."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount",
-     "vendor": 1,
-     "equals": "1000"
-    },
-    "note": "Check the first vendor's first-line amount, 100 × 10."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount",
-     "vendor": 2,
-     "equals": "900"
-    },
-    "note": "Check the second vendor's first-line amount, 90 × 10."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Sum Total",
-     "vendor": 1,
-     "equals": "1500"
-    },
-    "note": "Check the first vendor's expected total."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Sum Total",
-     "vendor": 2,
-     "equals": "1500"
-    },
-    "note": "Check the second vendor's expected total."
+    "note": "Verify that the comparison contains two real vendor columns."
    },
    {
     "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify that displayed line amounts and vendor totals are arithmetically consistent."
+    "args": {
+     "total": false
+    },
+    "note": "Verify that each displayed line amount equals rate multiplied by quantity."
    },
    {
     "step": "expect_qcs_ranks",
@@ -106,7 +81,25 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify that per-line ranks follow the lowest amount."
+    "note": "Verify that ranking is calculated per line from the lowest RFQ amount."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 1,
+     "equals": "1500"
+    },
+    "note": "Verify the first vendor's displayed total is 1,500."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 2,
+     "equals": "1500"
+    },
+    "note": "Verify the second vendor's displayed total is 1,500."
    }
   ]
  }

@@ -238,7 +238,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "set_sheet_cell",
     purpose:
-      'Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text ("Quantity Requested", "Price", "GST" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for "enter a negative quantity", "type letters into the price", "enter 0", "enter 1,00,000.555". For choosing a product use the product steps, not this.',
+      'Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text ("Quantity Requested", "Price", "GST" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for "enter a negative quantity", "type letters into the price", "enter 0", "enter 1,00,000.555". A DROPDOWN cell — "Delivery location", "Product Variant", "Unit" — takes the option to pick as value ("Plant Name (LOC-0001)", "Variant 1"): the step opens its list, searches and clicks that option, and reports when the list offers nothing matching; so choosing a delivery location or a variant for a line IS this step, never a gap. For choosing a product use add_line_items{search} (it picks the option whose name IS the product), not this.',
     args: { row: "data row number (default 1)", column: "header text of the column", value: "what to type" },
   },
   {
@@ -339,6 +339,12 @@ export const STEP_CATALOG: StepSpec[] = [
     purpose: "Buyer side, on the stage's Responses grid: assert the vendor's header now marks the counter offer as accepted.",
     args: { vendor: "vendor name (optional)" },
     assertion: true,
+  },
+  {
+    name: "require_setting",
+    purpose:
+      "A COMPANY SETTING THE CASE NEEDS a certain way (\"with eRFX projects off\", \"lock_vendors_addition_in_event_creation = Off\", \"verify commercial masking is enabled for the tenant\", the case's Configs Needed). Put it FIRST, one per setting, before any other step. The runner switches it on the approved test company before the case, confirms the switch from the app's own answer, and switches it back after — the plan itself never opens a settings screen for it. Give `key` when the case names the setting key; otherwise `phrase` in the case's words (\"commercial masking\") and the runner finds the key in Procol's settings catalogue. A setting only a Procol employee may change (a hidden one) is reported Blocked by the runner. Never list a needed setting under cannotExpress — this step is how it is done.",
+    args: { key: "the setting key, e.g. lock_vendors_addition_in_event_creation (optional when phrase is given)", phrase: "the setting in the case's words, when no key is named", value: "On | Off | the value — what the case needs" },
   },
   {
     name: "ask_tester",
@@ -552,13 +558,13 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "allocate_award",
     purpose:
-      "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters.",
-    args: { vendor: "vendor name (optional; the first that can be allocated)" },
+      "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters. A SPLIT (\"6 units to Vendor B and 4 to Vendor A\", \"award 10 of 10 to B\"): one allocate_award per vendor with `quantity` — it selects that vendor and types the number into its \"Qty Awarded\" cell of the line; then expect_award_counters{proposal} checks the total (6 × 90 + 4 × 100 = 940). Vendor 1 / \"Vendor A\" and vendor 2 / \"Vendor B\" may be named by their number on a prepared two-bid event.",
+    args: { vendor: "vendor name, or 1 / 2 for the first / second QA vendor of a prepared two-bid event (optional; the first that can be allocated)", quantity: "units to award this vendor on the line (a split award; optional — without it the vendor gets the whole line)", line: "which line item (1 = first; default 1)" },
   },
   {
     name: "expect_award_counters",
-    purpose: 'On the awarding screen, assert the counters read as given: "Tot. selected line items" items (e.g. "1/1") and "Awarded Vendors" vendors (e.g. "1/1").',
-    args: { items: 'expected "selected/total" for line items (optional)', vendors: 'expected "selected/total" for vendors (optional)' },
+    purpose: 'On the awarding screen, assert the counters read as given: "Tot. selected line items" items (e.g. "1/1"), "Awarded Vendors" vendors (e.g. "2/2"), and the totals bar: proposal = "Tot. Proposal Value" in rupees (e.g. 940), l1 = "Tot. L1 Proposal Value", nonL1 = "Tot. Non L1 Proposal Value".',
+    args: { items: 'expected "selected/total" for line items (optional)', vendors: 'expected "selected/total" for vendors (optional)', proposal: "expected Tot. Proposal Value, a number (optional)", l1: "expected Tot. L1 Proposal Value (optional)", nonL1: "expected Tot. Non L1 Proposal Value (optional)" },
     assertion: true,
   },
   {

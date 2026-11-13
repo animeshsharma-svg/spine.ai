@@ -4,36 +4,27 @@
   "title": "Remove an item in a new version",
   "group": "SRC-VER",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:21:59.394Z",
+  "compiledAt": "2026-11-12T13:22:49.308Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Publish the new version with buyer-supplied remarks, because publish has no remarks argument.",
-   "Record arbitrary error details if publication fails; the catalog can only assert no error or that publication succeeded."
+   "The specific publish remarks to enter cannot be supplied because publish has no remarks argument.",
+   "The exact titled RFQ with two products cannot be named because the case provides no event title; open_event must select a fitting existing live event."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Publish the new version with buyer-supplied remarks, because publish has no remarks argument.; Record arbitrary error details if publication fails; the catalog can only assert no error or that publication succeeded."
+   "can only test part of this — no step for: The specific publish remarks to enter cannot be supplied because publish has no remarks argument.; The exact titled RFQ with two products cannot be named because the case provides no event title; open_event must select a fitting existing live event."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
+   "require_setting",
+   "require_setting",
    "create_new_version",
    "remove_line_items",
    "expect_line_items",
@@ -42,7 +33,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10124
+  "ms": 11689
  },
  "plan": {
   "title": "Remove Item in New Version",
@@ -55,54 +46,25 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "is_event_versioning_enabled",
+     "value": "On"
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Enable creation of a new event version as required by the case."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding products."
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 2
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Create the required two-product starting event."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule required for publication."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required participant."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the two-product RFQ needed for versioning."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "create_new_version",
     "args": {},
-    "note": "Create and confirm the new version from the published project."
+    "note": "Create and open the editable copy of the published project."
    },
    {
     "step": "remove_line_items",
@@ -116,17 +78,17 @@
     "args": {
      "count": 1
     },
-    "note": "Verify the new version contains exactly one product after removal."
+    "note": "Verify the new version contains exactly one remaining product."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the modified version; the step reports any publication failure."
+    "note": "Publish the edited version; the publish flow reports any application error."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Assert that no application error remains after publishing the reduced version."
+    "note": "Check that no versioning or line-item error was shown after publishing."
    }
   ]
  }

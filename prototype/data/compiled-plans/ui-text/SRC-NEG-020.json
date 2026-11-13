@@ -4,53 +4,62 @@
   "title": "Counter offer on a blacklisted vendor's bid",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:52.874Z",
+  "compiledAt": "2026-11-12T13:03:43.636Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Select or verify an existing RFQ in evaluation where Vendor B is blacklisted",
-   "Prove that the disabled Counter Offer control belongs specifically to the blacklisted vendor rather than another vendor or state"
+   "An existing RFQ in evaluation with Vendor B blacklisted",
+   "Verifying that the Counter Offer button is disabled specifically for Vendor B rather than for another reason or vendor"
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Select or verify an existing RFQ in evaluation where Vendor B is blacklisted; Prove that the disabled Counter Offer control belongs specifically to the blacklisted vendor rather than another vendor or state"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: An existing RFQ in evaluation with Vendor B blacklisted; Verifying that the Counter Offer button is disabled specifically for Vendor B rather than for another reason or vendor"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
    "expect_disabled"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 9868
+  "ms": 11733
  },
  "plan": {
-  "title": "Counter Offer Disabled for Blacklisted Vendor",
+  "title": "Blacklisted Vendor Counter Offer Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ Responses screen without creating or searching for another event."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Open the RFQ Responses view where vendor Counter Offer controls are shown."
+    "note": "Ensure counter offers are enabled for RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the tenant."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Counter Offer"
     },
-    "note": "Assert that the visible Counter Offer control is disabled."
+    "note": "Closest available assertion for the expected disabled control, though it cannot prove the disabled state is specifically caused by Vendor B being blacklisted."
    }
   ]
  }

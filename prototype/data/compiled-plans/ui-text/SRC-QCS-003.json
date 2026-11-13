@@ -4,23 +4,22 @@
   "title": "Master QCS with two bids",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:38:18.964Z",
+  "compiledAt": "2026-11-12T13:08:36.303Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The lowest-price vendor's visual highlight in the Master QCS grid"
+   "Whether the lowest-price bid is visually highlighted"
   ],
   "warnings": [
-   "can only test part of this — no step for: The lowest-price vendor's visual highlight in the Master QCS grid"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether the lowest-price bid is visually highlighted"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "open_master_qcs",
+   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_cell",
    "expect_qcs_cell",
@@ -32,103 +31,91 @@
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 10031
+  "ms": 8779
  },
  "plan": {
-  "title": "Master QCS with two bids",
+  "title": "SRC-QCS-003 — Master QCS with two bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ comparison screen as required for this case."
+    "note": "Open the prepared RFQ Master QCS state with Vendor A and Vendor B bids."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "participants"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Reach the published event's Participants list to add the second bid."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {
-     "price": 90
-    },
-    "note": "Enter the second vendor's bid at 90, producing the expected lower total for the second vendor."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify that the added surrogate bid was accepted."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Return to the Master QCS comparison after both bids exist."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
      "realNames": true
     },
-    "note": "Assert that the comparison has exactly two real vendor columns."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "equals": "100"
-    },
-    "note": "Verify the original vendor's bid rate."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount",
-     "vendor": 1,
-     "equals": "1000"
-    },
-    "note": "Verify the original vendor's expected total amount."
+    "note": "Verify that both real bidder columns are present."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Rank",
-     "vendor": 1,
-     "equals": "2"
+     "vendor": "Vendor B",
+     "number": 1
     },
-    "note": "Verify the original vendor is ranked second."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 2,
-     "equals": "90"
-    },
-    "note": "Verify the second vendor's lower bid rate."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount",
-     "vendor": 2,
-     "equals": "900"
-    },
-    "note": "Verify the second vendor's expected total amount."
+    "note": "Verify Vendor B, the lower bidder, is ranked first."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Rank",
-     "vendor": 2,
-     "equals": "1"
+     "vendor": "Vendor A",
+     "number": 2
     },
-    "note": "Verify the lower-priced second vendor is ranked first."
+    "note": "Verify Vendor A is ranked second."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": "Vendor B",
+     "number": 900
+    },
+    "note": "Verify Vendor B's displayed amount is 900 for 10 units at 90."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": "Vendor A",
+     "number": 1000
+    },
+    "note": "Verify Vendor A's displayed amount is 1,000 for 10 units at 100."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": "Vendor B",
+     "number": 900
+    },
+    "note": "Verify Vendor B's total is 900."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": "Vendor A",
+     "number": 1000
+    },
+    "note": "Verify Vendor A's total is 1,000."
    },
    {
     "step": "expect_qcs_ranks",
@@ -137,7 +124,7 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Assert that ranks follow the lowest bid amount."
+    "note": "Verify the ranking order follows the lowest bid amount."
    }
   ]
  }

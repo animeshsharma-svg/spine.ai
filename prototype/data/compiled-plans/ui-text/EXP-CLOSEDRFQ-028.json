@@ -4,38 +4,81 @@
   "title": "A closed RFQ: \"Recreate Order\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:27:56.268Z",
+  "compiledAt": "2026-11-12T13:41:15.838Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that the event status, schedule times, vendors, and bids are all unchanged as a before-and-after comparison."
+   "Prove that the event's bidding start and end times are unchanged before and after cancelling Recreate Order"
   ],
   "warnings": [
-   "can only test part of this — no step for: Prove that the event status, schedule times, vendors, and bids are all unchanged as a before-and-after comparison."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Prove that the event's bidding start and end times are unchanged before and after cancelling Recreate Order"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
+   "expect_responses",
+   "expect_text",
    "event_menu",
    "click",
-   "expect_navigated"
+   "expect_navigated",
+   "expect_responses",
+   "expect_text",
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 11122
+  "ms": 18636
  },
  "plan": {
-  "title": "Cancel Recreate Order on Closed RFQ",
+  "title": "Closed RFQ Recreate Order Cancel",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ summary as required for prepared-state cases."
+    "note": "Open the prepared closed RFQ rather than creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Ensure buyers cannot add surrogate bids after expiry."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the case's buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -43,14 +86,34 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the Settings menu is available."
+    "note": "Open the RFQ Responses tab to observe the existing bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "stage": "rfq"
+    },
+    "note": "Record that Vendor A's existing bid is present before the Recreate Order flow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed",
+     "present": true
+    },
+    "note": "Verify the event remains visibly closed before the action."
    },
    {
     "step": "event_menu",
@@ -58,7 +121,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ stage settings."
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
     "step": "click",
@@ -66,14 +129,39 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the recreate-order flow."
+    "note": "Cancel the Recreate Order operation as required by the case."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "responses"
     },
-    "note": "Verify cancellation closes the window and leaves the buyer on the unchanged Responses screen."
+    "note": "Verify the Recreate Order window closed and the buyer remains on the Responses view."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "stage": "rfq"
+    },
+    "note": "Verify that Vendor A's bid and the response state are unchanged after cancelling."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed",
+     "present": true
+    },
+    "note": "Verify that cancelling did not change the event's closed status."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the page shows no error or rendering issue after cancellation."
    }
   ]
  }

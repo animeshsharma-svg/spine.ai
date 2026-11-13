@@ -4,47 +4,84 @@
   "title": "A live RFQ: switching is_vendor_masking_allowed_for_everyone changes nothing visible here",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:46:12.378Z",
+  "compiledAt": "2026-11-12T13:46:13.326Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Changing the tenant setting is_vendor_masking_allowed_for_everyone from On to Off and observing whether the Responses screen controls or menus change."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Changing the tenant setting is_vendor_masking_allowed_for_everyone from On to Off and observing whether the Responses screen controls or menus change."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Compare the Responses screen's controls and menus before and after switching is_vendor_masking_allowed_for_everyone from” — require_setting switches that company setting before the case and back after"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "ask_tester",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "probe_controls",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 8085
+  "ms": 11271
  },
  "plan": {
-  "title": "Live RFQ Vendor Masking Setting Exploration",
+  "title": "Live RFQ Vendor Masking Visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
+    "note": "Open the prepared live RFQ directly on its Responses tab."
    },
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "change is_vendor_masking_allowed_for_everyone from On to Off and observe and report any changes to the live RFQ Responses screen controls or menus"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "The catalog cannot change tenant settings or perform this exploration."
+    "note": "Enable eRFX projects as required for the live RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for withdraw visibility."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow the live event's withdraw behavior to match the case setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "Off"
+    },
+    "note": "Set the vendor-masking configuration under test."
+   },
+   {
+    "step": "probe_controls",
+    "args": {
+     "within": "Settings",
+     "max": 30
+    },
+    "note": "Explore the Responses screen's Settings menu and record what controls, menus, or messages appear without confirming any mutating action."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the Responses screen remains rendered without errors after the tester's setting change."
+    "note": "Assert that the explored Responses screen remains rendered without errors, crashes, or raw values."
    }
   ]
  }

@@ -4,80 +4,130 @@
   "title": "Increase Event Time: Cancel button closes the Increase Event Time window without changes",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:24.446Z",
+  "compiledAt": "2026-11-12T13:42:28.379Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Increase Event Time\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "expect_visible",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "expect_text",
+   "extend_time",
    "click",
    "expect_visible",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9852
+  "ms": 17882
  },
  "plan": {
-  "title": "Closed RFQ Extend Time Cancel",
+  "title": "Cancel Increase Event Time on Closed RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on the buyer's summary page."
+    "note": "Open the prepared closed RFQ instead of creating or searching for an event."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Extend Submission Time",
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Keep post-expiry surrogate bidding disabled for the closed RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Extend Submission Time."
+    "note": "Open the RFQ stage."
    },
    {
-    "step": "expect_visible",
+    "step": "go_to",
     "args": {
-     "text": "Increase Event Time",
-     "visible": true
+     "screen": "responses"
     },
-    "note": "Verify the Increase Event Time window opened."
+    "note": "Open the RFQ Responses tab where the stage Settings action is available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "29 October 2026 05:49 PM"
+    },
+    "note": "Record the expected unchanged event end time before opening the dialog."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "confirm": false
+    },
+    "note": "Open the Increase Event Time window and leave it unsaved so Cancel can be tested."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "name": "Cancel"
     },
-    "note": "Cancel the time extension without saving changes."
+    "note": "Cancel the Increase Event Time window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Increase Event Time",
+     "role": "dialog",
+     "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify the Increase Event Time window closed."
+    "note": "Verify that cancelling closes the Increase Event Time window."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "29 October 2026 05:49 PM",
-     "present": true
+     "text": "29 October 2026 05:49 PM"
     },
-    "note": "Verify the event end time remains unchanged after cancellation."
+    "note": "Verify that the event end time remains unchanged after cancellation."
    }
   ]
  }

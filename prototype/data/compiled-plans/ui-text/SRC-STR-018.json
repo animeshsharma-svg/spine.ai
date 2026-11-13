@@ -4,30 +4,29 @@
   "title": "Edit the traffic light configuration on a live traffic light event",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:08:10.107Z",
+  "compiledAt": "2026-11-12T13:18:04.866Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Attempting to edit the traffic-light zones/configuration on a live traffic-light event and asserting the message \"You cannot edit the config in traffic event\""
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Attempting to edit the traffic-light zones/configuration on a live traffic-light event and asserting the message \"You cannot edit the config in traffic event\""
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_navigated"
+   "require_setting",
+   "do_on_screen",
+   "expect_message"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8475
+  "ms": 10188
  },
  "plan": {
-  "title": "Edit Traffic Light Configuration on Live Auction",
+  "title": "Block live traffic-light configuration edits",
   "steps": [
    {
     "step": "open_prepared",
@@ -37,11 +36,27 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
     "args": {
-     "screen": "event"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Confirm that the event project page opened, although the traffic-light configuration edit action itself is not expressible."
+    "note": "Enable eRFX projects as required by the case setup."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the live traffic-light reverse auction's buyer project page, attempt to edit the traffic-light zones/configuration and stop when the screen shows the refusal."
+    },
+    "note": "Perform the configuration edit attempt that is not represented by a dedicated domain step."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "You cannot edit the config in traffic event"
+    },
+    "note": "Verify Procol refuses the edit with the expected message."
    }
   ]
  }

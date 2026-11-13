@@ -4,50 +4,30 @@
   "title": "Submit a complete bid on an RFQ and see it on the buyer side",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:11:19.211Z",
+  "compiledAt": "2026-11-12T16:25:28.228Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot directly assert the exact Current Bid 1 timestamp shown to the vendor.",
-   "The catalog cannot directly assert the vendor-side revise/edit button state after submission.",
-   "The catalog cannot explicitly target and assert ticking one particular Required T&C clause before submission.",
-   "unconfirmed label \"SRC-BID-004 RFQ Vendor Submission\" (click) — not among the labels known from the app nor in the case"
+   "The exact vendor-side revise/edit button label after submission is not confirmed by the catalog."
   ],
   "warnings": [
    "added open_prepared(responses) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "coverage partial: unconfirmed label \"SRC-BID-004 RFQ Vendor Submission\" (click) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The catalog cannot directly assert the exact Current Bid 1 timestamp shown to the vendor.; The catalog cannot directly assert the vendor-side revise/edit button state after submission.; The catalog cannot explicitly target and assert ticking one particular Required T&C clause before submission."
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The exact vendor-side revise/edit button label after submission is not confirmed by the catalog."
   ],
   "source": "llm",
-  "steps": 23,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
    "expect_bid_submitted",
    "expect_text",
+   "expect_visible",
    "switch_portal",
-   "expect_events_list",
-   "fill",
-   "click",
-   "expect_navigated",
    "go_to",
    "expect_responses",
    "open_master_qcs",
@@ -57,10 +37,10 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 18309
+  "ms": 16356
  },
  "plan": {
-  "title": "SRC-BID-004 RFQ Vendor Submission",
+  "title": "Submit RFQ Bid and Verify Buyer Response",
   "steps": [
    {
     "step": "open_prepared",
@@ -70,47 +50,12 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Configure the event as an RFQ rather than the default auction stage."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the RFQ product whose bid will be submitted."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the buyer-side pricing sheet so the vendor receives a valid bid sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the bidding schedule before publishing."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ],
-     "count": 2
-    },
-    "note": "Invite Vendor A and a second vendor so the buyer's participation result can be checked as 1/2."
+    "note": "Enable the required eRFX project capability before accessing the live RFQ."
    },
    {
     "step": "switch_portal",
@@ -118,68 +63,50 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to the separate supplier-portal session while keeping the buyer session available."
+    "note": "Switch to Vendor A's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ in Vendor A's event list and enter its pricing sheet."
+    "note": "Open the live RFQ's pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Enter the complete bid at 100 per unit and submit it; the vendor flow handles the required submission terms needed for a successful quote."
+    "note": "Enter 100 in the bid sheet, which submits the complete vendor quote after the required terms are handled by the portal flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert the vendor portal shows the bid as submitted."
+    "note": "Assert that the vendor portal shows the bid as submitted."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted",
+     "text": "Current Bid 1",
      "present": true
     },
-    "note": "Verify the vendor-facing success state after submission."
+    "note": "Verify the vendor view identifies the submitted quote as the current bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Edit",
+     "visible": true
+    },
+    "note": "Check for the post-submission revise/edit control; the exact product label may differ."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's console to verify the submitted response."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert the Live, History, Drafts and Recurring event-list surface rendered without error."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search Title",
-     "value": "SRC-BID-004 RFQ Vendor Submission"
-    },
-    "note": "Find the newly published RFQ by its title."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "SRC-BID-004 RFQ Vendor Submission"
-    },
-    "note": "Open the matching event from the filtered buyer list."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "event"
-    },
-    "note": "Confirm the buyer reached the event project page."
+    "note": "Return to the buyer's event page."
    },
    {
     "step": "go_to",
@@ -187,20 +114,20 @@
      "screen": "responses",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Responses tab to inspect the buyer-side response."
+    "note": "Open the RFQ Responses tab to verify the buyer-side response."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
      "direct": 1,
-     "participation": "1/2",
      "vendors": [
       "Vendor A"
      ],
+     "participation": "1/2",
      "stage": "rfq"
     },
-    "note": "Assert that Vendor A's direct bid is the only response and participation is 1 of 2 invited vendors."
+    "note": "Assert Vendor A's direct response, the 1/2 participation count, and the buyer's response column."
    },
    {
     "step": "open_master_qcs",
@@ -209,7 +136,7 @@
       "Vendor A"
      ]
     },
-    "note": "Open Master QCS to verify the buyer's comparison grid contains Vendor A."
+    "note": "Open Master QCS to verify the submitted bid appears in the comparison grid."
    },
    {
     "step": "expect_qcs_vendors",
@@ -220,7 +147,7 @@
      ],
      "realNames": true
     },
-    "note": "Assert the buyer sees a real Vendor A column rather than a placeholder."
+    "note": "Assert that Master QCS has a real Vendor A column."
    },
    {
     "step": "expect_qcs_cell",
@@ -229,14 +156,14 @@
      "vendor": "Vendor A",
      "number": 100
     },
-    "note": "Verify the buyer-side unit bid rate is 100."
+    "note": "Verify the buyer sees Vendor A's unit bid of 100."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify the buyer-side line amount and total are calculated from the submitted rate and quantity."
+    "note": "Verify the buyer-side line total and overall total are calculated from the submitted rate and quantity."
    }
   ]
  }

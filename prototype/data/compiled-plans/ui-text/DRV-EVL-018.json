@@ -4,48 +4,49 @@
   "title": "Incorrect rank order due to missing loading factor (RCA 335187179252)",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:05:36.825Z",
+  "compiledAt": "2026-11-12T13:36:39.366Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the loading factor is configured or applied to landed-price calculations.",
-   "Verify that the L1 highlight matches the true lowest landed cost across multiple bids; the prepared state exposes only one vendor bid."
+   "Loading factor config state missing/disabled via company settings step in prepared state"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the loading factor is configured or applied to landed-price calculations.; Verify that the L1 highlight matches the true lowest landed cost across multiple bids; the prepared state exposes only one vendor bid."
+   "can only test part of this — no step for: Loading factor config state missing/disabled via company settings step in prepared state"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
-   "open_prepared",
+   "expect_qcs_vendors",
    "expect_qcs_ranks"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9977
+  "ms": 19444
  },
  "plan": {
-  "title": "Verify auction QCS rank with loading factor",
+  "title": "DRV-EVL-018 — Incorrect rank order due to missing loading factor",
   "steps": [
-   {
-    "step": "open_prepared",
-    "args": {
-     "screen": "summary"
-    },
-    "note": "Open the API-prepared auction event's buyer summary as required for prepared-state tests."
-   },
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Navigate to the Master QCS comparison grid, the subject of the case."
+    "note": "Open the Master QCS on the live auction event"
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "realNames": true
+    },
+    "note": "Assert vendor columns are present with valid names"
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {},
-    "note": "Assert that the displayed QCS rank is consistent with the visible bid amounts; with the prepared single-vendor state this verifies only the available rank display."
+    "args": {
+     "order": "lowest"
+    },
+    "note": "Assert ranks follow the amounts on Master QCS"
    }
   ]
  }

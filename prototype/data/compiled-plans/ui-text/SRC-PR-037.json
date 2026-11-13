@@ -4,22 +4,20 @@
   "title": "Create an eRFX project, Auction only from an open material PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:57.586Z",
+  "compiledAt": "2026-11-12T13:07:26.590Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the selected PR line moves to In Progress with this event's number.",
-   "Verify the published event explicitly displays that it came from a PR.",
-   "Verify the delivery location is locked to the PR; the catalog documents Delivery location as editable on the eRFX sheet."
+   "Assert that the selected PR line moves to In Progress with this event's number after publishing",
+   "Assert that the published event visibly indicates it was created from a PR"
   ],
   "warnings": [
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
-   "resolved: “Verify the PR unit and delivery location values are carried over as expected; the catalog can compare quantity and unit ” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "can only test part of this — no step for: Verify the selected PR line moves to In Progress with this event's number.; Verify the published event explicitly displays that it came from a PR.; Verify the delivery location is locked to the PR; the catalog documents Delivery location as editable on the eRFX sheet."
+   "can only test part of this — no step for: Assert that the selected PR line moves to In Progress with this event's number after publishing; Assert that the published event visibly indicates it was created from a PR"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -29,22 +27,21 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "expect_stages",
    "set_title",
-   "expect_api_value",
-   "expect_api_value",
    "expect_sheet_cells",
-   "invite_vendor",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "open_event_settings",
    "expect_menu_item"
   ],
-  "ms": 17397
+  "ms": 18071
  },
  "plan": {
-  "title": "Create Auction eRFX from Open Material PR",
+  "title": "Create Auction from Open Material PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -56,7 +53,10 @@
     }
    },
    {
-    "step": "select_pr"
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
    },
    {
     "step": "purchase_items"
@@ -79,6 +79,22 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the PR conversion flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and publishing."
+   },
+   {
     "step": "expect_stages",
     "args": {
      "stages": [
@@ -90,23 +106,9 @@
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-PR-037 Auction Event"
+     "title": "SRC-PR-037 Auction PR Event"
     },
-    "note": "Provide the mandatory project title before publication."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity"
-    },
-    "note": "Verify the displayed quantity matches the quantity held for this PR-backed event."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "unit"
-    },
-    "note": "Verify the displayed unit matches the unit held for this PR-backed event."
+    "note": "Provide the mandatory project title before publishing."
    },
    {
     "step": "expect_sheet_cells",
@@ -115,13 +117,18 @@
      "readonly": [
       "Product",
       "Product Variant",
-      "Quantity Requested"
-     ],
-     "editable": [
+      "Quantity Requested",
       "Delivery location"
      ]
     },
-    "note": "Check the catalog-observable PR-derived cell locking behavior and document that Delivery location remains editable in this build."
+    "note": "Verify the PR-derived product, variant, quantity, and delivery location cells are locked."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule with the event starting now."
    },
    {
     "step": "invite_vendor",
@@ -131,29 +138,17 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named in the case."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the requested Start now and 30-minute schedule."
+    "note": "Add the two vendors named by the test case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed auction eRFX project."
+    "note": "Publish the completed auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert publication reached a real project page."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the published event Settings menu to check the PR-specific recreation restriction."
+    "note": "Verify publishing reached a real project page."
    },
    {
     "step": "expect_menu_item",
@@ -161,7 +156,7 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Assert Recreate Order is present but greyed out for an event created from a PR."
+    "note": "Assert that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

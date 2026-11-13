@@ -4,40 +4,43 @@
   "title": "What winning and losing vendors see after the award",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:08:33.022Z",
+  "compiledAt": "2026-11-12T16:23:12.718Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the same awarded event in a separate Vendor A portal session and verify Vendor A sees it was not awarded while Vendor B's price remains hidden",
-   "Directly verify that Vendor B sees the created purchase order in the vendor portal",
-   "Directly verify the awarded quantity rather than the event quantity or bid amount"
+   "Open the same awarded event in a second independent vendor session as Vendor A and verify that Vendor A sees it was not awarded.",
+   "Verify that Vendor B sees the purchase order after it was created.",
+   "Verify the exact awarded quantity and awarded amount rather than the event quantity and bid total exposed by the available API-value assertions.",
+   "Verify that each vendor cannot see the other vendor's price in a separate vendor session."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the same awarded event in a separate Vendor A portal session and verify Vendor A sees it was not awarded while Vendor B's price remains hidden; Directly verify that Vendor B sees the created purchase order in the vendor portal; Directly verify the awarded quantity rather than the event quantity or bid amount"
+   "can only test part of this — no step for: Open the same awarded event in a second independent vendor session as Vendor A and verify that Vendor A sees it was not awarded.; Verify that Vendor B sees the purchase order after it was created.; Verify the exact awarded quantity and awarded amount rather than the event quantity and bid total exposed by the available API-value assertions.; Verify that each vendor cannot see the other vendor's price in a separate vendor session."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
    "expect_api_value",
-   "ask_tester"
+   "expect_api_value",
+   "ask_tester",
+   "expect_screen_clean"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 12220
+  "ms": 17635
  },
  "plan": {
-  "title": "Winning and Losing Vendor Award Visibility",
+  "title": "Vendor views after award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the already awarded event prepared for this case without recreating or changing its state."
+    "note": "Open the prepared awarded event's summary page as required for this state."
    },
    {
     "step": "switch_portal",
@@ -45,7 +48,7 @@
      "to": "vendor",
      "vendor": "Vendor B"
     },
-    "note": "Switch to the available vendor portal session for the winning vendor while keeping the buyer session available."
+    "note": "Switch to Vendor B's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
@@ -57,22 +60,36 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Awarded"
+     "text": "Awarded",
+     "present": true
     },
-    "note": "Verify the winning vendor's portal identifies the event as awarded."
+    "note": "Assert that the winning vendor sees the event marked as awarded."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Assert that the winning vendor's view shows the event quantity."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidTotal"
     },
-    "note": "Verify the winning vendor's displayed amount corresponds to the awarded event's bid total."
+    "note": "Assert that the winning vendor's view shows its bid total amount."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the same awarded event in a separate vendor portal session as Vendor A and verify that it shows Vendor A was not awarded, does not reveal Vendor B's price, and shows the expected losing-vendor view"
-    }
+     "need": "sign in as Vendor A in a second independent vendor portal session, open the same awarded event, and verify that it is not awarded and does not expose Vendor B's price"
+    },
+    "note": "The catalog supports only one QA vendor portal session, so the losing vendor's independent view requires tester assistance."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting vendor view has no crash, server error, raw identifiers, or invalid values."
    }
   ]
  }

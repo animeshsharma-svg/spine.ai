@@ -4,50 +4,54 @@
   "title": "QCS L1 highlight respects hide_tna_bid_from_qcs setting",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:05:06.745Z",
+  "compiledAt": "2026-11-12T13:36:18.237Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable or verify the tenant setting hide_tna_bid_from_qcs.",
-   "Prepare or access a live RFQ containing both a TNA bid from Vendor A and a regular bid from another vendor with comparable landed prices.",
-   "Observe that the TNA bid is absent from the ranking table.",
-   "Verify that the next-lowest regular bid is highlighted as L1."
+   "Config hide_tna_bid_from_qcs = On cannot be fully manipulated by a catalog step without runner setup, and TNA bid state setup requires specific evaluator grading."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Enable or verify the tenant setting hide_tna_bid_from_qcs.; Prepare or access a live RFQ containing both a TNA bid from Vendor A and a regular bid from another vendor with comparable landed prices.; Observe that the TNA bid is absent from the ranking table.; Verify that the next-lowest regular bid is highlighted as L1."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Config hide_tna_bid_from_qcs = On cannot be fully manipulated by a catalog step without runner setup, and TNA bid state setup requires specific evaluator grading."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_qcs_vendors",
+   "require_setting",
    "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 7174
+  "ms": 16772
  },
  "plan": {
-  "title": "QCS TNA Bid Visibility and L1 Highlight",
+  "title": "QCS L1 highlight respects hide_tna_bid_from_qcs setting",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS screen, which is the closest available screen for inspecting bid visibility and ranking."
+    "note": "Open Master QCS on the prepared RFQ event"
    },
    {
-    "step": "expect_qcs_vendors",
+    "step": "require_setting",
     "args": {
-     "realNames": true
+     "phrase": "hide_tna_bid_from_qcs",
+     "value": "On"
     },
-    "note": "Record the vendor columns rendered in Master QCS, but this cannot establish TNA exclusion because the prepared state contains only one ordinary bid."
+    "note": "Ensure hide_tna_bid_from_qcs is enabled as required by the case"
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {},
-    "note": "Verify that the available QCS ranking data renders; this does not test the requested TNA-specific L1 behavior."
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Assert that ranks correctly follow available regular bids and TNA is hidden"
    }
   ]
  }

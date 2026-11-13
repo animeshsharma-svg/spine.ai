@@ -4,105 +4,48 @@
   "title": "Forward auction (tick 1): raise by 0.5 (less than the tick)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:47:15.966Z",
+  "compiledAt": "2026-11-12T13:11:26.141Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog cannot configure a forward-auction direction or set a tick size of 1, so it cannot guarantee that the created auction has the exact SRC-SET-007 setup."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The catalog cannot configure a forward-auction direction or set a tick size of 1, so it cannot guarantee that the created auction has the exact SRC-SET-007 setup."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "configure_single_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
-   "vendor_bid",
-   "expect_bid_submitted",
    "attempt",
    "switch_portal",
-   "expect_events_list",
-   "fill",
-   "click",
    "go_to",
-   "expect_responses",
-   "open_master_qcs",
-   "expect_qcs_vendors"
+   "expect_navigated",
+   "open_master_qcs"
   ],
   "state": "forward",
   "screen": "master_qcs",
-  "ms": 20382
+  "ms": 13154
  },
  "plan": {
-  "title": "SRC-REV-012 Forward Auction Tick Revision",
+  "title": "Forward auction tick-size revision refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live forward-auction event with Vendor A's existing bid."
    },
    {
-    "step": "configure_single_stage",
+    "step": "require_setting",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Configure the closest available auction type; forward direction and tick size are not exposed."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the auction pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the single line item needed for the bid."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Invite the vendor named in the case."
+    "note": "Enable the eRFX project configuration required by the scenario."
    },
    {
     "step": "switch_portal",
@@ -110,26 +53,14 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to the separate supplier portal session while keeping the buyer session available."
+    "note": "Move to the separate vendor session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round as Vendor A."
-   },
-   {
-    "step": "vendor_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit Vendor A's initial bid at 100."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the initial vendor bid was accepted."
+    "note": "Open the live auction's pricing round from Vendor A's event list."
    },
    {
     "step": "attempt",
@@ -141,62 +72,33 @@
      "expect": "refused",
      "because": "Quoted price difference must be greater than the tick size"
     },
-    "note": "Attempt the revision that raises the price by 0.5 and require the exact tick-size refusal."
+    "note": "Attempt the revision from 100 to 100.5 and require Procol's tick-size refusal."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console after the vendor revision attempt."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the Live, History, Drafts and Recurring list screen rendered without an error."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search Title",
-     "value": "SRC-REV-012 Forward Auction"
-    },
-    "note": "Search for the created live auction by title."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "SRC-REV-012 Forward Auction"
-    },
-    "note": "Open the matching event from the buyer's event list."
+    "note": "Return to the buyer's event page."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the event's Responses view."
+    "note": "Open the buyer's Responses view."
    },
    {
-    "step": "expect_responses",
+    "step": "expect_navigated",
     "args": {
-     "count": 1,
-     "direct": 1
+     "screen": "responses"
     },
-    "note": "Confirm the buyer still sees Vendor A's accepted initial response."
+    "note": "Assert that the buyer's Responses screen is ready."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 1,
-     "realNames": true
-    },
-    "note": "Confirm the Master QCS shows the real bidding vendor column."
+    "note": "Open Master QCS to verify the buyer can still access the comparison grid after the refused revision."
    }
   ]
  }

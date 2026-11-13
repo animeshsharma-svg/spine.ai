@@ -4,65 +4,158 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"+ (add)\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:44:49.597Z",
+  "compiledAt": "2026-11-12T13:45:20.852Z",
   "tier": "fast",
   "coverage": "partial",
-  "gaps": [
-   "Verify that the company setting lock_vendors_addition_in_event_creation is Off"
-  ],
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify that the company setting lock_vendors_addition_in_event_creation is Off"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "resolved: “Whether the vendor-add \"+ (add)\" control is offered on a saved eRFX draft when lock_vendors_addition_in_event_creation i” — require_setting switches that company setting before the case and back after",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 17,
   "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
    "open_first_event",
-   "do_on_screen",
-   "expect_screen_clean"
+   "open_add_stage_menu",
+   "expect_add_stage_options"
   ],
-  "ms": 69628
+  "ms": 18349
  },
  "plan": {
-  "title": "Draft vendor-add control hidden",
+  "title": "Saved eRFX draft add control availability",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the saved eRFX draft whose screen is needed for the check."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the case's vendor-addition setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration specified by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure an eRFX draft with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template so the draft can be saved."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid draft schedule."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX event as a draft."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the Events list rendered successfully."
+    "note": "Return to the events list to reach the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved, unpublished drafts."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved eRFX draft, since no draft title is specified."
+    "note": "Reopen the saved draft."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "On the saved eRFX draft create screen, inspect the buyer controls and verify that the vendor-add plus control is not offered or rendered; stop with the draft screen showing the absence."
-    },
-    "note": "Inspect the specific vendor-add control that no catalog assertion names directly."
-   },
-   {
-    "step": "expect_screen_clean",
+    "step": "open_add_stage_menu",
     "args": {},
-    "note": "Confirm the inspected draft screen has no crash or server error."
+    "note": "Closest available plus-control check; this opens the stage-add menu, not the vendor-add control."
+   },
+   {
+    "step": "expect_add_stage_options",
+    "args": {
+     "disabled": false,
+     "absent": [
+      "Technical Stage",
+      "Auction"
+     ]
+    },
+    "note": "Assert the closest catalog-observable add menu state without treating it as evidence about vendor addition."
    }
   ]
  }

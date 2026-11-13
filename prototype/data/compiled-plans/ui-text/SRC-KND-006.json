@@ -4,23 +4,25 @@
   "title": "Single stage reverse auction: recreate it after the close",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:38.507Z",
+  "compiledAt": "2026-11-12T13:01:11.764Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the recreated event has exactly the same products as the original.",
-   "Verify that the recreated event preserves the original auction settings."
+   "Verify that the recreated event has exactly the same products as the original event.",
+   "Verify that the recreated event preserves all auction settings from the original single-stage reverse auction."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the recreated event has exactly the same products as the original.; Verify that the recreated event preserves the original auction settings."
+   "can only test part of this — no step for: Verify that the recreated event has exactly the same products as the original event.; Verify that the recreated event preserves all auction settings from the original single-stage reverse auction."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "expect_visible",
    "click",
@@ -29,10 +31,10 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14589
+  "ms": 22930
  },
  "plan": {
-  "title": "Recreate a closed single-stage reverse auction",
+  "title": "Recreate closed single-stage reverse auction",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,20 +44,36 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_to_clone_project",
+     "value": "On"
+    },
+    "note": "Enables the Recreate Order action for completed projects."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enables the required eRFX/reverse-auction functionality."
+   },
+   {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "auction"
     },
-    "note": "Open the stage Settings menu and choose Recreate Order."
+    "note": "Opens the auction stage action for recreating the order."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Create Order",
+     "text": "Create Order",
      "visible": true
     },
-    "note": "Verify the recreate-order dialog offers the Create Order action."
+    "note": "Confirms the recreate-order flow presents its Create Order action."
    },
    {
     "step": "click",
@@ -63,19 +81,19 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Create the new event using the default recreation settings."
+    "note": "Creates the new event using the default recreation settings."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify that the new event's create screen opened."
+    "note": "Confirms the new event's creation screen opened after recreation."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify the recreation completed without an application error."
+    "note": "Confirms the recreated event flow completed without an application error."
    }
   ]
  }

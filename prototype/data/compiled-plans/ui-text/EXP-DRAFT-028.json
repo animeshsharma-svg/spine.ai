@@ -4,52 +4,143 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Buy Template\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:42:00.069Z",
+  "compiledAt": "2026-11-12T13:44:17.849Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify or change the company setting lock_vendors_addition_in_event_creation is Off."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Verify or change the company setting lock_vendors_addition_in_event_creation is Off."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 17,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
-   "open_first_event",
+   "expect_event_in_list",
+   "open_event",
    "expect_visible"
   ],
-  "ms": 7056
+  "ms": 18008
  },
  "plan": {
-  "title": "Buy Template absent on saved eRFX draft",
+  "title": "Saved eRFX draft hides Buy Template when vendor locking is Off",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the setting under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration specified by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-028 Buy Template Visibility"
+    },
+    "note": "Give the draft the required project title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template so the draft has a valid configured stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item to the draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the draft line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft can be saved."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX project as a draft."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save did not produce an application error."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved drafts."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Return to the events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab described by the case."
+    "note": "Show saved drafts."
    },
    {
-    "step": "open_first_event",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Open the first saved draft shown in the Drafts list."
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify this plan's saved draft appears in the Drafts tab."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen this plan's draft on its create screen."
    },
    {
     "step": "expect_visible",

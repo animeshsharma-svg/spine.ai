@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { STEP_CATALOG, STEP_NAMES } from "../src/plan/steps.js";
@@ -17,6 +17,7 @@ import { knownLabels, labelsForPrompt, seenLabels } from "../src/plan/generic/la
  * to tell a generic step that names a real control from one that guesses.
  */
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "plan-catalog.json");
+const SOURCE = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "plan", "generic", "sourceLabels.json");
 const labels = labelsForPrompt();
 writeFileSync(
   out,
@@ -27,6 +28,9 @@ writeFileSync(
       names: STEP_NAMES,
       generic: STEP_CATALOG.filter((s) => s.generic).map((s) => s.name),
       labels,
+      // every UI string the product's source renders (scan-dashboard-labels.ts): the compiler's guard accepts
+      // these on an exact match, so a real label ("Ok", "Increase Event Time") is not reported as a guess
+      sourceLabels: existsSync(SOURCE) ? (JSON.parse(readFileSync(SOURCE, "utf8")).labels as Array<{ text: string }>).map((l) => l.text) : [],
       labelCounts: { fromSource: knownLabels().length, seenLive: seenLabels().length },
     },
     null,

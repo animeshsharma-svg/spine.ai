@@ -4,58 +4,83 @@
   "title": "Evaluation time 30 minutes",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:27.703Z",
+  "compiledAt": "2026-11-12T13:14:36.273Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the initial Schedule Event drawer with a separate 30-minute evaluation duration while using a 15-minute bidding duration.",
-   "Select the exact product variant CYLINDER WITH KEY & KNOB and Plant Name (LOC-0001) delivery location.",
-   "Verify that the event enters evaluation after bidding ends, that a new 30-minute countdown runs, and that counter offers are available specifically during that evaluation window."
+   "Directly verify that Reject Bid is actionable during the evaluation window.",
+   "Directly verify that counter offers are actionable during the evaluation window."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added set_schedule(3 min) before publish — close_event needs a short window to wait out",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Configure the initial Schedule Event drawer with a separate 30-minute evaluation duration while using a 15-minute bidding duration.; Select the exact product variant CYLINDER WITH KEY & KNOB and Plant Name (LOC-0001) delivery location.; Verify that the event enters evaluation after bidding ends, that a new 30-minute countdown runs, and that counter offers are available specifically during that evaluation window."
+   "added set_schedule(3 min) before publish — close_event needs a short window to wait out",
+   "can only test part of this — no step for: Directly verify that Reject Bid is actionable during the evaluation window.; Directly verify that counter offers are actionable during the evaluation window."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "expect_template_selected",
-   "expect_sheet_columns",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "invite_vendor",
+   "do_on_screen",
    "set_schedule",
    "publish",
    "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
    "close_event",
-   "extend_time",
-   "event_menu",
-   "expect_text"
+   "open_events_list",
+   "expect_event_status"
   ],
-  "ms": 24090
+  "ms": 26223
  },
  "plan": {
-  "title": "Evaluation time 30 minutes",
+  "title": "Single-stage RFQ evaluation time",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow described by the case."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable the RFQ counter-offer option required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -63,19 +88,17 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Configure the final event type as RFQ."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Evaluation time 30 minutes"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Provide the mandatory event title using a unique generated title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -84,95 +107,86 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the requested product search result and quantity; exact variant and delivery location selection are not expressible by the catalog."
+    "note": "Add the CYLINDER product and set its requested quantity to 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet fields required for publication."
+    "note": "Populate the remaining required pricing-sheet values."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Assert that the RFQ template was applied."
-   },
-   {
-    "step": "expect_sheet_columns",
+    "step": "expect_sheet_cell",
     "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
     },
-    "note": "Assert that the expected pricing-sheet columns rendered."
+    "note": "Verify the product's automatically populated variant."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the requested delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the delivery location was retained."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor without inventing the unnamed Vendor A identity."
+    "note": "Add one QA test vendor without inventing a vendor name."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the Schedule Event drawer, set the bidding duration to 15 Mins, set Evaluation time to 30 minutes, save the schedule, and stop on the create screen showing the saved schedule summary"
+    },
+    "note": "Configure and save the separate 30-minute evaluation window, which has no dedicated catalog argument."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
-    },
-    "note": "Set the requested 15-minute event duration; the separate evaluation duration cannot be supplied through this step."
+    }
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event."
+    "note": "Publish the fully configured RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {},
-    "note": "Have the invited QA vendor submit a quote so the event can be closed and its post-bidding controls exercised."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the vendor bid was accepted."
+    "note": "Confirm publication reached a real event page."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "End the bidding window to reach the post-bidding state."
+    "note": "End the bidding window so the event can transition into its evaluation period."
    },
    {
-    "step": "extend_time",
-    "args": {
-     "which": "evaluation",
-     "option": "custom",
-     "amount": 30,
-     "unit": "minutes",
-     "expect": "saved"
-    },
-    "note": "Use the available evaluation-time action as the closest observable check that a 30-minute evaluation period can be saved after bidding."
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to inspect the event's resulting status."
    },
    {
-    "step": "event_menu",
+    "step": "expect_event_status",
     "args": {
-     "item": "Rejected Bids"
+     "status": "In - Evaluation"
     },
-    "note": "Open the rejected-bids surface available from the event's stage menu."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejected Bids",
-     "present": true
-    },
-    "note": "Assert that the Rejected Bids view opened."
+    "note": "Verify the event entered the evaluation state after bidding ended."
    }
   ]
  }

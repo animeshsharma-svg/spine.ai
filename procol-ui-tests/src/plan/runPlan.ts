@@ -35,7 +35,7 @@ import { installSpotlight, beginStep, stepShots, stepActions, spotlightVerify, s
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
-import { resolveScreen, type PlanContext, SCREENS } from "./screens.js";
+import { resolveScreen, screenState, type PlanContext, SCREENS } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 import { sideFrames } from "../support/liveCursor.js";
 import { askTester, SAYS_STOP, mask } from "../explore/ask.js";
@@ -1180,7 +1180,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   if (step.step === "vendor_bid") return vendorBid(s, a);
   // open_prepared{screen:"vendor"}: the vendor side of an API-built event — sign in and open it there.
   if (step.step === "open_prepared" && /^vendor/i.test(String(a.screen ?? ""))) {
-    const state = s.context.state ?? "none";
+    const state = screenState(s.context.state);
     if (!SCREENS.vendor.needs.includes(state as never)) throw new Error(`the vendor portal needs a published event (${SCREENS.vendor.needs.join("/")}), and this case's state is ${state} — automation needs update`);
     const signedIn = await switchPortal(s, "vendor", s.context.vendorEmail);
     const opened = await vendorOpenEvent(s, { overview: a.overview });
@@ -2558,7 +2558,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "allocate_award": {
       const award = new AwardPage(s.page);
-      const allocated = await award.allocate(a.vendor ? String(a.vendor) : undefined);
+      // vendor 1 / 2 = the prepared event's first / second QA vendor ("Vendor A" / "Vendor B" of a two-bid event)
+      const raw = a.vendor === undefined ? undefined : String(a.vendor);
+      const vendor = raw && /^(1|a|vendor a)$/i.test(raw) ? s.context?.vendorName : raw && /^(2|b|vendor b)$/i.test(raw) ? (s.context?.values?.secondVendorName ?? raw) : raw;
+      if (a.quantity !== undefined && a.quantity !== null && a.quantity !== "") {
+        if (!vendor) throw new Error("not checked: a split award needs the vendor whose quantity is typed");
+        const q = Number(a.quantity);
+        const r = await award.awardLineQuantity(vendor, q, Number(a.line) || 1);
+        if (!r.popover) throw new Error(`could not tell: the line's "Select for Awarding" for ${vendor} opened no quantity window (partial awarding may be off for this company)${r.said ? ` — the app said "${r.said}"` : ""}`);
+        if (r.said && /cannot|not allowed|more than|exceed|invalid|error/i.test(r.said)) throw new Error(`the app refused ${q} units for ${vendor}: "${r.said}" [product]`);
+        if (!r.qtyAwarded.replace(/[^\d.]/g, "").startsWith(String(q))) throw new Error(`${vendor}'s Qty Awarded reads "${r.qtyAwarded}" after awarding ${q} units, even after reloading the awarding screen (Tot. Proposal Value ₹${r.totals.proposal ?? "?"})`);
+        const c = await award.readCounters();
+        return `awarded ${q} units of line ${Number(a.line) || 1} to ${vendor} — Qty Awarded reads "${r.qtyAwarded}"${r.afterReload ? " (only after a reload — the grid showed “–” at first)" : ""}; Tot. Proposal Value ₹${r.totals.proposal ?? "?"}${c.vendors ? `, Awarded Vendors ${c.vendors.selected}/${c.vendors.total}` : ""}`;
+      }
+      const allocated = await award.allocate(vendor);
       return `allocated ${allocated.items} line item(s) to ${allocated.vendors} vendor(s)`;
     }
     case "expect_award_counters": {
@@ -2567,8 +2580,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const want = (v: unknown) => String(v ?? "").replace(/\s+/g, "");
       if (a.items !== undefined && show(c.items) !== want(a.items)) throw new Error(`"Tot. selected line items" reads ${show(c.items)} — the case expects ${want(a.items)}`);
       if (a.vendors !== undefined && show(c.vendors) !== want(a.vendors)) throw new Error(`"Awarded Vendors" reads ${show(c.vendors)} — the case expects ${want(a.vendors)}`);
-      if (a.items === undefined && a.vendors === undefined) throw new Error("expect_award_counters needs items or vendors to compare");
-      return `line items ${show(c.items)}, vendors ${show(c.vendors)}`;
+      const t = await new AwardPage(s.page).readTotals();
+      const money = (v: unknown) => Number(String(v).replace(/[₹,\s]/g, ""));
+      for (const [k, label] of [["proposal", "Tot. Proposal Value"], ["l1", "Tot. L1 Proposal Value"], ["nonL1", "Tot. Non L1 Proposal Value"]] as const)
+        if (a[k] !== undefined && t[k] !== money(a[k])) throw new Error(`"${label}" reads ₹${t[k] ?? "(not shown)"} — the case expects ₹${money(a[k])}`);
+      if (a.items === undefined && a.vendors === undefined && a.proposal === undefined && a.l1 === undefined && a.nonL1 === undefined) throw new Error("expect_award_counters needs items, vendors or a total to compare");
+      return `line items ${show(c.items)}, vendors ${show(c.vendors)}, Tot. Proposal Value ₹${t.proposal ?? "?"}`;
     }
     case "award_event": {
       const award = new AwardPage(s.page);
@@ -2879,6 +2896,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "ask_tester":
       return askForPart(s, String(a.need ?? a.what ?? "this part of the case"));
+    case "require_setting": {
+      // The runner (prototype sheetRunner) switches the setting before the plan starts and lists what it
+      // applied in UI_SETTINGS_APPLIED. A plan run any other way did not have it applied: say so, never pretend.
+      const want = String(a.key ?? a.phrase ?? "").trim();
+      const applied = (process.env.UI_SETTINGS_APPLIED ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+      if (applied.includes(want) || (a.phrase && applied.some((k) => k.startsWith("phrase:") && k.slice(7) === want))) return `company setting ${want} = ${String(a.value)} was set by the runner before this plan`;
+      throw new Error(`could not tell: the company setting "${want}" must be set to ${String(a.value)} by the runner before the plan, and this run did not set it (only sheet runs switch settings)`);
+    }
     default:
       // validatePlan should have caught this long before now.
       throw new Error(`unknown step "${step.step}"`);

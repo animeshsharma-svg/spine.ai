@@ -4,7 +4,7 @@
   "title": "Add Columns — a column name that already exists",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:19:26.890Z",
+  "compiledAt": "2026-11-13T11:31:58.230Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -25,48 +25,47 @@
    "select_template",
    "add_line_items",
    "expect_sheet_columns",
+   "set_sheet_cell",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 13335
+  "ms": 9618
  },
  "plan": {
-  "title": "SRC-CRE-043 Duplicate Price Column",
+  "title": "Reject duplicate pricing column",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen required by the case."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-CRE-043 Duplicate Price Column"
-    },
-    "note": "Provide the mandatory event title for a create flow."
+    "args": {},
+    "note": "Provide the mandatory event title for a valid create-screen setup."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet and its standard columns render."
+    "note": "Apply an RFQ template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product row with quantity 10; the duplicate-column validation only requires a rendered pricing sheet."
+    "note": "Add the specified product and quantity to populate the sheet."
    },
    {
     "step": "expect_sheet_columns",
@@ -78,11 +77,20 @@
     "note": "Confirm that Price already exists before attempting to add it again."
    },
    {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the required delivery location from the case setup."
+   },
+   {
     "step": "do_on_screen",
     "args": {
-     "goal": "open Add Columns, enter Price as the new column name, submit the add-column action, and stop with the refusal visible"
+     "goal": "click Add Columns, attempt to add the existing Price column, and stop on the screen showing the duplicate-column refusal"
     },
-    "note": "Perform the Add Columns interaction whose dialog and controls are not represented by a dedicated catalog step."
+    "note": "Perform the Add Columns interaction that has no dedicated catalog action and verify the refusal state on screen."
    },
    {
     "step": "expect_message",
@@ -90,7 +98,7 @@
      "kind": "error",
      "text": "Column already exists"
     },
-    "note": "Assert the exact refusal for attempting to add the existing Price column."
+    "note": "Assert the expected duplicate-column error."
    }
   ]
  }

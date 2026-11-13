@@ -4,47 +4,71 @@
   "title": "Participation status tracking behavior with vendor integration status setting enabled",
   "group": "DRV-EVT",
   "sheet": "derived-track-each-vendor-s-participation-status",
-  "compiledAt": "2026-11-09T23:06:05.230Z",
+  "compiledAt": "2026-11-12T13:36:38.921Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify or enable the tenant's vendor integration status setting."
+   "unconfirmed label \"Not Participated\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify or enable the tenant's vendor integration status setting."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Not Participated\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
-   "expect_screen_clean"
+   "require_setting",
+   "expect_text",
+   "expect_text",
+   "expect_participant_count"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 10524
+  "ms": 8592
  },
  "plan": {
-  "title": "Participation Status Tracking with Integration Status",
+  "title": "Vendor Integration Status on Participants",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Participants tab."
+    "note": "Open the existing live RFQ directly on its Participants tab."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "On the buyer's Participants tab for the live RFQ, verify that each vendor's integration status is visible alongside the stage participation status tracker; stop when the screen clearly shows both status types."
+     "key": "show_vendor_integration_status",
+     "value": "On"
     },
-    "note": "Inspect the screen for the requested integration-status and stage-participation tracking behavior."
+    "note": "Enable the required tenant setting before inspecting the participant statuses."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the participant screen rendered without errors or broken data after the inspection."
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor Integration Status",
+     "present": true
+    },
+    "note": "Assert that vendor integration status is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Not Participated",
+     "present": true
+    },
+    "note": "Assert that the stage participation status tracker is visible for the invited vendor with no bid."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Confirm that invited vendor rows are present on the Participants tab."
    }
   ]
  }

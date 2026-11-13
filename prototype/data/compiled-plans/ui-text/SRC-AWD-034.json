@@ -4,60 +4,78 @@
   "title": "Award more than the line's quantity",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:06:45.716Z",
+  "compiledAt": "2026-11-12T16:20:55.002Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "The required closed RFQ with bids from vendors A and B at 100 and 90 is not available in the prepared state, which has one bid and one vendor.",
-   "Allocate exactly 6 units to vendor B and 5 units to vendor A.",
-   "Observe the resulting refusal message that the awarded quantity exceeds the requested line quantity.",
-   "Open the event through the Events list and search its title; prepared-state cases must start with open_prepared."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "cannot test this case yet — no step can observe: The required closed RFQ with bids from vendors A and B at 100 and 90 is not available in the prepared state, which has one bid and one vendor.; Allocate exactly 6 units to vendor B and 5 units to vendor A.; Observe the resulting refusal message that the awarded quantity exceeds the requested line quantity.; Open the event through the Events list and search its title; prepared-state cases must start with open_prepared."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
+   "open_prepared",
    "start_awarding",
    "allocate_award",
-   "expect_award_counters"
+   "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 8642
+  "ms": 9517
  },
  "plan": {
-  "title": "SRC-AWD-034 — Reject over-awarding line quantity",
+  "title": "Reject over-quantity award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ's buyer Responses screen as required for prepared-state cases."
+    "note": "Open the prepared closed RFQ's Responses screen."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the comparison grid used to begin awarding and inspect the available bid."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS to begin the award flow for the closed two-bid event."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen for the prepared closed event."
+    "note": "Enter the awarding screen."
    },
    {
     "step": "allocate_award",
-    "args": {},
-    "note": "Perform the closest supported allocation action; this cannot specify the required per-vendor quantities."
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 6
+    },
+    "note": "Allocate 6 of the 10 requested units to Vendor B."
    },
    {
-    "step": "expect_award_counters",
-    "args": {},
-    "note": "Assert the awarding screen's counters as the available observable result, without treating it as proof of over-award refusal."
+    "step": "attempt",
+    "args": {
+     "step": "allocate_award",
+     "args": {
+      "vendor": "Vendor A",
+      "quantity": 5
+     },
+     "expect": "refused",
+     "because": "more than requested quantity"
+    },
+    "note": "Attempt to allocate 5 more units to Vendor A, making the total 11, and assert Procol refuses the over-award."
    }
   ]
  }

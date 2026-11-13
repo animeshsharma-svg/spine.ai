@@ -4,46 +4,69 @@
   "title": "Order Activity is hidden when vendor masking is on",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:02:08.615Z",
+  "compiledAt": "2026-11-12T16:12:25.399Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that the selected company has vendor masking enabled or enable that tenant setting"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the selected company has vendor masking enabled or enable that tenant setting"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "expect_settings_menu"
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "expect_menu_item"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6909
+  "ms": 6042
  },
  "plan": {
-  "title": "Order Activity Hidden Under Vendor Masking",
+  "title": "Order Activity hidden with vendor masking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared live RFQ event without searching or creating another event."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "require_setting",
     "args": {
-     "absent": [
-      "Order Activity"
-     ]
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
     },
-    "note": "Assert that the current event's Settings menu does not offer Order Activity."
+    "note": "Enable vendor masking for the tenant as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the stage Settings menu is available."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Order Activity",
+     "stage": "rfq",
+     "present": false
+    },
+    "note": "Assert that Order Activity is not offered in the RFQ stage Settings menu."
    }
   ]
  }

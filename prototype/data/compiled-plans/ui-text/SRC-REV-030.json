@@ -4,77 +4,58 @@
   "title": "Vendor sees its rank in an RFQ only where the company shows ranks",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:48:51.397Z",
+  "compiledAt": "2026-11-12T13:11:54.870Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Toggle or verify the company setting that controls whether RFQ ranks are shown, so the conditional expectation of either Rank 2 or no rank cannot be evaluated across both configurations.",
-   "Verify that Vendor B's dynamically unknown price is absent from Vendor A's portal view."
+   "Company setting verification for whether RFQ ranks are globally enabled or hidden for vendors"
   ],
   "warnings": [
-   "can only test part of this — no step for: Toggle or verify the company setting that controls whether RFQ ranks are shown, so the conditional expectation of either Rank 2 or no rank cannot be evaluated across both configurations.; Verify that Vendor B's dynamically unknown price is absent from Vendor A's portal view."
+   "can only test part of this — no step for: Company setting verification for whether RFQ ranks are globally enabled or hidden for vendors"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
    "expect_text"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 11143
+  "ms": 12221
  },
  "plan": {
-  "title": "RFQ vendor rank visibility during bid revision",
+  "title": "Vendor sees rank in RFQ based on company configuration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event without recreating it."
-   },
-   {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the published RFQ Participants list so a second invited vendor can receive the prepared-state surrogate bid."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Create the second bid required by the scenario for another invited vendor."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the second bid was accepted."
+    "note": "Open the prepared event summary using the API state"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to Vendor A's separate supplier-portal session while keeping the buyer session available."
+    "note": "Switch to the vendor portal session as Vendor A"
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared RFQ's pricing round as Vendor A."
+    "note": "Open the pricing stage of the RFQ event on the vendor portal"
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rank 2",
-     "present": true
+     "text": "Rank",
+     "present": false
     },
-    "note": "Check the rank-visible branch of the expected Vendor A view; the tenant-dependent no-rank branch cannot be selected by the catalog."
+    "note": "Assert that rank is not shown or is conditional depending on company rules"
    }
   ]
  }

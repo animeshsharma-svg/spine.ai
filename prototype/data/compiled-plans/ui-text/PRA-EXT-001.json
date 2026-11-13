@@ -4,7 +4,7 @@
   "title": "Typing a name that matches nobody shows the 'several PRs' message even with one PR ticked",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:49.865Z",
+  "compiledAt": "2026-11-12T13:47:29.539Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
@@ -15,20 +15,30 @@
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
+   "click",
    "do_on_screen",
    "expect_text",
    "expect_text"
   ],
-  "ms": 9764
+  "ms": 10425
  },
  "plan": {
-  "title": "PRA-EXT-001 No-Match PR Assignee Message",
+  "title": "PR assignment search with one selected PR",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the configuration required by the scenario."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
@@ -39,22 +49,29 @@
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open PRs tab as required by the case."
+    "note": "Use the Open PRs tab as required."
    },
    {
     "step": "select_pr",
     "args": {
-     "pr": "1010",
-     "items": 1
+     "pr": "1010"
     },
-    "note": "Select only one item from PR 1010."
+    "note": "Select only PR 1010 so the assignment search has one ticked PR."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Assign"
+    },
+    "note": "Open the assignee selection flow for the selected PR."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the selected PR 1010 item, click Assign, type the nonexistent user name \"zzqx\", and leave the assignment screen showing the neutral no-match result while confirming that the misleading several-PRs message is not shown."
+     "goal": "type the nonexistent assignee name \"zzqx\" into the assignment user search and stop when the screen shows a neutral no-match message"
     },
-    "note": "The catalog has no dedicated Assign-user search step, so perform this buyer-side interaction on screen."
+    "note": "Enter the name that matches no user and reach the resulting message."
    },
    {
     "step": "expect_text",
@@ -62,7 +79,7 @@
      "text": "No matching user",
      "present": true
     },
-    "note": "Assert the neutral no-match message is shown."
+    "note": "Verify the neutral no-match message is shown."
    },
    {
     "step": "expect_text",
@@ -70,7 +87,7 @@
      "text": "No user can see all selected PRs. Assign them separately.",
      "present": false
     },
-    "note": "Assert the misleading several-PRs message is absent."
+    "note": "Verify the misleading several-PR message is not shown."
    }
   ]
  }

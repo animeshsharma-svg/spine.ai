@@ -4,12 +4,10 @@
   "title": "Close the drawer without Save Schedule",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:15.404Z",
+  "compiledAt": "2026-11-12T13:14:21.680Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact named product CYLINDER, variant Default Variant, location Plant Name (LOC-0001), and named Vendor A selection cannot be expressed with the available domain steps."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
@@ -18,36 +16,58 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added set_schedule — the schedule is displayed but not committed until saved",
-   "can only test part of this — no step for: The exact named product CYLINDER, variant Default Variant, location Plant Name (LOC-0001), and named Vendor A selection cannot be expressed with the available domain steps."
+   "added set_schedule — the schedule is displayed but not committed until saved"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 19,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
    "invite_vendor",
-   "do_on_screen",
+   "click",
+   "select",
+   "click",
    "expect_text",
    "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 12514
+  "ms": 17022
  },
  "plan": {
-  "title": "Schedule Back Without Save",
+  "title": "SRC-SCH-011 Unsaved Schedule Reverts",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow specified by the case."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX functionality required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow adding the vendor during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -55,51 +75,99 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and configure the award mode."
+    "note": "Switch the initial single-stage event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so publishing can proceed."
+    "args": {
+     "title": "SRC-SCH-011 Unsaved Schedule Reverts"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet is available."
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the required line item for a valid RFQ."
+    "note": "Add the specified product with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the pricing sheet fields required for the event."
+    "note": "Complete required pricing-sheet fields."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify the product's automatically filled variant."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify the requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the required delivery location."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Invite one QA vendor so the event can be published."
+    "note": "Add the named vendor participant required for publishing."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "open the Schedule Event drawer, change the duration to 60 Mins, click Back instead of Save Schedule, and stop on the create screen with the footer schedule chip still showing 30 Mins"
+     "text": "Schedule"
     },
-    "note": "Perform the core unsaved schedule interaction that no dedicated catalog step can express."
+    "note": "Open the Schedule Event drawer from the footer schedule chip."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "End time",
+     "option": "1 Hrs"
+    },
+    "note": "Choose the one-hour duration corresponding to the requested 60-minute change."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Back"
+    },
+    "note": "Close the drawer without pressing Save Schedule."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "30 Mins",
-     "present": true
+     "text": "30 Mins"
     },
-    "note": "Verify the footer still shows the default 30-minute duration after leaving without saving."
+    "note": "Assert the footer still shows the default 30-minute duration after the unsaved change was discarded."
    },
    {
     "step": "set_schedule"
@@ -107,12 +175,12 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event using the persisted default schedule."
+    "note": "Publish the event; the publish confirmation is handled by the domain step."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that the event published successfully."
+    "note": "Assert that the event was successfully published with the default schedule."
    }
   ]
  }

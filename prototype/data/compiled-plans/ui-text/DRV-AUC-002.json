@@ -1,81 +1,85 @@
 {
  "meta": {
   "caseId": "DRV-AUC-002",
-  "title": "Dummy quotes are generated for vendors marked as TNA to maintain ranking completeness",
+  "title": "Non‑buyer role cannot see auction strategy selection",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-09T22:46:00.472Z",
+  "compiledAt": "2026-11-12T13:24:39.670Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Cannot verify or change the allow_tna_vendors_to_bid tenant setting.",
-   "Cannot ensure the prepared RFQ contains exactly QA_Platform_TNA and QA_Platform_Regular before conversion because the prepared state has a fixed vendor and bid configuration.",
-   "Cannot verify bid invitation behavior on a published converted auction; conversion lands on the auction create screen.",
-   "unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Cannot verify or change the allow_tna_vendors_to_bid tenant setting.; Cannot ensure the prepared RFQ contains exactly QA_Platform_TNA and QA_Platform_Regular before conversion because the prepared state has a fixed vendor and bid configuration.; Cannot verify bid invitation behavior on a published converted auction; conversion lands on the auction create screen."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "convert_to_auction",
-   "expect_navigated",
-   "click",
-   "expect_text",
-   "expect_text"
+   "open_participants",
+   "expect_participant",
+   "expect_participant",
+   "expect_participant_count"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 62028
+  "ms": 26840
  },
  "plan": {
-  "title": "TNA vendors excluded during RFQ conversion",
+  "title": "TNA Vendors Excluded During Auction Conversion",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_tna_vendors_to_bid",
+     "value": "Off"
+    },
+    "note": "Ensure TNA vendors are configured to be excluded during conversion."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Perform the RFQ-to-Auction conversion under the current tenant configuration."
+    "note": "Convert the published RFQ into an auction."
    },
    {
-    "step": "expect_navigated",
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the new auction's participant list to inspect its bidding audience."
+   },
+   {
+    "step": "expect_participant",
     "args": {
-     "screen": "create"
+     "vendor": "QA_Platform_Regular",
+     "present": true,
+     "selected": true,
+     "addBid": true
     },
-    "note": "Verify that conversion reaches the new auction create screen."
+    "note": "Verify the regular vendor remains selected and eligible to bid."
    },
    {
-    "step": "click",
+    "step": "expect_participant",
     "args": {
-     "role": "button",
-     "name": "Participants"
-    },
-    "note": "Open the converted auction's participant control so the proposed audience can be inspected."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "QA_Platform_Regular",
-     "present": true
-    },
-    "note": "Assert that the regular vendor is shown in the converted auction audience."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "QA_Platform_TNA",
+     "vendor": "QA_Platform_TNA",
      "present": false
     },
-    "note": "Assert that the TNA vendor is not shown in the converted auction audience."
+    "note": "Verify the all-TNA vendor is excluded from the auction audience."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm that only the regular vendor remains as a participant."
    }
   ]
  }

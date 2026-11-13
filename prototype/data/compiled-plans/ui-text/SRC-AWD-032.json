@@ -4,31 +4,41 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:06:47.744Z",
+  "compiledAt": "2026-11-12T16:20:52.031Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared event has exactly one bid rather than the requested three bids with A, B, and C at 100, 90, and 95 for 10 units.",
-   "Enter and verify the three-way allocation of 4 units to B, 3 to C, and 3 to A, including the per-vendor amounts and total 945.",
-   "Create and submit the proposal after filling its required fields; no catalog step independently performs this proposal workflow from the awarding screen.",
-   "Sign in as the approver and reject the proposal with a remark.",
-   "Assert that no purchase order is created after rejection.",
-   "Verify the buyer can start awarding again after the proposal is rejected."
+   "A closed RFQ with three bids from vendors A, B, and C at the specified prices is not available in the prepared state, which has only two bids.",
+   "Allocating 4 units to B, 3 to C, and 3 to A and verifying the resulting three-vendor totals cannot be performed without the third bid.",
+   "Signing in as the approver and rejecting the proposal with a remark cannot be performed by the catalog.",
+   "Verifying that no purchase order is created after rejection and that the buyer can restart awarding is not expressible."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event has exactly one bid rather than the requested three bids with A, B, and C at 100, 90, and 95 for 10 units.; Enter and verify the three-way allocation of 4 units to B, 3 to C, and 3 to A, including the per-vendor amounts and total 945.; Create and submit the proposal after filling its required fields; no catalog step independently performs this proposal workflow from the awarding screen.; Sign in as the approver and reject the proposal with a remark.; Assert that no purchase order is created after rejection.; Verify the buyer can start awarding again after the proposal is rejected."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C at the specified prices is not available in the prepared state, which has only two bids.; Allocating 4 units to B, 3 to C, and 3 to A and verifying the resulting three-vendor totals cannot be performed without the third bid.; Signing in as the approver and rejecting the proposal with a remark cannot be performed by the catalog.; Verifying that no purchase order is created after rejection and that the buyer can restart awarding is not expressible."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
+   "expect_text",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 11997
+  "ms": 19643
  },
  "plan": {
   "title": "Three-way split award rejection",
@@ -38,27 +48,103 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS without searching the events list."
+    "note": "Open the prepared closed RFQ's Master QCS instead of creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable split awarding as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen where vendor allocation is performed."
+    "note": "Open the awarding screen for the prepared closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 2,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate four units to the second prepared bidder as the closest available part of the requested split."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate the remaining six units to the first prepared bidder so the available two-bid event is fully allocated."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify the closest available two-vendor allocation is complete and totals 4×90 plus 6×100."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the completed available allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Fill mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal so the unavailable approver step would have a proposal to act on."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Verify that the submitted proposal is awaiting approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide an event with three bids from A, B, and C, enter the 4/3/3 allocation and verify the 360, 285, 300, 945, and 3/3 values, create and submit the proposal, then sign in as the approver and reject it with a remark"
+     "need": "provide the third bid if needed, then sign in as the approver, open the submitted proposal, reject it with a remark, verify no purchase order is created, and confirm the buyer can start awarding again"
     },
-    "note": "The catalog cannot create the requested three-bid split, submit the proposal from this screen, or perform the separate approver rejection."
+    "note": "The catalog cannot create the third prepared bid or perform the approver rejection and downstream checks."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Start Awarding",
-     "visible": true
-    },
-    "note": "After the tester completes the rejection flow, verify that the buyer view exposes the control to start awarding again."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen remains rendered without an application error."
    }
   ]
  }

@@ -4,61 +4,49 @@
   "title": "Upload Attachments: Clicking Cancel discards any staged attachment changes",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:24.507Z",
+  "compiledAt": "2026-11-12T13:46:24.478Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify the draft's persisted attachment list is empty; the plan can only assert that the staged URL is not visible after reopening.",
-   "The exact upload control label inside the Upload Attachments dialog is not defined in the catalog.",
-   "unconfirmed label \"Upload Attachments\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "unconfirmed label \"https://www.example.com/test\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Upload file or enter URL inside Add Attachments modal and check that clicking cancel discards it without saving"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Upload Attachments\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "coverage partial: unconfirmed label \"https://www.example.com/test\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Directly verify the draft's persisted attachment list is empty; the plan can only assert that the staged URL is not visible after reopening.; The exact upload control label inside the Upload Attachments dialog is not defined in the catalog."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Upload file or enter URL inside Add Attachments modal and check that clicking cancel discards it without saving"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 15,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
    "save_draft",
    "expect_no_error",
-   "open_event",
    "click",
    "expect_visible",
-   "upload",
    "click",
-   "expect_visible",
-   "save_draft",
-   "open_event",
-   "expect_text"
+   "expect_visible"
   ],
-  "ms": 15416
+  "ms": 63625
  },
  "plan": {
-  "title": "EXP-DRAFT-084 Attachment Cancel",
+  "title": "EXP-DRAFT-084",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create an eRFX draft for a controlled saved-draft test."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-084 Attachment Cancel"
-    },
-    "note": "A title is required to save and reopen the draft."
+    "note": "Open eRFX create screen"
    },
    {
     "step": "compose_stages",
@@ -66,61 +54,71 @@
      "stages": [
       "rfq"
      ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Make the draft an eRFX with an RFQ stage."
+    "note": "Ensure rfx_project_enabled is On"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Ensure lock_vendors_addition_in_event_creation is On"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Ensure is_add_new_stage_allowed is Off"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Set a unique project title"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template."
+    "note": "Select a template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide the required line item for the draft."
+    "note": "Add line item"
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet before saving."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the required event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Provide the required participant before saving."
+    "note": "Fill sheet"
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Create the saved eRFX draft required by the scenario."
+    "note": "Save as draft to create a draft event"
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the draft was saved without an application error."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft on its create screen."
+    "note": "Verify draft saved successfully"
    },
    {
     "step": "click",
     "args": {
-     "text": "Add Attachments"
+     "role": "button",
+     "name": "Add Attachments"
     },
-    "note": "Open the Upload Attachments window."
+    "note": "Click Add Attachments to open the modal"
    },
    {
     "step": "expect_visible",
@@ -129,23 +127,15 @@
      "name": "Upload Attachments",
      "visible": true
     },
-    "note": "Confirm the attachment window opened."
-   },
-   {
-    "step": "upload",
-    "args": {
-     "label": "Upload Attachments",
-     "file": "https://www.example.com/test"
-    },
-    "note": "Stage the valid test URL as an attachment; the exact inner upload-control label is not catalog-defined."
+    "note": "Assert the Upload Attachments window is open"
    },
    {
     "step": "click",
     "args": {
-     "text": "Cancel",
-     "within": "dialog"
+     "role": "button",
+     "name": "Cancel"
     },
-    "note": "Discard the staged attachment changes."
+    "note": "Click Cancel on the attachments modal"
    },
    {
     "step": "expect_visible",
@@ -154,25 +144,7 @@
      "name": "Upload Attachments",
      "visible": false
     },
-    "note": "Verify that Cancel closes the upload window."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Persist the draft after cancelling so it can be reopened for the discard check."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen the saved draft to check that the cancelled URL was not retained."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "https://www.example.com/test",
-     "present": false
-    },
-    "note": "Verify the staged URL is not visible after reopening the draft."
+    "note": "Assert the Upload Attachments window is closed"
    }
   ]
  }

@@ -4,40 +4,53 @@
   "title": "Edit Evaluation Time: move the evaluation end 30 minutes later during evaluation",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:23:33.786Z",
+  "compiledAt": "2026-11-12T13:00:36.304Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that Counter Offer and Reject Bid remain available continuously until the new evaluation end time."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that Counter Offer and Reject Bid remain available continuously until the new evaluation end time."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "extend_time",
-   "go_to",
-   "expect_visible",
-   "expect_visible"
+   "expect_enabled",
+   "expect_enabled"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 13366
+  "ms": 17016
  },
  "plan": {
-  "title": "Edit Evaluation Time During RFQ Evaluation",
+  "title": "Edit Evaluation Time +30 Minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ in evaluation on the buyer's Responses screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure the RFQ exposes the counter-offer control required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ."
    },
    {
     "step": "extend_time",
@@ -50,29 +63,18 @@
     "note": "Set the evaluation end to 30 minutes after the current evaluation end and verify Procol saves the change."
    },
    {
-    "step": "go_to",
+    "step": "expect_enabled",
     "args": {
-     "screen": "responses"
+     "control": "Counter Offer"
     },
-    "note": "Return to the Responses view where the bid actions are available."
+    "note": "Verify counter offers remain available after extending evaluation time."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_enabled",
     "args": {
-     "role": "button",
-     "name": "Counter Offer",
-     "visible": true
+     "control": "Reject"
     },
-    "note": "Verify the Counter Offer action remains available after changing evaluation time."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Reject",
-     "visible": true
-    },
-    "note": "Verify the rejection action remains available after changing evaluation time."
+    "note": "Verify Reject Bid remains available after extending evaluation time."
    }
   ]
  }
