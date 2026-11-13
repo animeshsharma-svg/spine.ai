@@ -454,7 +454,10 @@ function namesReason(said: string, because: string): boolean {
   const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w && !REASON_FILLER.has(w));
   const have = new Set(words(said));
   const want = words(because);
-  return want.length > 0 && want.every((w) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`));
+  // "invalid tick size" IS "Please enter valid tick size": a negated word matches its base (in-/un-/non-), and
+  // the app's "valid X" / "not valid X" wording names the same thing as the case's "invalid X" (13 Nov)
+  const same = (w: string) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`) || (/^(in|un|non)[a-z]{3,}$/.test(w) && have.has(w.replace(/^(in|un|non)/, ""))) || have.has(`in${w}`) || have.has(`un${w}`);
+  return want.length > 0 && want.every(same);
 }
 /**
  * Procol checks participants before the template and the products (projectCreation.jsx:1607):
@@ -522,7 +525,9 @@ const sameCellValue = (a: string, b: string) => {
   const na = num(a), nb = num(b);
   if (na !== null && nb !== null) return na === nb;
   // a product cell reads "NAME (code)Details", and a long name is cut "70MM CYLINDER WITH KEY & ...(code)"
-  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\(\d+\)\s*$/, "").trim().toLowerCase();
+  // …a location cell "Plant Name(LOC-0001)Details" is the case's "Plant Name (LOC-0001)": the code in brackets and
+  // the spacing are not a difference (13 Nov)
+  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+/g, "").trim().toLowerCase();
   const sa = name(a), sb = name(b);
   if (sa === sb) return true;
   const cut = (x: string, y: string) => /\.\.\.$|…$/.test(x) && y.startsWith(x.replace(/(\.\.\.|…)$/, "").trim());
@@ -1485,11 +1490,31 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!clearing && (await select.count().catch(() => 0))) {
         const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
         await search.fill(value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
-        await s.page.waitForTimeout(1200);
-        const esc = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc.replace(/\\\(.*$/, ""), "i") }).first();
+        // the option is matched on the value without its code in brackets, and spacing is not a difference:
+        // "Plant Name (LOC-0001)" in the case is "Plant Name(LOC-0001)" on PROCOL DEMO (13 Nov)
+        const esc = value.replace(/\s*\([^)]*\)\s*$/, "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc, "i") }).first();
+        // the list is searched on the server: give the match up to 6 s to appear before deciding it is not there
+        for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
         if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
         else {
+          // The case's value is another company's master data ("Plant Name (LOC-0001)" on PROCOL DEMO, 13 Nov):
+          // leaving the cell empty makes Publish refuse "Sheet partially filled" and the case fails for a reason it
+          // is not about. When the list offers anything, the first option is used and the step says so; the cell
+          // check (expect_sheet_cell) still reads what was typed against what is shown.
+          await search.fill("").catch(() => {});
+          await s.page.waitForTimeout(800);
+          const any = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
+          const first = ((await any.innerText().catch(() => "")) || "").trim();
+          if (first && (await any.click({ timeout: 5_000 }).then(() => true).catch(() => false))) {
+            typed = true;
+            await s.page.waitForTimeout(400);
+            const shown = cellText((await td.innerText().catch(() => "")) || "");
+            s.typedCells ??= {};
+            // what was really picked is what a later "kept" check compares against
+            s.typedCells[key] = { typed: first, shown, locked: false };
+            return `row ${rowNo} "${a.column}": the list offers nothing matching "${value}" (not this company's data) — used the first it offers, "${first}", so the sheet is complete`;
+          }
           await s.page.keyboard.press("Escape").catch(() => {});
           const shown = cellText((await td.innerText().catch(() => "")) || "");
           s.typedCells ??= {};
@@ -2010,20 +2035,28 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "configure_single_stage": {
       const eventType = String(a.eventType ?? "rfq").toLowerCase();
       if (!["rfq", "rfp", "auction"].includes(eventType)) throw new Error(`configure_single_stage: eventType must be rfq, rfp or auction (got "${eventType}")`);
-      const sub = a.auctionSubtype ? String(a.auctionSubtype).toLowerCase().replace(/[\s-]+/g, "_") : undefined;
-      if (sub && !["rank", "price", "traffic_light"].includes(sub)) throw new Error(`configure_single_stage: auctionSubtype must be rank, price or traffic_light (got "${sub}")`);
+      const sub = a.auctionSubtype ? String(a.auctionSubtype).toLowerCase().replace(/[\s-]+/g, "_").replace(/^dutch_auction$/, "dutch").replace(/^knock_?out$/, "knockout") : undefined;
+      if (sub && !["rank", "price", "traffic_light", "knockout", "dutch"].includes(sub)) throw new Error(`configure_single_stage: auctionSubtype must be rank, price, traffic_light, knockout or dutch (got "${sub}")`);
       const awarding = a.awarding ? (/line/i.test(String(a.awarding)) ? "line_item" : "lot") : undefined;
-      if (!/singleStage=true|single-stage/.test(s.page.url())) {
-        throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first");
+      if (!/singleStage=true|single-stage|quick-create/.test(s.page.url())) {
+        throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first (or convert_to_auction, whose converted screen is one)");
       }
+      // Knockout / Dutch fields: a number, or "" to clear ("leave the base price empty"); absent = untouched
+      const priceArg = (v: unknown) => (v === undefined || v === null ? undefined : String(v).trim() === "" ? "" : String(v).trim());
       await s.single.configure({
         eventType: eventType as any,
         auctionSubtype: sub as any,
         awarding: awarding as any,
         rangeLower: a.rangeLower !== undefined ? Number(a.rangeLower) : undefined,
         rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
+        startPrice: priceArg(a.startPrice ?? a.basePrice),
+        endPrice: priceArg(a.endPrice),
+        tickSize: priceArg(a.tickSize),
+        timeDifference: priceArg(a.timeDifference),
+        offersOn: a.offersOn ? (/total/i.test(String(a.offersOn)) ? "total_amount" : "base_price") : undefined,
       });
-      return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
+      const fields = [a.startPrice ?? a.basePrice, a.endPrice, a.tickSize].some((v) => v !== undefined) ? ` · ${[["start", a.startPrice ?? a.basePrice], ["end", a.endPrice], ["tick", a.tickSize]].filter(([, v]) => v !== undefined).map(([k, v]) => `${k} ${String(v) === "" ? "(empty)" : v}`).join(", ")}` : "";
+      return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}${fields}`;
     }
     case "create_new_version": {
       if (!/\/project\//.test(s.page.url())) throw new Error("create_new_version needs a published event's project page — publish and expect_published (or open_event) first");

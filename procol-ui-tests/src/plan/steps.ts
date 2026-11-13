@@ -411,10 +411,15 @@ export const STEP_CATALOG: StepSpec[] = [
       "On the SINGLE-STAGE create screen (open_create path single-stage), open the configuration drawer and set the event type; for an auction, its strategy and the awarding rule. This is where auction strategy is chosen on this build — rank, price or traffic light; knockout and dutch exist only through RFQ→Auction conversion.",
     args: {
       eventType: '"rfq" | "rfp" | "auction"',
-      auctionSubtype: '"rank" | "price" | "traffic_light" (auction only; default rank)',
+      auctionSubtype: '"rank" | "price" | "traffic_light" | "knockout" | "dutch" (auction only; default rank). Knockout and Dutch are greyed out on a FRESH single-stage screen (the app: "can be created only when converting an RFQ to an auction"): reach them with publish → expect_published → convert_to_auction, then this step on the converted screen.',
       awarding: '"lot" (entire lot to one vendor) | "line_item" (partially, multiple vendors)',
       rangeLower: "traffic light only: lower bound of the specified range (optional)",
       rangeUpper: "traffic light only: upper bound of the specified range (optional)",
+      startPrice: 'knockout / dutch only: the "Starting Price" (what a case calls the base price); "" leaves it empty on purpose',
+      endPrice: 'dutch only: the "Ending Price"',
+      tickSize: 'knockout / dutch only: "Add Tick Size" (0 or a negative number is what a refusal case types)',
+      timeDifference: 'knockout / dutch only: "Add Time Difference" in minutes between two offers. Fields the plan leaves out get a VALID default (start 100, end 200 — a reverse Dutch climbs —, tick 1, time 1), so name ONLY the field the case is about — with its bad value, or "" to leave it empty.',
+      offersOn: '"base_price" | "total_amount" (the "Offers on" choice; optional)',
     },
   },
   {

@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sheetCaseProse, sheetPrep, type SheetCase } from "./sheetCases.js";
 import { compileTestCase } from "../agents/planner.js";
-import { storedTextPlan, textPlanIsFresh } from "./compiledUiText.js";
+import { saveTextPlan, storedTextPlan, textPlanIsFresh } from "./compiledUiText.js";
 import { compileApiPlan, applyLineItemCount } from "../agents/apiPlanner.js";
 import { runApiPlan } from "./apiPlanRunner.js";
 import { apiResultInWords, API_CHECK_GUIDE, isServerError, wrongPlaceOnly, type HumanApiStep } from "./humanApi.js";
@@ -161,10 +161,17 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         // "closed before Save"): 6 cases in a row on 10 Nov, 20 min each. The create screen opens with the
         // company's default event type, so a case whose plan configures one (rfq / rfp / auction — the values
         // of EVENT_TYPE in the dashboard) gets default_event_type switched to it for the case, and back.
-        if (c.layer === "ui" && !listed.some((n) => n.key === "default_event_type")) {
+        // The plan's FIRST configure_single_stage names the type the fresh create screen must open with; it wins
+        // over the sheet's own default_event_type line (13 Nov, SRC-AUC-006: the sheet said "auction" because the
+        // case is about an auction, but the plan reaches Dutch through an RFQ that is converted — its first screen
+        // is the RFQ's, and opening it as an auction lost the RFQ choice in the drawer).
+        if (c.layer === "ui") {
           const planned = storedTextPlan(c.id)?.plan?.steps?.find((st: { step: string; args?: Record<string, unknown> }) => st.step === "configure_single_stage")?.args?.eventType;
-          if (typeof planned === "string" && ["rfq", "rfp", "auction"].includes(planned))
-            listed.push({ key: "default_event_type", value: planned, why: "the create screen must open with this event type (the drawer loses a changed type)" });
+          if (typeof planned === "string" && ["rfq", "rfp", "auction"].includes(planned)) {
+            const have = listed.find((n) => n.key === "default_event_type");
+            if (!have) listed.push({ key: "default_event_type", value: planned, why: "the create screen must open with this event type (the drawer loses a changed type)" });
+            else if (have.value !== planned) { have.value = planned; have.why = `the plan's first create screen is the ${planned.toUpperCase()} one (the sheet said ${JSON.stringify(have.value)}; the drawer loses a changed type)`; }
+          }
         }
         const setting = listed.length ? `the settings in its "Configs Needed"` : companySetting(c.preconditions);
         if (setting) {
@@ -302,6 +309,23 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
         ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
       });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
+  // A fresh compile the model answered is kept in the text-plan store, so the next run (and this run's second
+  // attempt) reuse it and the settings switch reads the plan's first create screen (13 Nov: a stale stored plan
+  // said "auction" where the fresh compile opened the RFQ screen first)
+  if (!precompiled && !reuse && !ground && compiled.source !== "fallback" && plan.steps?.length) {
+    try {
+      saveTextPlan({
+        meta: {
+          caseId: c.id, title: c.title, group: c.id.replace(/-\d+[A-Z]?$/i, ""), ...((c as any).sheet ? { sheet: String((c as any).sheet) } : {}),
+          compiledAt: new Date().toISOString(), tier: "fast", coverage: compiled.coverage, gaps: compiled.gaps ?? [], warnings: compiled.warnings ?? [], source: compiled.source,
+          steps: plan.steps.length, stepNames: plan.steps.map((s) => s.step),
+          ...(sp?.prepared && !sp.unbuilt ? { state: sp.state, screen: sp.screen } : {}), ...(sp?.unbuilt ? { unbuilt: `${sp.why} ${sp.unbuilt}`.trim() } : {}),
+          ms: 0,
+        } as any,
+        plan: structuredClone(plan) as any,
+      });
+    } catch { /* the store is a cache; a failed write changes nothing about the run */ }
+  }
   if (compiled.source === "fallback") return { ...base(c, "Not run", "The steps could not be turned into browser actions (the model gave no usable plan). Nothing was run in its place.", 0), startedFrom: sp?.why };
   if (compiled.coverage === "none" || !plan.steps.length)
     return { ...base(c, "Not run", `The automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}. Nothing was run in its place.`, 0), startedFrom: sp?.why };
@@ -453,7 +477,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       r.status = "Fail";
       r.why = ASSERT.test(f.step)
         ? `At step ${failedAt + 1} the screen did not show what the case expects. ${words.replace(/^Check: /, "Expected: ")} What it showed instead: ${d}`
-        : `At step ${failedAt + 1} (${words}) the app refused: “${mask(f.evidence!.appSaid!)}”.${f.evidence?.rule ? ` That message comes from the app's rule ${f.evidence.rule}.` : ""} The case expects this step to work.`;
+        : `At step ${failedAt + 1} (${words}) the app refused: “${mask(f.evidence!.appSaid!)}”.${ruleWords(f.evidence?.rule)} The case expects this step to work.`;
       r.bug = {
         title: `${c.title} — ${ASSERT.test(f.step) ? "the screen did not match the expected result" : "the app refused a step that should work"}`,
         severity: SEV[c.priority.toLowerCase()] ?? "Medium",
@@ -560,4 +584,13 @@ function lastBrowserError(): string | null {
   } catch {
     return null;
   }
+}
+
+/** The app's own rule behind a refusal, in words (the executor records it as {message, source, condition} or a string). */
+function ruleWords(rule: unknown): string {
+  if (!rule) return "";
+  if (typeof rule === "string") return ` That message is the app's own rule (${rule}).`;
+  const r = rule as { message?: string; source?: string; condition?: string };
+  const where = [r.source, r.condition].filter(Boolean).join("; ");
+  return where ? ` That message is the app's own rule (${where}).` : " That message is the app's own rule.";
 }

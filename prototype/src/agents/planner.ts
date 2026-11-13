@@ -217,8 +217,8 @@ First decide WHICH SCREEN the test is about:
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
-- Auction STRATEGY (rank / price / traffic light) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
-- Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
+- Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
+- Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress).
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
 - Bidding RULES the product enforces (captured live, 21 Oct 2026): (1) a vendor bids ONCE — after a bid is in, that vendor's "Add Bid" control is gone, so a second bid must name a DIFFERENT vendor; (2) bids for N vendors need N vendors on the event: invite_vendor{count: N} (or names) before publish; (3) no bid after the bidding window has ended — the app answers "Order not active" — except a surrogate bid on a tenant whose config "is_allowed_to_add_surrogate_bid_post_expiry" is on (a case about that must say which tenant); (4) a counter offer needs the VENDOR's own bid — the Counter Offer button is disabled on a surrogate bid; (5) comparing, Master QCS and awarding need an event WITH BIDS: never search the list for "some" event — start from the prepared state ("bid") the API builds, or create → publish → bid in the same plan.
@@ -540,6 +540,35 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
         repairs.push(`open_event → open_prepared(${p.screen}) — the case starts from ${p.state === "awarded" ? "an awarded event" : "an award proposal"}, which the run's pick never finds among live events; the API builds it`);
       }
     }
+  }
+
+  // A DUTCH / KNOCKOUT FIELD CASE reaches its drawer only through conversion (13 Nov): on a fresh single-stage
+  // screen those cards are greyed out ("can be created only when converting an RFQ to an auction"). Whatever the
+  // model wrote, the plan becomes: the RFQ created and published → convert_to_auction → configure_single_stage
+  // {auction, dutch | knockout, the ONE field the case is about} → the case's own check. The other fields get
+  // valid defaults in the executor, so the refusal is about that field.
+  const auctionField = /\b(dutch|knock-?out|tick size|base price|start(ing)? price|end(ing)? price|time difference)\b/i.test(testCase);
+  if (auctionField && !has("convert_to_auction") && !has("open_prepared") && has("configure_single_stage")) {
+    const sub = /knock-?out/i.test(testCase) ? "knockout" : "dutch";
+    const num = (re: RegExp) => testCase.match(re)?.[1];
+    const args: Record<string, unknown> = { eventType: "auction", auctionSubtype: sub };
+    const tick = num(/tick size (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (tick !== undefined) args.tickSize = tick;
+    const start = num(/(?:start(?:ing)? price|base price) (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (start !== undefined) args.startPrice = start;
+    const end = num(/end(?:ing)? price (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (end !== undefined) args.endPrice = end;
+    if (/(?:base|start(?:ing)?) price (?:empty|blank)|(?:leave|without|no) (?:the )?(?:base|start(?:ing)?) price/i.test(testCase)) args.startPrice = "";
+    if (/tick size (?:empty|blank)|(?:leave|without|no) (?:the )?tick size/i.test(testCase)) args.tickSize = "";
+    if (/time difference (?:empty|blank)|(?:leave|without|no) (?:the )?time difference/i.test(testCase)) args.timeDifference = "";
+    const first = steps.find((s) => s.step === "configure_single_stage")!;
+    first.args = { eventType: "rfq" };
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const s = steps[i];
+      if ((s.step === "do_on_screen" || s.step === "fill_required") && /dutch|knock|tick|price|strategy|auction/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
+    }
+    const tailAt = steps.findIndex((s) => ["publish", "expect_publish_blocked", "expect_error", "expect_published", "expect_toast", "attempt"].includes(s.step));
+    const tail = tailAt >= 0 ? steps.splice(tailAt) : [];
+    const check = tail.filter((s) => s.step !== "publish" && s.step !== "expect_published");
+    steps.push({ step: "publish" }, { step: "expect_published" }, { step: "convert_to_auction" }, { step: "configure_single_stage", args }, ...(check.length ? check : [{ step: "publish" }, { step: "expect_published" }]));
+    repairs.push(`a ${sub} auction's fields live on the converted event's screen — the plan creates and publishes an RFQ, converts it, then configures ${sub} with ${JSON.stringify(args)}`);
   }
 
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
