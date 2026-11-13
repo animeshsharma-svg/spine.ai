@@ -218,6 +218,7 @@ First decide WHICH SCREEN the test is about:
 
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
 - Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
+- TRAFFIC LIGHT and DYNAMIC TIME EXTENSION are fields of that same drawer, so they are ARGS of configure_single_stage, never do_on_screen: traffic light → auctionSubtype "traffic_light" with trafficBy ("price" | "rank") and rangeLower / rangeUpper (the GREEN / YELLOW bounds; "" for a case that leaves them empty); dynamic time extension → dynamicExtension true with extendByMinutes, triggerMinutes (the "trigger … on last N minutes") and topBids. Both are set on a FRESH single-stage auction (no conversion). The refusals come at Publish Event: configure → template → line items → vendors → schedule → publish → expect_publish_blocked / expect_error with the app's words.
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress). A second bidding currency is added with add_bidding_currency{currencies:["USD"]} on the RFQ's create screen BEFORE publish (the footer's "Edit Currencies"; greyed out on the converted screen): "currency configuration cannot be added in Knockout / Dutch Auction" = add the currency on the RFQ → publish → convert_to_auction → configure dutch/knockout → publish → expect_publish_blocked{because:"Currency configuration cannot be added in Knockout / Dutch Auction"}.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
@@ -575,6 +576,41 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     if (/\b(second|another|multiple|bidding) currenc/i.test(testCase) && !has("add_bidding_currency") && !currencySteps.length) currencySteps.push({ step: "add_bidding_currency", args: { currencies: ["USD"] } });
     steps.push(...currencySteps, { step: "publish" }, { step: "expect_published" }, { step: "convert_to_auction" }, { step: "configure_single_stage", args }, ...(check.length ? check : [{ step: "publish" }, { step: "expect_published" }]));
     repairs.push(`a ${sub} auction's fields live on the converted event's screen — the plan creates and publishes an RFQ, converts it, then configures ${sub} with ${JSON.stringify(args)}`);
+  }
+
+  // A TRAFFIC LIGHT / DYNAMIC TIME EXTENSION case (14 Nov): both are fields of the single-stage configuration
+  // drawer, so they become args of the plan's configure_single_stage; a do_on_screen that tried to set them by
+  // hand is dropped. The numbers come from the case's own words (trigger 0.5 minute, extend by 2 min, top 3 bids).
+  const drawerField = /\b(traffic light|dynamic (time|event) extension|time extension|anti.?sniping|auto.?extend)/i.test(testCase);
+  if (drawerField && has("configure_single_stage") && !has("open_prepared") && !has("convert_to_auction")) {
+    const cfg = steps.find((s) => s.step === "configure_single_stage")!;
+    const args: Record<string, unknown> = { ...(cfg.args ?? {}), eventType: "auction" };
+    const num = (re: RegExp) => testCase.match(re)?.[1];
+    if (/traffic light/i.test(testCase)) {
+      args.auctionSubtype = "traffic_light";
+      if (/by rank|rank[- ]based traffic|traffic light.{0,20}\brank\b/i.test(testCase)) args.trafficBy = "rank";
+      if (/(without|no|leave|leaving|empty|blank).{0,30}\brange/i.test(testCase) || /range[s]?\s+(empty|blank)/i.test(testCase)) { args.rangeLower = ""; args.rangeUpper = ""; }
+      const lo = num(/green[^0-9]{0,30}(\d+(?:\.\d+)?)/i); if (lo !== undefined && args.rangeLower === undefined) args.rangeLower = lo;
+      const hi = num(/yellow[^0-9]{0,30}(\d+(?:\.\d+)?)/i); if (hi !== undefined && args.rangeUpper === undefined) args.rangeUpper = hi;
+    }
+    if (/dynamic (time|event) extension|time extension|anti.?sniping|auto.?extend/i.test(testCase)) {
+      args.dynamicExtension = !/(turn|switch|keep|leave)\w* (it )?off|without dynamic|no dynamic|disabled?\b/i.test(testCase);
+      const trig = num(/trigger[^0-9]{0,40}(\d+(?:\.\d+)?)\s*(?:min|minute)/i) ?? num(/(?:in|on) (?:the )?last\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i); if (trig !== undefined) args.triggerMinutes = trig;
+      const by = num(/extend(?:ed|s|ing)? (?:the )?(?:time |event |closing )?by\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i) ?? num(/extension (?:of|by)\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i); if (by !== undefined) args.extendByMinutes = by;
+      const top = num(/top\s+(\d+)\s+bids?/i); if (top !== undefined) args.topBids = Number(top);
+      if (/trigger[^.]{0,40}(empty|blank)|(without|no|leave) (?:a |the )?trigger/i.test(testCase)) args.triggerMinutes = "";
+    }
+    if (JSON.stringify(args) !== JSON.stringify(cfg.args ?? {})) {
+      cfg.args = args;
+      repairs.push(`traffic light / dynamic time extension are fields of the configuration drawer — configure_single_stage now carries ${JSON.stringify(args)}`);
+    }
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const s = steps[i];
+      if ((s.step === "do_on_screen" || s.step === "fill_required") && /traffic|range|extension|trigger|sniping|extend/i.test(JSON.stringify(s.args ?? {}))) {
+        steps.splice(i, 1);
+        repairs.push("dropped a do_on_screen about the traffic light / time extension — configure_single_stage sets those fields");
+      }
+    }
   }
 
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built

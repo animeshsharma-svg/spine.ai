@@ -460,6 +460,20 @@ function namesReason(said: string, because: string): boolean {
   return want.length > 0 && want.every(same);
 }
 /**
+ * The app refused for the SAME FIELD the case names, in other words: "Invalid Trigger Time for Dynamic Time
+ * Extension." for a case that expects "Trigger time extension cannot be less than 1 min" (14 Nov, SRC-AUC-012 —
+ * the case quotes the screen's empty-field text, the app's rule at publish speaks from the server). Half the
+ * case's content words, at least two of them, appear in the app's words. The step then passes and says that the
+ * words differ, so a reader can decide whether the wording itself is worth a ticket.
+ */
+function sameSubject(said: string, because: string): boolean {
+  const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w.length > 2 && !REASON_FILLER.has(w) && !/^(cannot|can|not|should|must|than|less|more|min|mins|minute|minutes|with|without|enter|select|choose|valid|invalid|required)$/.test(w));
+  const have = new Set(words(said));
+  const want = [...new Set(words(because))];
+  const shared = want.filter((w) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`));
+  return shared.length >= 2 && shared.length * 2 >= want.length;
+}
+/**
  * Procol checks participants before the template and the products (projectCreation.jsx:1607):
  * with no template or no product the Participants control stays locked, so "Please add
  * participants to proceed!" IS the refusal a no-template / no-line-item case gets (A18, A19).
@@ -527,6 +541,8 @@ async function completeRequiredCells(s: RunState): Promise<string[]> {
     if (!/\*\s*$/.test(head)) continue;
     const name = head.replace(/\*/g, "").trim();
     if (/^(product|product variant|quantity requested)$/i.test(name)) continue; // typed in place already
+    // a traffic-light case that leaves the ranges empty on purpose keeps the sheet's Green / Yellow columns blank
+    if (s.single.leaveRangeCellsEmpty && /green|yellow/i.test(name)) continue;
     const td = g.rows.nth(1).locator("td").nth(i);
     const shown = cellText((await td.innerText().catch(() => "")) || "");
     if (shown) continue;
@@ -2125,8 +2141,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         eventType: eventType as any,
         auctionSubtype: sub as any,
         awarding: awarding as any,
-        rangeLower: a.rangeLower !== undefined ? Number(a.rangeLower) : undefined,
-        rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
+        trafficBy: a.trafficBy ? (/rank/i.test(String(a.trafficBy)) ? "rank" : "price") : undefined,
+        rangeLower: priceArg(a.rangeLower),
+        rangeUpper: priceArg(a.rangeUpper),
+        // "Dynamic Event Extension": true / false / "on" / "off"; its fields only with it on
+        dynamicExtension: a.dynamicExtension === undefined || a.dynamicExtension === null ? undefined : !/^(false|off|no|0)$/i.test(String(a.dynamicExtension).trim()),
+        extensionOn: a.extensionOn ? (/rank/i.test(String(a.extensionOn)) ? "rank" : "price") : undefined,
+        extendByMinutes: priceArg(a.extendByMinutes ?? a.extendBy),
+        triggerMinutes: priceArg(a.triggerMinutes ?? a.trigger),
+        topBids: a.topBids !== undefined && a.topBids !== null && String(a.topBids).trim() !== "" ? Number(a.topBids) : undefined,
         startPrice: priceArg(a.startPrice ?? a.basePrice),
         endPrice: priceArg(a.endPrice),
         tickSize: priceArg(a.tickSize),
@@ -2816,9 +2839,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           // Say what the screen says instead of "waitForURL timed out": the
           // app refuses single-stage publishes inline (form messages), not
           // with a toast, and the traffic-light range is the usual reason.
-          const inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
-            .map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 4);
+          let inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
+            .map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => /[a-z]{3,}/i.test(t)).slice(0, 4);
           const toast = await s.single.errorToastText(800);
+          // The create screen's own checks (createOrder.jsx getErrors) write their words INTO the configuration
+          // drawer's fields and scroll to the top — no toast, and the drawer is closed. Open it and read them
+          // (14 Nov: "Trigger time extension cannot be less than 1 min", "Traffic light type is required").
+          if (!inline.length && !toast) {
+            const opened = await s.single.openConfigDrawer().then(() => true).catch(() => false);
+            if (opened) {
+              inline = (await s.single.drawer().locator(".ant-form-explain, .ant-form-item-explain, .has-error .ant-form-explain").allInnerTexts().catch(() => [] as string[]))
+                .map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => /[a-z]{3,}/i.test(t)).slice(0, 4);
+              await s.page.keyboard.press("Escape").catch(() => {});
+            }
+          }
           await recordStuck(s.page, {
             label: "single-stage-publish",
             message: `publish did not reach a project page${toast ? ` — toast: ${toast}` : ""}${inline.length ? ` — on screen: ${inline.join(" | ")}` : ""}`,
@@ -2885,7 +2919,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // value already captured it the instant it appeared. Only fall back to
       // a fresh live wait when nothing was captured earlier in the run.
       const captured = s.create.lastQuantityError;
-      const err = captured ?? (await s.create.errorToastText(5_000));
+      // A refusal that already stopped the plan (the drawer kept open on Save, a greyed-out item) IS the app's
+      // answer: a plan that writes expect_publish_blocked and then expect_error judges the same words twice
+      // (14 Nov, SRC-AUC-011 — "Traffic light type is required" passed step 12 and failed step 13 as "expected to refuse")
+      const early = s.earlyRefusal ? (/“([^”]*)”/.exec(s.earlyRefusal)?.[1] ?? s.earlyRefusal) : null;
+      const err = captured ?? early ?? (await s.create.errorToastText(5_000));
       expect(err, "the app was expected to refuse this").toBeTruthy();
       // Case aside: a plan writes "quantity" for the app's "Quantity should be …".
       if (a.contains) expect((err ?? "").toLowerCase(), `the app's words: ${err}`).toContain(String(a.contains).toLowerCase());
@@ -2898,6 +2936,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const because = String(a.because ?? "").toLowerCase().trim();
         if (because && !said.includes(because) && !namesReason(said, because)) {
           if (PARTICIPANTS_FIRST.test(said) && BEFORE_PARTICIPANTS.test(because)) return `blocked before publish — ${s.earlyRefusal}${participantsFirstNote(because)}`;
+          if (sameSubject(said, because)) return `blocked before publish — ${s.earlyRefusal} — the same refusal as the case's "${a.because}", in the app's own words (the wording differs; the field is the same)`;
           throw new Error(`publishing was blocked earlier, but the app's words do not name the reason — the case expects "${because}"; ${s.earlyRefusal}`);
         }
         return `blocked before publish — ${s.earlyRefusal}`;
@@ -2952,6 +2991,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
             throw new Error(`publishing was ALLOWED — the app said "${refusal}"; the case expects it to be refused with "${a.because}" (check the plan really built the case's starting condition)`);
           }
           if (PARTICIPANTS_FIRST.test(String(refusal)) && BEFORE_PARTICIPANTS.test(String(a.because))) return `blocked: ${refusal}${participantsFirstNote(String(a.because))}`;
+          if (sameSubject(String(refusal), String(a.because))) return `blocked: ${refusal} — the same refusal as the case's "${a.because}", in the app's own words (the wording differs; the field is the same)`;
           throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
         }
         return `blocked: ${refusal}`;
