@@ -125,15 +125,26 @@ export class EventActionsPage extends BasePage {
     await this.dismissDistractions();
     const tabs = p.getByRole("tab");
     const n = await tabs.count().catch(() => 0);
-    for (let i = 0; i < n; i++) {
-      const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
-      if (/^(project\s+)?(details|overview|approvals|documents|activity|master\s+qcs)$/i.test(label)) continue;
-      if (/^(responses|participants|analytics|price trends|participant remarks|compare|evaluation)/i.test(label)) continue;
-      if (stageRe && !stageRe.test(label)) continue;
-      await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
-      await this.dismissDistractions();
-      if (await this.settingsButton().count()) return label;
+    const pass = async (re: RegExp | null): Promise<string | null> => {
+      for (let i = 0; i < n; i++) {
+        const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
+        if (/^(project\s+)?(details|overview|approvals|documents|activity|master\s+qcs)$/i.test(label)) continue;
+        if (/^(responses|participants|analytics|price trends|participant remarks|compare|evaluation)/i.test(label)) continue;
+        if (re && !re.test(label)) continue;
+        await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+        await this.dismissDistractions();
+        if (await this.settingsButton().count()) return label;
+      }
+      return null;
+    };
+    const found = await pass(stageRe);
+    if (found !== null) return found;
+    // A single-stage event names its only stage tab by the EVENT'S TITLE, not "RFQ" / "Auction" (14 Nov, a traffic
+    // light auction): when the kind asked for matches no tab, the one tab that carries the Settings button is it.
+    if (stageRe && /^(rfq|rfp|technical|auction)$/i.test(stage ?? "")) {
+      const only = await pass(null);
+      if (only !== null) return only;
     }
     throw new Error(`no ${stage ? `${stage} ` : ""}stage tab on this event — a published stage's tab (RFQ, Technical Stage, Auction) carries its Settings button`);
   }

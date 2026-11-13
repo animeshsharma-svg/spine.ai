@@ -219,6 +219,7 @@ First decide WHICH SCREEN the test is about:
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
 - Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
 - TRAFFIC LIGHT and DYNAMIC TIME EXTENSION are fields of that same drawer, so they are ARGS of configure_single_stage, never do_on_screen: traffic light → auctionSubtype "traffic_light" with trafficBy ("price" | "rank") and rangeLower / rangeUpper (the GREEN / YELLOW bounds; "" for a case that leaves them empty); dynamic time extension → dynamicExtension true with extendByMinutes, triggerMinutes (the "trigger … on last N minutes") and topBids. Both are set on a FRESH single-stage auction (no conversion). The refusals come at Publish Event: configure → template → line items → vendors → schedule → publish → expect_publish_blocked / expect_error with the app's words.
+- WHAT EACH SIDE SEES in a traffic light auction is a real check, never ask_tester: after the bids, switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor"} for each bidder N, then switch_portal{to:"buyer"} → expect_zone{bid:<price>, zone} per bidder. The zone follows the bounds (gross ≤ GREEN → green, ≤ YELLOW → yellow, else red); leave rangeLower/rangeUpper out and the lint sets them from the bids so the lowest bidder is green, the next yellow, the rest red.
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress). A second bidding currency is added with add_bidding_currency{currencies:["USD"]} on the RFQ's create screen BEFORE publish (the footer's "Edit Currencies"; greyed out on the converted screen): "currency configuration cannot be added in Knockout / Dutch Auction" = add the currency on the RFQ → publish → convert_to_auction → configure dutch/knockout → publish → expect_publish_blocked{because:"Currency configuration cannot be added in Knockout / Dutch Auction"}.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
@@ -609,6 +610,54 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       if ((s.step === "do_on_screen" || s.step === "fill_required") && /traffic|range|extension|trigger|sniping|extend/i.test(JSON.stringify(s.args ?? {}))) {
         steps.splice(i, 1);
         repairs.push("dropped a do_on_screen about the traffic light / time extension — configure_single_stage sets those fields");
+      }
+    }
+  }
+
+  // TRAFFIC LIGHT BIDDING (14 Nov, SRC-STR-005): a case that bids on a traffic light auction and asks what each side
+  // sees. The bounds come from the bids themselves (gross = price × quantity, a reverse auction: ≤ GREEN → green,
+  // ≤ YELLOW → yellow, above → red): GREEN = the lowest gross, YELLOW = the next one, so the lowest bidder is green,
+  // the next yellow, the rest red. An ask_tester about zones / colours becomes expect_zone on both sides.
+  {
+    const cfg = steps.find((s) => s.step === "configure_single_stage" && /traffic/i.test(String(s.args?.auctionSubtype ?? "")));
+    const bids = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid").map((s) => Number(s.args?.price ?? 100)).filter((p) => Number.isFinite(p));
+    if (cfg && bids.length >= 2 && /traffic light/i.test(testCase) && !has("open_prepared")) {
+      const qtyStep = steps.find((s) => s.step === "add_line_items" && s.args?.quantity !== undefined);
+      const qty = Number(qtyStep?.args?.quantity ?? 1) || 1;
+      const gross = [...new Set(bids.map((p) => p * qty))].sort((x, y) => x - y);
+      const args = { ...(cfg.args ?? {}) } as Record<string, unknown>;
+      if (args.rangeLower === undefined && args.rangeUpper === undefined) {
+        args.rangeLower = String(gross[0]);
+        args.rangeUpper = String(gross[1] ?? gross[0]);
+        if (!args.awarding) args.awarding = "lot";
+        cfg.args = args;
+        repairs.push(`traffic light bounds set from the bids: GREEN ≤ ${args.rangeLower}, YELLOW ≤ ${args.rangeUpper} (gross = price × ${qty}) so the lowest bidder is green, the next yellow, the rest red`);
+      }
+      const lower = Number(args.rangeLower), upper = Number(args.rangeUpper);
+      const zoneOf = (g: number) => (g <= lower ? "green" : g <= upper ? "yellow" : "red");
+      const asksZones = /zone|colou?r|green|yellow|red|what (each|the) (side|vendor)s? sees?/i.test(testCase);
+      const hasZoneSteps = has("expect_zone");
+      if (asksZones && !hasZoneSteps) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+          const s = steps[i];
+          if (s.step === "ask_tester" && /zone|colou?r|green|yellow|red|rank|best.?price/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
+        }
+        const lastBid = Math.max(...steps.map((s, i) => (s.step === "expect_bid_submitted" || s.step === "place_bid" || s.step === "vendor_bid" ? i : -1)));
+        const bidSteps = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid");
+        const added: PlanStep[] = [];
+        bidSteps.forEach((s, i) => {
+          const price = Number(s.args?.price ?? 100);
+          added.push({ step: "switch_portal", args: { to: "vendor", vendor: i + 1 } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: zoneOf(price * qty), side: "vendor", rank: false } });
+        });
+        added.push({ step: "switch_portal", args: { to: "buyer" } });
+        bidSteps.forEach((s) => {
+          const price = Number(s.args?.price ?? 100);
+          added.push({ step: "expect_zone", args: { bid: price, zone: zoneOf(price * qty) } });
+        });
+        steps.splice(lastBid + 1, 0, ...added);
+        // a switch_portal{buyer} the model wrote right after is now a no-op; drop a duplicate
+        for (let i = steps.length - 1; i > lastBid + added.length; i--) if (steps[i].step === "switch_portal" && String(steps[i].args?.to ?? "") === "buyer" && steps[i - 1]?.step === "switch_portal") steps.splice(i, 1);
+        repairs.push(`what each side sees in a traffic light auction is checked with expect_zone: each bidder's own portal (${bidSteps.map((s, i) => `${i + 1}: ${zoneOf(Number(s.args?.price ?? 100) * qty)}`).join(", ")}) and the buyer's Responses lights`);
       }
     }
   }

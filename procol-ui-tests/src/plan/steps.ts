@@ -595,6 +595,20 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_zone",
+    purpose:
+      'TRAFFIC LIGHT auction: assert which zone a vendor\'s bid is in — on the BUYER\'s side (the stage\'s Responses grid shows a green / yellow / red light in every vendor\'s column header) or on the SUPPLIER PORTAL (the vendor\'s own round shows a "Green Zone" / "Yellow Zone" / "Red Zone" tag instead of a rank). The rule, for a reverse (buy) auction: gross total (price × quantity) ≤ the GREEN bound → green; ≤ the YELLOW bound → yellow; above → red. So a case with three bids 100 / 95 / 120 on quantity 10 and bounds green 950 / yellow 1000 expects the 95 bidder green, the 100 bidder yellow, the 120 bidder red. For "what each vendor sees": switch_portal{to:"vendor", vendor:N} (N = the N-th bidder of this plan) → vendor_open_event → expect_zone{zone, side:"vendor"} per vendor, then switch_portal{to:"buyer"} → expect_zone{bid: <price>, zone} per vendor. rank / bestPrice: whether the vendor\'s page shows a rank / a best price (hidden unless the buyer allowed that zone to see them in the live event\'s Best Prices Visibility / Show Rank settings).',
+    args: {
+      zone: '"green" | "yellow" | "red"',
+      side: '"buyer" (default on the buyer\'s console) | "vendor" (default when the supplier portal is the open side)',
+      bid: "buyer side: the bid price whose column to read (the surest way to name a vendor)",
+      vendor: 'buyer side: a vendor name / email, the N-th bidder of this plan (1, 2, …), or "lowest" / "highest" by price (optional)',
+      rank: "vendor side: true | false — a rank is / is not shown to this vendor (optional)",
+      bestPrice: "vendor side: true | false — a best price is / is not shown to this vendor (optional)",
+    },
+    assertion: true,
+  },
+  {
     name: "expect_publish_blocked",
     purpose:
       "Assert the event CANNOT be published yet: press Publish and confirm either the confirm button is disabled or the app refuses. Use for tests about a precondition not being met.",

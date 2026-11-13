@@ -6,6 +6,7 @@ import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
 import type { BrowserContext } from "@playwright/test";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
+import { EventActionsPage } from "../pages/EventActionsPage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
@@ -1113,6 +1114,9 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
   if (/@/.test(named)) email = named;
   else if (!named && biddersUsed.length) email = biddersUsed[biddersUsed.length - 1];
   else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
+  // vendor: 2 after place_bid steps = the second vendor that BID in this plan (the same person comes back to look at
+  // its zone, 14 Nov); before any bid it is the second vendor on the event, as place_bid{vendor:2} counts
+  else if (/^\d+$/.test(named) && biddersUsed[Number(named) - 1]) email = biddersUsed[Number(named) - 1];
   else email = await bidderEmail(named || undefined);
   const vendorCtx = await browser.newContext();
   const vendorPage = await vendorCtx.newPage();
@@ -2751,6 +2755,79 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // the plan's gap, never the product's failure.
       if (!s.awarded) throw new Error("not checked: no award was submitted in this plan, so there is no award to confirm");
       return "the event is awarded";
+    case "expect_zone": {
+      // TRAFFIC LIGHT ZONES (14 Nov, SRC-STR-005). What each side draws: the supplier portal puts a "Green Zone" /
+      // "Yellow Zone" / "Red Zone" tag on the round's Submission Sheet (no rank, no best price unless the buyer
+      // allowed that zone to see them); the buyer's Responses grid puts a light icon in every vendor's column
+      // header (<img alt="green lighticon">). The rule (bids_group.rb get_color_within_range, a reverse auction):
+      // gross total ≤ GREEN bound → green; ≤ YELLOW bound → yellow; above → red.
+      const want = String(a.zone ?? "").toLowerCase().trim();
+      if (!/^(green|yellow|red)$/.test(want)) throw new Error(`expect_zone: zone must be green, yellow or red (got "${a.zone}")`);
+      const side = a.side ? String(a.side).toLowerCase() : s.portal?.on === "vendor" ? "vendor" : "buyer";
+      if (side === "vendor") {
+        if (!s.portal || s.portal.on !== "vendor") throw new Error('expect_zone{side:"vendor"} needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event first');
+        const page = s.portal.page;
+        const zoneTag = page.getByText(/\b(green|yellow|red)\s*zone\b/i).first();
+        if (!(await zoneTag.isVisible().catch(() => false))) {
+          // the tag sits on the round's sheet: enter the round when the page is still on the event's overview
+          await new VendorPortalPage(page).startBidding(s.context.title ?? s.title).catch(() => {});
+          await zoneTag.waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
+        }
+        const text = ((await zoneTag.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+        const rankShown = /\b(your )?rank\b\s*[:#-]?\s*\d|\bL[1-9]\b/i.test(body);
+        const bestShown = /best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(body);
+        if (!text) throw new Error(`the supplier portal shows no zone tag for ${s.portal.email} on this round — the case expects the ${want} zone (the page reads: “${body.slice(0, 160)}”)`);
+        const got = (text.toLowerCase().match(/green|yellow|red/) ?? [""])[0];
+        const seen = `${s.portal.email} sees “${text}” on the supplier portal — ${rankShown ? "a rank is shown" : "no rank shown"}, ${bestShown ? "a best price is shown" : "no best price shown"}`;
+        if (got !== want) throw new Error(`${seen}; the case expects the ${want} zone`);
+        const wantRank = a.rank === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.rank));
+        const wantBest = a.bestPrice === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.bestPrice));
+        if (wantRank !== undefined && wantRank !== rankShown) throw new Error(`${seen}; the case expects the rank ${wantRank ? "shown" : "hidden"} for this zone`);
+        if (wantBest !== undefined && wantBest !== bestShown) throw new Error(`${seen}; the case expects the best price ${wantBest ? "shown" : "hidden"} for this zone`);
+        return seen;
+      }
+      // the buyer's side: the stage's Responses grid
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : undefined);
+      const sub = buyerPage.getByRole("tab", { name: /^\s*responses\s*$/i }).filter({ visible: true }).first();
+      if (await sub.count().catch(() => 0)) await sub.click({ timeout: 5_000 }).catch(() => {});
+      await buyerPage.locator("img[alt*='lighticon' i]").first().waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
+      const cols = await buyerPage
+        .evaluate(() => {
+          const out: Array<{ vendor: string; zone: string; price: string }> = [];
+          for (const h of Array.from(document.querySelectorAll("[role='columnheader']"))) {
+            const name = (h.querySelector("h2")?.textContent || "").replace(/\s+/g, " ").trim();
+            if (!name) continue;
+            const img = h.querySelector("img[alt*='lighticon' i]") as HTMLImageElement | null;
+            const field = (h.getAttribute("data-fields") || "").split("|").map((f) => f.replace(/^-+|-+$/g, "")).find((f) => /#price-/.test(f));
+            const cell = field ? document.querySelector(`[role='cell'][data-field="${field}"], [data-field="${field}"]:not([role='columnheader'])`) : null;
+            out.push({ vendor: name, zone: img ? ((img.alt.match(/green|yellow|red/i) ?? [""])[0] || "").toLowerCase() : "", price: (cell?.textContent || "").replace(/\s+/g, " ").trim() });
+          }
+          return out;
+        })
+        .catch(() => [] as Array<{ vendor: string; zone: string; price: string }>);
+      const num = (t: string) => Number((t.match(/[\d,]+(?:\.\d+)?/)?.[0] ?? "").replace(/,/g, ""));
+      const list = cols.map((c) => `${c.vendor} ${c.price ? `(${c.price}) ` : ""}→ ${c.zone || "no light"}`).join(" | ") || "no vendor columns";
+      if (!cols.length) throw new Error(`the Responses grid shows no vendor columns yet — nothing to read a zone from`);
+      // whose zone: a bid price the case gives, the n-th bidder of this plan, a name / email, "lowest" / "highest"
+      let pick: { vendor: string; zone: string; price: string } | undefined;
+      const byPrice = (p: number) => cols.find((c) => num(c.price) === p);
+      if (a.bid !== undefined || a.price !== undefined) pick = byPrice(Number(a.bid ?? a.price));
+      else if (typeof a.vendor === "number" || /^\d+$/.test(String(a.vendor ?? ""))) {
+        const b = s.portalBids?.[Number(a.vendor) - 1];
+        pick = b ? cols.find((c) => c.vendor.toLowerCase() === b.email.toLowerCase()) ?? byPrice(b.price) : undefined;
+      } else if (/^(lowest|highest)$/i.test(String(a.vendor ?? ""))) {
+        const priced = cols.filter((c) => Number.isFinite(num(c.price)));
+        pick = priced.sort((x, y) => num(x.price) - num(y.price))[/lowest/i.test(String(a.vendor)) ? 0 : priced.length - 1];
+      } else if (a.vendor) pick = cols.find((c) => c.vendor.toLowerCase().includes(String(a.vendor).toLowerCase()) || String(a.vendor).toLowerCase().includes(c.vendor.toLowerCase()));
+      else if (cols.length === 1) pick = cols[0];
+      if (!pick) throw new Error(`could not tell which vendor's zone to read${a.vendor !== undefined ? ` for "${a.vendor}"` : a.bid !== undefined ? ` for the bid ${a.bid}` : ""} — the Responses grid shows: ${list}`);
+      if (!pick.zone) throw new Error(`${pick.vendor}'s column shows no traffic light on the buyer's Responses — the case expects ${want} (grid: ${list})`);
+      if (pick.zone !== want) throw new Error(`${pick.vendor} is in the ${pick.zone} zone on the buyer's Responses; the case expects ${want} (grid: ${list})`);
+      return `${pick.vendor}${pick.price ? ` (${pick.price})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
+    }
     case "expect_bid_submitted": {
       // An event BUILT with a vendor's bid (the API set-up) has one to confirm too; a plan that neither bid nor
       // started from a bid has nothing to confirm — "not checked", never a failure about the product.
