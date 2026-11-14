@@ -186,16 +186,36 @@ export class EventActionsPage extends BasePage {
     const loading = p.locator("[role='grid'] .ant-skeleton, [role='grid'] .ant-skeleton-input, [role='grid'] [class*='skeleton']").filter({ visible: true }).first();
     for (const until = Date.now() + 10_000; Date.now() < until && (await loading.isVisible().catch(() => false)); ) await p.waitForTimeout(400);
     const columns: Array<{ vendor: string; when: string; surrogate: boolean | null }> = [];
-    for (let i = 0; i < Math.min(await heads.count().catch(() => 0), 40); i++) {
-      const h = heads.nth(i);
-      const vendor = ((await h.getByRole("heading", { level: 2 }).first().textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
-      const text = ((await h.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
-      // A closed stage tags a surrogate column "Surrogate Bid"; a live one shows no tag (null: the caller asks
-      // Procol's records).
-      const surrogate = (await h.getByText(/^\s*surrogate bid\s*$/i).count().catch(() => 0)) > 0 ? true : null;
-      const when = text.replace(vendor, "").replace(/surrogate bid|counter offer/gi, "").trim();
-      if (vendor && !columns.some((c) => c.vendor === vendor)) columns.push({ vendor, when, surrogate });
+    const readHeads = async () => {
+      for (let i = 0; i < Math.min(await heads.count().catch(() => 0), 40); i++) {
+        const h = heads.nth(i);
+        const vendor = ((await h.getByRole("heading", { level: 2 }).first().textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+        const text = ((await h.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+        // A closed stage tags a surrogate column "Surrogate Bid"; a live one shows no tag (null: the caller asks
+        // Procol's records).
+        const surrogate = (await h.getByText(/^\s*surrogate bid\s*$/i).count().catch(() => 0)) > 0 ? true : null;
+        const when = text.replace(vendor, "").replace(/surrogate bid|counter offer/gi, "").trim();
+        if (vendor && !columns.some((c) => c.vendor === vendor)) columns.push({ vendor, when, surrogate });
+      }
+    };
+    await readHeads();
+    // The grid draws only the vendor columns in view (14 Nov: three bids, two columns read): scroll right and read
+    // again until nothing new appears, then scroll back.
+    for (let i = 0; i < 12; i++) {
+      const moved = await p
+        .evaluate(() => {
+          const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null;
+          if (!sc) return false;
+          const before = sc.scrollLeft;
+          sc.scrollLeft = before + 600;
+          return sc.scrollLeft !== before;
+        })
+        .catch(() => false);
+      if (!moved) break;
+      await p.waitForTimeout(400);
+      await readHeads();
     }
+    await p.evaluate(() => { const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null; if (sc) sc.scrollLeft = 0; }).catch(() => {});
     // A page that tags surrogate columns (a closed stage) leaves the vendor-portal ones untagged.
     if (columns.some((c) => c.surrogate === true)) for (const c of columns) if (c.surrogate === null) c.surrogate = false;
     // Its accessible name keeps the spaces ("1 / 2 50%"); its text runs the badge on ("1 / 250%"). It reads

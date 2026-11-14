@@ -115,13 +115,16 @@ export async function runEventMenuStep(x: { page: Page; state: EventMenuState },
       if (r.columns.some((c) => c.surrogate === null)) {
         const uuid = x.page.url().match(/\/project\/([^/?#]+)/)?.[1];
         const eg = uuid ? decodeProcolId(uuid) : null;
-        const mode = /technical|rfp/i.test(r.tab) ? 5 : /auction/i.test(r.tab) ? 0 : 1;
+        // a single-stage event names its only stage tab by the EVENT'S TITLE (14 Nov): then the kind is not in the tab's
+        // words, and a bid row of either pricing kind (auction 0, RFQ 1) is this stage's
+        const mode: number | null = /technical|rfp/i.test(r.tab) ? 5 : /auction/i.test(r.tab) ? 0 : /rfq/i.test(r.tab) ? 1 : null;
+        const ofStage = (row: { mode: number }) => (mode === null ? row.mode === 0 || row.mode === 1 : row.mode === mode);
         // a bid's record can lag the screen by seconds: a fresh surrogate bid read too early looked "from the vendor
         // portal" (5 and 9 Nov, three times; read later the buyer was its author) — read again before concluding that
-        let rows = (eg ? await responsesOf(eg) : null)?.filter((row) => row.mode === mode) ?? null;
+        let rows = (eg ? await responsesOf(eg) : null)?.filter(ofStage) ?? null;
         for (let tries = 0; rows && tries < 4 && a.surrogate !== undefined && rows.filter((row) => row.surrogate).length < Number(a.surrogate); tries++) {
           await x.page.waitForTimeout(5_000);
-          rows = (eg ? await responsesOf(eg) : null)?.filter((row) => row.mode === mode) ?? rows;
+          rows = (eg ? await responsesOf(eg) : null)?.filter(ofStage) ?? rows;
         }
         if (rows) {
           fromRecords = true;
