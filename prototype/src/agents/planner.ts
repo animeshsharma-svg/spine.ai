@@ -688,9 +688,16 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           tail.push({ step: "switch_portal", args: { to: "vendor", vendor: green.n } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: "green", side: "vendor", rank: true, bestPrice: true } });
           if (other) tail.push({ step: "switch_portal", args: { to: "vendor", vendor: other.n } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: other.zone, side: "vendor", rank: false, bestPrice: false } });
           tail.push({ step: "switch_portal", args: { to: "buyer" } });
-          // after the buyer-side zone checks (before a closing expect_responses, which stays last)
-          const at = (() => { let i = steps.length; while (i > 0 && ["expect_responses", "switch_portal"].includes(steps[i - 1].step)) i--; return i; })();
+          // right after the last buyer-side expect_zone; what the model wrote after that (a stray switch to the
+          // vendor, a closing expect_responses) follows the tail, and a repeated switch_portal{buyer} is dropped
+          const lastZone = Math.max(...steps.map((s, i) => (s.step === "expect_zone" && String(s.args?.side ?? "buyer") !== "vendor" ? i : -1)));
+          const at = lastZone >= 0 ? lastZone + 1 : steps.length;
           steps.splice(at, 0, ...tail);
+          for (let i = steps.length - 1; i > 0; i--) {
+            if (steps[i].step === "switch_portal" && steps[i - 1].step === "switch_portal" && String(steps[i].args?.to ?? "") === String(steps[i - 1].args?.to ?? "") && String(steps[i].args?.vendor ?? "") === String(steps[i - 1].args?.vendor ?? "")) steps.splice(i, 1);
+            // a switch to a vendor followed only by vendor_open_event and then a switch back does nothing: drop the pair
+            if (steps[i].step === "vendor_open_event" && steps[i - 1].step === "switch_portal" && steps[i + 1]?.step === "switch_portal" && String(steps[i + 1].args?.to ?? "") === "buyer") steps.splice(i - 1, 2);
+          }
           repairs.push("the zones allowed to see the best price / rank: set_zone_visibility (green only), then the green bidder sees both and a bidder outside the green zone sees neither");
         }
       }

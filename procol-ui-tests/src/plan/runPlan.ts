@@ -2772,8 +2772,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await ev.gotoStage(a.stage ? String(a.stage) : undefined);
       const zonesOf = (v: unknown) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : String(v).split(/[,\s/]+/)).map((z) => String(z).toLowerCase().replace(/\s*zone$/, "").trim()).filter((z) => /^(green|yellow|red)$/.test(z));
       const openItem = async (label: RegExp, what: string) => {
-        const btn = buyerPage.getByRole("button", { name: /^\s*actions\s*$/i }).filter({ visible: true }).first();
-        if (!(await btn.count())) throw new Error(`no "Actions" button on this stage's toolbar — the zone visibility settings live under it on a live auction`);
+        // its accessible name carries the caret icon's label ("Actions icon: down", 14 Nov)
+        const btn = buyerPage.getByRole("button", { name: /^\s*actions\b/i }).filter({ visible: true }).first();
+        await btn.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+        if (!(await btn.count())) {
+          const buttons = (await buyerPage.getByRole("button").filter({ visible: true }).allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 20);
+          throw new Error(`no "Actions" button on this stage's toolbar — the zone visibility settings live under it on a live auction (the toolbar's buttons read: ${buttons.join(" | ") || "none"})`);
+        }
         await btn.click({ timeout: 10_000 });
         await buyerPage.waitForTimeout(700);
         const menu = buyerPage.locator(".ant-dropdown:visible").last();
