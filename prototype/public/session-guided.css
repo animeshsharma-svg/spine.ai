@@ -50,7 +50,7 @@
 .gs-empty b { color: var(--text-strong); font-size: 15px; }
 
 /* ── stepper ────────────────────────────────────────────────────────── */
-.gs-stepper { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gs-stepper { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .gs-stepper button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
 .gs-stepper button:disabled { cursor: default; opacity: .55; }
 .gs-stepper li.shown button { border-color: var(--primary-border-2); box-shadow: inset 0 0 0 1px var(--primary-border-2); }
@@ -59,7 +59,8 @@
 .gs-stepper li.now .gs-n { background: var(--primary-fill); color: var(--on-primary); }
 .gs-stepper .gs-n .ico { width: 13px; height: 13px; }
 .gs-step-l { font: 500 13px/1.2 var(--font-sans); color: var(--text-strong); }
-@media (max-width: 860px) { .gs-stepper { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) { .gs-stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .gs-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ── the card ───────────────────────────────────────────────────────── */
 .gs-card { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: var(--shadow-xs); }
@@ -171,3 +172,62 @@
 .gs-table td { padding: 7px 10px; border-top: 1px solid var(--border); vertical-align: top; color: var(--text); }
 .gs-table td[contenteditable]:focus { background: var(--card); outline: 2px solid var(--primary-border-2); }
 .gs-tally { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ── day 2: stale steps, describe line, gates, live frame ───────────── */
+.gs-stepper li.stale .gs-n { background: var(--warn-bg); color: var(--warn-text); }
+.gs-step-l small { display: block; font: 500 10.5px/1.2 var(--font-mono); letter-spacing: .5px; text-transform: uppercase; color: var(--warn-text); margin-top: 2px; }
+.gs-describe { font-size: 12.5px; color: var(--text-2); }
+.gs-describe.bad { color: var(--bad-text); }
+.gs-gate { display: inline-flex; flex-direction: column; gap: 2px; padding: 4px 8px; border-radius: 8px; background: var(--card); }
+.gs-gate small { font-size: 11.5px; color: var(--text-2); }
+.gs-summary { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text); max-width: 80ch; }
+.gs-frame { display: block; flex-basis: 100%; width: 100%; max-width: 640px; border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; }
+.gs-section-note { padding: 6px 12px 10px; }
+.gs-answer.muted { color: var(--text-2); }
+.gs-q small { font-size: 12px; color: var(--text-2); }
+
+/* ── the question card (§4) ─────────────────────────────────────────── */
+.gs-qs { display: flex; flex-direction: column; gap: 8px; }
+.gs-qcard { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1.5px solid var(--primary-border-2); border-radius: 12px; background: var(--primary-tint); }
+.gs-qcard.blocking { border-color: var(--warn-dot); background: var(--warn-bg); }
+.gs-qtext { margin: 0; font: 600 16px/1.35 var(--font-sans); color: var(--text-strong); }
+.gs-qwhy { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-2); }
+.gs-qopts { display: flex; flex-wrap: wrap; gap: 8px; }
+.gs-qopt { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 150px; max-width: 320px; padding: 9px 13px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--card); color: var(--text-strong); }
+.gs-qopt:hover { border-color: var(--border-strong); }
+.gs-qopt.suggested { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.gs-qopt.on { background: var(--primary-fill); border-color: var(--primary-fill); color: var(--on-primary); }
+.gs-qopt.on small { color: inherit; opacity: .85; }
+.gs-qopt b { font: 500 13.5px/1.25 var(--font-sans); }
+.gs-qopt small { font-size: 11.5px; color: var(--text-2); }
+.gs-qacts { display: flex; gap: 8px; }
+.gs-qother { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gs-qother input { flex: 1 1 220px; }
+.gs-qdeadline { margin: 0; font-size: 12px; color: var(--warn-text); }
+.gs-qdone { padding: 6px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--page); }
+.gs-qdone summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 13px; list-style: none; }
+.gs-qdone summary::-webkit-details-marker { display: none; }
+.gs-qdone-t { color: var(--text-2); flex: 1 1 260px; min-width: 0; }
+.gs-qdone-a { color: var(--ok-text); font-weight: 500; }
+.gs-qdone .gs-qwhy { margin-top: 6px; }
+
+/* ── the Questions drawer ───────────────────────────────────────────── */
+.gs-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad-text); color: #fff; font: 600 11px/1 var(--font-mono); }
+.gs-ask-btn { border-color: var(--primary-border-2); }
+.gs-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 10px; background: var(--card); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg, 0 10px 40px rgba(0,0,0,.18)); transform: translateX(100%); transition: transform .2s ease; z-index: 60; }
+.gs-drawer.open { transform: none; }
+.gs-drawer-head { display: flex; align-items: center; gap: 10px; }
+.gs-drawer-head b { font-size: 15px; color: var(--text-strong); }
+.gs-drawer-step { font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-2); margin-top: 6px; }
+@media (max-width: 700px) { .gs-qopt { min-width: 100%; max-width: none; } }
+
+/* ── phone width: the header wraps, the closed drawer takes no room ──── */
+.gs-drawer:not(.open) { display: none; }
+@media (max-width: 700px) {
+  .gs-head h1 { flex-basis: 100%; font-size: 22px; }
+  .gs-head .gs-btn { white-space: normal; height: auto; min-height: 36px; padding: 8px 12px; text-align: left; }
+  .gs-head .home-spacer { display: none; }
+}
+/* a long session title must not widen the shell: the row's text never counts towards the page's width */
+#view-guided, #gs-root, .gs-col { min-width: 0; }
+.gs-row-main { contain: inline-size; }
