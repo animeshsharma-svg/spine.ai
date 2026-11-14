@@ -2863,11 +2863,19 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         }
         const text = ((await zoneTag.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
         const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
-        const rankShown = /\b(your )?rank\b\s*[:#-]?\s*\d|\bL[1-9]\b/i.test(body);
-        const bestShown = /best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(body);
+        // The indicators sit in one row with the zone tag (14 Nov, green zone allowed to see both): "🏆 1 ₹ 950"
+        // (the best price: a trophy, its number and the amount) · "Green Zone" · "Rank: 1". Read that row, not the
+        // whole page (the sheet's own Price and Gross Total carry rupees too).
+        let row = "";
+        for (let up = 1; up <= 4 && !row; up++) {
+          const t = ((await zoneTag.locator(`xpath=ancestor::*[${up}]`).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+          if (t.length > text.length && t.length < 160) row = t;
+        }
+        const rankShown = /\brank\b\s*[:#-]?\s*\d/i.test(row) || /\b(your )?rank\b\s*[:#-]?\s*\d|\bL[1-9]\b/i.test(body);
+        const bestShown = /₹\s*[\d,]+|best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(row.replace(text, "")) || /best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(body);
         if (!text) throw new Error(`the supplier portal shows no zone tag for ${s.portal.email} on this round — the case expects the ${want} zone (the page reads: “${body.slice(0, 160)}”)`);
         const got = (text.toLowerCase().match(/green|yellow|red/) ?? [""])[0];
-        const seen = `${s.portal.email} sees “${text}” on the supplier portal — ${rankShown ? "a rank is shown" : "no rank shown"}, ${bestShown ? "a best price is shown" : "no best price shown"}`;
+        const seen = `${s.portal.email} sees “${text}” on the supplier portal — ${rankShown ? "a rank is shown" : "no rank shown"}, ${bestShown ? "a best price is shown" : "no best price shown"}${row ? ` (the indicators read: “${row}”)` : ""}`;
         if (got !== want) throw new Error(`${seen}; the case expects the ${want} zone`);
         const wantRank = a.rank === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.rank));
         const wantBest = a.bestPrice === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.bestPrice));
