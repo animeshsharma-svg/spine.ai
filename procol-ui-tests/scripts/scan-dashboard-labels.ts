@@ -95,7 +95,40 @@ for (const f of files) {
     for (const m of src.matchAll(rx)) keep(m[1], f);
 }
 
+// The BACKEND's own words (14 Nov): messages the server composes and the dashboard only renders — the Order Activity
+// lines (lib/modules/activity_display_formatter.rb: "Due to a quote revision, the Dynamic Time Extension has been
+// triggered.") and the locale texts (config/locales/en-IN.yml). Read-only, at the checkout's HEAD; interpolations
+// (#{…}, %{…}) are dropped, so the guard matches the fixed part exactly.
+const BACKEND = process.env.BACKEND_REPO ?? join(here, "..", "..", "procol-backend");
+let backendFiles = 0;
+try {
+  const bgit = (...a: string[]) => execFileSync("git", ["-C", BACKEND, ...a], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const bref = "HEAD";
+  for (const f of ["lib/modules/activity_display_formatter.rb", "lib/modules/activity_log_service.rb"]) {
+    let src = "";
+    try { src = bgit("show", `${bref}:${f}`); } catch { continue; }
+    backendFiles++;
+    for (const m of src.matchAll(/"((?:[^"\\]|\\.){4,200})"/g)) {
+      const t = m[1].replace(/#\{[^}]*\}/g, "").replace(/\s+/g, " ").trim();
+      if (/[A-Za-z]{3,}\s+[A-Za-z]{2,}/.test(t) && !/[{}()\[\]=<>]/.test(t)) keep(t, `backend:${f}`);
+    }
+  }
+  for (const f of ["config/locales/en-IN.yml"]) {
+    let src = "";
+    try { src = bgit("show", `${bref}:${f}`); } catch { continue; }
+    backendFiles++;
+    for (const line of src.split("\n")) {
+      const m = /^\s*[\w.-]+:\s*["']?(.+?)["']?\s*$/.exec(line);
+      if (!m) continue;
+      const t = m[1].replace(/%\{[^}]*\}/g, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+      if (/[A-Za-z]{3,}\s+[A-Za-z]{2,}/.test(t)) keep(t, `backend:${f}`);
+    }
+  }
+} catch (e) {
+  console.log(`backend words skipped: ${(e as Error).message.split("\n")[0]}`);
+}
+
 const out = join(here, "..", "src", "plan", "generic", "sourceLabels.json");
 const labels = [...found.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([text, fs]) => ({ text, files: [...fs] }));
-writeFileSync(out, JSON.stringify({ source: "procol-client-dashboard (read-only)", ref, commit, collectedAt: new Date().toISOString(), files: n, labels }, null, 1));
+writeFileSync(out, JSON.stringify({ source: "procol-client-dashboard (read-only) + procol-backend's own message texts", ref, commit, collectedAt: new Date().toISOString(), files: n + backendFiles, labels }, null, 1));
 console.log(`read ${n} files at ${ref} (${commit}) — ${labels.length} UI strings → ${out}`);

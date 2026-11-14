@@ -25,7 +25,7 @@ import { PlanStep, STEP_CATALOG, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
 import { probeControls } from "./probe.js";
-import { extendTime } from "./eventTime.js";
+import { extendTime, readEnd, clockDiff, shownAt } from "./eventTime.js";
 import { appRuleFor, recoveryFor, recoveryWith, type AppRule } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
@@ -375,6 +375,8 @@ interface RunState {
   typedBids: Array<{ vendor: string; price: number }>;
   /** Bids placed from the vendor portal in this plan: who signed in, the unit price typed, when. */
   portalBids?: Array<{ email: string; price: number; at: number }>;
+  /** The event's end as the app held it before a last-minute bid (wait_for_end_window), server clock + the screen's offset. */
+  endBefore?: { end: number; diff: number; at: number };
   /** Vendors the case named that the participants search did not know (invite_vendor): never on the round. */
   unmatchedVendors: string[];
   /** The events-list tab filter_events chose (Drafts, History, …): a later search must keep it. */
@@ -1078,6 +1080,19 @@ const CREATE_SCREEN_STEP = /^(compose_stages|expect_stages|set_title|select_temp
  * next steps act on. The vendor's browser is opened once per run and kept; "buyer" does not close it,
  * so a plan can go back and forth (bid as the vendor, read the buyer's grid, revise as the vendor).
  */
+/** Everyone invited to the run's event, from the database (the create screen shows four names and a "+N" chip). */
+async function topUpInvitedFromDb(s: RunState, cid: number | null): Promise<void> {
+  if (!allowRealVendors() || invitedFromDb || !s.title) return;
+  const all = await invitedVendorNames(s.title, cid);
+  if (all?.length) {
+    invitedFromDb = true;
+    if (all.length > invitedVendors.length) {
+      console.log(`[bid] ${all.length} vendors are invited to “${s.title}” — choosing who signs in from all of them, not only the names the create screen showed`);
+    }
+    invitedVendors = all;
+  }
+}
+
 async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknown): Promise<string> {
   if (to === "buyer") {
     if (!s.portal || s.portal.on === "buyer") return "on the buyer's console already";
@@ -1121,6 +1136,9 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
   // bid from the portal in this plan (a place_bid before the switch — the same person comes back to look,
   // 2 Nov); else the API-built state's vendor; else the next invited vendor this run can sign in as.
   let email = "";
+  // the N-th vendor on the event is counted among everyone invited (14 Nov: a switch before any bid saw only the
+  // profile's vendor, because only place_bid had read the invited list from the database)
+  if (!knownEmail && named) await topUpInvitedFromDb(s, Number(process.env.COMPANY_ID) || null).catch(() => {});
   if (knownEmail) email = knownEmail;
   else if (!named && biddersUsed.length) email = biddersUsed[biddersUsed.length - 1];
   else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
@@ -1199,6 +1217,8 @@ async function vendorBid(s: RunState, a: Record<string, unknown>): Promise<strin
     s.bidSubmitted = true;
     const n = Number(typed);
     (s.portalBids ??= []).push({ email: s.portal.email, price: Number.isFinite(n) ? n : NaN, at: Date.now() });
+    // the N-th bidder of the plan (switch_portal{vendor:N} after the bids) counts a portal bid too, not only place_bid
+    if (!biddersUsed.some((u) => u.toLowerCase() === s.portal!.email.toLowerCase())) biddersUsed.push(s.portal.email);
     return `bid submitted from the supplier portal as ${s.portal.email}: typed ${typed} into ${cells} price cell(s) (the sheet shows ${keptWords})${submitDisabled ? "; Submit was disabled until the terms were ticked" : ""}`;
   }
   const after = await appMessagesSince(page, mark).catch(() => []);
@@ -2463,7 +2483,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "set_schedule": {
       if (await isSingleStageScreen(s)) {
-        return "default schedule kept (single-stage sets its window on publish)";
+        if (!a.minutes) return "default schedule kept (single-stage sets its window on publish)";
+        // 14 Nov (SRC-STR-009): the single-stage footer carries the same "Now - <time> (30 Mins)" chip and Schedule
+        // Event drawer as the eRFX screen; a window under the 30-minute preset goes through its Fixed time mode — a
+        // dynamic time extension case has to reach the event's last minutes inside the run.
+        process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
+        await s.create.saveSchedule();
+        const chosen = s.create.scheduleMinutesChosen;
+        const asked = asInt(a.minutes, 30);
+        const windows = s.create.scheduleWindows.map((w) => `ends ${w.endsAt}`).join(" · ");
+        return `schedule saved (single-stage)${windows ? `: ${windows}` : ""}${chosen && chosen !== asked ? ` — asked ${asked} min, the app kept ${chosen} min` : chosen ? ` — ${chosen} min` : ` — asked ${asked} min, the app kept its default`}`;
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
@@ -2517,16 +2546,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const cid = Number(process.env.COMPANY_ID) || null;
         // Everyone invited, not the four names the create screen shows: a
         // vendor this run can sign in as may be hidden in the "+N" chip.
-        if (allowRealVendors() && !invitedFromDb && s.title) {
-          const all = await invitedVendorNames(s.title, cid);
-          if (all?.length) {
-            invitedFromDb = true;
-            if (all.length > invitedVendors.length) {
-              console.log(`[bid] ${all.length} vendors are invited to “${s.title}” — choosing who bids from all of them, not only the names the create screen showed`);
-            }
-            invitedVendors = all;
-          }
-        }
+        await topUpInvitedFromDb(s, cid);
         let email = "";
         let how = "";
         let found: { email: string; name: string; source: string } | null = null;
@@ -2951,6 +2971,111 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!pick.zone) throw new Error(`${pick.vendor}'s column shows no traffic light on the buyer's Responses — the case expects ${want} (grid: ${list})`);
       if (pick.zone !== want) throw new Error(`${pick.vendor} is in the ${pick.zone} zone on the buyer's Responses; the case expects ${want} (grid: ${list})`);
       return `${pick.vendor}${pickPrice != null ? ` (bid ${pickPrice})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
+    }
+    case "note_end_time":
+    case "wait_for_end_window": {
+      // DYNAMIC TIME EXTENSION (14 Nov, SRC-STR-009). A bid is "last minute" when the event's end lies within the
+      // trigger window after it (bid.rb dynamic_extension_needed: bid_end_time between the bid's time and bid time +
+      // "trigger on last N minutes"). So wait until the end is `minutesBefore` away — the end read from the BUYER's
+      // page (the app's own read of the event, on the server's clock), never a countdown drawn on screen — and
+      // remember that end for expect_time_extended. note_end_time records it without waiting.
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      if (!/\/project\//.test(buyerPage.url())) throw new Error(`${step.step} needs the published event's page on the buyer's side — publish and expect_published first`);
+      const before = Number(a.minutesBefore ?? a.before ?? 1);
+      const cap = Number(a.maxWaitMinutes ?? 12) * 60;
+      // the event is read on its STAGE page (the project page reads other records first — 14 Nov: nothing to read)
+      await new EventActionsPage(buyerPage).gotoStage("auction").catch(() => "");
+      const read = await readEnd(buyerPage, { any: true });
+      if (read.end === undefined) throw new Error("the event's end could not be read from the app's own read of the event — not evidence about the product");
+      const diff = await clockDiff(buyerPage);
+      const now = () => Math.round(Date.now() / 1000) - diff;
+      s.endBefore = { end: read.end, diff, at: now() };
+      if (step.step === "note_end_time") return `the event ends at ${shownAt(read.end, diff)} (${Math.round((read.end - now()) / 60)} min from now) — recorded`;
+      const target = read.end - Math.round(before * 60);
+      const wait = target - now();
+      if (wait > cap) throw new Error(`the event ends at ${shownAt(read.end, diff)} — ${Math.round(wait / 60)} min until its last ${before} min, more than this step waits (${cap / 60} min); schedule a shorter window (set_schedule{minutes})`);
+      if (wait <= 0) return `the event ends at ${shownAt(read.end, diff)} — already inside its last ${before} min (${Math.max(0, read.end - now())} s left), no wait`;
+      console.log(`[dte] waiting ${wait} s until ${before} min before the end (${shownAt(read.end, diff)})`);
+      while (target - now() > 0) await buyerPage.waitForTimeout(Math.min(5_000, Math.max(250, (target - now()) * 1000)));
+      return `waited ${wait} s: the event ends at ${shownAt(read.end, diff)}; it is now ${before} min before the end (${read.end - now()} s left)`;
+    }
+    case "expect_time_extended": {
+      // After a last-minute bid the end moves by the drawer's "Extend time by" minutes for everyone (bid.rb
+      // update_dynamic_closing_schedule: a dynamic_extra_time schedule from the old end to old end + extension; every
+      // bid's end_time follows). The end AFTER is read on the side asked — the buyer's console or the open supplier
+      // portal, each from its own app's read — and compared with the end recorded before the bid.
+      const byRaw = a.byMinutes ?? a.by ?? a.minutes;
+      const by = byRaw === undefined || byRaw === null || byRaw === "" ? undefined : Number(byRaw);
+      const side = String(a.side ?? (s.portal?.on === "vendor" ? "vendor" : "buyer")).toLowerCase();
+      if (!s.endBefore) throw new Error("not checked: no end time was recorded before the bid — wait_for_end_window (or note_end_time) must run before the last-minute bid");
+      const page = side === "vendor" ? s.portal?.page : s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      if (!page) throw new Error('expect_time_extended{side:"vendor"} needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event first');
+      if (side !== "vendor") await new EventActionsPage(page).gotoStage("auction").catch(() => "");
+      const after = await readEnd(page, { any: true });
+      if (after.end === undefined) throw new Error(`the event's end could not be read on the ${side === "vendor" ? "supplier portal" : "buyer's console"} after the bid — not evidence about the product`);
+      const { end: was, diff } = s.endBefore;
+      const moved = after.end - was;
+      // what the screen draws beside it — a countdown or an "ends at" line — for the report
+      const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      const timer = body.match(/\b(\d{1,2}\s*(d|h|m|s|day|days|hr|hrs|min|mins|sec|secs)\b\s*:?\s*){2,4}|\b(ends?|ending|closes?|closing)\s+(at|in|on)\b[^|•]{0,40}/i)?.[0]?.trim() ?? "";
+      const who = side === "vendor" ? `${s.portal!.email} on the supplier portal` : "the buyer's console";
+      const detail = `${who}: the end moved ${shownAt(was, diff)} → ${shownAt(after.end, diff)} (${moved >= 0 ? "+" : "−"}${Math.floor(Math.abs(moved) / 60)} min${Math.abs(moved) % 60 ? ` ${Math.abs(moved) % 60} s` : ""})${timer ? `; the screen reads “${timer}”` : ""}`;
+      if (by === undefined) {
+        if (moved <= 0) throw new Error(`[product] the end did not move — ${detail}`);
+        return detail;
+      }
+      if (Math.abs(moved - by * 60) > 60) throw new Error(`[product] the end moved by ${Math.round(moved / 60)} min, the case expects ${by} min — ${detail}`);
+      return detail;
+    }
+    case "expect_participants_summary": {
+      // The stage's Participants panel (participantsPanel.jsx): "Total Participants · Active participants · Total Bids
+      // · Revised bids · Rejected bids · Counter offers · … · Dynamic time extended" — the server sums the
+      // dynamic_extra_time schedules into "N min" (trade_controller_helper generate_participant_summary_data).
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : "auction");
+      // the panel is drawn on the stage's OVERVIEW sub-tab (?tab=order_info — probe 14 Nov), not on Participants
+      // (the audience list) — the case calls it "the participants panel" after its first row
+      const sub = buyerPage.getByRole("tab", { name: /^\s*overview\s*$/i }).filter({ visible: true }).first();
+      if (await sub.count().catch(() => 0)) await sub.click({ timeout: 5_000 }).catch(() => {});
+      const readPanel = () =>
+        buyerPage.evaluate(() => {
+          const out: Array<{ label: string; value: string }> = [];
+          for (const el of Array.from(document.querySelectorAll("[class*='orderDetailsInfo']"))) {
+            const kids = Array.from(el.children).map((k) => (k.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+            if (kids.length >= 2) out.push({ label: kids[0], value: kids.slice(1).join(" ") });
+          }
+          return out;
+        });
+      let panel: Array<{ label: string; value: string }> = [];
+      for (let i = 0; i < 40 && !panel.some((r) => /participants/i.test(r.label)); i++) {
+        panel = await readPanel().catch(() => []);
+        if (!panel.some((r) => /participants/i.test(r.label))) await buyerPage.waitForTimeout(500);
+      }
+      if (!panel.length) throw new Error(`no participants summary panel on ${new URL(buyerPage.url()).pathname} (tabs: ${(await buyerPage.getByRole("tab").allInnerTexts().catch(() => [])).map((t) => t.trim()).join(", ")})`);
+      const list = panel.map((r) => `${r.label}: ${r.value}`).join(" · ");
+      const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const wants: Array<[string, string]> = [];
+      const alias: Record<string, string> = { dynamicTimeExtended: "Dynamic time extended", totalBids: "Total Bids", revisedBids: "Revised bids", rejectedBids: "Rejected bids", totalParticipants: "Total Participants", activeParticipants: "Active participants", counterOffers: "Counter offers" };
+      for (const [k, v] of Object.entries(a)) {
+        if (k === "stage" || v === undefined || v === null) continue;
+        if (k === "expect" && typeof v === "object") for (const [l, x] of Object.entries(v as Record<string, unknown>)) wants.push([l, String(x)]);
+        else if (alias[k]) wants.push([alias[k], String(v)]);
+      }
+      if (!wants.length) return `participants summary: ${list}`;
+      const problems: string[] = [];
+      for (const [label, want] of wants) {
+        const row = panel.find((r) => norm(r.label) === norm(label)) ?? panel.find((r) => norm(r.label).includes(norm(label)));
+        if (!row) { problems.push(`no “${label}” in the panel`); continue; }
+        const got = norm(row.value);
+        const w = norm(want);
+        // "2 min" = 2 = "2 mins"; a bare number matches the row's number
+        const gotN = got.match(/\d+(?:\.\d+)?/)?.[0], wantN = w.match(/\d+(?:\.\d+)?/)?.[0];
+        const same = got === w || (gotN !== undefined && gotN === wantN && (!/[a-z]/.test(w) || got.replace(/s\b/g, "").startsWith(w.replace(/s\b/g, ""))));
+        if (!same) problems.push(`[product] “${row.label}” reads “${row.value}” — the case expects “${want}”`);
+      }
+      if (problems.length) throw new Error(`${problems.join("; ")} (the panel reads: ${list})`);
+      return `participants summary as expected — ${wants.map(([l, w]) => `${l}: ${w}`).join(", ")} (the panel reads: ${list})`;
     }
     case "expect_bid_submitted": {
       // An event BUILT with a vendor's bid (the API set-up) has one to confirm too; a plan that neither bid nor

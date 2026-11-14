@@ -16,21 +16,33 @@ const UNIT: Record<string, number> = { m: 60, h: 3600, d: 86400 };
 const clean = (t: string) => t.replace(/\s+/g, " ").trim();
 
 /** The end (and extra closing time) in an order-details reply, as epoch seconds. */
-function endsIn(j: any): { end?: number; extra?: number } {
+export function endsIn(j: any): { end?: number; extra?: number } {
   const num = (v: unknown): number | undefined => (typeof v === "number" && v > 1e9 ? (v > 1e12 ? Math.round(v / 1000) : v) : typeof v === "string" && /^\d{10,13}$/.test(v) ? num(Number(v)) : typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? Math.round(Date.parse(v) / 1000) : undefined);
   const seen = new Set<unknown>();
-  const out: { end?: number; extra?: number } = {};
+  // The END of bidding is the event's own `ending_at` (the trade read's top level, or a stage's): after a dynamic
+  // time extension it is the one that MOVES (14 Nov, SRC-STR-009: 08:18 → 08:20), while `bid_end_time` and every
+  // bid's `end_time` copy (layers[], participants_data[]) keep the original end. So: ending_at first, the
+  // shallowest; then bid_end_time; then a plain end_time — never a deeper match over a shallower one.
+  const RANK: Record<string, number> = { ending_at: 0, bid_end_time: 1, end_time: 2, end: 3 };
+  let best: { rank: number; depth: number; value: number } | undefined;
+  let extra: { depth: number; value: number } | undefined;
   const walk = (o: any, depth: number) => {
-    if (!o || typeof o !== "object" || seen.has(o) || depth > 4) return;
+    if (!o || typeof o !== "object" || seen.has(o) || depth > 5) return;
     seen.add(o);
     for (const [k, v] of Object.entries(o)) {
-      if (out.end === undefined && /^(bid_end_time|end_time|ending_at|end)$/.test(k)) out.end = num(v);
-      if (out.extra === undefined && /^(extra_closing_time|extra_time)$/.test(k)) out.extra = num(v);
+      if (k in RANK) {
+        const n = num(v);
+        if (n !== undefined && (!best || RANK[k] < best.rank || (RANK[k] === best.rank && depth < best.depth))) best = { rank: RANK[k], depth, value: n };
+      }
+      if (/^(extra_closing_time|extra_time)$/.test(k)) {
+        const n = num(v);
+        if (n !== undefined && (!extra || depth < extra.depth)) extra = { depth, value: n };
+      }
       if (v && typeof v === "object") walk(v, depth + 1);
     }
   };
   walk(j, 0);
-  return out;
+  return { end: best?.value, extra: extra?.value };
 }
 // the event as the screen reads it: GET /v1/trade/:id/schema?…additional_fields=order_details (redux/orders/api.js
 // getOrderDetails), or the older GET /trade/:id?additional_fields=…
@@ -40,20 +52,50 @@ const isOrderRead = (r: Response) => {
   return (/\/trade\/[A-Za-z0-9_-]+\/schema$/.test(u.pathname) && /order_details/.test(u.search)) || /\/trade\/[A-Za-z0-9_-]+$/.test(u.pathname);
 };
 
-/** Reload the screen and read the event's end from the app's own read of it (the first read that carries one). */
-async function readEnd(page: Page): Promise<{ end?: number; extra?: number }> {
+/**
+ * Reload the screen and read the event's end from the app's own read of it (the first read that carries one).
+ * `any`: on the SUPPLIER PORTAL (a different app with its own routes) take any GET JSON reply that carries a
+ * bid_end_time — the portal's read of the event (14 Nov, the dynamic time extension's vendor side).
+ */
+export async function readEnd(page: Page, opts: { any?: boolean } = {}): Promise<{ end?: number; extra?: number }> {
   let found: { end?: number; extra?: number } = {};
+  // portal mode: every reply is a candidate; the one naming bid_end_time wins, else a read of /trade/… with an end
+  const candidates: Array<{ got: { end?: number; extra?: number }; named: boolean; trade: boolean }> = [];
   const onResp = async (r: Response) => {
-    if (found.end !== undefined || !isOrderRead(r) || r.status() >= 400) return;
-    const got = await r.json().then(endsIn).catch(() => ({}) as { end?: number; extra?: number });
-    if (got.end !== undefined && found.end === undefined) found = got;
+    if (found.end !== undefined || r.status() >= 400) return;
+    const order = isOrderRead(r);
+    if (!order && !(opts.any && r.request().method() === "GET" && /json/i.test(r.headers()["content-type"] ?? ""))) return;
+    const j = await r.json().catch(() => null);
+    if (!j) return;
+    const got = endsIn(j);
+    if (got.end === undefined) return;
+    if (order) {
+      if (found.end === undefined) found = got;
+      return;
+    }
+    candidates.push({ got, named: JSON.stringify(j).includes('"bid_end_time"'), trade: /\/trade\//.test(r.url()) });
   };
   page.on("response", onResp);
   await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
-  for (let i = 0; i < 60 && found.end === undefined; i++) await page.waitForTimeout(500);
+  for (let i = 0; i < 60 && found.end === undefined; i++) {
+    await page.waitForTimeout(500);
+    // on the portal, give its reads a few seconds to come in, then take the best candidate
+    if (opts.any && i >= 8) {
+      const best = candidates.find((c) => c.named) ?? candidates.find((c) => c.trade);
+      if (best) found = best.got;
+    }
+  }
   page.off("response", onResp);
   return found;
 }
+
+/** The screen's clock offset: localStorage.timeDiff = browser clock − server clock, seconds (utils adjustForClient). */
+export async function clockDiff(page: Page): Promise<number> {
+  return Number(await page.evaluate(() => window.localStorage.getItem("timeDiff")).catch(() => 0)) || 0;
+}
+
+/** A server time as the screen shows it (moved by the page's own timeDiff). */
+export const shownAt = (s: number, diff: number) => new Date((s + diff) * 1000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 /** A server time as the screen shows it (moved by timeDiff). */
 let shownDiff = 0;

@@ -486,7 +486,8 @@ export const STEP_CATALOG: StepSpec[] = [
   { name: "assign_evaluator", purpose: "Technical stages only: assign an evaluator to every control that needs one." },
   {
     name: "set_schedule",
-    purpose: "Open the schedule drawer and commit it. Needed before publish.",
+    purpose:
+      'Open the schedule drawer and commit it. Needed before publish. On the SINGLE-STAGE screen the window is kept as the chip shows it unless minutes are given; under the 30-minute preset the drawer\'s Fixed time mode sets an end that many minutes out — a DYNAMIC TIME EXTENSION bidding case needs a short window (minutes: 5 with a 2-minute trigger: the trigger must stay under half the bidding time, or Publish is refused) so the last-minute bid happens inside the run.',
     args: { minutes: "optional event duration in minutes" },
   },
   {
@@ -617,6 +618,31 @@ export const STEP_CATALOG: StepSpec[] = [
       bestPrices: "how many best prices to show (the stepper; default: at least 1 when a zone is given); optional",
       rankZones: '["green", "yellow"] — the zones that may see the rank ([] = none); optional',
     },
+  },
+  {
+    name: "wait_for_end_window",
+    purpose:
+      'DYNAMIC TIME EXTENSION: wait until the event is `minutesBefore` minutes from its end — the end read from the app\'s own read of the event on the buyer\'s side (server clock), never a countdown — and remember that end for expect_time_extended. Use it right before the "last-minute" bid: open the bidder\'s portal first (switch_portal{to:"vendor", vendor:N} → vendor_open_event), then wait_for_end_window{minutesBefore:1}, then vendor_bid{price} so the bid lands inside the trigger window (the rule: the end lies within the trigger minutes after the bid, and the bid improves a top-N price). Refuses up front when the wait would exceed maxWaitMinutes — schedule a short window with set_schedule{minutes:5}.',
+    args: { minutesBefore: "how many minutes before the end to bid (default 1)", maxWaitMinutes: "the most this step waits (default 12)" },
+  },
+  {
+    name: "note_end_time",
+    purpose: "Record the event's end (from the app's own read on the buyer's side) without waiting — the baseline for expect_time_extended when no wait is wanted.",
+    args: {},
+  },
+  {
+    name: "expect_time_extended",
+    purpose:
+      'DYNAMIC TIME EXTENSION: assert the event\'s end moved after the last-minute bid — by `byMinutes` (the drawer\'s "Extend time by") when given, else by any amount — on the side asked: "buyer" (the buyer\'s console, its own read of the event) or "vendor" (the OPEN supplier portal, its read). "For everyone" = check it on the bidder\'s portal, then switch_portal to the other vendor + vendor_open_event + check again, then switch_portal{to:"buyer"} + check. Needs wait_for_end_window or note_end_time before the bid (the end before).',
+    args: { byMinutes: "the minutes the end should move by (optional)", side: '"buyer" | "vendor" (default: the open side)' },
+    assertion: true,
+  },
+  {
+    name: "expect_participants_summary",
+    purpose:
+      'The stage\'s participants summary on the buyer\'s console (its Overview sub-tab) — "Total Participants · Active participants · Total Bids · Revised bids · Rejected bids · Counter offers · Dynamic time extended" — read and compared with the values given. "Dynamic time extended" is the minutes the event was extended by last-minute bids in all ("2 min" after one 2-minute extension, "4 min" after two). Without values it only reads the panel.',
+    args: { dynamicTimeExtended: '"2 min" (or 2)', totalBids: "a number", activeParticipants: "a number", totalParticipants: "a number", revisedBids: "a number", expect: '{"<label as shown>": "<value>"} for any other row' },
+    assertion: true,
   },
   {
     name: "expect_publish_blocked",

@@ -219,6 +219,7 @@ First decide WHICH SCREEN the test is about:
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
 - Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
 - TRAFFIC LIGHT and DYNAMIC TIME EXTENSION are fields of that same drawer, so they are ARGS of configure_single_stage, never do_on_screen: traffic light → auctionSubtype "traffic_light" with trafficBy ("price" | "rank") and rangeLower / rangeUpper (the GREEN / YELLOW bounds; "" for a case that leaves them empty); dynamic time extension → dynamicExtension true with extendByMinutes, triggerMinutes (the "trigger … on last N minutes") and topBids. Both are set on a FRESH single-stage auction (no conversion). The refusals come at Publish Event: configure → template → line items → vendors → schedule → publish → expect_publish_blocked / expect_error with the app's words.
+- WHAT EACH SIDE SEES in a DYNAMIC TIME EXTENSION auction (a bid in the last minutes moves the end) is a real check too: configure_single_stage{eventType:"auction", dynamicExtension:true, extensionOn:"price", extendByMinutes:N, triggerMinutes:N, topBids:2} (the "Time extension on change in" list starts at Top 2 bids) → … → set_schedule{minutes:5} (a short window so the run reaches the last minutes; the trigger must stay under half the window) → publish → expect_published → place_bid{vendor:1, price:100} (Vendor A) → switch_portal{to:"vendor", vendor:2} → vendor_open_event → wait_for_end_window{minutesBefore:1} → vendor_bid{price:95} (Vendor B's last-minute bid) → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"vendor", vendor:1} → vendor_open_event → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"buyer"} → expect_time_extended{byMinutes:N, side:"buyer"} → expect_participants_summary{dynamicTimeExtended:"N min"} → event_menu{item:"Order Activity"} → expect_text{text:"Due to a quote revision, the Dynamic Time Extension has been triggered."}. Never ask_tester for the end time, the participants count or the activity log.
 - WHAT EACH SIDE SEES in a traffic light auction is a real check, never ask_tester: after the bids, switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor"} for each bidder N, then switch_portal{to:"buyer"} → expect_zone{bid:<price>, zone} per bidder. The zone follows the bounds (gross ≤ GREEN → green, ≤ YELLOW → yellow, else red); leave rangeLower/rangeUpper out and the lint sets them from the bids so the lowest bidder is green, the next yellow, the rest red. "Zones the buyer allowed to see the best price / rank" is set_zone_visibility{bestPriceZones:["green"], bestPrices:1, rankZones:["green"]} on the buyer's side (the live stage's Actions ▾ menu), then expect_zone{side:"vendor", rank:true, bestPrice:true} as the green bidder and {rank:false, bestPrice:false} as another.
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress). A second bidding currency is added with add_bidding_currency{currencies:["USD"]} on the RFQ's create screen BEFORE publish (the footer's "Edit Currencies"; greyed out on the converted screen): "currency configuration cannot be added in Knockout / Dutch Auction" = add the currency on the RFQ → publish → convert_to_auction → configure dutch/knockout → publish → expect_publish_blocked{because:"Currency configuration cannot be added in Knockout / Dutch Auction"}.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
@@ -701,6 +702,113 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           repairs.push("the zones allowed to see the best price / rank: set_zone_visibility (green only), then the green bidder sees both and a bidder outside the green zone sees neither");
         }
       }
+    }
+  }
+
+  // DYNAMIC TIME EXTENSION BIDDING (14 Nov, SRC-STR-009): a case that bids in the last minutes of a dynamic-extension
+  // auction and asks what each side sees. The run cannot wait out a 30-minute window, so the schedule is the shortest
+  // the trigger allows (trigger < half the bidding time: 2·trigger + 1 minutes, at least 5); Vendor A bids first so
+  // Vendor B's late bid is the improving top bid (and vendor 1 / 2 keep meaning A / B afterwards); the late bid is
+  // typed on an OPEN portal after wait_for_end_window, and the end is read on every side afterwards.
+  {
+    const cfg = steps.find((s) => s.step === "configure_single_stage" && /^(true|1|yes)$/i.test(String(s.args?.dynamicExtension ?? "")));
+    const lateBid = testCase.match(/vendor\s*([a-c]|\d)\s+(?:bids?|quotes?|revises?[^.]{0,20}to)\s+(\d+(?:\.\d+)?)[^.]{0,30}?(\d+|one|a|two|three)\s*(?:min|minute)s?\s+before\s+(?:the\s+)?(?:end|close|closing)/i);
+    // the model may write the timed shape itself (the catalog teaches it): then only the window, the wait cap, the
+    // strategy and the bid prices are made honest below
+    if (cfg && lateBid && !has("open_prepared") && has("wait_for_end_window")) {
+      const args = cfg.args as Record<string, unknown>;
+      const trigger = Number(args.triggerMinutes ?? 2) || 2;
+      const window = Math.max(5, 2 * trigger + 1);
+      const sched = steps.find((s) => s.step === "set_schedule");
+      if (sched && Number(sched.args?.minutes ?? 30) > window) { sched.args = { ...(sched.args ?? {}), minutes: window }; repairs.push(`the window is ${window} minutes (the case says 30: a run cannot wait that out; the trigger of ${trigger} min must stay under half the window, and the sums are the same)`); }
+      for (const w of steps.filter((s) => s.step === "wait_for_end_window")) if (Number(w.args?.maxWaitMinutes ?? 12) > 12) w.args = { ...(w.args ?? {}), maxWaitMinutes: 12 };
+      // the strategy: the case names none → the drawer's default (a price auction); dynamic extension on price
+      if (args.auctionSubtype && !/rank[- ]based|by rank|traffic light|knockout|dutch|price[- ]based/i.test(testCase)) { delete args.auctionSubtype; repairs.push("dropped the auction subtype the model chose — the case names no strategy beyond the dynamic time extension"); }
+      if (!args.extensionOn) args.extensionOn = /extension on rank|rank change/i.test(testCase) ? "rank" : "price";
+      if (args.topBids === undefined) args.topBids = 2; // the list starts at "Top 2 bids" (DEMO, 14 Nov)
+      // an early bid with no price: 100, so the late bid (lower) is the improving top bid
+      const price = Number(lateBid[2]);
+      for (const b of steps.filter((s) => s.step === "place_bid" && s.args?.price === undefined)) b.args = { ...(b.args ?? {}), price: price + 5 };
+      // no early bid at all (a rebuilt plan, 14 Nov): Vendor A bids first, right after the publish is confirmed
+      const waitAt = steps.findIndex((s) => s.step === "wait_for_end_window");
+      if (!steps.slice(0, waitAt).some((s) => s.step === "place_bid" || s.step === "vendor_bid")) {
+        const lateN0 = lateBid[1].toLowerCase();
+        const lateN = /^\d$/.test(lateN0) ? Number(lateN0) : lateN0.charCodeAt(0) - 96;
+        const firstN = lateN === 1 ? 2 : 1;
+        const pubAt = Math.max(indexOf("expect_published"), indexOf("publish"));
+        steps.splice(pubAt + 1, 0, { step: "place_bid", args: { vendor: firstN, price: price + 5 }, note: `Vendor ${String.fromCharCode(64 + firstN)} bids first, so the late bid improves the top price` }, { step: "expect_bid_submitted" });
+        repairs.push(`Vendor ${String.fromCharCode(64 + firstN)} bids ${price + 5} first, so Vendor ${String.fromCharCode(64 + lateN)}'s ${price} is the improving top bid`);
+      }
+    }
+    if (cfg && lateBid && !has("open_prepared") && !has("wait_for_end_window")) {
+      const args = cfg.args as Record<string, unknown>;
+      const extendBy = Number(args.extendByMinutes ?? 2) || 2;
+      const trigger = Number(args.triggerMinutes ?? 2) || 2;
+      if (!args.extensionOn) args.extensionOn = "price";
+      if (args.topBids === undefined) args.topBids = 2; // the list starts at "Top 2 bids" (DEMO, 14 Nov)
+      const letter = lateBid[1].toLowerCase();
+      const lateN = /^\d$/.test(letter) ? Number(letter) : letter.charCodeAt(0) - 96; // a → 1, b → 2
+      const price = Number(lateBid[2]);
+      const beforeWord = lateBid[3].toLowerCase();
+      const minutesBefore = /^\d+$/.test(beforeWord) ? Number(beforeWord) : beforeWord === "two" ? 2 : beforeWord === "three" ? 3 : 1;
+      // the schedule: the shortest window the trigger allows, so the last minutes come inside the run
+      const window = Math.max(5, 2 * trigger + 1);
+      const sched = steps.find((s) => s.step === "set_schedule");
+      if (sched) sched.args = { ...(sched.args ?? {}), minutes: window };
+      else {
+        const pub = indexOf("publish");
+        steps.splice(pub >= 0 ? pub : steps.length, 0, { step: "set_schedule", args: { minutes: window } });
+      }
+      repairs.push(`the window is ${window} minutes (the case says 30: a run cannot wait that out; the trigger of ${trigger} min must stay under half the window, and the sums are the same)`);
+      // the model's bid steps for the late bidder give way to the timed shape
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const st = steps[i];
+        if ((st.step === "place_bid" || st.step === "vendor_bid") && Number(st.args?.price) === price) {
+          steps.splice(i, 1);
+          if (steps[i]?.step === "expect_bid_submitted") steps.splice(i, 1);
+        }
+      }
+      const pubAt = Math.max(indexOf("expect_published"), indexOf("publish"));
+      const shape: PlanStep[] = [];
+      // Vendor A's early bid, when the case has no other bid: B's late bid must be the improving top bid, and
+      // "vendor 1" must stay Vendor A for the later look
+      const otherBids = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid");
+      const firstN = lateN === 1 ? 2 : 1;
+      if (!otherBids.length) shape.push({ step: "place_bid", args: { vendor: firstN, price: price + 5 }, note: `Vendor ${String.fromCharCode(64 + firstN)} bids first, so the late bid improves the top price` });
+      shape.push(
+        { step: "switch_portal", args: { to: "vendor", vendor: lateN } },
+        { step: "vendor_open_event" },
+        { step: "wait_for_end_window", args: { minutesBefore } },
+        { step: "vendor_bid", args: { price } },
+        { step: "expect_time_extended", args: { byMinutes: extendBy, side: "vendor" } },
+      );
+      const others = [...new Set([firstN, ...otherBids.map((_s, i) => i + 1)])].filter((n) => n !== lateN);
+      for (const n of others.slice(0, 2)) shape.push({ step: "switch_portal", args: { to: "vendor", vendor: n } }, { step: "vendor_open_event" }, { step: "expect_time_extended", args: { byMinutes: extendBy, side: "vendor" } });
+      shape.push({ step: "switch_portal", args: { to: "buyer" } }, { step: "expect_time_extended", args: { byMinutes: extendBy, side: "buyer" } });
+      if (/participants?\s+panel|dynamic time extended/i.test(testCase)) shape.push({ step: "expect_participants_summary", args: { dynamicTimeExtended: `${extendBy} min` } });
+      if (/order activity|activity log/i.test(testCase)) {
+        // the model's own Order Activity look (and whatever it expected there) gives way to the extension's entry
+        for (let i = steps.length - 1; i > pubAt; i--) {
+          if (steps[i].step === "event_menu" && /order activity/i.test(String(steps[i].args?.item ?? ""))) {
+            steps.splice(i, 1);
+            if (steps[i]?.step === "expect_text") steps.splice(i, 1);
+          }
+        }
+        shape.push({ step: "event_menu", args: { item: "Order Activity" } }, { step: "expect_text", args: { text: "Due to a quote revision, the Dynamic Time Extension has been triggered." } });
+      }
+      // an ask_tester about the end time / the screens / the count is now a real check
+      for (let i = steps.length - 1; i > pubAt; i--) if (steps[i].step === "ask_tester" && /end time|extend|screen|session|portal|participants|activity|see|show|count/i.test(JSON.stringify(steps[i].args ?? {}))) steps.splice(i, 1);
+      // the model counted the responses before Vendor A's early bid existed: the count is the plan's bids
+      const bidsNow = steps.filter((st) => st.step === "place_bid" || st.step === "vendor_bid").length;
+      for (const st of steps) if (st.step === "expect_responses" && st.args && Number(st.args.count) > 0 && Number(st.args.count) < bidsNow) { st.args = { ...st.args, count: bidsNow, direct: bidsNow }; repairs.push(`expect_responses counts the plan's ${bidsNow} bids`); }
+      // after the model's remaining early bids (an early place_bid stays before the late one)
+      let at = pubAt + 1;
+      for (let i = pubAt + 1; i < steps.length; i++) if (steps[i].step === "place_bid" || steps[i].step === "expect_bid_submitted") at = i + 1;
+      steps.splice(at, 0, ...shape);
+      repairs.push(`the last-minute bid: Vendor ${String.fromCharCode(64 + lateN)} (vendor ${lateN}) types ${price} on the open portal ${minutesBefore} min before the end (wait_for_end_window), then the end is read on each side with expect_time_extended{byMinutes:${extendBy}}${/participants?\s+panel|dynamic time extended/i.test(testCase) ? ", the Participants panel's \"Dynamic time extended\"" : ""}${/order activity|activity log/i.test(testCase) ? " and the Order Activity entry" : ""}`);
+      // a closing expect_responses{atLeast:1} the model wrote after the bid is fine where it is; a stray
+      // switch_portal{buyer} right after ours is a duplicate
+      for (let i = steps.length - 1; i > 0; i--) if (steps[i].step === "switch_portal" && steps[i - 1].step === "switch_portal" && String(steps[i].args?.to ?? "") === "buyer" && String(steps[i - 1].args?.to ?? "") === "buyer") steps.splice(i, 1);
     }
   }
 
@@ -1965,6 +2073,14 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
   const has = (name: string, pred: (st: PlanStep) => boolean = () => true) => steps.some((st) => st.step === name && pred(st));
   const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
   const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
+    {
+      // "verify the end time moves for all vendors and the buyer / the participants panel's Dynamic time extended count /
+      // submit the bid one minute before the end" (14 Nov, SRC-STR-009): wait_for_end_window times the bid, and
+      // expect_time_extended reads the end on each side afterwards
+      gap: /\b(end time|closing time|end of the auction|auction end|extend(ed|s|sion)?|last[- ]minute|minute before|dynamic time)\b/i,
+      covered: () => has("wait_for_end_window") && has("expect_time_extended"),
+      by: "wait_for_end_window times the late bid from the app's own end time; expect_time_extended reads the end again on the bidder's portal, the other vendor's portal and the buyer's console; expect_participants_summary reads the Participants panel; expect_text reads the Order Activity entry",
+    },
     {
       // "verify each vendor's zone colour / best-price and rank visibility across their sessions" (14 Nov): expect_zone
       // reads the zone on each bidder's own portal and on the buyer's Responses; set_zone_visibility allows zones

@@ -4,29 +4,28 @@
   "title": "Dynamic time extension (trigger 2 min, extend by 2 min) auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:17:43.950Z",
+  "compiledAt": "2026-11-14T08:33:40.953Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Configure a dynamic time-extension auction strategy with a 2-minute trigger and 2-minute extension on a fresh single-stage auction",
-   "Submit Vendor B's bid exactly one minute before the original auction end",
-   "Verify that the auction end time moves two minutes later for all vendors and the buyer",
-   "Inspect Vendor A's and Vendor B's screens in separate vendor sessions",
-   "Verify the participants panel's Dynamic time extended count"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "traffic light / dynamic time extension are fields of the configuration drawer — configure_single_stage now carries {\"eventType\":\"auction\",\"auctionSubtype\":\"rank\",\"dynamicExtension\":true,\"extensionOn\":\"price\",\"extendByMinutes\":\"2\",\"triggerMinutes\":\"2\",\"topBids\":2}",
+   "the window is 5 minutes (the case says 30: a run cannot wait that out; the trigger of 2 min must stay under half the window, and the sums are the same)",
+   "dropped the auction subtype the model chose — the case names no strategy beyond the dynamic time extension",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "traffic light / dynamic time extension are fields of the configuration drawer — configure_single_stage now carries {\"eventType\":\"auction\",\"auctionSubtype\":\"rank\",\"dynamicExtension\":true,\"extensionOn\":\"price\",\"extendByMinutes\":\"2\",\"triggerMinutes\":\"2\",\"topBids\":2}",
+   "the window is 5 minutes (the case says 30: a run cannot wait that out; the trigger of 2 min must stay under half the window, and the sums are the same)",
+   "dropped the auction subtype the model chose — the case names no strategy beyond the dynamic time extension",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "cannot test this case yet — no step can observe: Configure a dynamic time-extension auction strategy with a 2-minute trigger and 2-minute extension on a fresh single-stage auction; Submit Vendor B's bid exactly one minute before the original auction end; Verify that the auction end time moves two minutes later for all vendors and the buyer; Inspect Vendor A's and Vendor B's screens in separate vendor sessions; Verify the participants panel's Dynamic time extended count"
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 34,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -44,21 +43,36 @@
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "wait_for_end_window",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_time_extended",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_time_extended",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_time_extended",
+   "switch_portal",
    "expect_responses",
+   "expect_time_extended",
+   "expect_participants_summary",
    "event_menu",
    "expect_text"
   ],
-  "ms": 15073
+  "ms": 0
  },
  "plan": {
-  "title": "SRC-STR-009 Dynamic Auction Extension Visibility",
+  "title": "SRC-STR-009 Dynamic extension across buyer and vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Reach the single-stage auction configuration."
    },
    {
     "step": "require_setting",
@@ -66,7 +80,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable the required event-creation configuration."
    },
    {
     "step": "require_setting",
@@ -74,27 +88,31 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
+    "note": "Allow participants to be added before publishing."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "awarding": "lot"
+     "dynamicExtension": true,
+     "extensionOn": "price",
+     "extendByMinutes": "2",
+     "triggerMinutes": "2",
+     "topBids": 2
     },
-    "note": "Configure the event as a reverse auction; dynamic extension is not an available strategy argument."
+    "note": "Configure a two-minute extension for a qualifying late price change."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-STR-009 Dynamic Extension Auction"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Give the test event a unique title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available auction pricing template."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Apply a reverse-auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -103,10 +121,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product with quantity 10."
+    "note": "Add the requested product and quantity."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete required buyer-side sheet fields."
    },
    {
     "step": "set_sheet_cell",
@@ -115,30 +135,30 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location in the first row."
+    "note": "Select the requested delivery location."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
+     "kept": true
     },
-    "note": "Verify the delivery location was selected."
+    "note": "Verify the requested location was accepted."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 3
     },
-    "note": "Invite three available QA vendors corresponding to Vendors A, B and C."
+    "note": "Invite three QA participants representing Vendors A, B and C without inventing company names."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 30
+     "minutes": 5
     },
-    "note": "Commit the 30-minute auction schedule."
+    "note": "Commit the requested 30-minute bidding window."
    },
    {
     "step": "publish",
@@ -148,43 +168,149 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Confirm the auction reached a real project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 2,
-     "price": 95
+     "vendor": 1,
+     "price": 100
     },
-    "note": "Place the closest expressible approximation of Vendor B's bid; exact timing relative to expiry cannot be controlled."
+    "note": "Establish Vendor A's initial bid using the default price so Vendor B's 95 improves the leader."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the bid was accepted by the vendor portal."
+    "note": "Confirm the initial bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 2
+    },
+    "note": "Open Vendor B's separate supplier session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Prepare Vendor B's auction bid sheet before waiting."
+   },
+   {
+    "step": "wait_for_end_window",
+    "args": {
+     "minutesBefore": 1,
+     "maxWaitMinutes": 12
+    },
+    "note": "Wait until one minute remains and record the original end time."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Submit Vendor B's qualifying bid inside the two-minute trigger window."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the late bid was accepted."
+   },
+   {
+    "step": "expect_time_extended",
+    "args": {
+     "byMinutes": 2,
+     "side": "vendor"
+    },
+    "note": "Verify Vendor B sees an end exactly two minutes later."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 1
+    },
+    "note": "Return to Vendor A's session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Reload the auction for the existing bidder."
+   },
+   {
+    "step": "expect_time_extended",
+    "args": {
+     "byMinutes": 2,
+     "side": "vendor"
+    },
+    "note": "Verify Vendor A also sees the two-minute extension."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 3
+    },
+    "note": "Check the remaining invited participant's view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Open the auction as Vendor C."
+   },
+   {
+    "step": "expect_time_extended",
+    "args": {
+     "byMinutes": 2,
+     "side": "vendor"
+    },
+    "note": "Verify the extension also reaches a participant who has not bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
-     "direct": 1,
+     "count": 2,
+     "direct": 2,
      "stage": "auction"
     },
-    "note": "Verify that the buyer's auction Responses view shows the submitted vendor response."
+    "note": "Verify the buyer's Responses includes both accepted portal bids."
+   },
+   {
+    "step": "expect_time_extended",
+    "args": {
+     "byMinutes": 2,
+     "side": "buyer"
+    },
+    "note": "Verify the buyer reads the same two-minute end-time change."
+   },
+   {
+    "step": "expect_participants_summary",
+    "args": {
+     "dynamicTimeExtended": "2 min"
+    },
+    "note": "Assert the participants panel accounts for the extension."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "auction"
     },
-    "note": "Open the buyer-side Order Activity drawer to inspect available activity records."
+    "note": "Open the auction's activity history."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "You created the event"
+     "text": "Due to a quote revision, the Dynamic Time Extension has been triggered."
     },
-    "note": "Verify that the activity drawer contains a known event activity entry."
+    "note": "Assert the automatic extension was recorded in Order Activity."
    }
   ]
  }

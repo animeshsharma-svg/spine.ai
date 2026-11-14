@@ -185,15 +185,15 @@ export class BasePage {
       p.getByRole("button", { name: /^Got it$/i }),
       p.locator(".ant-notification-notice").getByRole("button", { name: /Not now|Close|Dismiss/i }),
       p.locator(".ant-notification-notice-close"),
+      // the strip's OWN close control (its × beside "Enable Now"): the innermost box holding the words — never
+      // "the last button in a box", which on a wide wrapper was the drawer's Save (14 Nov)
       p
-        .locator("div, section, header")
+        .locator("p, div, section, header")
         .filter({ hasText: /Turn on notifications/i })
+        .filter({ has: p.locator("button:has(.anticon-close), .anticon-close, [aria-label*='close' i]") })
         .last()
-        // Never a drawer/modal close — that would slam shut the panel we opened.
-        .locator(
-          "button:not(.ant-drawer-close):not(.ant-modal-close), [role='button']:not(.ant-drawer-close):not(.ant-modal-close)",
-        )
-        .last(),
+        .locator("button:has(.anticon-close):not(.ant-drawer-close):not(.ant-modal-close), .anticon-close, [aria-label*='close' i]:not(.ant-drawer-close):not(.ant-modal-close)")
+        .first(),
       // The accessibility dump of a stalled create page still showed
       // `button "Not now"` next to `button "Yes, I'm in"` — a second, modal
       // opt-in prompt that the strict /^Not now$/ match above misses when the

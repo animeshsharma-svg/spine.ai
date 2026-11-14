@@ -323,14 +323,21 @@ export class SingleStagePage extends BasePage {
       // and "Time extension on change in:" the top N bids. Only the fields the plan names are set; the two the app
       // requires with no default (the extension and the top bids) get the first option.
       // the checkbox and its words are siblings inside one form item (probe 14 Nov: the wrapper itself has no text)
-      const box = d.locator(".ant-form-item", { hasText: /Dynamic Event Extension/i }).first();
+      // the INNERMOST form item holding the checkbox (the screen may wrap the whole block in an outer form item, whose
+      // first following sibling is not the Price | Rank group — 14 Nov, "locator.apply: Timeout" on the Price click)
+      const box = d.locator(".ant-form-item", { hasText: /Dynamic Event Extension/i }).filter({ has: this.page.locator("input[type='checkbox']") }).last();
       if (!(await box.count())) throw new Error(`no "Dynamic Event Extension" option in the configuration drawer for this auction (the product offers it for rank, price and traffic light auctions, not Knockout / Dutch)`);
       const input = box.locator("input[type='checkbox']").first();
-      const on = await input.isChecked({ timeout: 3_000 }).catch(() => false);
-      if (on !== cfg.dynamicExtension) {
-        await box.locator(".ant-checkbox").first().click({ timeout: 3_000 });
-        await this.pause(400);
+      const isOn = () => input.isChecked({ timeout: 3_000 }).catch(() => false);
+      // the drawer re-renders after a card is picked and the box sits below the fold: a 3 s click timed out once
+      // (14 Nov) — scroll it into view, click with more time, and read the box back; a lost click is tried again
+      for (let attempt = 0; attempt < 3 && (await isOn()) !== cfg.dynamicExtension; attempt++) {
+        const tick = box.locator(".ant-checkbox").first();
+        await tick.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+        await tick.click({ timeout: 8_000 }).catch(async () => tick.click({ timeout: 4_000, force: true }).catch(() => {}));
+        await this.pause(500);
       }
+      if ((await isOn()) !== cfg.dynamicExtension) throw new Error(`the "Dynamic Event Extension" box could not be ${cfg.dynamicExtension ? "ticked" : "cleared"} in the drawer (it reads ${(await isOn()) ? "ticked" : "clear"} after three tries)`);
       if (cfg.dynamicExtension) {
         const item = (label: RegExp) => d.locator(".ant-form-item", { hasText: label }).first();
         // Two builds of this block exist: presets (1 / 2 / 3 / 5 min | Custom) under "Time Extension By" / "Extend
@@ -343,14 +350,18 @@ export class SingleStagePage extends BasePage {
           // the Price | Rank group comes right after the checkbox's form item (the traffic light has its own Price | Rank)
           let group = box.locator("xpath=following-sibling::*[1]").locator(".ant-radio-group").first();
           if (!(await group.count())) group = box.locator("xpath=following-sibling::*[contains(@class,'ant-radio-group')][1]");
-          await group.getByText(cfg.extensionOn === "rank" ? /^\s*Rank\s*$/i : /^\s*Price\s*$/i).first().click({ timeout: 3_000 });
+          // last resort: the drawer's last "Price | Rank" group (the block sits below the traffic light's own group)
+          if (!(await group.count())) group = d.locator(".ant-radio-group").filter({ hasText: /^\s*Price\s*Rank\s*$/i }).last();
+          const want = cfg.extensionOn === "rank" ? /^\s*Rank\s*$/i : /^\s*Price\s*$/i;
+          if (!(await group.count())) throw new Error(`no Price | Rank choice under "Dynamic Event Extension" in the drawer (the block reads: “${(((await box.locator("xpath=..").innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200))}”)`);
+          await group.getByText(want).first().click({ timeout: 5_000 });
         }
         const minutes = cfg.extendByMinutes === undefined ? undefined : String(cfg.extendByMinutes).trim();
         const preset = minutes !== undefined && /^[1235]$/.test(minutes) && (await presets.count()) ? presets.getByText(new RegExp(`^${minutes}\\s*min`, "i")).first() : null;
-        if (preset && (await preset.count())) await preset.click({ timeout: 3_000 });
+        if (preset && (await preset.count())) await preset.click({ timeout: 8_000 });
         else if (minutes !== undefined || !(await presets.count())) {
           if (await presets.count()) {
-            await presets.getByText(/^Custom$/i).first().click({ timeout: 3_000 });
+            await presets.getByText(/^Custom$/i).first().click({ timeout: 8_000 });
             await this.pause(300);
           }
           const custom = minutesBox();
@@ -362,7 +373,7 @@ export class SingleStagePage extends BasePage {
             await this.page.keyboard.press("Tab").catch(() => {});
           }
         } else if (!(await presets.locator(".ant-radio-wrapper-checked").count())) {
-          await presets.locator(".ant-radio-wrapper").first().click({ timeout: 3_000 });
+          await presets.locator(".ant-radio-wrapper").first().click({ timeout: 8_000 });
         }
         {
           const trig = item(/Trigger time extension on last/i).locator("input").first();
@@ -377,12 +388,12 @@ export class SingleStagePage extends BasePage {
         const topItem = item(/Time extension on change in/i);
         const chosen = ((await topItem.locator(".ant-select-selection-selected-value").innerText({ timeout: 1_000 }).catch(() => "")) || "").trim();
         if (cfg.topBids !== undefined || !chosen) {
-          await topItem.locator(".ant-select").first().click({ timeout: 3_000 });
+          await topItem.locator(".ant-select").first().click({ timeout: 8_000 });
           await this.pause(400);
           const menu = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
           const opt = cfg.topBids !== undefined ? menu.locator(".ant-select-dropdown-menu-item", { hasText: new RegExp(`\\b${cfg.topBids}\\b`) }).first() : menu.locator(".ant-select-dropdown-menu-item").first();
           if (!(await opt.count())) throw new Error(`"Time extension on change in" offers no "top ${cfg.topBids} bids" option (the list reads: ${(await menu.locator(".ant-select-dropdown-menu-item").allInnerTexts().catch(() => [])).join(", ") || "nothing"})`);
-          await opt.click({ timeout: 3_000 });
+          await opt.click({ timeout: 8_000 });
         }
       }
     }

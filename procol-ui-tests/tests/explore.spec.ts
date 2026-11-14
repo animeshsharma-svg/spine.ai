@@ -57,7 +57,10 @@ test("explore a journey with no written steps", async ({ page }) => {
       page.locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='cookie' i]").filter({ hasText: NOISE_CONTAINER_TEXT }).first(),
       async () => {
         const closed = await base.dismissDistractions().catch(() => false);
-        if (!closed) await page.keyboard.press("Escape").catch(() => {});
+        // never Escape while a drawer / modal the run opened is up — it would shut it (14 Nov: the "Turn on
+        // notifications" strip could not be closed, and the Escape closed the configuration drawer mid-step)
+        const panelOpen = await page.locator(".ant-drawer-open, .ant-modal-wrap:not([style*='display: none'])").first().isVisible().catch(() => false);
+        if (!closed && !panelOpen) await page.keyboard.press("Escape").catch(() => {});
         collector.note?.("dismissed an unrelated pop-up (notification prompt / tour / banner)");
       },
       { noWaitAfter: true },
