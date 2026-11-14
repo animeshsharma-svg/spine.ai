@@ -1966,6 +1966,13 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
   const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
   const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
     {
+      // "verify each vendor's zone colour / best-price and rank visibility across their sessions" (14 Nov): expect_zone
+      // reads the zone on each bidder's own portal and on the buyer's Responses; set_zone_visibility allows zones
+      gap: /\b(zone|colou?r|traffic light)s?\b|\b(best[- ]price|rank)s?\b[^.]{0,40}\b(visib|see|shown|hidden)/i,
+      covered: () => has("expect_zone") && (has("switch_portal", (st) => !/^buyer$/i.test(String(st.args?.to ?? "vendor"))) || has("set_zone_visibility") || !/\bvendor/i.test(gaps.join(" "))),
+      by: "expect_zone reads each bidder's zone on its own portal (switch_portal{vendor:N}) and on the buyer's Responses; set_zone_visibility allows zones to see the best price / rank and expect_zone{rank, bestPrice} checks what they then see",
+    },
+    {
       gap: /separate (browser )?(session|window|tab|login)|second (browser|session|window)|(log|sign)(ging|ing|s)? ?in(to)? (as|to) (the |a |an )?(vendor|supplier)|\bas (the |a )?vendor\b|vendor('s)? (portal|side|view|session|login|screen)|supplier (portal|hub|side)/i,
       covered: (g) => !otherVendor.test(g) && (has("switch_portal", (st) => !/^buyer$/i.test(String(st.args?.to ?? "vendor"))) || has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
       by: "switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
