@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-028",
+  "title": "Two bids on two lines: award both lines to B; approver rejects",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:20:32.388Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared catalog state has only one line item, so it cannot test awarding both requested lines or the expected total of 1,200.",
+   "The catalog cannot sign in as a separate approver, fill and submit the proposal through that approver workflow, reject it with a remark, verify that no PO was created, or verify that the buyer can restart awarding afterward."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The prepared catalog state has only one line item, so it cannot test awarding both requested lines or the expected total of 1,200.; The catalog cannot sign in as a separate approver, fill and submit the proposal through that approver workflow, reject it with a remark, verify that no PO was created, or verify that the buyer can restart awarding afterward."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "ask_tester",
+   "expect_visible"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 11596
+ },
+ "plan": {
+  "title": "SRC-AWD-028 — Award bids to Vendor B and reject proposal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ in Master QCS; the event and its two bids already exist."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen for the available line and vendor bids."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10,
+     "line": 1
+    },
+    "note": "Allocate the available 10-unit line to Vendor B; the second requested line is unavailable in the prepared state."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify that one of two bidding vendors is selected and the available allocation totals 10 × 90 = 900."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify that the proposal page opened."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "fill and submit the proposal, then sign in as the approver and reject it with a remark, verify that no PO is created, and confirm the buyer can start awarding again from Master QCS"
+    },
+    "note": "The remaining proposal-field, separate-approver, rejection, no-PO, and restart checks require capabilities not provided by the catalog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Proposal",
+     "visible": true
+    },
+    "note": "Assert that the proposal context remains visible after the tester-assisted portion."
+   }
+  ]
+ }
+}

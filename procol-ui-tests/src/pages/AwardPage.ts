@@ -52,6 +52,119 @@ export class AwardPage extends BasePage {
     };
   }
 
+  /**
+   * The awarding grid's totals bar ("Tot. Proposal Value ₹ 940", "Tot. L1 Proposal Value", "Tot. Non L1 Proposal
+   * Value"), read as numbers (12 Nov, seen live on a closed RFQ with two bids).
+   */
+  async readTotals(): Promise<{ proposal: number | null; l1: number | null; nonL1: number | null }> {
+    const text = ((await this.page.locator("body").textContent().catch(() => "")) ?? "").replace(/\s+/g, " ");
+    const num = (re: RegExp) => {
+      const m = text.match(re);
+      return m ? Number(m[1].replace(/,/g, "")) : null;
+    };
+    return {
+      proposal: num(/Tot\. Proposal Value\s*₹\s*([\d,]+(?:\.\d+)?)/i),
+      l1: num(/Tot\. L1 Proposal Value\s*₹\s*([\d,]+(?:\.\d+)?)/i),
+      nonL1: num(/Tot\. Non L1 Proposal Value\s*₹\s*([\d,]+(?:\.\d+)?)/i),
+    };
+  }
+
+  /**
+   * The vendor's own "Select All" checkbox and the x position of its column (12 Nov, seen live): the first grid cell
+   * whose text holds the vendor's name is a header container spanning EVERY column, so a cell or checkbox found by
+   * text can belong to another vendor. The checkbox is found in the page itself: its nearest enclosing block that
+   * names the vendor and is no wider than a column.
+   */
+  private async vendorColumn(vendor: string): Promise<{ index: number; x: number; checked: boolean; head: import("@playwright/test").Locator } | null> {
+    // The header's visible text is cut short IN THE PAGE ("QA_Platform Vend..."); its full name is the column
+    // header's accessible name (what the screen inventory read: "QA_Platform Vendor 1 … Select All"). So the
+    // vendor's column is found by role + name, and its checkbox and position come from that header alone.
+    const esc = vendor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const head = this.page.getByRole("columnheader", { name: new RegExp(esc, "i") }).first();
+    if (!(await head.count().catch(() => 0))) return null;
+    const hb = await head.boundingBox();
+    if (!hb) return null;
+    const box = head.getByRole("checkbox").first();
+    const checked = (await box.count()) ? await box.isChecked().catch(() => false) : false;
+    const all = this.page.locator("input[type=checkbox]");
+    let index = -1;
+    for (let i = 0; i < (await all.count()); i++) {
+      const b = await all.nth(i).boundingBox();
+      if (b && b.x >= hb.x - 2 && b.x <= hb.x + hb.width && b.y >= hb.y - 2 && b.y <= hb.y + hb.height) { index = i; break; }
+    }
+    return { index, x: hb.x + hb.width / 2, checked, head };
+  }
+
+  /**
+   * A QUANTITY for one vendor on one line — the product's own way (12 Nov, read from the dashboard's
+   * comparisonSelectionFormatter.jsx and seen live): with partial awarding allowed, the line's "Select for Awarding"
+   * checkbox (not the vendor's "Select All") opens a popover "Are you sure you want to award this vendor?" with
+   * "Quantity Offered *" (placeholder "Enter quantity") and an "Award" button. A vendor already awarded on the line is
+   * unticked first, then awarded again with the new quantity. `line` counts the line items from 1. Returns what the
+   * line's "Qty Awarded" shows afterwards, the totals, and what the app said if it refused.
+   */
+  async awardLineQuantity(vendor: string, quantity: number, line = 1): Promise<{ qtyAwarded: string; totals: Awaited<ReturnType<AwardPage["readTotals"]>>; said: string | null; popover: boolean; afterReload: boolean }> {
+    const p = this.page;
+    const vc = await this.vendorColumn(vendor);
+    if (!vc) throw new Error(`not checked: the awarding grid has no column for "${vendor}"`);
+    const cellIn = async (rowRe: RegExp) => {
+      const row = p.locator(".rdg-row").filter({ hasText: rowRe }).nth(line - 1);
+      if (!(await row.count())) return null;
+      const cells = row.locator(".rdg-cell");
+      for (let i = 0; i < (await cells.count()); i++) {
+        const b = await cells.nth(i).boundingBox();
+        if (b && b.x <= vc.x && vc.x <= b.x + b.width) return cells.nth(i);
+      }
+      return null;
+    };
+    // the grid re-renders (a full spinner) after every award change: wait for it, then find the cell again
+    const settled = async () => {
+      await this.waitForSpinnerHidden();
+      await p.locator(".rdg-row").filter({ hasText: /Select for Awarding|Awarded/ }).first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      await this.pause(1_000);
+    };
+    await settled();
+    const selCell = async () => {
+      const c = await cellIn(/Select for Awarding|Awarded/);
+      if (!c) throw new Error(`not checked: line ${line} has no "Select for Awarding" cell under "${vendor}"`);
+      return c;
+    };
+    let sel = await selCell();
+    const boxOf = (c: import("@playwright/test").Locator) => c.locator(".ant-checkbox-wrapper, .ant-checkbox, input[type=checkbox]").first();
+    if (/\bAwarded\b/.test(((await sel.textContent().catch(() => "")) ?? "").replace(/Select for Awarding/, ""))) {
+      await boxOf(sel).click({ timeout: TIMEOUTS.SHORT, force: true }).catch(() => {});
+      await settled();
+      sel = await selCell();
+    }
+    await boxOf(sel).click({ timeout: TIMEOUTS.SHORT, force: true }).catch(() => {});
+    const pop = p.locator(".ant-popover:visible").filter({ hasText: /award this vendor/i }).last();
+    const popover = await pop.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
+    if (popover) {
+      await pop.getByPlaceholder(/enter quantity/i).fill(String(quantity)).catch(() => {});
+      await pop.getByRole("button", { name: /^award$/i }).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    }
+    await this.waitForSpinnerHidden();
+    await this.pause(2_000);
+    const said = (await p.locator(".ant-message-notice, .ant-notification-notice").allInnerTexts().catch(() => [])).map((t) => t.trim()).filter(Boolean).join(" | ") || null;
+    const read = async () => {
+      const qa = await cellIn(/Qty Awarded/);
+      return qa ? ((await qa.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim() : "(no Qty Awarded row)";
+    };
+    let qtyAwarded = await read();
+    let afterReload = false;
+    // 12 Nov: a vendor newly awarded beside another kept "–" in its Qty Awarded cell while the totals already counted
+    // its units (Non L1 ₹400 = 4 × 100) — read it again after a reload before judging the cell
+    if (!qtyAwarded.replace(/[^\d.]/g, "").startsWith(String(quantity))) {
+      await p.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await p.locator(".rdg-cell").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      await this.waitForSpinnerHidden();
+      await this.pause(1_500);
+      qtyAwarded = await read();
+      afterReload = true;
+    }
+    return { qtyAwarded, totals: await this.readTotals(), said, popover, afterReload };
+  }
+
   private async selectedLineItems(): Promise<{ selected: number; total: number } | null> {
     return (await this.counters()).items;
   }

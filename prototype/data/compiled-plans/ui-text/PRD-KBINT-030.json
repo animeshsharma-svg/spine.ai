@@ -1,0 +1,210 @@
+{
+ "meta": {
+  "caseId": "PRD-KBINT-030",
+  "title": "Date column: format and optional default value",
+  "group": "PRD-KBINT",
+  "compiledAt": "2026-11-10T02:12:09.021Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated template-creation or date-column-settings step, so exact saved column metadata persistence cannot be directly asserted.",
+   "unconfirmed label \"Column type\" (select) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Required Date\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added set_title — publishing without a title is refused",
+   "coverage partial: unconfirmed label \"Column type\" (select) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Required Date\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The catalog has no dedicated template-creation or date-column-settings step, so exact saved column metadata persistence cannot be directly asserted."
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "click",
+   "click",
+   "select",
+   "fill",
+   "select",
+   "select",
+   "click",
+   "expect_text",
+   "click",
+   "select",
+   "fill",
+   "select",
+   "fill",
+   "expect_value",
+   "expect_value",
+   "click",
+   "expect_text"
+  ],
+  "ms": 12124
+ },
+ "plan": {
+  "title": "Date Column Format and Default",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Opens the closest catalog screen that exposes column configuration controls."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Columns"
+    },
+    "note": "Opens the column configuration controls."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Add"
+    },
+    "note": "Starts adding a new column."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Column type",
+     "option": "Date"
+    },
+    "note": "Chooses the Date column type; the label is not a confirmed catalog label."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Column name",
+     "value": "Required Date"
+    },
+    "note": "Enters the requested column name."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Date format",
+     "option": "DD/MM/YYYY"
+    },
+    "note": "Selects a date format for the column; the available format is not specified by the case."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Default value",
+     "option": "None"
+    },
+    "note": "Leaves the optional default unset for the first save."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Saves the Date column without a default value."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Required Date"
+    },
+    "note": "Confirms the saved column remains visible after saving without a default."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Add"
+    },
+    "note": "Starts a second Date column configuration to test the optional default path."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Column type",
+     "option": "Date"
+    },
+    "note": "Chooses Date again for the default-value case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Column name",
+     "value": "Delivery Date"
+    },
+    "note": "Enters a second column name."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Date format",
+     "option": "DD/MM/YYYY"
+    },
+    "note": "Applies the selected date format to the second column."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Default value",
+     "value": "2026-12-31"
+    },
+    "note": "Sets an explicit optional default date."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Date format",
+     "value": "DD/MM/YYYY"
+    },
+    "note": "Checks that the chosen date format is shown before saving."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Default value",
+     "value": "2026-12-31"
+    },
+    "note": "Checks that the chosen default value is shown before saving."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Saves the Date column with a default value."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date"
+    },
+    "note": "Confirms the saved Date column with a default remains visible."
+   }
+  ]
+ }
+}

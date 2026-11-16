@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-TTL-030",
+  "title": "Single stage: empty title with no product location is refused at publish",
+  "group": "SRC-TTL",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:20:23.392Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot directly verify that the selected vendor is the scenario's conceptual Vendor A rather than whichever QA vendor is supplied by the test environment."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added a step that empties the title field — Procol fills the title in from the line item, so leaving set_title out alone publishes with a title",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added a step that empties the title field — Procol fills the title in from the line item, so leaving set_title out alone publishes with a title",
+   "can only test part of this — no step for: The catalog cannot directly verify that the selected vendor is the scenario's conceptual Vendor A rather than whichever QA vendor is supplied by the test environment."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "fill",
+   "expect_publish_blocked",
+   "expect_field_error"
+  ],
+  "ms": 16912
+ },
+ "plan": {
+  "title": "Single-stage RFQ publish without title",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to RFQ and award the entire lot to one vendor."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the named product with quantity 10 while leaving its location unset."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet prerequisites for publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one available QA vendor participant."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Enter the title of the project",
+     "value": ""
+    }
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please fill project title!"
+    },
+    "note": "Press Publish and assert that the empty title blocks publication with Procol's known title-required message."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Delivery location"
+    },
+    "note": "Assert that the missing product location is flagged as a field error."
+   }
+  ]
+ }
+}

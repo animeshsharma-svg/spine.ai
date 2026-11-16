@@ -1,0 +1,261 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-011",
+  "title": "Asset PR → single stage RFQ → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:59:37.992Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting and proving the specific asset PR line with Account Assignment A when no PR number is provided; select_pr can only select the first matching open PR or a PR by number.",
+   "Verifying that Account Assignment A is carried onto the purchase order.",
+   "Setting or asserting an evaluation duration of exactly 30 minutes; set_schedule exposes only the event duration.",
+   "Verifying the PR status transition from Open to In Progress to ordered.",
+   "Opening the Purchase Orders screen and reopening the originating PR after PO creation; create_po reads the created PO items but provides no separate PR navigation or status assertion."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Selecting and proving the specific asset PR line with Account Assignment A when no PR number is provided; select_pr can only select the first matching open PR or a PR by number.; Verifying that Account Assignment A is carried onto the purchase order.; Setting or asserting an evaluation duration of exactly 30 minutes; set_schedule exposes only the event duration.; Verifying the PR status transition from Open to In Progress to ordered.; Opening the Purchase Orders screen and reopening the originating PR after PO creation; create_po reads the created PO items but provides no separate PR navigation or status assertion."
+  ],
+  "source": "llm",
+  "steps": 32,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "expect_sheet_cell",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 26534
+ },
+ "plan": {
+  "title": "Asset PR to RFQ Award and PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the PR flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the PR-created event a searchable title before publishing."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify that the requested quantity is 10 units."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "add one Required Terms and Conditions clause to the event and stop on the create screen showing the clause added"
+    },
+    "note": "Add the required T&C clause, which has no dedicated catalog step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute event duration; the separate evaluation duration cannot be configured by the catalog."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite the vendors mapped to the product without inventing supplier names."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed single-stage RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Have the first invited vendor submit a quote of 100 through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the first vendor's quote was submitted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Have a different invited vendor submit the lower quote of 90 through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the second vendor's quote was submitted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for bidding to end before opening Master QCS and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid after bidding closes."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lower quote ranks first, confirming the expected Vendor B outcome by price."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the entire event to the lowest-ranked vendor."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for asset procurement."
+    },
+    "note": "Approve the submitted proposal with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete PO creation from the approved award and read the resulting purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Assert that one PO line was created for the awarded quantity of 10."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the event reached history."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab after completion."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's event appears in event history."
+   }
+  ]
+ }
+}

@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "caseId": "SRC-WDR-023",
+  "title": "What the vendor sees after the event is withdrawn",
+  "group": "SRC-WDR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:23:26.699Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot directly assert that the pricing sheet cells are read-only."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The catalog cannot directly verify that the earlier bid is explicitly attributed as Vendor A's bid beyond viewing the ve” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: The catalog cannot directly assert that the pricing sheet cells are read-only."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "vendor_open_event",
+   "expect_text",
+   "expect_count",
+   "attempt"
+  ],
+  "state": "withdrawn",
+  "screen": "summary",
+  "ms": 12514
+ },
+ "plan": {
+  "title": "Vendor view of withdrawn event",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared withdrawn event; prepared-state plans must begin from its summary."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the tenant configuration required for withdrawn events to be shown to vendors is active."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the separate Vendor A supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the withdrawn event from the vendor's event list and remain on its overview."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawn"
+    },
+    "note": "Assert that the vendor sees the event marked Withdrawn."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the pricing round to inspect the preserved bid state and available bidding controls."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Assert that the vendor portal still shows the earlier bid as submitted."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "count": 0
+    },
+    "note": "Assert that no Submit Quote control is available on the withdrawn event."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt a vendor bid to verify that the withdrawn event cannot accept a new or revised submission."
+   }
+  ]
+ }
+}

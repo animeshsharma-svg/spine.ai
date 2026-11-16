@@ -1,0 +1,155 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-047",
+  "title": "Recreate Order: A past delivery date and an incomplete scheduled event show the app response",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:22:37.632Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether a new order was created after each Create Order attempt.",
+   "The exact refusal or validation message when the application does not expose it as a field error or known message."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Whether a new order was created after each Create Order attempt.; The exact refusal or validation message when the application does not expose it as a field error or known message."
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_visible",
+   "fill",
+   "click",
+   "expect_field_error",
+   "expect_visible",
+   "fill",
+   "toggle",
+   "expect_text",
+   "expect_text",
+   "click",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 14289
+ },
+ "plan": {
+  "title": "Recreate Order validation responses",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ summary as the buyer; the event and bid already exist."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window opened."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Delivery Date",
+     "value": "2000-01-01",
+     "within": "dialog"
+    },
+    "note": "Enter the specified past delivery date."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order",
+     "within": "dialog"
+    },
+    "note": "Submit the first recreate-order attempt."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Delivery Date"
+    },
+    "note": "Check for a field-level refusal of the past delivery date without inventing message text."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the invalid-date attempt."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Delivery Date",
+     "value": "",
+     "within": "dialog"
+    },
+    "note": "Clear the delivery date for the second attempt."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Schedule this event?",
+     "on": true,
+     "within": "dialog"
+    },
+    "note": "Enable event scheduling while leaving the scheduled date and time empty."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Select date",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Confirm the scheduled date remains empty with its placeholder."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Select time",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Confirm the scheduled time remains empty with its placeholder."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order",
+     "within": "dialog"
+    },
+    "note": "Submit the incomplete scheduled-event attempt."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the recreate-order window remains open when required scheduling fields are empty."
+   }
+  ]
+ }
+}

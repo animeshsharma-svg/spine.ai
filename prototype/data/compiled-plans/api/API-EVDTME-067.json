@@ -2,15 +2,15 @@
  "meta": {
   "caseId": "API-EVDTME-067",
   "title": "A draft opened before the end was pulled in cannot be priced after it",
-  "compiledAt": "2026-10-15T12:29:32.135Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:12:39.707Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The plan does not assert the alternative rejection codes 33 or 508 that may occur instead of code 32."
+   "The plan does not assert the specific HTTP 422 code because the application may return code 32 after the end-of-bidding job discards the draft, code 33 when the order is inactive, or code 508 during extra closing time when counter-offer mod"
   ],
   "warnings": [
-   "error code 32 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
   ],
   "validated": true,
   "endpoints": [
@@ -27,16 +27,18 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The invited QA vendor opens a bid on the pricing round.",
-    "The buyer moves the round's bid end time with the increase auction time moved later.",
-    "Wait until the round's bid end time has passed.",
-    "The invited QA vendor prices the line on the bid at 100."
+    "QA vendor 1 opens a draft bid before the bid end.",
+    "The buyer moves the bid end in to 90 seconds from now.",
+    "Wait until the new bid end has passed.",
+    "QA vendor 1 tries to price the draft after the bid end.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.860Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDTME-067",
   "title": "A draft opened before the end was pulled in cannot be priced after it",
   "setup": {
@@ -45,7 +47,9 @@
   "act": [
    {
     "op": "open_bid",
-    "as": "vendor"
+    "as": "vendor",
+    "expect": "accept",
+    "say": "QA vendor 1 opens a draft bid before the bid end."
    },
    {
     "op": "extend_round",
@@ -56,7 +60,8 @@
       "set": "{{now+90}}"
      }
     ],
-    "expect": "accept"
+    "expect": "accept",
+    "say": "The buyer moves the bid end in to 90 seconds from now."
    },
    {
     "op": "wait",
@@ -64,21 +69,37 @@
     "params": {
      "until": "bid_end"
     },
-    "expect": "accept"
+    "expect": "accept",
+    "say": "Wait until the new bid end has passed."
    },
    {
     "op": "price_bid",
     "as": "vendor",
     "params": {
-     "price": 100
+     "price": 10
     },
-    "decisive": true
+    "decisive": true,
+    "say": "QA vendor 1 tries to price the draft after the bid end."
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
   "expected": {
    "outcome": "reject",
-   "code": "32"
+   "code": "32",
+   "message": "Bid not found"
   }
  }
 }

@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-016",
+  "title": "Switching tabs pages the quote by tab",
+  "compiledAt": "2026-11-09T19:52:16.486Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Guarantee that the opened existing event is a BOQ stage in an eRFX project with exactly three tabs and one vendor bid",
+   "Assert that the rendered rows belong exclusively to tab 3 by their specific line numbers",
+   "Unconfirmed tab label: 3",
+   "unconfirmed label \"3\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"3\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Guarantee that the opened existing event is a BOQ stage in an eRFX project with exactly three tabs and one vendor bid; Assert that the rendered rows belong exclusively to tab 3 by their specific line numbers; Unconfirmed tab label: 3"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-SS-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ Quote Tab Pagination",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event with bids as the closest available starting point for the vendor quote."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the supplier portal so the vendor's quote can be inspected."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing quote in the vendor portal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "3"
+    },
+    "note": "Switch to the third quote tab; the tab label is not otherwise defined in the catalog."
+   },
+   {
+    "step": "scroll_to",
+    "args": {
+     "text": "Line",
+     "timeoutMs": 60000
+    },
+    "note": "Scroll the quote so its paged rows are rendered."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/v1/trade/",
+     "method": "GET",
+     "query": "tab=3&page="
+    },
+    "note": "Assert that loading tab 3 issued the quote-details request with the selected tab and a page parameter."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Assert that quote rows are rendered after switching tabs, without claiming their specific line-number ownership."
+   }
+  ]
+ }
+}

@@ -2,18 +2,23 @@
  "meta": {
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
-  "compiledAt": "2026-10-04T07:14:06.015Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:47:27.823Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The recipe does not include a third QA vendor (vendor 3) to test its invisibility",
+   "the decisive step tests something else than the case's point: The setup recipes and tokens do not provide QA vendor 3 or four QA vendors; vendor2 is used as the other vendor.",
+   "The available assertion vocabulary cannot search response contents for QA vendor 3's name, company id, price, or totals, or assert that those values are absent.",
    "what the screen shows (an API plan checks the data, not the page)"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "GET /trade/:id"
+   "PATCH /v1/trade/add_audience",
+   "POST /bids/template_input",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/schema",
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -22,37 +27,69 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
+    "The buyer invites QA vendor 2 to the live round.",
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf for a second QA vendor with the company uuid set to “…”.",
     "The invited QA vendor reads the pricing round.",
-    "As the invited QA vendor, read the pricing round and check that “participants” has exactly 1 entries."
+    "The invited QA vendor reads the pricing round's schema.",
+    "The invited QA vendor reads the event.",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app accepts it. Read back afterwards: “participants” has exactly 1 entries."
-  }
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.764Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDLEK-003",
   "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "published_rfq"
   },
   "act": [
    {
-    "op": "read_round",
-    "as": "vendor",
+    "op": "add_vendor",
+    "as": "buyer"
+   },
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "company_uuid",
+      "set": "{{vendor2Uuid}}"
+     }
+    ],
+    "params": {
+     "price": 100,
+     "vendor": "vendor2"
+    },
     "decisive": true
+   },
+   {
+    "op": "read_round",
+    "as": "vendor"
+   },
+   {
+    "op": "read_round_schema",
+    "as": "vendor"
+   },
+   {
+    "op": "read_event",
+    "as": "vendor"
    }
   ],
   "verify": [
    {
     "op": "read_round",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
-      "path": "participants",
-      "op": "count",
-      "value": 1
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
      }
     ]
    }

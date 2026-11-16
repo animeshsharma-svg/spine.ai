@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "caseId": "UI-FSCH-003",
+  "title": "An end before the start is refused",
+  "compiledAt": "2026-11-09T20:03:42.691Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject end time before start",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template so scheduling becomes available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for the event configuration."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before opening the schedule drawer."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Schedule"
+    },
+    "note": "Open the schedule drawer."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Start time",
+     "option": "Schedule for later"
+    },
+    "note": "Use an explicit future start rather than starting immediately."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "End time",
+     "option": "Fixed time"
+    },
+    "note": "Configure an absolute end time, as required by the case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Start time",
+     "value": "2026-12-20 10:00"
+    },
+    "note": "Set a valid future start time."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "End time",
+     "value": "2026-12-20 09:00"
+    },
+    "note": "Set the absolute end earlier than the start."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Attempt to save the invalid schedule."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Start time should be less than end time"
+    },
+    "note": "Verify Procol refuses the schedule with the expected validation message."
+   }
+  ]
+ }
+}

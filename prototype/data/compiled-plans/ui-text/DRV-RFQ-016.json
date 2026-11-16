@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-016",
+  "title": "User without \"unlock_commercials\" permission cannot see the \"Open Commercials\" button",
+  "group": "DRV-RFQ",
+  "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
+  "compiledAt": "2026-11-12T13:38:48.371Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Signing in as a buyer user who lacks the unlock_commercials permission",
+   "unconfirmed label \"Open Commercials\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Open Commercials\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Signing in as a buyer user who lacks the unlock_commercials permission"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "ask_tester",
+   "go_to",
+   "expect_visible"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 16537
+ },
+ "plan": {
+  "title": "RFQ Commercials Hidden Without Permission",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable commercial masking so the RFQ remains sealed."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the buyer user who lacks the unlock_commercials permission"
+    },
+    "note": "The required permission-specific buyer session is not available through catalog steps."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where the commercial-unlock control would appear."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Open Commercials",
+     "visible": false
+    },
+    "note": "Verify that the Open Commercials button is absent for the permissionless buyer."
+   }
+  ]
+ }
+}

@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-011",
+  "title": "Shortening a live window below the current time closes the event cleanly",
+  "compiledAt": "2026-11-09T19:56:27.859Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-001",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Live window expiry preserves bid",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing live event with a submitted bid, as required by the setup."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "option": "fixed",
+     "at": "+1m"
+    },
+    "note": "Set the live event's end time to one minute from now."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true,
+     "maxWaitMinutes": 3
+    },
+    "note": "Wait for the shortened bidding window to pass naturally."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the events list to verify the event's resulting state."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Switch to History, where the closed event should appear."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Assert that the event is recorded as closed."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to the event page to inspect its retained bid and awarding eligibility."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1
+    },
+    "note": "Assert that the submitted bid remains listed as the event's response."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid used for post-close awarding and verify the bid is available there."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow to verify the retained bid is awardable."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available bid to a vendor."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/1"
+    },
+    "note": "Assert that the bid was successfully allocated for award."
+   }
+  ]
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "API-LI-002",
+  "title": "Deleting a line item on a draft sets it inactive",
+  "compiledAt": "2026-11-09T22:25:58.013Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, the request the case itself writes.",
+    "As the buyer, read the event and check that Data check: “status” equals in_active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals in_active."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.947Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-LI-002",
+  "title": "Deleting a line item on a draft sets it inactive",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/event_groups/{{eventGroupUuid}}",
+     "body": {
+      "line_items": [
+       {
+        "uuid": "{{lineItemUuid}}",
+        "status": "deleted"
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "in_active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

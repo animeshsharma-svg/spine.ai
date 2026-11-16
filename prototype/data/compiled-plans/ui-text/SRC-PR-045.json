@@ -1,0 +1,174 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-045",
+  "title": "Create a Single Stage reverse auction from an open asset PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:08:07.625Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that Account Assignment A is retained and carried to the purchase order.",
+   "Verify that the PR line moves to In Progress with this event's number.",
+   "Verify that the published event explicitly shows it came from a PR."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "resolved: “Verify the exact single-stage mode selection and reverse-auction configuration on the PR-created event, because the PR f” — require_setting switches that company setting before the case and back after",
+   "can only test part of this — no step for: Verify that Account Assignment A is retained and carried to the purchase order.; Verify that the PR line moves to In Progress with this event's number.; Verify that the published event explicitly shows it came from a PR."
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "expect_sheet_cells",
+   "expect_api_value",
+   "expect_api_value",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 19206
+ },
+ "plan": {
+  "title": "Create Single-Stage Reverse Auction from Asset PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and publishing."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-045 Asset Reverse Auction"
+    },
+    "note": "Provide the mandatory event title before publishing."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location"
+     ]
+    },
+    "note": "Verify the PR-derived item, variant, quantity, and delivery location are locked on the sheet."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Line Items"
+    },
+    "note": "Check that the PR quantity is displayed on the created event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit",
+     "within": "Line Items"
+    },
+    "note": "Check that the PR unit is displayed on the created event."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors explicitly named in the case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required immediate 30-minute schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publishing reached a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false,
+     "stage": "auction"
+    },
+    "note": "Verify that an event created from a PR cannot use Recreate Order."
+   }
+  ]
+ }
+}

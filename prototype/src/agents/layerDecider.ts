@@ -163,7 +163,14 @@ export function decideLayerSync(c: Pick<CatalogCase, "id" | "layer" | "expected"
     }
   }
   if (!assertions.length) return { id: c.id, layer: c.layer === "api" ? "api" : "ui", assertions, ties };
-  return { id: c.id, layer: combine(assertions), assertions, ties };
+  const layer = combine(assertions);
+  // A case about the SUPPLIER PORTAL — what the vendor sees or can do there — is about that screen even when
+  // every claim names API data (the line items, quantities, a total): the API can prove the data, never
+  // that the vendor's screen shows it. The screen model has the vendor side since 2 Nov.
+  const text = `${c.id} ${c.title} ${c.expected}`.toLowerCase();
+  if (layer === "api" && (/^ui-vbid-/i.test(c.id) || /supplier portal|vendor portal|\bas the vendor\b|the vendor('s)? (sees|view|screen|sheet|side|portal|opens|reads)|vendor side/.test(text)))
+    return { id: c.id, layer: "both", assertions, ties };
+  return { id: c.id, layer, assertions, ties };
 }
 
 /** As decideLayerSync, but a tie may be put to the fast-tier model (opt-in). */

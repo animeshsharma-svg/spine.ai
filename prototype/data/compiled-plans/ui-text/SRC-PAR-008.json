@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "SRC-PAR-008",
+  "title": "eRFX RFQ project: invite mapped vendors plus one named vendor",
+  "group": "SRC-PAR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:06:06.048Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the exact identities of every product-mapped vendor in the final participant list when their names are not specified",
+   "Verify that Vendor C is not duplicated when Vendor C is already among the mapped vendors",
+   "Verify that each vendor receives an invitation in its QA mailbox"
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Verify the exact identities of every product-mapped vendor in the final participant list when their names are not specified; Verify that Vendor C is not duplicated when Vendor C is already among the mapped vendors; Verify that each vendor receives an invitation in its QA mailbox"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "fill_sheet",
+   "invite_vendor",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "open_participants",
+   "expect_participant",
+   "expect_participant_count"
+  ],
+  "ms": 13405
+ },
+ "plan": {
+  "title": "eRFX RFQ invite mapped and named vendors",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Set the required project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project with an RFQ stage only."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product with quantity 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the remaining pricing-sheet fields required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "note": "Add every vendor mapped to the product using the product's own invitation action."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor C"
+     ]
+    },
+    "note": "Add the specifically named Vendor C to the participant set."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the RFQ project with its configured participants."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm that publishing reached a real project page."
+   },
+   {
+    "step": "open_participants",
+    "note": "Open the published RFQ stage's Participants tab to inspect the final participant list."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor C",
+     "present": true,
+     "selected": true
+    },
+    "note": "Verify that Vendor C is present and selected on the published stage."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Confirm that the published stage contains participants."
+   }
+  ]
+ }
+}

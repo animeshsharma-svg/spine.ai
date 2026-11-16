@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "PRA-ONE-003",
+  "title": "A user from a non-purchase (Sales) team is not shown even with the same category",
+  "group": "PRA-ONE",
+  "sheet": "pr-assignee",
+  "compiledAt": "2026-11-12T13:48:22.337Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"User H\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"User H\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "require_setting",
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "do_on_screen",
+   "expect_text"
+  ],
+  "ms": 19580
+ },
+ "plan": {
+  "title": "Hide Sales Assignee from PR",
+  "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration for this case."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Stay on the Open PR tab where PR-1 is available."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-1",
+     "items": 1
+    },
+    "note": "Select one line item from PR-1 so the assignment action can be reached."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Click the Assign person icon next to Upload PRs, type User H into the Search a user box, and stop on the assignee list showing that User H is absent"
+    },
+    "note": "Perform the assignment search and leave the assignee results visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "User H",
+     "present": false
+    },
+    "note": "Assert that the Sales-team user is not shown as an assignee."
+   }
+  ]
+ }
+}

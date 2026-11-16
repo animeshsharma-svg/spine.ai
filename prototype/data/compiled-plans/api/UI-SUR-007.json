@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "UI-SUR-007",
+  "title": "Two unnamed surrogate bids land on two different vendors",
+  "compiledAt": "2026-11-09T19:29:07.371Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The read_round response does not expose the individual vendor UUIDs for the two surrogate bids, so we cannot directly confirm they belong to different companies beyond the bid_count check."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /bids/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live round with the audience to add uuids set to “…”, with the update remarks set to “Invite second vendor for test”.",
+    "The buyer enters a surrogate bid of 100 on the vendor's behalf for the invited QA vendor.",
+    "The buyer enters a surrogate bid of 101 on the vendor's behalf for a second QA vendor.",
+    "As the buyer, read the pricing round and check that Data check: “bid count” equals 2."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “bid count” equals 2."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.208Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-SUR-007",
+  "title": "Two unnamed surrogate bids land on two different vendors",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_add_uuids",
+      "set": "{{vendor2Uuid}}"
+     },
+     {
+      "path": "update_remarks",
+      "set": "Invite second vendor for test"
+     }
+    ]
+   },
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "params": {
+     "price": 100,
+     "vendor": "vendor"
+    },
+    "decisive": true
+   },
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "params": {
+     "price": 101,
+     "vendor": "vendor2"
+    }
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

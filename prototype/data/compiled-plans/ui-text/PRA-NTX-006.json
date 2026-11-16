@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "PRA-NTX-006",
+  "title": "Several items of the same PR count as one PR",
+  "group": "PRA-NTX",
+  "sheet": "pr-assignee",
+  "compiledAt": "2026-11-12T13:48:04.181Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as User A and open the notification bell as a different user session",
+   "unconfirmed label \"+ 2 more\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"+ 2 more\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Sign in as User A and open the notification bell as a different user session"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "require_setting",
+   "open_purchase_requisitions",
+   "do_on_screen",
+   "ask_tester",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 15790
+ },
+ "plan": {
+  "title": "PR Assignment Notification Aggregation",
+  "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before starting the case."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions area where PR-1 item assignment can be performed."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "assign all 3 items from PR-1 to User A and stop when the assignment is confirmed"
+    },
+    "note": "Perform the PR item assignment, which has no dedicated catalog step."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as User A in a separate session, click the bell icon, and open the notifications for PR-1"
+    },
+    "note": "A separate User A login and notification-bell session are not available as catalog actions."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "has been assigned to you.",
+     "present": true
+    },
+    "note": "Verify the notification states that the PR was assigned to User A."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "+ 2 more",
+     "present": false
+    },
+    "note": "Verify the three PR items were not represented as an aggregated '+ 2 more' notification."
+   }
+  ]
+ }
+}

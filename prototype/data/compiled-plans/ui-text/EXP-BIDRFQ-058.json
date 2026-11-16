@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-058",
+  "title": "Withdrawing Order...: Withdrawing live RFQ fails when the reason field is left empty",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:23:19.625Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "withdraw_event",
+   "expect_message"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 7911
+ },
+ "plan": {
+  "title": "Live RFQ withdrawal requires a reason",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with a vendor bid on the buyer side."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage as required before accessing its Responses tab and Settings menu."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses view described by the case."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "stage",
+     "stage": "rfq",
+     "noReason": true
+    },
+    "note": "Open the RFQ Settings withdrawal dialog and confirm with the reason left empty; this checks that Procol refuses the withdrawal."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "inline",
+     "text": "Please enter reason for withdrawing this event"
+    },
+    "note": "Assert the required-reason validation appears while the withdrawal dialog remains open."
+   }
+  ]
+ }
+}

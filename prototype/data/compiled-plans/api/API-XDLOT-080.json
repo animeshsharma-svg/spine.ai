@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-XDLOT-080",
+  "title": "Rates of a draft event cannot be changed here",
+  "compiledAt": "2026-11-09T22:56:12.497Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not explicitly create a multi-currency RFQ.",
+   "The expected error wording ('publish the event first' or 'allow drafts') is not asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/:id/currency_exchange_rates"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the trade currency exchange rates request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.127Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDLOT-080",
+  "title": "Rates of a draft event cannot be changed here",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+     "body": {
+      "currency_rates": [
+       {
+        "USD": 83.5
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "4",
+   "message": "Request not found"
+  }
+ }
+}

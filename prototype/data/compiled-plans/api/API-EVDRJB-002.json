@@ -2,18 +2,17 @@
  "meta": {
   "caseId": "API-EVDRJB-002",
   "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
-  "compiledAt": "2026-10-04T07:08:25.754Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:47:39.901Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "reject bid with allow_rebidding false (no operation in vocabulary)",
-   "assert that the round's settings list the vendor as not allowed to re-bid",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available read-back fields do not expose the round's vendor re-bidding block list, so the plan cannot verify that QA vendor 1 is listed as not allowed to re-bid."
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
+   "PATCH /bids/:id/reject",
    "GET /trade/:id"
   ],
   "llm": {
@@ -23,35 +22,54 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
    "steps": [
-    "As the buyer, read the pricing round and check that the read succeeds."
+    "The buyer sends the bid call, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is 200 — OK — the request worked."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.825Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-002",
   "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
   "setup": {
-   "recipe": "rfq_with_bid"
+   "recipe": "closed_rfq_with_bid"
   },
-  "act": [],
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": false
+     }
+    },
+    "decisive": true
+   }
+  ],
   "verify": [
    {
     "op": "read_round",
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "status_2xx"
+      "op": "status",
+      "value": 200
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active",
+   "codeInferred": true
   }
  }
 }

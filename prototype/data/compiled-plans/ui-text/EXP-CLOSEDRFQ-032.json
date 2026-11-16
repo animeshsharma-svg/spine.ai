@@ -1,0 +1,151 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-032",
+  "title": "A closed RFQ: \"Edit Evaluation Time\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:41:29.397Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Directly compare the event's evaluation and bidding times before and after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_api_value",
+   "expect_api_value",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_api_value",
+   "expect_api_value"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 17290
+ },
+ "plan": {
+  "title": "Closed RFQ Edit Evaluation Time Cancel",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared closed RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Use the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening according to the case configuration."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Record that the existing vendor bid is still displayed before opening the dialog."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Record that the existing bid price is displayed before the cancellation attempt."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings action that launches the Edit Evaluation Time window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": true
+    },
+    "note": "Confirm the Edit Evaluation Time window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the evaluation-time edit without saving changes."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": false
+    },
+    "note": "Verify that cancelling closes the Edit Evaluation Time window."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed"
+    },
+    "note": "Verify the closed event state remains visible after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the vendor information remains unchanged after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the existing bid price remains unchanged after cancellation."
+   }
+  ]
+ }
+}

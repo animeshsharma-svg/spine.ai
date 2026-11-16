@@ -1,0 +1,164 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-042",
+  "title": "Create an eRFX project, Auction only from an open service PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:07:48.417Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the PR line moves to In Progress with this event's number",
+   "Verify the published event explicitly shows that it came from a PR",
+   "Verify the service shows its activities as rows and that the price column is a rate per activity",
+   "Verify the PR-filled delivery location is locked; the available sheet-cell assertion treats Delivery location as editable on an eRFX draft"
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify the PR line moves to In Progress with this event's number; Verify the published event explicitly shows that it came from a PR; Verify the service shows its activities as rows and that the price column is a rate per activity; Verify the PR-filled delivery location is locked; the available sheet-cell assertion treats Delivery location as editable on an eRFX draft"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "expect_sheet_columns",
+   "expect_sheet_cells",
+   "set_title",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 13311
+ },
+ "plan": {
+  "title": "Create Auction eRFX from Service PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable multi-stage eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and keep Publish available."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Quantity Requested",
+      "Delivery location",
+      "Price"
+     ]
+    },
+    "note": "Verify the create sheet renders the PR quantity, delivery location, and pricing columns."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Quantity Requested",
+      "Product Variant"
+     ],
+     "editable": [
+      "Price"
+     ]
+    },
+    "note": "Verify the PR-derived product, quantity, and variant are locked while the auction price/rate cell is editable."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors explicitly named by the case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute Start now schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed auction eRFX project."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication landed on a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Verify the recreate action is greyed out for an event created from a PR."
+   }
+  ]
+ }
+}

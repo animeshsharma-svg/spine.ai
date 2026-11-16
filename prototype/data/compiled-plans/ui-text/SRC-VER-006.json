@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "SRC-VER-006",
+  "title": "Remove an item in a new version",
+  "group": "SRC-VER",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:22:49.308Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The specific publish remarks to enter cannot be supplied because publish has no remarks argument.",
+   "The exact titled RFQ with two products cannot be named because the case provides no event title; open_event must select a fitting existing live event."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The specific publish remarks to enter cannot be supplied because publish has no remarks argument.; The exact titled RFQ with two products cannot be named because the case provides no event title; open_event must select a fitting existing live event."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "create_new_version",
+   "remove_line_items",
+   "expect_line_items",
+   "publish",
+   "expect_no_error"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 11689
+ },
+ "plan": {
+  "title": "Remove Item in New Version",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_event_versioning_enabled",
+     "value": "On"
+    },
+    "note": "Enable creation of a new event version as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "create_new_version",
+    "args": {},
+    "note": "Create and open the editable copy of the published project."
+   },
+   {
+    "step": "remove_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Delete one product from the new version and save the change."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify the new version contains exactly one remaining product."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the edited version; the publish flow reports any application error."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check that no versioning or line-item error was shown after publishing."
+   }
+  ]
+ }
+}

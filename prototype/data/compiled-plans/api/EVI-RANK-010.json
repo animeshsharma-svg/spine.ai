@@ -3,12 +3,10 @@
   "caseId": "EVI-RANK-010",
   "title": "Each vendor sees its own correct rank in a rank auction",
   "compiledAt": "2026-10-04T07:18:40.248Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "llm-fast",
-  "coverage": "partial",
-  "gaps": [
-   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
   ],
@@ -25,14 +23,15 @@
   "words": {
    "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
    "steps": [
-    "The invited QA vendor reads the round's comparison (ranks, best bidder).",
-    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.172Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-RANK-010",
   "title": "Each vendor sees its own correct rank in a rank auction",
   "setup": {
@@ -41,14 +40,14 @@
   "act": [
    {
     "op": "read_indicators",
-    "as": "vendor",
+    "as": "buyer",
     "decisive": true
    }
   ],
   "verify": [
    {
     "op": "read_indicators",
-    "as": "vendor",
+    "as": "buyer",
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",

@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-032",
+  "title": "A draft award proposal records the event, lot and Excel mode",
+  "compiledAt": "2026-11-09T20:24:03.561Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup vocabulary has no recipe for an event with lots or an allocation summary template.",
+   "open_proposal has no supported fields for selecting lot 2 or Excel awarding mode.",
+   "The proposal read-back fields are not sampled, so the event number, lot 2, creator, awarding-by-Excel flag, and allocation summary v1 cannot be asserted.",
+   "the part about “excel” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "GET /proposal/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer reads the award proposal.",
+    "As the buyer, read the award proposal and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.900Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-032",
+  "title": "A draft award proposal records the event, lot and Excel mode",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

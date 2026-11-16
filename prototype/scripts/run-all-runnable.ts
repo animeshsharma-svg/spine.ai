@@ -500,6 +500,15 @@ try {
       }
       const r = await runApiPlan({ ...v.plan, caseId: sp.meta.caseId }, { companyId: COMPANY, client, confirm: true, save: true, onLine: () => {} });
       summary.batches.push({ eventType: "api-plan", id: sp.meta.caseId, verdict: r.verdict, confirmed: r.confirmed ?? null, reason: r.reason.slice(0, 300) });
+      // A wrong-app 401 (app_error_auth_failed) signs the buyer's session out (appAccess.ts); every later build then
+      // fails "no QA test vendor is recorded" (10 Nov: 294 of 343 plans lost after API-AUD-013). Open a new session.
+      if (/app_error_auth_failed|not authorized to use this API/i.test(r.reason)) {
+        log(`   the app answered a wrong-app 401 on ${sp.meta.caseId}; that signs the session out — opening a new one`);
+        resetApiSession();
+        const fresh = await bounded(openClientContext(COMPANY), 120_000, "opening a new session", null);
+        if (fresh) client = fresh;
+        else { summary.stopped = "the session could not be reopened after a wrong-app 401"; break; }
+      }
       if (r.confirmation) summary.verified.push({ id: sp.meta.caseId, reproduced: !!r.confirmed, first: "failed", fresh: r.confirmation.verdict });
       log(`   ${sp.meta.caseId}: ${r.verdict} — ${r.reason.slice(0, 220)}`);
     }

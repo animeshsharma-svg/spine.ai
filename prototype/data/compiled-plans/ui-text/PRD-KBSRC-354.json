@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-354",
+  "title": "Cost Breakdown Time starts automatically when submission time ends",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:16:07.466Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "No catalog step directly verifies that the CBD timer started automatically rather than through another transition.",
+   "No catalog step directly verifies that the vendor can break down the total bid across individual line items."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: No catalog step directly verifies that the CBD timer started automatically rather than through another transition.; No catalog step directly verifies that the vendor can break down the total bid across individual line items."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_event",
+   "close_event",
+   "expect_text",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text"
+  ],
+  "ms": 10766
+ },
+ "plan": {
+  "title": "Automatic Cost Breakdown Time Start",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the existing live cost-breakdown auction from the prepared environment."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the submission window to end naturally, which should trigger the CBD phase."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Cost Breakdown Time",
+     "present": true
+    },
+    "note": "Verify the buyer screen shows the Cost Breakdown Time phase."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's pricing screen where the vendor should receive the CBD prompt."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Cost Breakdown Time",
+     "present": true
+    },
+    "note": "Verify the vendor screen shows the CBD phase running."
+   }
+  ]
+ }
+}

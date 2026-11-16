@@ -1,0 +1,135 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-047",
+  "title": "Create an eRFX project, Auction only from an open asset PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:08:08.199Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that Account Assignment A is carried from the PR line to the eventual purchase order.",
+   "Verify that the specific PR line moves to In Progress with this event's number linked to it.",
+   "Verify that the published event explicitly displays that it came from a PR."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify that Account Assignment A is carried from the PR line to the eventual purchase order.; Verify that the specific PR line moves to In Progress with this event's number linked to it.; Verify that the published event explicitly displays that it came from a PR."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "open_event",
+   "expect_menu_item"
+  ],
+  "ms": 16759
+ },
+ "plan": {
+  "title": "Create Auction from Open Asset PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable multi-stage eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and keep Publish available."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule while keeping the default start-now behavior."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named in the case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed PR-derived Auction project and confirm the publish flow."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Return to the event created by this plan to inspect its available actions."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Assert the PR-derived event cannot use Recreate Order."
+   }
+  ]
+ }
+}

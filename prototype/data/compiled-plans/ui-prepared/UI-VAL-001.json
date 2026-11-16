@@ -2,140 +2,306 @@
  "meta": {
   "caseId": "UI-VAL-001",
   "title": "Every required field on the create screen is enforced",
-  "compiledAt": "2026-10-04T11:04:07.681Z",
+  "compiledAt": "2026-11-09T19:58:16.922Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "zero events created verification via database check"
+   "Assert globally that zero events were created across all attempts.",
+   "Keep schedule configured while omitting the template or line items, because the create screen disables schedule until those prerequisites exist."
   ],
   "warnings": [
-   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
-   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
-   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
-   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
-   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal",
-   "can only test part of this — no step for: zero events created verification via database check"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped invite_vendor — with the template or product left out on purpose, Participants is locked, and that lock is what the case checks",
+   "dropped invite_vendor — with the template or product left out on purpose, Participants is locked, and that lock is what the case checks",
+   "can only test part of this — no step for: Assert globally that zero events were created across all attempts.; Keep schedule configured while omitting the template or line items, because the create screen disables schedule until those prerequisites exist."
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-CRE-002",
-   "UI-SCH-003"
+   "UI-VAL-009",
+   "UI-SS-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Required field enforcement on create",
+  "title": "Required Create Fields Enforcement",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating an eRFX project"
+    "note": "Start the isolated missing-title scenario on the create screen."
    },
    {
     "step": "skip",
     "args": {
      "step": "set_title",
-     "reason": "Test publish blocked without title"
+     "reason": "Leave the required title blank."
     },
-    "note": "Omit title to test title requirement"
+    "note": "Deliberately omit only the title entry."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage for the required template and pricing setup."
    },
    {
     "step": "select_template",
-    "note": "Select template"
+    "args": {},
+    "note": "Complete the template prerequisite for the title scenario."
    },
    {
     "step": "add_line_items",
-    "note": "Add line items"
-   },
-   {
-    "step": "set_schedule",
-    "note": "Set schedule"
-   },
-   {
-    "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add participants"
+    "note": "Provide the required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please fill project title!"
     },
-    "note": "Verify publish is blocked because of missing title"
+    "note": "Assert publishing is refused and the title-specific message is shown."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an independent missing-template scenario."
    },
    {
     "step": "set_title",
-    "note": "Restore title"
+    "args": {
+     "title": "UI-VAL-001 Missing Template"
+    },
+    "note": "Provide the title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage."
    },
    {
     "step": "skip",
     "args": {
      "step": "select_template",
-     "reason": "Test publish blocked without template"
+     "reason": "Leave the required template unselected."
     },
-    "note": "Omit template by skipping/leaving stage unselected"
+    "note": "Deliberately omit only template selection."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item; the product allows this before template selection for this negative case."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Provide participants so the missing template is the intended refusal."
    },
    {
     "step": "expect_publish_blocked",
-    "note": "Verify publish is blocked without template"
+    "args": {
+     "because": "Please choose a template to proceed!"
+    },
+    "note": "Assert publishing is refused with the template-specific message."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an independent missing-line-items scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VAL-001 Missing Line Items"
+    },
+    "note": "Provide the title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage."
    },
    {
     "step": "select_template",
-    "note": "Restore template"
+    "args": {},
+    "note": "Provide the required template."
    },
    {
     "step": "skip",
     "args": {
      "step": "add_line_items",
-     "reason": "Test publish blocked without line items"
+     "reason": "Leave the required line-item list empty."
     },
-    "note": "Omit line items"
+    "note": "Deliberately omit line items."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Provide participants; schedule and sheet completion are unavailable without line items."
    },
    {
     "step": "expect_publish_blocked",
-    "note": "Verify publish is blocked without line items"
+    "args": {
+     "because": "Please add line items"
+    },
+    "note": "Assert publishing is refused with a line-item requirement message."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an independent missing-schedule scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VAL-001 Missing Schedule"
+    },
+    "note": "Provide the title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Provide the required template."
    },
    {
     "step": "add_line_items",
-    "note": "Restore line items"
+    "args": {
+     "count": 1
+    },
+    "note": "Provide a line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "skip",
     "args": {
      "step": "set_schedule",
-     "reason": "Test publish blocked without schedule"
+     "reason": "Leave the event schedule uncommitted."
     },
-    "note": "Omit schedule"
+    "note": "Deliberately omit the schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Provide participants so schedule is the remaining missing field."
    },
    {
     "step": "expect_publish_blocked",
-    "note": "Verify publish is blocked without schedule"
+    "args": {
+     "because": "Please add end time for the event"
+    },
+    "note": "Assert publishing is refused with the schedule-specific message."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an independent missing-participants scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VAL-001 Missing Participants"
+    },
+    "note": "Provide the title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Provide the required template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Provide a line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
-    "note": "Restore schedule"
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule."
    },
    {
     "step": "skip",
     "args": {
      "step": "invite_vendor",
-     "reason": "Test publish blocked without participants"
+     "reason": "Leave the participant list empty."
     },
-    "note": "Omit invite_vendor"
+    "note": "Deliberately omit participants."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add participants to proceed!"
     },
-    "note": "Verify publish is blocked without participants"
+    "note": "Assert publishing is refused with the participant-specific message."
    }
   ]
  }

@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-002",
+  "title": "The older payload shape (key list + name list, no \"weight on\") is refused",
+  "compiledAt": "2026-11-09T22:46:16.673Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact error message 'Insufficient parameters' is not asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 1,
+   "promptTokens": 6385,
+   "completionTokens": 225,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.862Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-002",
+  "title": "The older payload shape (key list + name list, no \"weight on\") is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": {
+       "key_attributes": [
+        "qa_freight_adj"
+       ],
+       "weightage_names": [
+        "QA_Platform_Freight_{{stamp}}"
+       ],
+       "values": {
+        "{{vendorUuid}}": [
+         "100"
+        ]
+       }
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

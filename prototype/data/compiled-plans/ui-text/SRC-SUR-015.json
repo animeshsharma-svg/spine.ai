@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-015",
+  "title": "Surrogate bid that needs approval",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:18:38.112Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Start from a live RFQ with no bids; the available prepared state has one existing bid.",
+   "Verify that the pending surrogate bid is excluded from response counts with a no-bid baseline.",
+   "Approve or reject the surrogate-bid approval request and verify that rejection removes it."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Start from a live RFQ with no bids; the available prepared state has one existing bid.; Verify that the pending surrogate bid is excluded from response counts with a no-bid baseline.; Approve or reject the surrogate-bid approval request and verify that rejection removes it."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_surrogate_bid",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 12601
+ },
+ "plan": {
+  "title": "Surrogate bid requires approval",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared event's pricing-stage Participants tab without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "company_level_approval_workflows_allowed",
+     "value": "On"
+    },
+    "note": "Enable company approval workflows required for surrogate bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the RFQ flow."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "note": "Have the buyer add a surrogate bid and observe whether Procol reports it as approval-pending rather than immediately active."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval",
+     "present": true
+    },
+    "note": "Check the visible approval-related state after submitting the surrogate bid; the exact product label is not guaranteed by the catalog."
+   }
+  ]
+ }
+}

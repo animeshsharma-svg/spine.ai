@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-039",
+  "title": "Reverse auction: bid for less than the auction quantity",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:27:57.176Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Set the vendor portal's offered quantity to 6 for an auction quantity of 10 and submit the bid to verify the refusal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 10701
+ },
+ "plan": {
+  "title": "Reverse Auction Under-Quantity Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live reverse-auction event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_quantity_less_auction",
+     "value": "Off"
+    },
+    "note": "Enforce full-quantity bidding for the test."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Continue in the vendor session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live auction's vendor pricing sheet."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "enter 6 as the offered quantity for the 10-unit auction and submit the bid, then leave the refusal visible"
+    },
+    "note": "The catalog can open the vendor bid sheet but cannot set and submit an under-quantity bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bid Quantity should be equal to the Auction Quantity",
+     "present": true
+    },
+    "note": "Verify the expected refusal message is visible."
+   }
+  ]
+ }
+}

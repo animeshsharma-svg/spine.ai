@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "SRC-CVT-010",
+  "title": "Convert on a draft or with vendor masking",
+  "group": "SRC-CVT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:58:44.446Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that Convert to Auction is not offered on a draft RFQ; the prepared event is a closed RFQ and no catalog step changes it to a draft."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify that Convert to Auction is not offered on a draft RFQ; the prepared event is a closed RFQ and no catalog step changes it to a draft."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "open_event_settings",
+   "expect_menu_item"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 12401
+ },
+ "plan": {
+  "title": "Convert to Auction blocked for masked RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the supplied closed RFQ event without searching the events list."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "vendor masking",
+     "value": "On"
+    },
+    "note": "Enable vendor masking to test the masking conversion gate."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the RFQ stage Settings menu where Convert to Auction is controlled."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Convert to Auction",
+     "present": false
+    },
+    "note": "Assert that vendor masking hides Convert to Auction."
+   }
+  ]
+ }
+}

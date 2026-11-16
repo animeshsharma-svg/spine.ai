@@ -17,6 +17,7 @@
  *   knowledge/events/screens/<id>.md     the memory: `npm run rag:build` turns it into chunks the
  *                                        planner recalls when a new case names this screen
  */
+import { compilePrepared } from "../checks/sheetCases.js";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -630,7 +631,7 @@ export async function newCaseOnScreen(id: string, text: string, opts: { companyI
 
 export interface ScreenPrep {
   /** the event state the API builds before the run ("none" = the plan starts from nothing) */
-  state: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
+  state: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted";
   /** a SCREENS key (procol-ui-tests/src/plan/screens.ts) the plan opens first, or "create" */
   screen: string;
   screenWhat: string;
@@ -657,8 +658,11 @@ const WHAT: Record<string, string> = {
 /** The API values a prepared state exposes to expect_api_value (uiSetup.ts). */
 export const VALUE_KEYS: Record<string, string[]> = { none: [], draft: ["title", "quantity", "unit"], upcoming: ["title", "quantity", "unit", "vendorName"], live: ["title", "quantity", "unit", "vendorName"], bid: ["title", "vendorName", "quantity", "unit", "bidPrice", "bidTotal"] };
 VALUE_KEYS.closed = VALUE_KEYS.bid;
+VALUE_KEYS.two_bids = [...VALUE_KEYS.bid, "secondVendorName", "bidPrice2", "bidTotal2"];
+VALUE_KEYS.closed_two_bids = VALUE_KEYS.two_bids;
 VALUE_KEYS.awarded = VALUE_KEYS.bid;
 VALUE_KEYS.proposal = VALUE_KEYS.bid;
+VALUE_KEYS.converted = VALUE_KEYS.bid;
 
 /**
  * Which event the cases of a screen must run on. A screen photographed on a published event
@@ -711,7 +715,7 @@ export async function planForScreenCase(caseId: string, screenId?: string, onLin
     onLine?.(`[screen] compiling ${caseId} for ${prep.prepared ? `a ${prep.state} event, opening ${prep.screenWhat}` : prep.screenWhat}…`);
     const compiled = await compileTestCase(text, "events", {
       tier: "reason",
-      ...(prep.prepared ? { prepared: { state: prep.state, screen: prep.screen, screenWhat: prep.screenWhat, valueKeys: VALUE_KEYS[prep.state] ?? [], technical: prep.technical } } : {}),
+      ...(prep.prepared ? { prepared: compilePrepared(prep, VALUE_KEYS[prep.state] ?? []) } : {}),
     }).catch((e) => ({ why: (e as Error).message }));
     if ("why" in compiled) return { why: `could not compile ${caseId}: ${compiled.why}`, prep };
     c.prep = { state: prep.state, screen: prep.screen, technical: prep.technical, prepared: prep.prepared };

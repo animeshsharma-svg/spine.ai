@@ -2,15 +2,17 @@
  "meta": {
   "caseId": "UI-PART-011",
   "title": "A vendor who already participated cannot be removed",
-  "compiledAt": "2026-10-04T11:20:59.339Z",
+  "compiledAt": "2026-11-09T19:43:05.564Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify that B's bid stands specifically via API/backend count beyond what screen shows"
+   "Attempting to remove vendor B from the event",
+   "The refusal message shown when removing vendor B"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that B's bid stands specifically via API/backend count beyond what screen shows"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Attempting to remove vendor B from the event; The refusal message shown when removing vendor B"
   ],
   "state": "live",
   "screen": "participants",
@@ -21,28 +23,38 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-PART-011 — A vendor who already participated cannot be removed",
+  "title": "Prevent removal of participating vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
-    }
+    },
+    "note": "Open the prepared live event on its Participants tab."
    },
    {
-    "step": "open_participants",
-    "args": {}
-   },
-   {
-    "step": "attempt",
+    "step": "search_participants",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Remove Bid"
-     },
-     "because": "You cannot remove a vendor who has already participated"
-    }
+     "vendor": "B"
+    },
+    "note": "Locate vendor B's participant row."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "B",
+     "present": true
+    },
+    "note": "Verify vendor B is still listed as a participant."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "participation": "1/1",
+     "stage": "rfq"
+    },
+    "note": "Verify the submitted bid remains counted for the event."
    }
   ]
  }

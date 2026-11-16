@@ -1,0 +1,100 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-010",
+  "title": "Without a ranking setting, a line is ranked on the unit price, not on the landed cost",
+  "compiledAt": "2026-11-09T19:38:06.053Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "GST percentages and landed-cost values cannot be set with the available operations, so the plan establishes only unit prices of 100 and 105.",
+   "The numeric rank values cannot be asserted because the available read_indicators field exposes only rank.best_bidder.",
+   "The buyer-screen label for the ranking basis cannot be read or asserted with the available fields.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live round for a second QA vendor with 1 audience to add uuids.",
+    "The invited QA vendor places a complete bid of 100 (open, price, submit) for the invited QA vendor.",
+    "A second QA vendor places a complete bid of 105 (open, price, submit) for a second QA vendor.",
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "The buyer reads the round's comparison (ranks, best bidder)."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.904Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-010",
+  "title": "Without a ranking setting, a line is ranked on the unit price, not on the landed cost",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "audience_to_add_uuids",
+      "set": [
+       "{{vendor2Uuid}}"
+      ]
+     }
+    ],
+    "params": {
+     "vendor": "vendor2"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100,
+     "vendor": "vendor"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 105,
+     "vendor": "vendor2"
+    }
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

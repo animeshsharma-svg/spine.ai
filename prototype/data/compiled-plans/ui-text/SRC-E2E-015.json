@@ -1,0 +1,283 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-015",
+  "title": "Asset PR → eRFX Technical + RFQ → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:14:46.160Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver user and approve the proposal cannot be performed without tester-provided credentials.",
+   "Assert that Vendor B specifically is rank 1 because the case does not provide the vendor's exact QA company name and the available bid assertions can only verify lowest ranking.",
+   "Set or verify the exact 30-minute evaluation duration on the schedule drawer; set_schedule exposes only the event duration argument.",
+   "Verify the PR transitions from Open to In Progress to ordered and verify Account Assignment A on the PO."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Sign in as the separate approver user and approve the proposal cannot be performed without tester-provided credentials.; Assert that Vendor B specifically is rank 1 because the case does not provide the vendor's exact QA company name and the available bid assertions can only verify lowest ranking.; Set or verify the exact 30-minute evaluation duration on the schedule drawer; set_schedule exposes only the event duration argument.; Verify the PR transitions from Open to In Progress to ordered and verify Account Assignment A on the PO."
+  ],
+  "source": "llm",
+  "steps": 37,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "switch_stage",
+   "select_template",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "do_on_screen",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "close_event",
+   "evaluate_technical",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "award_event",
+   "expect_awarded",
+   "ask_tester",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 25566
+ },
+ "plan": {
+  "title": "Asset PR to Awarded PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    }
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    }
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite the vendors mapped to the PR products without inventing supplier names."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the eRFX create screen, add one required Terms and Conditions clause and stop with the clause visible or saved"
+    },
+    "note": "Add the required T&C clause, which has no dedicated domain step."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed Technical plus RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Have the first invited vendor answer the technical stage and submit a quote of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the first vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Have a different invited vendor answer the technical stage and submit a quote of 90."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the second vendor's bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2
+    },
+    "note": "Verify that the buyer sees both direct vendor responses."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the bidding window to end before evaluation and awarding."
+   },
+   {
+    "step": "evaluate_technical",
+    "args": {},
+    "note": "Score and submit the technical responses as the assigned evaluator."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid after bidding and technical evaluation."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify that both bidding vendors appear with real company names."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the lower RFQ amount ranks first."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the complete event to the lowest bidder."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the assigned approver and approve the submitted award with a remark"
+    },
+    "note": "The catalog cannot switch to a separate approver identity."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approved award and create the purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Assert that one PO contains the single awarded PR line with quantity 10."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the events list to verify the completed event is available in history."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Switch to the History tab requested by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's event appears in event history."
+   }
+  ]
+ }
+}

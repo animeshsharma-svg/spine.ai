@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-392",
+  "title": "Auction closes without award when End Price is reached with no acceptance",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:19:58.937Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Ensure the event is specifically a live Dutch auction and drive each round until the End Price is reached.",
+   "Ensure no vendor accepts in every Dutch auction round before the End Price is reached.",
+   "Directly assert that the auction closed specifically because the End Price was reached rather than another closing condition."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Ensure the event is specifically a live Dutch auction and drive each round until the End Price is reached.; Ensure no vendor accepts in every Dutch auction round before the End Price is reached.; Directly assert that the auction closed specifically because the End Price was reached rather than another closing condition."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_event",
+   "close_event",
+   "expect_event_status",
+   "expect_text"
+  ],
+  "ms": 10057
+ },
+ "plan": {
+  "title": "Dutch Auction Closes Without Award",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing live event selected by the runner as the closest available auction state."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the auction's bidding window to close without forcing an award."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Verify the event is shown as closed in the events list."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No bids received yet.",
+     "present": true
+    },
+    "note": "Verify the closed event shows no accepted vendor bid, supporting that no vendor was awarded."
+   }
+  ]
+ }
+}

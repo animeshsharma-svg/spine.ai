@@ -2,16 +2,13 @@
  "meta": {
   "caseId": "API-XSTG-022",
   "title": "A live technical round with no bid end must not crash the timing rule",
-  "compiledAt": "2026-10-15T12:15:29.539Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:18:10.972Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-STG-033 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)",
-   "The available library case does not set status to active or configurations.bid_end_time to null for a technical round.",
-   "The expected HTTP 422 response is not asserted because the available assertion vocabulary has no HTTP-status assertion for 422 and no known application error code applies.",
-   "The evaluator userUuid, permission state, and exact /trade/template_input request body are not expressible.",
-   "library case EDGE-STG-033 needs a starting state no recipe builds (“Buyer session whose user has trade create_record permission and sourcing-events access (TradeRequestPolicy#create?)”)"
+   "The operation vocabulary does not define the complete working body for /trade/template_input, so only the stated changed fields are sent.",
+   "The expected HTTP 422 is expressible through the reject outcome, but no application error code for this case is provided."
   ],
   "warnings": [],
   "validated": true,
@@ -28,14 +25,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer sends the request that adds a round to the event, exactly as the matching library case writes it.",
-    "As the buyer, read the event and check that the read succeeds."
+    "The buyer sends the request that adds a round to the event, the request the case itself writes.",
+    "As the buyer, read the event and check that Status check: the reply's status code is a success (2xx — the request worked)."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.158Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XSTG-022",
   "title": "A live technical round with no bid end must not crash the timing rule",
   "setup": {
@@ -43,10 +41,20 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "request",
     "as": "buyer",
-    "caseId": "EDGE-STG-033",
-    "decisive": true
+    "request": {
+     "method": "POST",
+     "path": "/trade/template_input",
+     "body": {
+      "status": "active",
+      "configurations": {
+       "bid_end_time": null
+      }
+     }
+    },
+    "decisive": true,
+    "ifRefused": "pass"
    }
   ],
   "verify": [
@@ -62,7 +70,7 @@
    }
   ],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject"
   }
  }
 }

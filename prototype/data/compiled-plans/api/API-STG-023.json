@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-STG-023",
+  "title": "Updating a draft stage via template_input strips the status",
+  "compiledAt": "2026-11-09T22:52:20.902Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: No setup recipe creates a draft stage on a scheduled template; draft_rfq is the closest available setup.",
+   "No other edits were specified, so their application cannot be checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the trade template input request, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Data check: “status” equals draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.036Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-STG-023",
+  "title": "Updating a draft stage via template_input strips the status",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/template_input",
+     "body": {
+      "status": "active"
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

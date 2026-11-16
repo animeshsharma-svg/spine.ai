@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-008",
+  "title": "A price round built from PR items carries each item's location, unit, number and reference prices",
+  "compiledAt": "2026-11-09T22:50:04.689Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create a draft event with the specified PR item, PR number, location, unit, budget, historical price, material code, or custom dropdown.",
+   "the decisive step tests something else than the case's point: The setup cannot create the second line without a PR item or set its unit symbol to NOS.",
+   "read_round does not expose line-level fields, serial order, reference prices, dropdown option mapping, ceiling, floor, or tick for assertions.",
+   "No available operation or setup can add a round from another round or verify that its vendors are copied and restricted.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event.",
+    "As the buyer, read the pricing round and check that Data check: “title” equals RFQ."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “title” equals RFQ."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.892Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-008",
+  "title": "A price round built from PR items carries each item's location, unit, number and reference prices",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "title",
+      "op": "equals",
+      "value": "RFQ"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

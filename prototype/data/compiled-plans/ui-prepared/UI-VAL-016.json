@@ -2,37 +2,50 @@
  "meta": {
   "caseId": "UI-VAL-016",
   "title": "A malformed request never produces a partial event",
-  "compiledAt": "2026-10-04T11:44:21.742Z",
+  "compiledAt": "2026-11-09T19:48:29.568Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Execute raw HTTP POST request with malformed JSON body",
-   "Assert 4xx HTTP status code and server error response"
+   "Direct raw HTTP payload injection with a malformed line_items type (string instead of array) since the UI steps abstract payload construction"
   ],
   "warnings": [
-   "added expect_events_list — opening the list without asserting it rendered tests nothing",
-   "cannot test this case yet — no step can observe: Execute raw HTTP POST request with malformed JSON body; Assert 4xx HTTP status code and server error response"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Direct raw HTTP payload injection with a malformed line_items type (string instead of array) since the UI steps abstract payload construction"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-SCH-003",
-   "UI-CRE-018"
+   "UI-VAL-009",
+   "UI-TPL-015"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "ui_val_016_malformed_line_items_rejected",
+  "title": "Malformed request does not create partial event",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Land on events list as a fallback observation point since direct API requests cannot be made through UI steps"
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start on the create screen"
    },
    {
-    "step": "expect_events_list"
+    "step": "set_title",
+    "note": "Give a title"
+   },
+   {
+    "step": "select_template",
+    "note": "Select a template"
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "error"
+    },
+    "note": "Assert the malformed input is refused with an error message"
    }
   ]
  }

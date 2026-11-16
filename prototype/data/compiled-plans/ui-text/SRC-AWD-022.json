@@ -1,0 +1,76 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-022",
+  "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; approver approves with a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:20:04.027Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event has only one line, so allocating line 2 (5 units) to Vendor A and verifying the two-line total of 1,150 cannot be tested.",
+   "Signing in as a separate approver, entering the remark \"OK — QA\", and approving the proposal cannot be tested because approve_award only supports the current buyer as approver.",
+   "Verifying one PO per awarded vendor and the event moving to History after that separate approver approves cannot be completed."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared event has only one line, so allocating line 2 (5 units) to Vendor A and verifying the two-line total of 1,150 cannot be tested.; Signing in as a separate approver, entering the remark \"OK — QA\", and approving the proposal cannot be tested because approve_award only supports the current buyer as approver.; Verifying one PO per awarded vendor and the event moving to History after that separate approver approves cannot be completed."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 14292
+ },
+ "plan": {
+  "title": "Line-wise award across bids",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS, as required for this fixture."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before interacting with the prepared event."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen where vendor allocations can be selected."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10,
+     "line": 1
+    },
+    "note": "Allocate the available 10-unit line to Vendor B at the prepared bid price."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify the available allocation contributes 900 and that only one of the two vendors is selected because the fixture has one line."
+   }
+  ]
+ }
+}

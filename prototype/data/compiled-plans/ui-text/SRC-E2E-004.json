@@ -1,0 +1,261 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-004",
+  "title": "Material PR → single stage reverse auction → split award → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:59:15.478Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The PR status transition from Open to In Progress to ordered cannot be asserted.",
+   "A separate approver login and approval identity cannot be performed by the buyer session.",
+   "The catalog cannot directly assert that two separate POs were created, one for each vendor, with split quantities of 6 and 4; it can only assert the resulting PO line items."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: The PR status transition from Open to In Progress to ordered cannot be asserted.; A separate approver login and approval identity cannot be performed by the buyer session.; The catalog cannot directly assert that two separate POs were created, one for each vendor, with split quantities of 6 and 4; it can only assert the resulting PO line items."
+  ],
+  "source": "llm",
+  "steps": 32,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "set_schedule",
+   "do_on_screen",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "start_awarding",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "ms": 28646
+ },
+ "plan": {
+  "title": "Material PR to Split Auction PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable splitting one PR line across multiple vendors."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable event creation from the PR flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-E2E-004 Material PR Split Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute bidding schedule."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the single-stage auction create screen, set the evaluation duration to 30 minutes and add one Required Terms and Conditions clause, then stop with the saved schedule and clause visible"
+    },
+    "note": "Configure the required evaluation duration and T&C clause, which have no dedicated catalog domain step."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite exactly two QA vendors for Vendor A and Vendor B bidding."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the auction reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submit Vendor A's portal bid at 100, including the vendor-side terms acceptance handled by the bid flow."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's bid was submitted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 2,
+     "price": 90
+    },
+    "note": "Submit Vendor B's portal bid at 90."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor B's bid was submitted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true,
+     "maxWaitMinutes": 36
+    },
+    "note": "Wait for bidding to end before ranking and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid after both bids are available."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify two real vendor columns are shown."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the lower bid ranks first, corresponding to Vendor B's 90 bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 2,
+     "number": 1
+    },
+    "note": "Check that the second bidding vendor, Vendor B in this plan, is Rank 1."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow for the closed auction."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approved award and create the purchase orders."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify the created purchase orders contain the two awarded line entries."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the event reached history."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab after the event lifecycle completes."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify this plan's event appears in event history."
+   }
+  ]
+ }
+}

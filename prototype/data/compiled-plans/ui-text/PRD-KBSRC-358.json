@@ -1,0 +1,141 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-358",
+  "title": "Breakdown total must match the auction bid, with amount to reduce shown",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:16:32.331Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open the vendor's cost-breakdown/CBD screen during CBD time",
+   "Edit breakdown prices so the total exceeds the submitted auction bid",
+   "Submit the breakdown and verify submission is blocked until totals match",
+   "Verify the error states the exact remaining amount to reduce"
+  ],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Open the vendor's cost-breakdown/CBD screen during CBD time; Edit breakdown prices so the total exceeds the submitted auction bid; Submit the breakdown and verify submission is blocked until totals match; Verify the error states the exact remaining amount to reduce"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "close_event",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_message"
+  ],
+  "ms": 14453
+ },
+ "plan": {
+  "title": "Auction CBD Breakdown Total Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the auction needed for the CBD setup."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "CBD Breakdown Validation"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an auction pricing template before adding items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the auction bid and later breakdown."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the vendor who will submit the auction bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the baseline vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the auction to reach the post-bidding state required for CBD."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the vendor's auction pricing view before the missing CBD action."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the vendor's cost-breakdown/CBD screen, increase the breakdown total above the submitted auction bid, submit it, and verify the submission is blocked with an error stating the remaining amount to reduce"
+    },
+    "note": "The catalog has no cost-breakdown/CBD editing or submission step."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that the attempted invalid CBD submission produced an error."
+   }
+  ]
+ }
+}

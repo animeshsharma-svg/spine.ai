@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "API-SUR-022",
+  "title": "A surrogate bid appears in the vendor's own view",
+  "compiledAt": "2026-11-09T19:42:56.592Z",
+  "planVersion": 2,
+  "source": "library-case",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.045Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-SUR-022",
+  "title": "A surrogate bid appears in the vendor's own view",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 2,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

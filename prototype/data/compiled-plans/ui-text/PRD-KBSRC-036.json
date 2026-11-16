@@ -1,0 +1,150 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-036",
+  "title": "Evaluation Time duration (preset or custom)",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:09:37.930Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that evaluation remains available for the entire chosen duration after the event ends and then becomes unavailable at the exact duration boundary."
+  ],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Verify that evaluation remains available for the entire chosen duration after the event ends and then becomes unavailable at the exact duration boundary."
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "do_on_screen",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "evaluate_technical",
+   "expect_no_error"
+  ],
+  "ms": 23341
+ },
+ "plan": {
+  "title": "Evaluation Time Duration",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open a single-stage create flow suitable for a technical evaluation event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Evaluation Time Duration Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the technical-stage template required before publishing."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the technical questionnaire so the stage has an evaluable response form."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for technical-stage evaluation."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the event schedule before configuring and publishing it."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the buyer's schedule screen, open Evaluation Time, choose the Duration preset for 30 minutes, save it, and stop on the schedule summary showing the saved evaluation duration"
+    },
+    "note": "Configure and visually verify the requested evaluation duration, which no catalog domain step can set during event creation."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant needed to submit a technical response."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured technical event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the invited vendor submit the technical response that will later be evaluated."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor's technical response was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the technical event so its evaluation window becomes available."
+   },
+   {
+    "step": "evaluate_technical",
+    "args": {},
+    "note": "Verify that the evaluator can access and submit evaluation after the event closes."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm no application error occurred during evaluation access and submission."
+   }
+  ]
+ }
+}

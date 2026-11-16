@@ -22,7 +22,31 @@ export interface CasePrep {
   auction?: boolean;
   /** true when the plan opens a screen on an API-built event (open_prepared); false for a fresh create screen / list */
   prepared: boolean;
+  /** the case is about what the VENDOR sees: after publish the plan switches to the supplier portal */
+  vendorSide?: boolean;
+  /** the auction's strategy the case's own words name (16 Nov): built into the API-made round's configuration */
+  strategy?: AuctionStrategy;
   why: string;
+}
+
+/** What a case says about the auction it starts from: dynamic time extension (trigger / extend minutes, top N) and / or a traffic light (by price or rank, the GREEN / YELLOW bounds). */
+export interface AuctionStrategy {
+  dynamic?: { triggerMinutes: number; extendByMinutes: number; topBids: number; on: "price" | "rank" };
+  trafficLight?: { by: "price" | "rank"; lower?: number; upper?: number };
+}
+
+/** The strategy named in a case's words ("dynamic time extension (trigger 2 min, extend by 2 min)", "traffic light auction"). */
+export function strategyIn(text: string): AuctionStrategy | undefined {
+  const t = text.toLowerCase();
+  const num = (re: RegExp) => { const m = t.match(re); return m ? Number(m[1]) : undefined; };
+  const out: AuctionStrategy = {};
+  if (/dynamic (time|event) extension|time extension|anti.?sniping/.test(t)) {
+    const trigger = num(/trigger[^0-9]{0,30}(\d+(?:\.\d+)?)\s*min/) ?? num(/last\s+(\d+(?:\.\d+)?)\s*min/) ?? 2;
+    const extend = num(/extend(?:ed|s|ing)?(?: the time| the event)? by\s+(\d+(?:\.\d+)?)\s*min/) ?? num(/extension (?:of|by)\s+(\d+(?:\.\d+)?)\s*min/) ?? 2;
+    out.dynamic = { triggerMinutes: trigger, extendByMinutes: extend, topBids: num(/top\s+(\d+)\s+bids?/) ?? 2, on: /extension on rank|rank change/.test(t) ? "rank" : "price" };
+  }
+  if (/traffic light/.test(t)) out.trafficLight = { by: /by rank|rank[- ]based traffic/.test(t) ? "rank" : "price", lower: num(/green[^0-9]{0,30}(\d+(?:\.\d+)?)/), upper: num(/yellow[^0-9]{0,30}(\d+(?:\.\d+)?)/) };
+  return out.dynamic || out.trafficLight ? out : undefined;
 }
 
 const WHAT: Record<string, string> = {
@@ -36,6 +60,7 @@ const WHAT: Record<string, string> = {
   participants: "the pricing round's Participants tab",
   master_qcs: "Master QCS",
   analytics: "the pricing round's Analytics tab",
+  vendor: "the supplier portal, on this event, as the invited vendor",
 };
 
 const r = (state: UiState, screen: string, technical: boolean, why: string): CasePrep => ({
@@ -53,8 +78,16 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
   // A case whose own setup starts from an auction (and is not a conversion — that starts from
   // an RFQ) gets a live auction round instead of an RFQ.
   const setup = String(c.setup ?? "").toLowerCase();
-  if (p.ok && p.prepared && p.state !== "draft" && /\bauction\b/.test(setup) && !/convert|conversion|rfq/.test(setup) && c.group !== "UI-CONV")
-    return { ...p, auction: true, why: `${p.why} (as a live auction round)` };
+  if (p.ok && p.prepared && p.state !== "draft" && !["dutch", "knockout", "forward"].includes(p.state) && /\bauction\b/.test(setup) && !/convert|conversion|rfq/.test(setup) && c.group !== "UI-CONV") {
+    const strategy = strategyIn(`${setup} ${c.title}`);
+    return { ...p, auction: true, ...(strategy ? { strategy } : {}), why: `${p.why} (as a ${strategy?.dynamic ? "dynamic-time-extension " : ""}${strategy?.trafficLight ? "traffic light " : ""}auction round)` };
+  }
+  // Two vendors named in the setup (10 Nov): a buyer-side case on an event with two vendors' bids used to get one
+  // QA vendor's bid and compare nothing. Both QA vendors are invited; with bids named, both have bid (two_bids).
+  if (p.ok && p.prepared && (p.state === "bid" || p.state === "live") && /two vendors(?! closing)|\b2 vendors\b|second vendor|both vendors|two (distinct )?(vendor )?companies|vendors? a\b.*vendors? b\b|two bids|\b2 bids\b|two vendors' bids/.test(setup) && !/closing mode/.test(setup)) {
+    const bids = p.state === "bid" || /\bbids?\b|quotes?\b|\(\d+\)/.test(setup);
+    return { ...p, state: bids ? "two_bids" : "two_invited", why: `${p.why} — with TWO QA vendors ${bids ? "and a bid from each" : "invited"} (the setup names two vendors)` };
+  }
   return p;
 }
 
@@ -64,8 +97,28 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
   const g = c.group;
 
   // Screens not in the model yet — said plainly, never forced elsewhere.
-  if (g === "UI-VBID" || /supplier portal|vendor portal|\bas the vendor\b|the vendor('s)? (sees|view|screen|sheet|side|portal|opens|reads)|vendor side/.test(t))
-    return { ok: false, state: "live", screen: "vendor", screenWhat: "the vendor portal", technical, prepared: true, why: "the vendor portal is not in the screen model yet" };
+  // The supplier portal (2 Nov): the event is built by API with its QA vendor invited (bid / closed when the
+  // case says so) and opened in the vendor's own browser, signed in as that vendor (open_prepared vendor).
+  if (g === "UI-VBID" || /supplier portal|vendor portal|\bas the vendor\b|the vendor('s)? (sees|view|screen|sheet|side|portal|opens|reads)|vendor side/.test(t)) {
+    const setup2 = String(c.setup ?? "").toLowerCase();
+    const both = `${setup2} ${c.title.toLowerCase()}`;
+    // A vendor the event does NOT have (10 Nov): the event is built live by API with one QA vendor invited, and the
+    // context's vendor is ANOTHER QA vendor of the client — the plan signs in as that one and tries to open it
+    // (open_prepared vendor). The invited vendor's name is in values.invitedVendorName.
+    if (/uninvited|not invited|not on its audience|vendor not (on|in) the (audience|event)|other vendor|another vendor(?! bids)/.test(both) && !/two vendors|\b2 vendors\b|second vendor|both vendors/.test(both))
+      return { ok: true, state: "uninvited", screen: "vendor", screenWhat: "the supplier portal, signed in as a QA vendor the event was NOT sent to", technical, prepared: true, why: "a vendor-side case about a vendor the event does not have — built live by API with one QA vendor invited; the plan signs in as a second QA vendor that was not invited and tries to open the event" };
+    // Two vendors (10 Nov): both QA vendors invited; with bids named, each has placed its own bid (two_bids).
+    if (/two vendors|\b2 vendors\b|second vendor|both vendors|two distinct vendor|vendor a .* vendor b|two (vendor )?companies/.test(both)) {
+      const bids = /\bbids?\b|\(\d+\)|bidding on/.test(setup2);
+      return bids
+        ? { ok: true, state: "two_bids", screen: "vendor", screenWhat: "the supplier portal, on this event, as the first of the two QA vendors that bid", technical, prepared: true, why: "a vendor-side case with two vendors' bids — built live by API with two QA vendors invited, each having submitted its own bid; opened as the first vendor (values.secondVendorName names the other)" }
+        : { ok: true, state: "two_invited", screen: "vendor", screenWhat: "the supplier portal, on this event, as the first of the two invited QA vendors", technical, prepared: true, why: "a vendor-side case with two vendors invited — built live by API with two QA vendors on the audience and no bid yet; opened as the first vendor (values.secondVendorName names the other)" };
+    }
+    // An event the API builds never reaches the vendor's own list (2 Nov: 132s of looking, "not among the
+    // vendor's events" — the API's audience is not the invitation the portal lists). So the plan creates
+    // and publishes the event in the console, invites the QA vendor there, and only then switches sides.
+    return { ...r("none", "create", technical, "a vendor-side case — the plan creates and publishes the event in the console with its QA vendor invited, then switches to the supplier portal as that vendor (switch_portal + vendor_open_event)"), vendorSide: true };
+  }
   if (g === "UI-PR" || g === "UI-XDPRE" || /purchase request|\bpr\b line|intake/.test(t))
     return { ok: false, state: "none", screen: "pr", screenWhat: "the purchase-request screens", technical, prepared: false, why: "the purchase-request screens are not in the screen model yet" };
   if (g === "UI-ENV" || g === "UI-PERM" || g === "UI-NFR")
@@ -77,11 +130,29 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
   // version") ran on a never-amended event and "found" no Send to Evaluation — both went to
   // the to-confirm queue as if the product misbehaved.
   const setup = String(c.setup ?? "").toLowerCase();
-  const notBuilt = (what: string): CasePrep => ({ ok: false, state: "live", screen: "summary", screenWhat: WHAT.summary, technical, prepared: true, why: `the case starts from ${what}, which the API setup does not build yet` });
-  if (/newer version|superseded|old(er)? version|previous version|amended (event|rfq|rfp)|after an amendment/.test(setup) || /on an old version|old version/.test(c.title.toLowerCase()))
-    return notBuilt("an amended event (an older version beside a newer one)");
-  if (/masking (is )?on|vendor masking enabled|isvendormaskingenabled/.test(setup)) return notBuilt("a client with vendor masking switched on");
-  if (/already[- ]converted|a converted (rfq|auction)|converted auction/.test(setup)) return notBuilt("an RFQ already converted to an auction");
+  const t2all = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+  // An amended event (10 Nov): built live by API with the vendor's bid, then a new version issued and published.
+  // "v1 / the original / an old version / superseded" opens the OLD version (amended); "a published amendment /
+  // the amended event's own panel" opens the NEW version (amendment). (The old rule's title check carried literal
+  // backspace characters where \b was meant and never matched.)
+  if (/newer version|superseded|old(er)? version|previous version|amended (event|rfq|rfp)|after an amendment|published amendment|\bv1 of\b|\(v1\)|two versions/.test(setup) || /on an old version|old version/.test(c.title.toLowerCase())) {
+    const newOne = /published amendment|the amendment('s)? (details|panel|remark)|on the amended event|new version('s)? (details|summary)/.test(setup) && !/\bv1 of\b|\(v1\)|old(er)? version|original|superseded|newer version/.test(setup);
+    const screen = /master qcs|\bqcs\b|award/.test(t2all) ? "master_qcs" : /participants?|add bid/.test(t2all) ? "participants" : /responses|comparison|counter offer/.test(t2all) ? "responses" : "summary";
+    return r(newOne ? "amendment" : "amended", screen, technical, `the case starts from ${newOne ? "the published amendment (the NEW version of an amended event)" : "an OLD version of an amended event (v1, no longer the latest)"} — built by API (live, the vendor's bid in, a new version issued and published); opened on ${WHAT[screen] ?? screen}`);
+  }
+  // Vendor masking on (10 Nov): a per-round setting (is_vendor_masking_enabled on the stage) the company allows;
+  // built live by API with the vendor's bid in.
+  if (/masking (is |switched |turned )?on|vendor masking enabled|isvendormaskingenabled|with vendor masking|masking enabled/.test(setup)) {
+    const screen = /responses|comparison|bid(s)? (list|table)|counter offer/.test(t2all) ? "responses" : /master qcs|\bqcs\b/.test(t2all) ? "master_qcs" : /participants?/.test(t2all) ? "participants" : "summary";
+    return r("masked", screen, technical, `the case starts from a published RFQ with vendor masking on — built by API (the round created with is_vendor_masking_enabled, the vendor's bid in); opened on ${WHAT[screen] ?? screen}`);
+  }
+  // A published RFQ with the vendor's bid, converted into a live auction (2 Nov): the API converts it and the
+  // vendor bids in the auction; the screens open on the AUCTION round.
+  if (/already[- ]converted|a converted (rfq|auction)|converted auction|after (the |a )?conversion|once converted/.test(setup)) {
+    const t2 = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+    const screen = /counter offer|negotiat|responses|comparison|bid(s)? (list|table)/.test(t2) ? "responses" : /master qcs|\bqcs\b|rank/.test(t2) ? "master_qcs" : /participants?|surrogate/.test(t2) ? "participants" : /overview/.test(t2) ? "overview" : "summary";
+    return r("converted", screen, technical, `the case starts from an RFQ already converted to an auction — built by API (RFQ with a bid, converted; the vendor bid in the auction); opened on ${WHAT[screen] ?? screen}`);
+  }
   // An award proposal already SUBMITTED for approval: the "awarded" state submits the proposal
   // into the client's approval workflow (eventJourney award_submit) and keeps its id, so the
   // proposal page opens on a requested / in-approval proposal.
@@ -109,9 +180,23 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
     const screen = /master qcs|\bqcs\b|start awarding/.test(t2) ? "master_qcs" : "proposal";
     return r("proposal", screen, technical, `the case starts from a draft award proposal — built by API (closed, line allocated); opened on ${WHAT[screen] ?? "the award proposal page"}`);
   }
-  if (/withdrawn/.test(setup)) return notBuilt("a withdrawn event");
-  // auction SUBTYPES the API body does not choose yet (it builds a price-based english auction)
-  if (/dutch|knock-?out|japanese/.test(setup)) return notBuilt("a dutch / knockout auction (the API setup builds a standard price auction)");
+  // A withdrawn EVENT (10 Nov): published by API, then withdrawn by the buyer with a remark. "A withdrawn
+  // approval / request" is about the award's approval, not the event — it falls through to the award rules.
+  if (/withdrawn/.test(setup) && !(/approval|proposal|request\b/.test(setup) && !/withdrawn (event|rfq|rfp|rfx|project|stage|round)|(event|rfq|project) (is |was |has been )?withdrawn/.test(setup))) {
+    const screen = /participants?|add bid|surrogate/.test(t2all) ? "participants" : /^events in /.test(setup) && /list|radio|tab/.test(t2all) ? "events_list" : "summary";
+    return r("withdrawn", screen, technical, `the case starts from a withdrawn event — built by API (published, then withdrawn with a remark); opened on ${WHAT[screen] ?? screen}`);
+  }
+  // Auction STRATEGIES (10 Nov). A case ABOUT CHOOSING the strategy (the conversion screen / drawer, "Dutch
+  // selected", "Publish") starts from the published RFQ with a bid the conversion opens on; a case ON a running
+  // dutch / knockout auction starts from a live round built with that strategy. Procol has no "japanese"
+  // strategy: the accept-the-price (Japanese) auction is its KNOCKOUT.
+  if (/dutch|knock-?out|japanese/.test(setup)) {
+    if (/conversion|convert|drawer|selected|buy order|sell order/.test(setup) && !/\b(live|running) (dutch|knockout|knock-out|japanese)|a (dutch|knockout|knock-out|japanese) auction with/.test(setup))
+      return r("bid", "summary", technical, "a case about choosing a dutch / knockout strategy in the conversion drawer — a published RFQ with a vendor's bid is built by API");
+    const kind = /dutch/.test(setup) ? "dutch" : "knockout";
+    const screen = /participants?|add bid|surrogate/.test(t2all) ? "participants" : /overview/.test(t2all) ? "overview" : /master qcs|\bqcs\b|rank/.test(t2all) ? "master_qcs" : "summary";
+    return { ...r(kind, screen, technical, `the case starts from a live ${kind} auction${kind === "knockout" && /japanese/.test(setup) ? " (Procol's name for the Japanese auction)" : ""} — built by API (an auction round created with auction_config ${kind}, two QA vendors invited); opened on ${WHAT[screen] ?? screen}`), auction: true };
+  }
   if (/^\s*(a|an) draft (rfq|rfp|rfx|event|auction)\b/.test(setup) && !/proposal/.test(setup))
     return r("draft", "draft", technical, "the case starts from a draft — the draft is built by API (no publish) and reopened");
 
@@ -138,8 +223,12 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
     return r(/closed|after (the )?end|ended|start awarding|award/.test(t) ? "closed" : "bid", "master_qcs", technical, "an award/approval case — the event is built with a bid and closed");
   }
   if (g === "UI-XDNEG" || /counter offer|negotiat/.test(t)) return r("bid", "responses", technical, "a counter-offer case — the event is built with a vendor's bid");
-  if (g === "UI-XDQCS" || /master qcs|\bqcs\b|comparison|compare|\bl1\b|best (bid|price)|rank/.test(t))
-    return r(/closed|after (the )?end|ended/.test(t) ? "closed" : "bid", /master qcs|\bqcs\b/.test(t) ? "master_qcs" : "responses", technical, "a comparison case — the event is built with a vendor's bid");
+  if (g === "UI-XDQCS" || /master qcs|\bqcs\b|comparison|compare|\bl1\b|best (bid|price)|rank/.test(t)) {
+    // "the finished auction … ranks the final bids" (16 Nov): a closed round with TWO bidders, so there is a ranking to judge
+    const over = /closed|after (the )?end|ended|finished|completed|result after/.test(t);
+    const ranked = /final bids|ranks? (the )?(final|bids)|lowest wins|highest wins|two (vendors|bids|bidders)/.test(t);
+    return r(over ? (ranked ? "closed_two_bids" : "closed") : "bid", /master qcs|\bqcs\b/.test(t) ? "master_qcs" : "responses", technical, over && ranked ? "a ranking case on a finished event — the event is built with two vendors' bids and closed" : "a comparison case — the event is built with a vendor's bid");
+  }
 
   // Participants and surrogate bids.
   if (g === "UI-SUR" || g === "UI-PART" || /participants?|audience|add bid|surrogate|invite/.test(t))

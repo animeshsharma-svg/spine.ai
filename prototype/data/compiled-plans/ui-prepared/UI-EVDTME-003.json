@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "UI-EVDTME-003",
+  "title": "Changing only the delivery date in the Reschedule dialog does not reschedule",
+  "compiledAt": "2026-11-09T19:54:47.090Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Asserting that no reschedule notification push was sent to vendors"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Asserting that no reschedule notification push was sent to vendors"
+  ],
+  "state": "upcoming",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Changing only the delivery date in the Reschedule dialog does not reschedule",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the upcoming event in prepared summary state"
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event's Settings menu"
+   },
+   {
+    "step": "reschedule_event",
+    "args": {
+     "delivery": "+1d",
+     "expect": "saved",
+     "keepsLength": true
+    },
+    "note": "Change only the delivery date and save"
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/template_input",
+     "method": "PATCH",
+     "bodyContains": "delivery_schedules"
+    },
+    "note": "Assert request body contains delivery schedules update"
+   }
+  ]
+ }
+}

@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-007",
+  "title": "A vendor does not receive the dutch auction's stop price",
+  "compiledAt": "2026-11-09T20:07:51.982Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not expose fields for configuring or verifying Dutch auction start price 1000, end price 700, or step 50.",
+   "The available read-back fields do not identify the current round price or the stop price, so the plan cannot verify that the current price is shown and the end price is absent from the vendor view."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "POST /v1/bids",
+   "GET /trade/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The invited QA vendor opens a bid on the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.933Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-007",
+  "title": "A vendor does not receive the dutch auction's stop price",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer",
+    "decisive": false
+   },
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

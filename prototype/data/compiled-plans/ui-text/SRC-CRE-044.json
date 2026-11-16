@@ -1,0 +1,209 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-044",
+  "title": "Add Columns — Price Cap",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-13T11:32:08.996Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "click",
+   "click",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_error",
+   "set_schedule",
+   "invite_vendor",
+   "expect_publish_blocked"
+  ],
+  "ms": 13831
+ },
+ "plan": {
+  "title": "Single Stage Price Cap Column Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the tenant capability required for the Price Cap column."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to RFQ and retain the default whole-lot awarding mode."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-044 Price Cap Validation"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the first available RFQ template so the pricing sheet can be populated."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Add the specified product and allow its mapped Variant 1 value to populate."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Select the specified delivery location."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Columns"
+    },
+    "note": "Open the product sheet's extra-column selector."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "name": "Price Cap"
+    },
+    "note": "Add the Price Cap column to the sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "value": "100"
+    },
+    "note": "Enter the valid cap value."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "kept": true,
+     "equals": "100"
+    },
+    "note": "Verify that 100 is retained without a cell error."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "value": "abc"
+    },
+    "note": "Try a non-numeric price cap."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "refused": true
+    },
+    "note": "Verify that letters are rejected by the sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "value": "-1"
+    },
+    "note": "Try a negative price cap."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price Cap",
+     "refused": true
+    },
+    "note": "Verify that the negative value is rejected."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Price Cap cannot be negative"
+    },
+    "note": "Assert the required negative-cap validation message."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule so publish reaches price-cap validation."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant before attempting to publish."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please enter valid price cap values"
+    },
+    "note": "Assert that publishing is blocked with the invalid-price-cap message."
+   }
+  ]
+ }
+}

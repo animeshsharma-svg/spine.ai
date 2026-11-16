@@ -1,0 +1,124 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-046",
+  "title": "Recreate Order: The custom evaluation duration handles special characters and very long input",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T01:46:01.047Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether clicking Create Order actually creates a new order for either input when no catalog step exposes the resulting order record.",
+   "unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Whether clicking Create Order actually creates a new order for either input when no catalog step exposes the resulting order record."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "select",
+   "fill",
+   "click",
+   "expect_toast",
+   "do_on_screen",
+   "expect_screen_clean"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 29220
+ },
+ "plan": {
+  "title": "Recreate Order custom evaluation duration validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one vendor bid; this is the required first step for prepared-state cases."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage named by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses tab before opening the stage Settings menu."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Assert that the Recreate Order window opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Evaluation Duration",
+     "option": "Custom"
+    },
+    "note": "Select the custom evaluation-duration mode."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "placeholder": "10",
+     "value": "10@#$%"
+    },
+    "note": "Enter the special-character duration value from the test data."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Submit the special-character value."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "any"
+    },
+    "note": "Capture any success, warning, or refusal toast produced by the first submission."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "If the Recreate Order window closed, reopen it from the RFQ stage Settings menu; select Custom under Evaluation Duration, enter exactly 500 characters consisting only of A in the field with placeholder 10, click Create Order, and record the resulting field error, refusal or success message and whether the window remains open."
+    },
+    "note": "The catalog cannot express the conditional reopen and exact long-input outcome recording in one deterministic sequence, so perform this second case adaptively on the buyer screen."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the final screen has no crash, server error, raw identifiers, or malformed values."
+   }
+  ]
+ }
+}

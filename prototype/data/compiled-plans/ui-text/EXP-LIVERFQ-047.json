@@ -1,0 +1,157 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-047",
+  "title": "Increase Event Time: Cancel Increase Event Time leaves original end time unchanged",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:46:22.212Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The absence of a toast after cancellation cannot be asserted because the catalog has no negative toast-presence assertion."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The absence of a toast after cancellation cannot be asserted because the catalog has no negative toast-presence assertion."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "expect_text",
+   "remember",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_remembered"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 14591
+ },
+ "plan": {
+  "title": "Cancel Increase Event Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Ensure live-event withdrawal behavior matches the case setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage page."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses tab specified by the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Confirm the original RFQ end time is visible before opening the dialog."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "original_end_time",
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Capture the original end time for comparison after cancellation."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Verify that the Increase Event Time dialog opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the time extension without saving changes."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": false
+    },
+    "note": "Verify that cancellation closes the dialog."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "original_end_time",
+     "same": true,
+     "text": "30 October 2026 03:43 AM"
+    },
+    "note": "Verify that the RFQ end time remains unchanged after cancellation."
+   }
+  ]
+ }
+}

@@ -74,6 +74,8 @@ interface Catalog {
   names: string[];
   /** Labels the product is known to render, by screen (from its source + live finds). */
   labels?: Record<string, string[]>;
+  /** every UI string in the product's source (scan-dashboard-labels.ts) — the guard's exact-match list, not the prompt's */
+  sourceLabels?: string[];
 }
 
 function loadCatalog(): Catalog {
@@ -215,8 +217,11 @@ First decide WHICH SCREEN the test is about:
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
-- Auction STRATEGY (rank / price / traffic light) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
-- Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
+- Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
+- TRAFFIC LIGHT and DYNAMIC TIME EXTENSION are fields of that same drawer, so they are ARGS of configure_single_stage, never do_on_screen: traffic light → auctionSubtype "traffic_light" with trafficBy ("price" | "rank") and rangeLower / rangeUpper (the GREEN / YELLOW bounds; "" for a case that leaves them empty); dynamic time extension → dynamicExtension true with extendByMinutes, triggerMinutes (the "trigger … on last N minutes") and topBids. Both are set on a FRESH single-stage auction (no conversion). The refusals come at Publish Event: configure → template → line items → vendors → schedule → publish → expect_publish_blocked / expect_error with the app's words.
+- WHAT EACH SIDE SEES in a DYNAMIC TIME EXTENSION auction (a bid in the last minutes moves the end) is a real check too: configure_single_stage{eventType:"auction", dynamicExtension:true, extensionOn:"price", extendByMinutes:N, triggerMinutes:N, topBids:2} (the "Time extension on change in" list starts at Top 2 bids) → … → set_schedule{minutes:5} (a short window so the run reaches the last minutes; the trigger must stay under half the window) → publish → expect_published → place_bid{vendor:1, price:100} (Vendor A) → switch_portal{to:"vendor", vendor:2} → vendor_open_event → wait_for_end_window{minutesBefore:1} → vendor_bid{price:95} (Vendor B's last-minute bid) → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"vendor", vendor:1} → vendor_open_event → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"buyer"} → expect_time_extended{byMinutes:N, side:"buyer"} → expect_participants_summary{dynamicTimeExtended:"N min"} → event_menu{item:"Order Activity"} → expect_text{text:"Due to a quote revision, the Dynamic Time Extension has been triggered."}. Never ask_tester for the end time, the participants count or the activity log.
+- WHAT EACH SIDE SEES in a traffic light auction is a real check, never ask_tester: after the bids, switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor"} for each bidder N, then switch_portal{to:"buyer"} → expect_zone{bid:<price>, zone} per bidder. The zone follows the bounds (gross ≤ GREEN → green, ≤ YELLOW → yellow, else red); leave rangeLower/rangeUpper out and the lint sets them from the bids so the lowest bidder is green, the next yellow, the rest red. "Zones the buyer allowed to see the best price / rank" is set_zone_visibility{bestPriceZones:["green"], bestPrices:1, rankZones:["green"]} on the buyer's side (the live stage's Actions ▾ menu), then expect_zone{side:"vendor", rank:true, bestPrice:true} as the green bidder and {rank:false, bestPrice:false} as another.
+- Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress). A second bidding currency is added with add_bidding_currency{currencies:["USD"]} on the RFQ's create screen BEFORE publish (the footer's "Edit Currencies"; greyed out on the converted screen): "currency configuration cannot be added in Knockout / Dutch Auction" = add the currency on the RFQ → publish → convert_to_auction → configure dutch/knockout → publish → expect_publish_blocked{because:"Currency configuration cannot be added in Knockout / Dutch Auction"}.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
 - Bidding RULES the product enforces (captured live, 21 Oct 2026): (1) a vendor bids ONCE — after a bid is in, that vendor's "Add Bid" control is gone, so a second bid must name a DIFFERENT vendor; (2) bids for N vendors need N vendors on the event: invite_vendor{count: N} (or names) before publish; (3) no bid after the bidding window has ended — the app answers "Order not active" — except a surrogate bid on a tenant whose config "is_allowed_to_add_surrogate_bid_post_expiry" is on (a case about that must say which tenant); (4) a counter offer needs the VENDOR's own bid — the Counter Offer button is disabled on a surrogate bid; (5) comparing, Master QCS and awarding need an event WITH BIDS: never search the list for "some" event — start from the prepared state ("bid") the API builds, or create → publish → bid in the same plan.
@@ -255,6 +260,22 @@ NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
 - Follow either with expect_bid_submitted when the test asserts the bid landed.
 - Awarding comes AFTER bidding and needs at least one bid: award_event, then expect_awarded. There is nothing to award on an event nobody has bid on.
 - Assertions go immediately after the step they check.
+
+WHAT THE VOCABULARY CAN ALREADY SAY (10 Nov 2026 — these were listed as gaps for weeks; none of them is one):
+- THE VENDOR IN A SEPARATE SESSION ("Vendor A logs in in a separate browser session / window", "as the vendor, in the supplier portal", "switch to the vendor portal", "the vendor opens the event"): switch_portal{to:"vendor"} — the run opens a SECOND browser signed in as the event's invited QA vendor, beside the buyer's — then vendor_open_event{} (its bid sheet; overview:true for the Event Overview; stage:"technical" for the questionnaire). Every generic step then acts on the vendor's screen; switch_portal{to:"buyer"} returns to the buyer's page, and switch_portal{to:"vendor"} again to the vendor's. The vendor's own bid there is vendor_bid{price} (any value the case gives: -100, 0, abc, above the cap; submit:false to only type); a bid the portal must refuse is attempt{step:"vendor_bid", args:{price:-100}, expect:"refused"}. Never place_bid after switch_portal. ONE QA vendor can sign in: a SECOND vendor's own session (Vendor B, an uninvited vendor) is the only part that is a gap — say "a second vendor session" and keep the rest.
+- OPTION LISTS — what a dropdown, select, picker, duration preset list, strategy tabs or a menu OFFERS ("the presets are 30 Mins, 1 Hour, 4 Hours, 24 Hours", "the menu offers only X, Y, Z", "Book Building is not offered", "template T is offered but greyed out"): expect_options{name|label:<the control that opens it>, options, absent, disabled, enabled, count, only}. It opens the list, reads it, judges and closes it; it never chooses.
+- TABLES AND LISTS — rows and cells ("the list has 25 rows", "the row for X shows Y under Z", "no row for X", "every row shows a status"): expect_table{within, rows|min|max, row, present, cells:{header: value}, eachRow}. A count that must RISE or FALL by one: remember{key, …} the figure, act, then expect_remembered{key, delta:"+1"}.
+- COMPARING TWO VALUES ON SCREEN ("the footer chip's end equals the drawer's", "the vendor's total equals the buyer's grid", "the title on the list is the title on the detail page", "the savings on Responses equal the Overview's"): remember{key, <target>} on the first, navigate (go_to, switch_portal …), then expect_remembered{key, <the second target>, as:"number"|"text", contains}. A value the API holds is expect_api_value{key} / expect_qcs_cell{key}.
+- A GREYED-OUT CONTROL WITH A TOOLTIP ("X is disabled and its tooltip says T"): expect_disabled{control:"X"} then expect_message{kind:"tooltip", on:"X", text:"T"}. A greyed-out MENU ITEM: expect_menu_item{item, enabled:false} (Settings / ⋮ menus) or expect_options{…, disabled:["X"]} (dropdowns).
+- THE EVENT MENUS — the project's ⋮ menu and a stage's Settings (gear) menu: expect_menu_item{item, present:true|false, enabled:true|false} reads one item's state (offered / absent / greyed out); event_menu{item} chooses one; withdraw_event, extend_submission_time, add_price_cap, reschedule_event, convert_to_auction, create_new_version are their own steps; open_event_settings + expect_options{options, only:true} reads the whole gear menu.
+- MESSAGES ("a readable refusal", "the message names the field", "a toast confirms it"): expect_message{kind:"error"|"success"|"any", text} / expect_toast / expect_field_error{field} — quote the words only when the case quotes them (an unquoted guess is a label guess).
+- ONE CELL OF THE PRICE / BOQ SHEET on the create screen ("letters in the price", "a negative quantity", "999999999.99", "blank the second row's quantity"): set_sheet_cell{row, column, value} then expect_sheet_cell{row, column, kept|refused|equals|empty} — fill_sheet fills the whole sheet and is not that.
+- DOWNLOADS ("download the report / the template", "the file name is …"): click the download control (a known label), then expect_download{name, contains, rows}. A workbook's cells beyond text / CSV, and a file over 10 MB, are gaps.
+- A SECOND VENDOR'S BID when only one QA vendor can sign in: place_surrogate_bid{vendor|price} — the buyer bids for another invited vendor; two bids = one place_bid (or vendor_bid) + one place_surrogate_bid, or two place_surrogate_bid. Then the two-column Master QCS steps (expect_qcs_vendors, expect_qcs_ranks, expect_qcs_cell{vendor:2}) and expect_responses read the comparison.
+- A VALUE THE CASE DOES NOT STATE BUT THE SCREEN DOES ("the title reads <product> - <location>", "the published title equals the typed title", "the total equals quantity × price for whatever was quoted", "the card shows the event's ref id"): read it first with remember{key, <where it stands>} (the product cell, the typed title, the ref id), then expect_remembered{key, <where it must appear>, contains:true} (or as:"number") — a dynamic value is never a gap when both places are on screen in this plan.
+- EVERY PLAN ENDS IN AN ASSERTION. ask_tester and do_on_screen are not assertions: a plan whose last step is one of them has coverage "none". The smallest honest check is expect_visible / expect_text on a KNOWN LABEL of the screen the case ends on (e.g. the sign-in screen's "Continue with email"), or expect_message for a message the case quotes.
+- EXACT LABELS: the schedule drawer's duration presets read "30 Mins", "1 Hrs", "4 Hrs", "1 Days" (getReadableDuration — never "30 minutes" / "1 hour" / "24 hours"); the Settings menu's items and the create screen's controls are in KNOWN LABELS — copy them letter for letter.
+- STILL GAPS (say so, do not substitute): a tenant SETTING flipped, a second vendor's own session, an approver's or another buyer's sign-in, a network payload's structure, absolute start / end times on the create screen's schedule (set_schedule takes a duration; reschedule_event moves a published upcoming event), a knockout / dutch strategy on a fresh create screen.
 `.trim();
 
 /**
@@ -268,10 +289,12 @@ GENERIC STEPS — reading, verifying, navigating and acting on any screen:
 - Name elements EXACTLY as the screen does. Use a label from KNOWN LABELS when one fits. A label you invent is a GUESS: if you must use one, list it in cannotExpress as "unconfirmed label: <label>" and set coverage "partial".
 - Controls: role + name (button / tab / menuitem / switch / checkbox / radio). Fields: label (or placeholder). Messages and plain words: text.
 - ABSENCE ("X does not render", "zero Add Bid controls", "no price drawer"): expect_visible{visible:false}, expect_text{present:false} or expect_count{count:0} — only with a KNOWN label, and only after navigating to the screen where X would appear (the step waits for that screen to be ready before it believes an absence).
+- A VENDOR REVISING ITS BID ("bids 120 then 110", "submits a revised bid", "bids again") is place_bid again with the SAME vendor and the new price — place_bid{vendor:1, price:120} then place_bid{vendor:1, price:110}. Never ask_tester for it; never a second vendor.
+- THE VENDOR'S SIDE (the case is about what the vendor / supplier sees or does: their Live list, the bid sheet, line items and quantities as the vendor sees them, a hidden rank, a refused over-cap price): build and publish the event first (open_create … invite_vendor, publish, expect_published), then switch_portal{to:"vendor"} — a second browser signed in to the SUPPLIER portal as the invited QA vendor — then vendor_open_event{} (its bid sheet; overview:true for the Event Overview; stage:"technical" for the questionnaire). From there every generic step acts on the vendor's screen: expect_text / expect_visible / expect_count / expect_value for what it shows, vendor_bid{price} to bid (it types the price into every price cell and presses Submit Quote; submit:false only types), attempt{step:"vendor_bid", args:{price}, expect:"refused"} for a bid the portal must refuse (a negative price, letters, a price above the cap, a bid after the window). switch_portal{to:"buyer"} returns to the buyer's event page (then go_to responses / open_master_qcs to read the buyer's side). Never place_bid after switch_portal — the vendor is already signed in.
 - NEGATIVE TESTS (the case says the app must REFUSE / BLOCK / NOT ALLOW something): leave the enabling step out and mark it skip{step, reason}; then assert the block — expect_publish_blocked{because} for a refused publish, attempt{step, args, because} for any other refused action (attempt passes only on visible evidence: a message, a disabled control, or with expect:"nothing_opens" no drawer/dialog opening). Several refusals in one case = several skip → block pairs in order; put the left-out step back after its block before testing the next. NEVER use skip in a case that expects success.
 - A message the case quotes ("Please add participants to proceed!") belongs in expect_message{kind, text} or in the block step's because.
 - Tooltip: expect_message{kind:"tooltip", on:"<control>", text}. Before/after comparisons: remember{key, target} … expect_remembered{key, same}.
-- Procol is never changed: no step changes a company or tenant SETTING. switch_company only to a QA tenant the case names by id (198678, 32461, 47053). A case that needs a setting flipped, an API payload, a status code or a network request inspected cannot be tested on screen — list it in cannotExpress.
+- COMPANY SETTINGS: a case that needs the company set up a certain way ("with eRFX off", "lock_vendors_addition_in_event_creation = Off", "verify commercial masking is enabled for the tenant", its Configs Needed line) starts with require_setting{key, value} — or {phrase, value} in the case's words when it names no key — one per setting, BEFORE every other step. The runner switches it on the approved test company, confirms it from the app's answer and switches it back after the case. Never list a needed setting in cannotExpress and never open a settings screen for it. A case whose SUBJECT is a different company or a plan tier (Growth, Enterprise) is not a setting: switch_company only to a QA tenant the case names by id (198678, 32461, 47053), else cannotExpress. An API payload, a status code or a network request inspected cannot be tested on screen — list it in cannotExpress.
 `.trim();
 
 const SYSTEM = `You compile QA test cases into runnable plans for Procol, a B2B procurement product.
@@ -299,6 +322,7 @@ THE SITE UNDER TEST — not Procol. Only the steps above exist; none knows this 
 - Dates: a field that opens a calendar (check-in, departure, date of birth) is pick_date{label, date:"12 December 2026"} — one step per date; it opens the field, turns the months and presses the day. A plain date/time input is fill with YYYY-MM-DD / HH:MM. Hour/minute spinners are fill{label:"hour", value:"2"}; AM/PM are buttons (click).
 - Something in a long list, a table that loads as you scroll, or a paged table ("find INV-2037 in the table", "scroll until Order 1587 is visible"): scroll_to{text:"INV-2037"} first (it scrolls and turns pages), then act within it.
 - "Expand the row X" / "open the details of X" is click{role:"button", name:"Show details", within:"X"} (or the row's Expand / chevron button); what the row reveals is then read within:"X". "Read its Y and fill Answer with it": remember{key, text:"Y", within:"X"} is only for comparing later — when the answer must be typed, coverage is "partial" unless the value is given.
+- "Click the first available date after 15 November", "the earliest free night", "the next open slot": choose_by_number{measure:"date", by:"earliest", after:"15 November 2026", role:"button"} — it reads every day's name, leaves out disabled, sold-out and past days, and presses the earliest after the cutoff. Never take the day from the Verify text: the calendar decides.
 - "Click / add / open the cheapest (most expensive, longest-lasting, highest-rated) one", "compare the packs' unit prices and add the cheapest": choose_by_number{by, measure, exclude, role, name} — one step that reads the numbers and presses the control (name the control: role:"button", name:"Add to cart", or role:"link"). For a unit price or hours give measure as a regex with one capture group. When the case limits the comparison to some items ("among the Voltpine AA packs"), pass only:"Voltpine Alkaline AA" so near-namesakes (AAA) stay out. This is how a value read off the screen decides the next action; a plan never guesses which block wins.
 - "the review with the most people found this helpful", "the flight with the fewest stops", "the highest-rated": also choose_by_number{by:"highest"|"lowest", measure:"(\\d+) people found this helpful", role:"button", name:"Helpful"}. Never guess which item it is from the Verify text — the step reads the numbers.
 - "Open the confirmation link in the mail body" (a URL shown as text): go_to{screen:"url_on_screen", within:"<text near it>"}.
@@ -308,8 +332,43 @@ THE SITE UNDER TEST — not Procol. Only the steps above exist; none knows this 
 - A multi-step case sentence ("Fill A with 1, choose B in C and fill D with 2") is several plan steps.
 - "Find the row X and read its Y, then fill Answer with it": use remember{key, within:"X", text:<column text>} only if the value is on screen; otherwise coverage "none".
 - The LAST step must be an assertion (expect_text, expect_download, expect_dialog, expect_value, expect_visible, expect_count). If the case's final check cannot be expressed, coverage is "none" — never hand back a plan that only acts. A case step that comes AFTER the final Verify and cannot be expressed or is ambiguous is left out with coverage "partial" (named in cannotExpress): the Verify is still the test.
-- REFUSE rather than invent. If finishing the goal needs data the case does not give (a name, an email, a password, a card number, a code), a date or option the page does not offer, or the target is ambiguous or a bot wall, set coverage "none", list why in cannotExpress, and return no steps. A plan that reports success it did not reach is the worst possible output.
+- A step the agent must REFUSE — its target is ambiguous (the same words on two different controls, e.g. a submit button and a sidebar link both reading "Book firing"), or the control is sold out / disabled / marked unavailable — is attempt{step:"click", args:{text or role+name}, expect:"refused"}: the executor presses nothing unless the refusal is real, and reports it. Never drop such a step and never guess which control was meant. The attempt is the plan's LAST step — nothing is verified after a refusal.
+- within is the words that tell the row or card from the others (a name, an id, the text in it); "the only row left in the table" is within:"table". Give a field its label as the page writes it when the case quotes it ("Min", not "Min price"); the executor still finds a field whose label is part of the words.
+- "… and report that the item cannot be added / the form cannot be sent without X": the action the case says cannot go through is attempt{step:"click", args:{role:"button", name:"Add to cart"}, expect:"refused"} and it is the LAST step — never an assertion that the page asks for the missing data, which would read as success.
+- REFUSE rather than invent. If finishing the goal needs data the case does not give (a name, an email, a password, a card number, a code, an account, a phone number, a date of birth), a date or option the page does not offer, or the target is ambiguous or a bot wall, set coverage "none", list why in cannotExpress, and return no steps. A plan that reports success it did not reach is the worst possible output.
 `.trim();
+
+/**
+ * The site lint: no product knowledge, only the shape of a plan. One rule so far — after an attempt
+ * that expects a refusal, an assertion that the SAME control is visible is not a check (the attempt
+ * found it, and found it refused); the model adds one now and then (G-R37, 31 Oct) and it reads as
+ * "the plan acted after the refusal".
+ */
+export function lintSitePlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } {
+  const repairs: string[] = [];
+  // The model now and then writes a step's args beside "step" instead of under "args" (S-01, 31 Oct:
+  // {"step":"choose_by_number","by":"lowest",…}). The keys are unmistakable: fold them in.
+  const steps = plan.steps.map((s) => {
+    const extra = Object.keys(s).filter((k) => !["step", "args", "note"].includes(k));
+    if (s.args || !extra.length) return s;
+    const args: Record<string, unknown> = {};
+    for (const k of extra) args[k] = (s as unknown as Record<string, unknown>)[k];
+    repairs.push(`${s.step}: moved ${extra.join(", ")} under args — they were written beside the step`);
+    return { step: s.step, args, ...(s.note ? { note: s.note } : {}) } as PlanStep;
+  });
+  const key = (a: Record<string, unknown> | undefined) => String(a?.name ?? a?.text ?? a?.label ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const i = steps.findIndex((s) => s.step === "attempt" && String((s.args as Record<string, unknown> | undefined)?.expect ?? "refused") === "refused");
+  if (i >= 0 && i < steps.length - 1) {
+    const inner = ((steps[i].args as Record<string, unknown> | undefined)?.args ?? {}) as Record<string, unknown>;
+    const target = key(inner);
+    const rest = steps.slice(i + 1);
+    if (target && rest.every((s) => /^expect_(visible|text|count)$/.test(s.step) && key(s.args as Record<string, unknown> | undefined) === target)) {
+      steps.splice(i + 1);
+      repairs.push(`dropped ${rest.length} check(s) on "${target}" after the attempt that expects it refused — the attempt is the plan's last word`);
+    }
+  }
+  return { plan: { ...plan, steps }, repairs };
+}
 
 const SITE_SYSTEM = `You compile QA test cases into runnable plans for a web site.
 
@@ -351,6 +410,9 @@ function fallbackPlan(testCase: string): TestPlan {
  * naming each repair — silent correction would hide a compiler that needs
  * improving.
  */
+/** The case says the VENDOR bids (places / submits a bid, quote, price) — not merely looks at the bid sheet. */
+const VENDOR_BIDS = /\b(place|places|placed|submit|submits|submitted|enter|enters|entered|put in|give|gives)\s+(a |the |their |its |an? )?(bid|quote|price|offer)s?\b|\bvendor\b[^.]{0,80}\b(bids|quotes|submits a (bid|quote))\b|\b(bids?|quotes?) (as|from) the vendor\b|\bas (the |an? )?(invited )?vendor\b[^.]{0,80}\b(enters?|types?|submits?|bids?|quotes?|offers?|revis\w*)\b|\b(enter|type|offer)s?\s+`?-?\d|\b(revise|revising|revised)\b[^.]{0,30}\b(bid|quote|price)/i;
+
 export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repairs: string[] } {
   const steps = [...plan.steps];
   const repairs: string[] = [];
@@ -483,11 +545,316 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // A DUTCH / KNOCKOUT FIELD CASE reaches its drawer only through conversion (13 Nov): on a fresh single-stage
+  // screen those cards are greyed out ("can be created only when converting an RFQ to an auction"). Whatever the
+  // model wrote, the plan becomes: the RFQ created and published → convert_to_auction → configure_single_stage
+  // {auction, dutch | knockout, the ONE field the case is about} → the case's own check. The other fields get
+  // valid defaults in the executor, so the refusal is about that field.
+  const auctionField = /\b(dutch|knock-?out|tick size|base price|start(ing)? price|end(ing)? price|time difference)\b/i.test(testCase);
+  const configuresStrategy = steps.some((s) => s.step === "configure_single_stage" && /dutch|knock/i.test(String(s.args?.auctionSubtype ?? "")) && steps.some((x) => x.step === "convert_to_auction"));
+  if (auctionField && !configuresStrategy && !has("open_prepared") && has("configure_single_stage")) {
+    const sub = /knock-?out/i.test(testCase) ? "knockout" : "dutch";
+    const num = (re: RegExp) => testCase.match(re)?.[1];
+    const args: Record<string, unknown> = { eventType: "auction", auctionSubtype: sub };
+    const tick = num(/tick size (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (tick !== undefined) args.tickSize = tick;
+    const start = num(/(?:start(?:ing)? price|base price) (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (start !== undefined) args.startPrice = start;
+    const end = num(/end(?:ing)? price (?:to |of |as |= ?|is )?(-?\d+(?:\.\d+)?)/i); if (end !== undefined) args.endPrice = end;
+    if (/(?:base|start(?:ing)?) price (?:empty|blank)|(?:leave|without|no) (?:the )?(?:base|start(?:ing)?) price/i.test(testCase)) args.startPrice = "";
+    if (/tick size (?:empty|blank)|(?:leave|without|no) (?:the )?tick size/i.test(testCase)) args.tickSize = "";
+    if (/time difference (?:empty|blank)|(?:leave|without|no) (?:the )?time difference/i.test(testCase)) args.timeDifference = "";
+    const first = steps.find((s) => s.step === "configure_single_stage")!;
+    first.args = { eventType: "rfq" };
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const s = steps[i];
+      if ((s.step === "do_on_screen" || s.step === "fill_required") && /dutch|knock|tick|price|strategy|auction|currenc/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
+    }
+    const tailAt = steps.findIndex((s) => ["publish", "expect_publish_blocked", "expect_error", "expect_published", "expect_toast", "attempt"].includes(s.step));
+    const tail = tailAt >= 0 ? steps.splice(tailAt) : [];
+    // a second bidding currency belongs on the RFQ's screen before its publish (greyed out once converted)
+    const currencySteps = tail.filter((s) => s.step === "add_bidding_currency");
+    // the tail is rebuilt below: only the case's own checks survive from what the model wrote after the publish
+    const REBUILT = new Set(["publish", "expect_published", "add_bidding_currency", "convert_to_auction", "configure_single_stage", "set_schedule", "fill_required", "do_on_screen"]);
+    const check = tail.filter((s) => !REBUILT.has(s.step));
+    if (/\b(second|another|multiple|bidding) currenc/i.test(testCase) && !has("add_bidding_currency") && !currencySteps.length) currencySteps.push({ step: "add_bidding_currency", args: { currencies: ["USD"] } });
+    steps.push(...currencySteps, { step: "publish" }, { step: "expect_published" }, { step: "convert_to_auction" }, { step: "configure_single_stage", args }, ...(check.length ? check : [{ step: "publish" }, { step: "expect_published" }]));
+    repairs.push(`a ${sub} auction's fields live on the converted event's screen — the plan creates and publishes an RFQ, converts it, then configures ${sub} with ${JSON.stringify(args)}`);
+  }
+
+  // A TRAFFIC LIGHT / DYNAMIC TIME EXTENSION case (14 Nov): both are fields of the single-stage configuration
+  // drawer, so they become args of the plan's configure_single_stage; a do_on_screen that tried to set them by
+  // hand is dropped. The numbers come from the case's own words (trigger 0.5 minute, extend by 2 min, top 3 bids).
+  const drawerField = /\b(traffic light|dynamic (time|event) extension|time extension|anti.?sniping|auto.?extend)/i.test(testCase);
+  if (drawerField && has("configure_single_stage") && !has("open_prepared") && !has("convert_to_auction")) {
+    const cfg = steps.find((s) => s.step === "configure_single_stage")!;
+    const args: Record<string, unknown> = { ...(cfg.args ?? {}), eventType: "auction" };
+    const num = (re: RegExp) => testCase.match(re)?.[1];
+    if (/traffic light/i.test(testCase)) {
+      args.auctionSubtype = "traffic_light";
+      if (/by rank|rank[- ]based traffic|traffic light.{0,20}\brank\b/i.test(testCase)) args.trafficBy = "rank";
+      if (/(without|no|leave|leaving|empty|blank).{0,30}\brange/i.test(testCase) || /range[s]?\s+(empty|blank)/i.test(testCase)) { args.rangeLower = ""; args.rangeUpper = ""; }
+      const lo = num(/green[^0-9]{0,30}(\d+(?:\.\d+)?)/i); if (lo !== undefined && args.rangeLower === undefined) args.rangeLower = lo;
+      const hi = num(/yellow[^0-9]{0,30}(\d+(?:\.\d+)?)/i); if (hi !== undefined && args.rangeUpper === undefined) args.rangeUpper = hi;
+    }
+    if (/dynamic (time|event) extension|time extension|anti.?sniping|auto.?extend/i.test(testCase)) {
+      args.dynamicExtension = !/(turn|switch|keep|leave)\w* (it )?off|without dynamic|no dynamic|disabled?\b/i.test(testCase);
+      const trig = num(/trigger[^0-9]{0,40}(\d+(?:\.\d+)?)\s*(?:min|minute)/i) ?? num(/(?:in|on) (?:the )?last\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i); if (trig !== undefined) args.triggerMinutes = trig;
+      const by = num(/extend(?:ed|s|ing)? (?:the )?(?:time |event |closing )?by\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i) ?? num(/extension (?:of|by)\s+(\d+(?:\.\d+)?)\s*(?:min|minute)/i); if (by !== undefined) args.extendByMinutes = by;
+      const top = num(/top\s+(\d+)\s+bids?/i); if (top !== undefined) args.topBids = Number(top);
+      if (/trigger[^.]{0,40}(empty|blank)|(without|no|leave) (?:a |the )?trigger/i.test(testCase)) args.triggerMinutes = "";
+    }
+    if (JSON.stringify(args) !== JSON.stringify(cfg.args ?? {})) {
+      cfg.args = args;
+      repairs.push(`traffic light / dynamic time extension are fields of the configuration drawer — configure_single_stage now carries ${JSON.stringify(args)}`);
+    }
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const s = steps[i];
+      if ((s.step === "do_on_screen" || s.step === "fill_required") && /traffic|range|extension|trigger|sniping|extend/i.test(JSON.stringify(s.args ?? {}))) {
+        steps.splice(i, 1);
+        repairs.push("dropped a do_on_screen about the traffic light / time extension — configure_single_stage sets those fields");
+      }
+    }
+  }
+
+  // TRAFFIC LIGHT BIDDING (14 Nov, SRC-STR-005): a case that bids on a traffic light auction and asks what each side
+  // sees. The bounds come from the bids themselves (gross = price × quantity, a reverse auction: ≤ GREEN → green,
+  // ≤ YELLOW → yellow, above → red): GREEN = the lowest gross, YELLOW = the next one, so the lowest bidder is green,
+  // the next yellow, the rest red. An ask_tester about zones / colours becomes expect_zone on both sides.
+  {
+    const cfg = steps.find((s) => s.step === "configure_single_stage" && /traffic/i.test(String(s.args?.auctionSubtype ?? "")));
+    const bids = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid").map((s) => Number(s.args?.price ?? 100)).filter((p) => Number.isFinite(p));
+    if (cfg && bids.length >= 2 && /traffic light/i.test(testCase) && !has("open_prepared")) {
+      // the quantity: add_line_items{quantity}, else a sheet cell step about the quantity ("10 KG"), else the case's
+      // own words ("quantity 10"), else 1 (14 Nov: a screen-grounded rebuild carried the quantity as a sheet check,
+      // and bounds computed with 1 put every bidder in the red)
+      const numIn = (v: unknown) => { const m = String(v ?? "").match(/\d+(?:\.\d+)?/); return m ? Number(m[0]) : undefined; };
+      const qtyStep = steps.find((s) => s.step === "add_line_items" && s.args?.quantity !== undefined);
+      const qtyCell = steps.find((s) => (s.step === "set_sheet_cell" || s.step === "expect_sheet_cell") && /quantity/i.test(String(s.args?.column ?? "")) && (s.args?.value !== undefined || s.args?.expected !== undefined));
+      const qty = numIn(qtyStep?.args?.quantity) ?? numIn(qtyCell?.args?.value ?? qtyCell?.args?.expected) ?? numIn(testCase.match(/quantity\s*(?:of\s*)?(\d+(?:\.\d+)?)/i)?.[1]) ?? 1;
+      const gross = [...new Set(bids.map((p) => p * qty))].sort((x, y) => x - y);
+      const args = { ...(cfg.args ?? {}) } as Record<string, unknown>;
+      // bounds the CASE states stay; bounds the model made up (the case names none) give way to the bid-derived ones
+      const caseNamesBounds = /\b(green|lower)\b[^.]{0,40}\d|\d[^.]{0,40}\b(green|yellow|range|bound)\b/i.test(testCase);
+      if (!caseNamesBounds || (args.rangeLower === undefined && args.rangeUpper === undefined)) {
+        const before = args.rangeLower !== undefined || args.rangeUpper !== undefined ? ` (the model's ${args.rangeLower} / ${args.rangeUpper} were not from the case)` : "";
+        args.rangeLower = String(gross[0]);
+        args.rangeUpper = String(gross[1] ?? gross[0]);
+        if (!args.awarding) args.awarding = "lot";
+        cfg.args = args;
+        repairs.push(`traffic light bounds set from the bids: GREEN ≤ ${args.rangeLower}, YELLOW ≤ ${args.rangeUpper} (gross = price × ${qty}) so the lowest bidder is green, the next yellow, the rest red${before}`);
+      }
+      // a generic look for the "RFP" chip before the configure is the model's habit, not the case's: the screen opens
+      // with the company's default type (switched to auction for this plan), so that look fails every run
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const s = steps[i];
+        if ((s.step === "expect_visible" || s.step === "expect_text") && /^\s*rfp\s*$/i.test(String(s.args?.name ?? s.args?.text ?? "")) && i < steps.indexOf(cfg)) {
+          steps.splice(i, 1);
+          repairs.push("dropped a look for the RFP chip before the configure — the create screen opens with the company's default type");
+        }
+      }
+      const lower = Number(args.rangeLower), upper = Number(args.rangeUpper);
+      const zoneOf = (g: number) => (g <= lower ? "green" : g <= upper ? "yellow" : "red");
+      const asksZones = /zone|colou?r|green|yellow|red|what (each|the) (side|vendor)s? sees?/i.test(testCase);
+      const hasZoneSteps = has("expect_zone");
+      if (asksZones && !hasZoneSteps) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+          const s = steps[i];
+          if (s.step === "ask_tester" && /zone|colou?r|green|yellow|red|rank|best.?price/i.test(JSON.stringify(s.args ?? {}))) steps.splice(i, 1);
+        }
+        const lastBid = Math.max(...steps.map((s, i) => (s.step === "expect_bid_submitted" || s.step === "place_bid" || s.step === "vendor_bid" ? i : -1)));
+        const bidSteps = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid");
+        const added: PlanStep[] = [];
+        bidSteps.forEach((s, i) => {
+          const price = Number(s.args?.price ?? 100);
+          added.push({ step: "switch_portal", args: { to: "vendor", vendor: i + 1 } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: zoneOf(price * qty), side: "vendor", rank: false } });
+        });
+        added.push({ step: "switch_portal", args: { to: "buyer" } });
+        bidSteps.forEach((s) => {
+          const price = Number(s.args?.price ?? 100);
+          added.push({ step: "expect_zone", args: { bid: price, zone: zoneOf(price * qty) } });
+        });
+        steps.splice(lastBid + 1, 0, ...added);
+        // a switch_portal{buyer} the model wrote right after is now a no-op; drop a duplicate
+        for (let i = steps.length - 1; i > lastBid + added.length; i--) if (steps[i].step === "switch_portal" && String(steps[i].args?.to ?? "") === "buyer" && steps[i - 1]?.step === "switch_portal") steps.splice(i, 1);
+        repairs.push(`what each side sees in a traffic light auction is checked with expect_zone: each bidder's own portal (${bidSteps.map((s, i) => `${i + 1}: ${zoneOf(Number(s.args?.price ?? 100) * qty)}`).join(", ")}) and the buyer's Responses lights`);
+      }
+      // "zones that the buyer allowed to see the best price / rank": allow the green zone, then look again as the
+      // green bidder (rank and best price shown) and as a bidder outside it (neither shown)
+      if (/can see (the )?(best price|rank)|allowed .{0,40}(best price|rank)|(best price|rank).{0,40}(zone|visib)/i.test(testCase) && !has("set_zone_visibility")) {
+        const bidSteps = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid");
+        const order = bidSteps.map((s, i) => ({ n: i + 1, zone: zoneOf(Number(s.args?.price ?? 100) * qty) }));
+        const green = order.find((o) => o.zone === "green");
+        const other = order.find((o) => o.zone !== "green");
+        if (green) {
+          const tail: PlanStep[] = [{ step: "switch_portal", args: { to: "buyer" } }, { step: "set_zone_visibility", args: { bestPriceZones: ["green"], bestPrices: 1, rankZones: ["green"] } }];
+          tail.push({ step: "switch_portal", args: { to: "vendor", vendor: green.n } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: "green", side: "vendor", rank: true, bestPrice: true } });
+          if (other) tail.push({ step: "switch_portal", args: { to: "vendor", vendor: other.n } }, { step: "vendor_open_event" }, { step: "expect_zone", args: { zone: other.zone, side: "vendor", rank: false, bestPrice: false } });
+          tail.push({ step: "switch_portal", args: { to: "buyer" } });
+          // right after the last buyer-side expect_zone; what the model wrote after that (a stray switch to the
+          // vendor, a closing expect_responses) follows the tail, and a repeated switch_portal{buyer} is dropped
+          const lastZone = Math.max(...steps.map((s, i) => (s.step === "expect_zone" && String(s.args?.side ?? "buyer") !== "vendor" ? i : -1)));
+          const at = lastZone >= 0 ? lastZone + 1 : steps.length;
+          steps.splice(at, 0, ...tail);
+          for (let i = steps.length - 1; i > 0; i--) {
+            if (steps[i].step === "switch_portal" && steps[i - 1].step === "switch_portal" && String(steps[i].args?.to ?? "") === String(steps[i - 1].args?.to ?? "") && String(steps[i].args?.vendor ?? "") === String(steps[i - 1].args?.vendor ?? "")) steps.splice(i, 1);
+            // a switch to a vendor followed only by vendor_open_event and then a switch back does nothing: drop the pair
+            if (steps[i].step === "vendor_open_event" && steps[i - 1].step === "switch_portal" && steps[i + 1]?.step === "switch_portal" && String(steps[i + 1].args?.to ?? "") === "buyer") steps.splice(i - 1, 2);
+          }
+          repairs.push("the zones allowed to see the best price / rank: set_zone_visibility (green only), then the green bidder sees both and a bidder outside the green zone sees neither");
+        }
+      }
+    }
+  }
+
+  // DYNAMIC TIME EXTENSION BIDDING (14 Nov, SRC-STR-009): a case that bids in the last minutes of a dynamic-extension
+  // auction and asks what each side sees. The run cannot wait out a 30-minute window, so the schedule is the shortest
+  // the trigger allows (trigger < half the bidding time: 2·trigger + 1 minutes, at least 5); Vendor A bids first so
+  // Vendor B's late bid is the improving top bid (and vendor 1 / 2 keep meaning A / B afterwards); the late bid is
+  // typed on an OPEN portal after wait_for_end_window, and the end is read on every side afterwards.
+  {
+    const cfg = steps.find((s) => s.step === "configure_single_stage" && /^(true|1|yes)$/i.test(String(s.args?.dynamicExtension ?? "")));
+    const lateBid = testCase.match(/vendor\s*([a-c]|\d)\s+(?:bids?|quotes?|revises?[^.]{0,20}to)\s+(\d+(?:\.\d+)?)[^.]{0,30}?(\d+|one|a|two|three)\s*(?:min|minute)s?\s+before\s+(?:the\s+)?(?:end|close|closing)/i);
+    // the model may write the timed shape itself (the catalog teaches it): then only the window, the wait cap, the
+    // strategy and the bid prices are made honest below
+    if (cfg && lateBid && !has("open_prepared") && has("wait_for_end_window")) {
+      const args = cfg.args as Record<string, unknown>;
+      const trigger = Number(args.triggerMinutes ?? 2) || 2;
+      const window = Math.max(5, 2 * trigger + 1);
+      const sched = steps.find((s) => s.step === "set_schedule");
+      if (sched && Number(sched.args?.minutes ?? 30) > window) { sched.args = { ...(sched.args ?? {}), minutes: window }; repairs.push(`the window is ${window} minutes (the case says 30: a run cannot wait that out; the trigger of ${trigger} min must stay under half the window, and the sums are the same)`); }
+      for (const w of steps.filter((s) => s.step === "wait_for_end_window")) if (Number(w.args?.maxWaitMinutes ?? 12) > 12) w.args = { ...(w.args ?? {}), maxWaitMinutes: 12 };
+      // the strategy: the case names none → the drawer's default (a price auction); dynamic extension on price
+      if (args.auctionSubtype && !/rank[- ]based|by rank|traffic light|knockout|dutch|price[- ]based/i.test(testCase)) { delete args.auctionSubtype; repairs.push("dropped the auction subtype the model chose — the case names no strategy beyond the dynamic time extension"); }
+      if (!args.extensionOn) args.extensionOn = /extension on rank|rank change/i.test(testCase) ? "rank" : "price";
+      if (args.topBids === undefined) args.topBids = 2; // the list starts at "Top 2 bids" (DEMO, 14 Nov)
+      // an early bid with no price: 100, so the late bid (lower) is the improving top bid
+      const price = Number(lateBid[2]);
+      for (const b of steps.filter((s) => s.step === "place_bid" && s.args?.price === undefined)) b.args = { ...(b.args ?? {}), price: price + 5 };
+      // no early bid at all (a rebuilt plan, 14 Nov): Vendor A bids first, right after the publish is confirmed
+      const waitAt = steps.findIndex((s) => s.step === "wait_for_end_window");
+      if (!steps.slice(0, waitAt).some((s) => s.step === "place_bid" || s.step === "vendor_bid")) {
+        const lateN0 = lateBid[1].toLowerCase();
+        const lateN = /^\d$/.test(lateN0) ? Number(lateN0) : lateN0.charCodeAt(0) - 96;
+        const firstN = lateN === 1 ? 2 : 1;
+        const pubAt = Math.max(indexOf("expect_published"), indexOf("publish"));
+        steps.splice(pubAt + 1, 0, { step: "place_bid", args: { vendor: firstN, price: price + 5 }, note: `Vendor ${String.fromCharCode(64 + firstN)} bids first, so the late bid improves the top price` }, { step: "expect_bid_submitted" });
+        repairs.push(`Vendor ${String.fromCharCode(64 + firstN)} bids ${price + 5} first, so Vendor ${String.fromCharCode(64 + lateN)}'s ${price} is the improving top bid`);
+      }
+    }
+    if (cfg && lateBid && !has("open_prepared") && !has("wait_for_end_window")) {
+      const args = cfg.args as Record<string, unknown>;
+      const extendBy = Number(args.extendByMinutes ?? 2) || 2;
+      const trigger = Number(args.triggerMinutes ?? 2) || 2;
+      if (!args.extensionOn) args.extensionOn = "price";
+      if (args.topBids === undefined) args.topBids = 2; // the list starts at "Top 2 bids" (DEMO, 14 Nov)
+      const letter = lateBid[1].toLowerCase();
+      const lateN = /^\d$/.test(letter) ? Number(letter) : letter.charCodeAt(0) - 96; // a → 1, b → 2
+      const price = Number(lateBid[2]);
+      const beforeWord = lateBid[3].toLowerCase();
+      const minutesBefore = /^\d+$/.test(beforeWord) ? Number(beforeWord) : beforeWord === "two" ? 2 : beforeWord === "three" ? 3 : 1;
+      // the schedule: the shortest window the trigger allows, so the last minutes come inside the run
+      const window = Math.max(5, 2 * trigger + 1);
+      const sched = steps.find((s) => s.step === "set_schedule");
+      if (sched) sched.args = { ...(sched.args ?? {}), minutes: window };
+      else {
+        const pub = indexOf("publish");
+        steps.splice(pub >= 0 ? pub : steps.length, 0, { step: "set_schedule", args: { minutes: window } });
+      }
+      repairs.push(`the window is ${window} minutes (the case says 30: a run cannot wait that out; the trigger of ${trigger} min must stay under half the window, and the sums are the same)`);
+      // the model's bid steps for the late bidder give way to the timed shape
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const st = steps[i];
+        if ((st.step === "place_bid" || st.step === "vendor_bid") && Number(st.args?.price) === price) {
+          steps.splice(i, 1);
+          if (steps[i]?.step === "expect_bid_submitted") steps.splice(i, 1);
+        }
+      }
+      const pubAt = Math.max(indexOf("expect_published"), indexOf("publish"));
+      const shape: PlanStep[] = [];
+      // Vendor A's early bid, when the case has no other bid: B's late bid must be the improving top bid, and
+      // "vendor 1" must stay Vendor A for the later look
+      const otherBids = steps.filter((s) => s.step === "place_bid" || s.step === "vendor_bid");
+      const firstN = lateN === 1 ? 2 : 1;
+      if (!otherBids.length) shape.push({ step: "place_bid", args: { vendor: firstN, price: price + 5 }, note: `Vendor ${String.fromCharCode(64 + firstN)} bids first, so the late bid improves the top price` });
+      shape.push(
+        { step: "switch_portal", args: { to: "vendor", vendor: lateN } },
+        { step: "vendor_open_event" },
+        { step: "wait_for_end_window", args: { minutesBefore } },
+        { step: "vendor_bid", args: { price } },
+        { step: "expect_time_extended", args: { byMinutes: extendBy, side: "vendor" } },
+      );
+      const others = [...new Set([firstN, ...otherBids.map((_s, i) => i + 1)])].filter((n) => n !== lateN);
+      for (const n of others.slice(0, 2)) shape.push({ step: "switch_portal", args: { to: "vendor", vendor: n } }, { step: "vendor_open_event" }, { step: "expect_time_extended", args: { byMinutes: extendBy, side: "vendor" } });
+      shape.push({ step: "switch_portal", args: { to: "buyer" } }, { step: "expect_time_extended", args: { byMinutes: extendBy, side: "buyer" } });
+      if (/participants?\s+panel|dynamic time extended/i.test(testCase)) shape.push({ step: "expect_participants_summary", args: { dynamicTimeExtended: `${extendBy} min` } });
+      if (/order activity|activity log/i.test(testCase)) {
+        // the model's own Order Activity look (and whatever it expected there) gives way to the extension's entry
+        for (let i = steps.length - 1; i > pubAt; i--) {
+          if (steps[i].step === "event_menu" && /order activity/i.test(String(steps[i].args?.item ?? ""))) {
+            steps.splice(i, 1);
+            if (steps[i]?.step === "expect_text") steps.splice(i, 1);
+          }
+        }
+        shape.push({ step: "event_menu", args: { item: "Order Activity" } }, { step: "expect_text", args: { text: "Due to a quote revision, the Dynamic Time Extension has been triggered." } });
+      }
+      // an ask_tester about the end time / the screens / the count is now a real check
+      for (let i = steps.length - 1; i > pubAt; i--) if (steps[i].step === "ask_tester" && /end time|extend|screen|session|portal|participants|activity|see|show|count/i.test(JSON.stringify(steps[i].args ?? {}))) steps.splice(i, 1);
+      // the model counted the responses before Vendor A's early bid existed: the count is the plan's bids
+      const bidsNow = steps.filter((st) => st.step === "place_bid" || st.step === "vendor_bid").length;
+      for (const st of steps) if (st.step === "expect_responses" && st.args && Number(st.args.count) > 0 && Number(st.args.count) < bidsNow) { st.args = { ...st.args, count: bidsNow, direct: bidsNow }; repairs.push(`expect_responses counts the plan's ${bidsNow} bids`); }
+      // after the model's remaining early bids (an early place_bid stays before the late one)
+      let at = pubAt + 1;
+      for (let i = pubAt + 1; i < steps.length; i++) if (steps[i].step === "place_bid" || steps[i].step === "expect_bid_submitted") at = i + 1;
+      steps.splice(at, 0, ...shape);
+      repairs.push(`the last-minute bid: Vendor ${String.fromCharCode(64 + lateN)} (vendor ${lateN}) types ${price} on the open portal ${minutesBefore} min before the end (wait_for_end_window), then the end is read on each side with expect_time_extended{byMinutes:${extendBy}}${/participants?\s+panel|dynamic time extended/i.test(testCase) ? ", the Participants panel's \"Dynamic time extended\"" : ""}${/order activity|activity log/i.test(testCase) ? " and the Order Activity entry" : ""}`);
+      // a closing expect_responses{atLeast:1} the model wrote after the bid is fine where it is; a stray
+      // switch_portal{buyer} right after ours is a duplicate
+      for (let i = steps.length - 1; i > 0; i--) if (steps[i].step === "switch_portal" && steps[i - 1].step === "switch_portal" && String(steps[i].args?.to ?? "") === "buyer" && String(steps[i - 1].args?.to ?? "") === "buyer") steps.splice(i, 1);
+    }
+  }
+
+  // ORDER ACTIVITY WORDING (16 Nov, Aanya's VIS-008): the Activity drawer says "You created the event" only to the
+  // creator; another user reads "<name> has created the event" / "<company> has created the event"
+  // (activity_display_formatter.rb). An event built by the API is created by the automation buyer, so a check on
+  // "You created the event" fails on a filled panel — the check is on the words every voice shares.
+  for (const st of steps) {
+    if (st.step === "expect_text" && /^\s*you created the event\s*$/i.test(String(st.args?.text ?? ""))) {
+      st.args = { ...(st.args ?? {}), text: "created the event" };
+      repairs.push('the Activity drawer says "You created the event" only to the creator ("<name> has created the event" to anyone else) — the check reads "created the event"');
+    }
+  }
+  // DOWNLOAD REPORTS → DOWNLOAD EXCEL (16 Nov, Aanya's QCS-009): the Download Reports panel offers "Download Excel";
+  // a plan that opens the panel and stops there proved nothing — the Excel is pressed and the file awaited
+  if (/download excel/i.test(testCase) && !steps.some((st) => st.step === "click" && /download excel/i.test(String(st.args?.name ?? st.args?.text ?? ""))) && !has("expect_report_matches_qcs")) {
+    const opener = steps.findIndex((st) => (st.step === "click" || st.step === "event_menu" || st.step === "do_on_screen") && /download reports?/i.test(JSON.stringify(st.args ?? {})));
+    if (opener >= 0) {
+      const after = steps[opener + 1]?.step === "expect_download" ? opener + 1 : opener;
+      steps.splice(after + 1, 0, { step: "click", args: { role: "button", name: "Download Excel" } }, ...(has("expect_download") ? [] : [{ step: "expect_download", args: {} }]));
+      // an expect_download that sat right after the opener now waits for the Excel
+      if (steps[opener + 1]?.step === "expect_download") { const [d] = steps.splice(opener + 1, 1); steps.splice(opener + 2, 0, d); }
+      repairs.push('the Download Reports panel offers "Download Excel" — it is pressed and the file awaited (a plan that only opened the panel proved nothing)');
+    }
+  }
+
+  // MASTER QCS REPORT (16 Nov, SRC-STR-010 / 006): "Download Report … the report matches the screen" is one real
+  // check, expect_report_matches_qcs — a bare click on the button plus expect_download proved only that a file came
+  if (/download report/i.test(testCase) && /report (matches|match|agrees|same as|equals)|matches the screen|matches the (master )?qcs/i.test(testCase) && !has("expect_report_matches_qcs")) {
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const st = steps[i];
+      const aboutReport = (st.step === "click" && /download report/i.test(String(st.args?.name ?? st.args?.text ?? ""))) || st.step === "expect_download" || (st.step === "do_on_screen" && /download report/i.test(JSON.stringify(st.args ?? {})));
+      if (aboutReport) steps.splice(i, 1);
+    }
+    const at = Math.max(indexOf("expect_qcs_ranks"), indexOf("open_master_qcs"), indexOf("open_prepared"));
+    steps.splice(at >= 0 ? at + 1 : steps.length, 0, { step: "expect_report_matches_qcs", args: {} });
+    repairs.push("the downloaded Master QCS report is read and compared with the grid, row by row and vendor by vendor (expect_report_matches_qcs) — a click plus a download check only proved a file came");
+  }
+
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
   // through the API and open_prepared opens the screen the case is about. No
   // create screen, no title, no search — only the steps the case is about.
   if (has("open_prepared")) {
-    for (const drop of ["open_create", "set_title", "open_events_list", "open_event", "expect_published", "publish"]) {
+    // a DRAFT opens on its create screen: its publish / expect_published are the case's own steps, kept
+    const draftScreen = steps.some((st) => st.step === "open_prepared" && /^draft$/i.test(String(st.args?.screen ?? "")));
+    for (const drop of draftScreen ? ["open_create", "set_title", "open_events_list", "open_event"] : ["open_create", "set_title", "open_events_list", "open_event", "expect_published", "publish"]) {
       while (has(drop) && !(drop === "publish" && /\bpublish/i.test(testCase))) {
         steps.splice(indexOf(drop), 1);
         repairs.push(`dropped ${drop} — the API built this case's event; open_prepared opens its screen`);
@@ -614,6 +981,71 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // plan that filtered and never looked for any event (eval report, 15 Oct).
   // Decided before the screen is: with the create steps in, it is a create
   // test that ends on the list, as tc042's plan already was.
+  // "OPEN THE FIRST / LATEST CLOSED EVENT IN HISTORY": the list's first card, not a search and not an event
+  // picked for its bids. The model wrote filter_events + open_event (the Live picker) for it (2 Nov).
+  const firstCard = testCase.match(/\bopen(?:s|ing|ed)?\s+(?:the\s+)?(first|top|latest|newest|most recent|oldest|last)\s+(?:(closed|live|draft|recurring|completed|awarded|ended)\s+)?(?:event|rfq|rfp|rfx|auction|card|row|one)\b/i);
+  if (firstCard && !has("open_first_event")) {
+    const tabWord = testCase.match(/\b(live|history|drafts?|recurring)\s+tab\b/i)?.[1] ?? (/closed|completed|awarded|ended|history/i.test(firstCard[2] ?? "") ? "History" : /draft/i.test(firstCard[2] ?? "") ? "Drafts" : "Live");
+    const tab = /^draft/i.test(tabWord) ? "Drafts" : tabWord[0].toUpperCase() + tabWord.slice(1).toLowerCase();
+    const at = steps.findIndex((s) => s.step === "open_event" && !s.args?.id && !s.args?.title);
+    const step: PlanStep = { step: "open_first_event", args: { tab }, note: `the ${firstCard[1]} ${firstCard[2] ?? ""} event under ${tab}`.replace(/\s+/g, " ") };
+    if (at >= 0) {
+      steps.splice(at, 1, step);
+      repairs.push(`open_event → open_first_event{tab:"${tab}"} — the case opens the ${firstCard[1]} card of the list, not an event picked for what comes next`);
+    } else {
+      const after = steps.map((s) => s.step).lastIndexOf("filter_events");
+      steps.splice(after >= 0 ? after + 1 : steps.length, 0, step);
+      repairs.push(`added open_first_event{tab:"${tab}"} — the case opens the ${firstCard[1]} card of the list`);
+    }
+    // The tab the step opens itself makes a separate filter_events for the same tab redundant — harmless, kept.
+  }
+  // THE VENDOR'S SIDE needs an event the vendor is invited to. A plan that switches to the supplier
+  // portal with no event published (or opened) before it signs the vendor in to look for an event that
+  // does not exist (2 Nov, UI-VBID-003: switch_portal was step 1). The create flow through publish goes
+  // in front of the first switch.
+  // …and the vendor's bid is the case's to ask for: "as the vendor, open the event and check the line items"
+  // got a place_bid before the switch (2 Nov) — a bid the case never mentioned, which also turns the bid
+  // sheet the vendor then sees into "Revise Quote".
+  // A bid on the OPEN portal is vendor_bid, never a second sign-in (10 Nov): place_bid after switch_portal
+  // / vendor_open_event becomes vendor_bid with the same price; an attempt{place_bid} there likewise.
+  {
+    const firstPortal = steps.findIndex((s) => (s.step === "switch_portal" && !/^buyer$/i.test(String(s.args?.to ?? "vendor"))) || s.step === "vendor_open_event" || (s.step === "open_prepared" && /^vendor/i.test(String(s.args?.screen ?? ""))));
+    if (firstPortal >= 0) {
+      for (let k = firstPortal + 1; k < steps.length; k++) {
+        const st = steps[k];
+        if (st.step === "switch_portal" && /^buyer$/i.test(String(st.args?.to ?? ""))) break;
+        if (st.step === "place_bid") {
+          steps[k] = { step: "vendor_bid", args: st.args?.price !== undefined ? { price: st.args.price } : {}, note: st.note };
+          repairs.push("place_bid → vendor_bid — the vendor is already signed in on the open portal; vendor_bid types the price there");
+        } else if (st.step === "attempt" && String(st.args?.step ?? "") === "place_bid") {
+          const inner = (st.args?.args ?? {}) as Record<string, unknown>;
+          steps[k] = { ...st, args: { ...(st.args ?? {}), step: "vendor_bid", args: inner.price !== undefined ? { price: inner.price } : {} } };
+          repairs.push("attempt{place_bid} → attempt{vendor_bid} — the refused bid is typed on the open portal");
+        }
+      }
+    }
+    // vendor_bid with no portal open before it: the switch and the event go in front of it.
+    const vb = steps.findIndex((s) => s.step === "vendor_bid" || (s.step === "attempt" && String(s.args?.step ?? "") === "vendor_bid"));
+    if (vb >= 0 && !steps.slice(0, vb).some((s) => s.step === "switch_portal" || s.step === "vendor_open_event" || (s.step === "open_prepared" && /^vendor/i.test(String(s.args?.screen ?? ""))))) {
+      steps.splice(vb, 0, { step: "switch_portal", args: { to: "vendor" } }, { step: "vendor_open_event" });
+      repairs.push("added switch_portal{vendor} + vendor_open_event before vendor_bid — the bid is typed on the vendor's own screen");
+    }
+  }
+  const vendorBids = VENDOR_BIDS.test(testCase);
+  if (steps.some((s) => s.step === "switch_portal" || s.step === "vendor_open_event") && !vendorBids) {
+    for (let k = steps.length - 1; k >= 0; k--) {
+      if (steps[k].step === "place_bid" || steps[k].step === "vendor_bid") {
+        repairs.push(`dropped ${steps[k].step} — the case switches to the vendor's side to look, and never says the vendor bids`);
+        steps.splice(k, 1);
+      }
+    }
+  }
+  const firstSwitch = steps.findIndex((s) => s.step === "switch_portal" && !/^buyer$/i.test(String(s.args?.to ?? "vendor")) || s.step === "vendor_open_event");
+  if (firstSwitch >= 0 && !steps.slice(0, firstSwitch).some((s) => ["publish", "expect_published", "open_event", "open_prepared", "open_first_event", "save_draft"].includes(s.step))) {
+    const build = fallbackPlan(testCase).steps.filter((s) => !steps.slice(0, firstSwitch).some((x) => x.step === s.step));
+    steps.splice(firstSwitch, 0, ...build);
+    repairs.push("added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to");
+  }
   const OWN_EVENT_IN_LIST =
     /\b(?:just|newly|freshly|recently)[- ](?:published|created|made)\s+(?:event|rfq|rfp|auction|project)\b[^.]*\b(?:shows? up|appears?|is listed|is in|in the (?:list|results))/i;
   if (OWN_EVENT_IN_LIST.test(testCase) && !has("open_event")) {
@@ -1151,7 +1583,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // A case that only TRIES a bid Procol must refuse (an attempt, or the missing Add Bid as the check) places
   // none: adding one here put a real bid before SB08's / SB10's refusal check (27 Oct).
   const triesOnly = steps.some((st) => (st.step === "attempt" && /^place_(surrogate_)?bid$/.test(String(st.args?.step ?? ""))) || (st.step === "expect_count" && /add bid/i.test(String(st.args?.name ?? st.args?.text ?? "")) && Number(st.args?.count ?? st.args?.max ?? 1) === 0) || (st.step === "expect_participant" && st.args?.addBid === false && !/\b(then|after)\b/i.test(testCase)));
-  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly) {
+  // A plan that switches to the supplier portal does its vendor work THERE — a look at the bid sheet, or a
+  // bid with fill + Submit — never through a second place_bid sign-in (2 Nov).
+  const looksOnly = has("switch_portal") || has("vendor_open_event") || has("vendor_bid");
+  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid") && !triesOnly && !looksOnly) {
     const step = wantsSurrogate ? "place_surrogate_bid" : "place_bid";
     const at = has("expect_published") ? indexOf("expect_published") + 1 : has("publish") ? indexOf("publish") + 1 : steps.length;
     steps.splice(at, 0, { step });
@@ -1392,6 +1827,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // invite_vendor without named vendors takes every vendor Procol suggests (193 on PROCOL DEMO), so a response check
+  // that pins participation to the number of bidders ("2/2") can never hold — drop that figure, keep the counts
+  {
+    const inviteAll = steps.some((st) => st.step === "invite_vendor" && !(Array.isArray(st.args?.vendors) && (st.args!.vendors as unknown[]).length));
+    if (inviteAll)
+      for (const st of steps)
+        if (st.step === "expect_responses" && st.args && "participation" in st.args) {
+          delete (st.args as Record<string, unknown>).participation;
+          repairs.push("dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders");
+        }
+  }
   return { plan: { ...plan, steps }, repairs };
 }
 
@@ -1469,7 +1915,7 @@ export interface CompileOptions {
    * the plan opens `screen` with open_prepared and holds only the steps the
    * case is about. `valueKeys` are the API values expect_api_value can compare.
    */
-  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string };
+  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string; shape?: { lines?: number; quantity?: number; prices?: number[] }; auction?: boolean; strategy?: { dynamic?: { triggerMinutes: number; extendByMinutes: number; topBids: number; on: string }; trafficLight?: { by: string; lower?: number; upper?: number } } };
   /**
    * The screen the case was written from (the explorer / screen cases): its path and the exact
    * names of its controls. The plan reaches it with go_to {screen:"path"} and acts on it with
@@ -1506,7 +1952,7 @@ function screenRules(sc: NonNullable<CompileOptions["screen"]>): string {
  * expect_disabled / expect_enabled name a control the same way, so they are
  * held to the same standard.
  */
-const LABELLED_STEPS = new Set(["click", "hover", "fill", "select", "toggle", "upload", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "remember", "attempt", "expect_disabled", "expect_enabled"]);
+const LABELLED_STEPS = new Set(["click", "hover", "fill", "select", "toggle", "upload", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "remember", "attempt", "expect_disabled", "expect_enabled", "expect_options", "expect_remembered"]);
 
 /** Is this step an ABSENCE check (passes when something is not there)? */
 function isAbsenceCheck(st: PlanStep): boolean {
@@ -1546,8 +1992,26 @@ function stepLabelWords(st: PlanStep): string[] {
  * full coverage. An ABSENCE check is stricter still: a misspelt name is always
  * absent, so it must use a known label, not merely the case's own words.
  */
-export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record<string, string[]> | undefined): string[] {
+/** A label as the guard compares it: lower case, one space, no role word, no trailing count or ellipsis. */
+export function normLabel(w: string): string {
+  return lc(w.replace(/^role\s+\w+\s+name\s+/i, "").replace(/^(button|link|tab|menu ?item|checkbox|switch|radio|textbox|combobox|row|heading|dialog|option|tooltip)\s+/i, ""))
+    .replace(/\s+/g, " ")
+    .replace(/(\s*\(\d+\)|\s+\d+)$/, "")
+    .replace(/(\.\.\.|…)$/, "")
+    .trim();
+}
+let sourceSet: { from: unknown; set: Set<string> } | null = null;
+function sourceLabelSet(catalog: Catalog): Set<string> | undefined {
+  if (!catalog.sourceLabels?.length) return undefined;
+  if (sourceSet?.from !== catalog.sourceLabels) sourceSet = { from: catalog.sourceLabels, set: new Set(catalog.sourceLabels.map(normLabel)) };
+  return sourceSet.set;
+}
+
+export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record<string, string[]> | undefined, sourceLabels?: Set<string>): string[] {
   const caseText = lc(testCase);
+  // a label the product's source renders word for word is not a guess (its spelling is the product's);
+  // EXACT match only — thousands of strings would let any short word through a substring test
+  const inSource = (w: string) => !!sourceLabels?.has(normLabel(w));
   // The plan's own data — the titles it gives or opens — is not a label guess:
   // finding "UI-BOQ-001 Draft Once" in the list is finding our own event.
   const ownData = steps
@@ -1561,28 +2025,42 @@ export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record
     if (!LABELLED_STEPS.has(st.step)) continue;
     const absence = isAbsenceCheck(st);
     for (const w of stepLabelWords(st)) {
-      if (labelIsKnown(w, labels) || isOwn(w)) continue;
+      if (labelIsKnown(w, labels) || isOwn(w) || inSource(w)) continue;
       if (absence) out.push(`unconfirmed label "${w}" in an absence check (${st.step}) — a name the product does not use is always absent, so this proves nothing until the label is confirmed`);
       else if (!inCase(w)) out.push(`unconfirmed label "${w}" (${st.step}) — not among the labels known from the app nor in the case`);
     }
-    if (st.step === "expect_message" && typeof st.args?.text === "string" && !labelIsKnown(st.args.text, labels) && !inCase(st.args.text)) {
+    if (st.step === "expect_message" && typeof st.args?.text === "string" && !labelIsKnown(st.args.text, labels) && !inSource(st.args.text) && !inCase(st.args.text)) {
       out.push(`expected message "${st.args.text}" is neither a known product message nor quoted by the case`);
     }
   }
   return [...new Set(out)];
 }
 
+/** What the API built when the case stated its numbers (12 Nov): said so the plan asserts them, never calls them a gap. */
+function shapeRules(p: NonNullable<CompileOptions["prepared"]>): string {
+  const sh = p.shape;
+  if (!sh || (!sh.prices?.length && !sh.quantity && !(sh.lines && sh.lines > 1))) return "";
+  const parts = [
+    sh.lines && sh.lines > 1 ? `${sh.lines} line items (the same product on each)` : "",
+    sh.quantity ? `${sh.quantity} units requested on ${sh.lines && sh.lines > 1 ? "each line" : "the line"}` : "",
+    sh.prices?.length === 2 ? `vendor 1 ("Vendor A") bid ${sh.prices[0]} per unit and vendor 2 ("Vendor B") bid ${sh.prices[1]} per unit` : sh.prices?.length === 1 ? `the vendor bid ${sh.prices[0]} per unit` : "",
+  ].filter(Boolean);
+  return `\n- THIS CASE'S NUMBERS WERE BUILT AS IT STATES THEM: ${parts.join("; ")}. So totals (price × quantity), ranks (the lower price is L1), "Awarded Vendors 1/2" counters and a split between the two vendors are assertable — never list these numbers or "the second vendor" as a gap; work the totals out in the assertion (e.g. 6 × 90 = 540). A title like "One bid: award all 10 units to Vendor A" means ONE of the two bids is chosen for the award — the event still has both bids; it is not a different state.`;
+}
+
 /** The prompt section for a case whose state the API builds (CompileOptions.prepared). */
 function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
   return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
-- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; awarded = closed and the proposal submitted).
-- The built event has exactly ONE line item, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings. A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
-- The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".
+- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}${p.auction ? `pricing round that is a live/finished AUCTION (reverse, lowest wins)${p.strategy?.dynamic ? ` with DYNAMIC TIME EXTENSION (trigger ${p.strategy.dynamic.triggerMinutes} min, extend by ${p.strategy.dynamic.extendByMinutes} min, top ${p.strategy.dynamic.topBids} bids) in its configuration` : ""}${p.strategy?.trafficLight ? ` as a TRAFFIC LIGHT auction (by ${p.strategy.trafficLight.by})` : ""} — exactly the auction the case names, so never call the strategy a gap` : "pricing (RFQ) round"}, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted; two_bids = live and TWO QA vendors have each submitted their own bid; closed_two_bids = the bidding window ended after TWO QA vendors each bid — Master QCS, ranks, Start Awarding and a split allocation between the two are all on screen).${shapeRules(p)}
+- ${/two_bids/.test(p.state) ? "The two bidders are QA vendors: vendor 1 (\"Vendor A\") bid first, vendor 2 (\"Vendor B\") second — expect_api_value{key:\"vendorName\"} / {key:\"secondVendorName\"} name them. Otherwise the" : "The"} built event has exactly ${p.shape?.lines && p.shape.lines > 1 ? `${p.shape.lines} line items` : "ONE line item"}, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings.${qaVendorsOnly() ? "" : `
+- A SECOND VENDOR'S BID on a live / bid state ("two vendors bid", "a second bid with a lower total", "Vendor B bids 90", "two bids with the same total", "a surrogate bid beside the vendor's own"): place_surrogate_bid{price} — the buyer enters it on the Participants tab for another invited vendor (its Add Bid row; the run picks a vendor who has not bid; a third bid is another place_surrogate_bid). After it, Master QCS / Responses show two vendor columns, so expect_qcs_vendors{count:2}, expect_qcs_ranks, expect_qcs_cell{vendor:2,…}, expect_responses{count:2, surrogate:1} and a counter offer on the vendor's own bid are all expressible — never list "a second vendor" as a gap on these states. Only a second vendor's OWN portal session (its sign-in, its view) stays a gap. Not on closed / proposal / awarded (bidding is over) and not on a technical stage.`} A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
+${p.state === "draft" ? `- THE DRAFT OPENS ON ITS OWN CREATE SCREEN (quick-create in edit mode, title and stage already there), so the create-screen steps ARE available after open_prepared: select_template, add_line_items, fill_sheet, set_schedule, invite_vendor, save_draft, publish, expect_publish_blocked, expect_stages, expect_line_items. "Set the schedule / end time", "publish the draft", "invite a vendor to the draft" are those steps — never list them as inexpressible. After publish, expect_published / expect_event_status read the project page. A case that needs the draft in another state too gets steps for the draft only and coverage "partial".` : `- The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".`}
 - After a click that opens a proposal, the URL is /project/<id>/proposal/<id>; the awarding screen is /awarding/<id>.
-- The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event. Do NOT open_create, set_title, compose_stages, publish, invite_vendor or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
+- The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event.${p.screen === "vendor" ? `
+- THE SUPPLIER PORTAL: after open_prepared the browser is the VENDOR's — signed in as the invited QA vendor, on this event's bid sheet (the pricing round, with the bid form opened when the round offers one). The buyer's screens (summary, Responses, Master QCS, Participants) are NOT there. Read and act with the generic steps on what the vendor sees: expect_text / expect_visible / expect_count / expect_value for line items, quantities, units, locations, prices, ranks, the bid total, a disabled Submit; bid with vendor_bid{price} (types the price into every price cell and presses Submit Quote; submit:false only types, so the sheet can be read with expect_text / expect_value / expect_remembered); a refusal the vendor must get (a negative price, letters, a price above the cap, a bid after the deadline) is attempt{step:"vendor_bid", args:{price:<what the case types>}, expect:"refused", because:<the message, only if the case quotes it>}. vendor_open_event{overview:true} shows the Event Overview; vendor_open_event{stage:"technical"} the questionnaire. switch_portal{to:"buyer"} goes back to the buyer's event page when the case then checks the buyer's side (its Responses / Master QCS via go_to), and switch_portal{to:"vendor"} returns. Never place_bid here — the vendor is already signed in; bid with vendor_bid. The vendor's name and the title are ${p.valueKeys.includes("vendorName") ? "expect_api_value{key:\"vendorName\"} / {key:\"title\"}" : "expect_api_value on the keys above"}.` : ""} Do NOT open_create, set_title, compose_stages${p.state === "draft" ? "" : ", publish, invite_vendor"} or search the EVENTS list: the event exists. (Searching the event's own Participants list with search_participants / select_participant is fine — select_participant searches by itself.) Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
 - Write ONLY the steps the case is about, then an assertion for EACH screen expectation${p.screenAssertions?.length ? ` — these are the ones a screen must show:\n${p.screenAssertions.map((a) => `  • ${a}`).join("\n")}` : "."}
 - A value the API holds and the screen must show (title, vendor name, quantity, bid price…) → expect_api_value{key} with key one of: ${p.valueKeys.join(", ") || "(none for this state)"}.
-- On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
+- On master_qcs read the grid with expect_qcs_vendors / expect_qcs_cell / expect_qcs_amounts / expect_qcs_ranks (${/two_bids/.test(p.state) ? `the state has TWO bidding vendors${p.shape?.lines && p.shape.lines > 1 ? ` and ${p.shape.lines} line items` : " and ONE line item"}: two vendor columns and their ranks are on screen` : "the state has ONE vendor and ONE line item: ranks and columns beyond that are cannotExpress"}). On participants use search_participants / expect_participant / expect_participant_count; select_participant is the ONLY way to add a vendor on a prepared state (never invent a vendor name — name one only if the case does).
 - Use expect_toast for a toast, expect_field_error for an error at a field, expect_navigated after a click that should move the screen, expect_order for order/sorting, expect_disabled/expect_enabled for control state, expect_visible/expect_text/expect_count for presence and absence, expect_screen_clean when the case is about the screen rendering correctly.
 - If the case needs a state this one is not (e.g. a second vendor, a setting flipped, a different event type), say so in cannotExpress and set coverage "partial" or "none".${p.examples ? `\n\n${p.examples}` : ""}`;
 }
@@ -1620,6 +2098,122 @@ export function quickOutline(testCase: string): { title: string; steps: PlanStep
   } catch {
     return none;
   }
+}
+
+/**
+ * Declared gaps the plan's own steps already cover (10 Nov 2026). Each rule names the gap's words, the step
+ * that does it, and the condition under which the plan holds that step. Deliberately narrow: a gap about a
+ * SECOND vendor, an uninvited vendor or another buyer is never resolved by the one QA vendor's session.
+ */
+export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: string[]; resolved: string[] } {
+  const has = (name: string, pred: (st: PlanStep) => boolean = () => true) => steps.some((st) => st.step === name && pred(st));
+  const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
+  const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
+    {
+      // "compare the downloaded report's values with the Master QCS screen" (16 Nov): expect_report_matches_qcs reads the xlsx
+      gap: /\b(report|download|xlsx|excel)\b[^.]{0,60}\b(match|compare|same|equal|values|screen)/i,
+      covered: () => has("expect_report_matches_qcs"),
+      by: "expect_report_matches_qcs downloads the Master QCS report and compares every grid row, vendor by vendor, with the file",
+    },
+    {
+      // "the auction used a 2-minute trigger and extended by exactly 2 minutes" on a FINISHED event (16 Nov): that is the
+      // event's own configuration, built by the API with the strategy the case names; the ranking is what is checked
+      gap: /\b(trigger|extend(ed|s|sion)?)\b[^.]{0,40}\bminutes?\b/i,
+      covered: () => has("open_prepared") && (has("expect_qcs_ranks") || has("expect_report_matches_qcs")),
+      by: "the finished auction is built by the API with the strategy the case names (dynamic time extension trigger / extension, or traffic light); this case checks its result on Master QCS, not the extension itself (SRC-STR-009 checks that live)",
+    },
+    {
+      // "verify the end time moves for all vendors and the buyer / the participants panel's Dynamic time extended count /
+      // submit the bid one minute before the end" (14 Nov, SRC-STR-009): wait_for_end_window times the bid, and
+      // expect_time_extended reads the end on each side afterwards
+      gap: /\b(end time|closing time|end of the auction|auction end|extend(ed|s|sion)?|last[- ]minute|minute before|dynamic time)\b/i,
+      covered: () => has("wait_for_end_window") && has("expect_time_extended"),
+      by: "wait_for_end_window times the late bid from the app's own end time; expect_time_extended reads the end again on the bidder's portal, the other vendor's portal and the buyer's console; expect_participants_summary reads the Participants panel; expect_text reads the Order Activity entry",
+    },
+    {
+      // "verify each vendor's zone colour / best-price and rank visibility across their sessions" (14 Nov): expect_zone
+      // reads the zone on each bidder's own portal and on the buyer's Responses; set_zone_visibility allows zones
+      gap: /\b(zone|colou?r|traffic light)s?\b|\b(best[- ]price|rank)s?\b[^.]{0,40}\b(visib|see|shown|hidden)/i,
+      covered: () => has("expect_zone") && (has("switch_portal", (st) => !/^buyer$/i.test(String(st.args?.to ?? "vendor"))) || has("set_zone_visibility") || !/\bvendor/i.test(gaps.join(" "))),
+      by: "expect_zone reads each bidder's zone on its own portal (switch_portal{vendor:N}) and on the buyer's Responses; set_zone_visibility allows zones to see the best price / rank and expect_zone{rank, bestPrice} checks what they then see",
+    },
+    {
+      gap: /separate (browser )?(session|window|tab|login)|second (browser|session|window)|(log|sign)(ging|ing|s)? ?in(to)? (as|to) (the |a |an )?(vendor|supplier)|\bas (the |a )?vendor\b|vendor('s)? (portal|side|view|session|login|screen)|supplier (portal|hub|side)/i,
+      covered: (g) => !otherVendor.test(g) && (has("switch_portal", (st) => !/^buyer$/i.test(String(st.args?.to ?? "vendor"))) || has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
+      by: "switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+    },
+    {
+      gap: /\b(vendor|supplier)\b[^.]{0,60}\b(bid|quote|price)s?\b[^.]{0,40}\b(type|enter|submit|place|refus|reject)|\b(negative|invalid|letters?|text|zero|0|above the cap|over the cap)\b[^.]{0,40}\b(price|bid|quote)\b/i,
+      covered: (g) => !otherVendor.test(g) && (has("vendor_bid") || has("attempt", (st) => String(st.args?.step ?? "") === "vendor_bid")),
+      by: "vendor_bid types the price on the open portal and reports what the sheet and Submit did (attempt{vendor_bid} for a refusal)",
+    },
+    {
+      // "the prepared state has only one vendor / one bid" — a second bid IS expressible as a surrogate bid; the
+      // second vendor's own portal session, view or sign-in is not.
+      gap: /\b(second|another|other|two|2|b)\b[^.]{0,40}\b(vendor|bidder|bid|total|quote)s?\b|\bvendor b\b|\bonly one (invited )?(vendor|bid)\b|\bone (vendor|bid)\b[^.]{0,30}\b(cannot|not|no)\b/i,
+      covered: (g) => !/\b(portal|session|sign|log|login|view|sees?|screen)\b/i.test(g) && has("place_surrogate_bid"),
+      by: "place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
+    },
+    {
+      // "the event is in the vendor's Live list" — vendor_open_event finds THIS event in the vendor's list and fails as
+      // NOT INVITED when it is not there; open_prepared{vendor} does the same.
+      gap: /\b(vendor|supplier)('s)?\b[^.]{0,40}\b(live )?(list|events)\b[^.]{0,60}\b(contain|list|show|has|includes?|appears?|present|visible|find|search)/i,
+      covered: (g) => !otherVendor.test(g) && (has("vendor_open_event") || has("open_prepared", (st) => /^vendor/i.test(String(st.args?.screen ?? "")))),
+      by: "vendor_open_event opens THIS event from the vendor's list and fails as NOT INVITED when it is not listed",
+    },
+    {
+      // "set / verify lock_vendors_addition_in_event_creation is Off", "a company with eRFX switched off": the runner
+      // switches it — but only when the plan really holds a require_setting for THAT setting (its key or its words)
+      gap: /\b(setting|config(uration)?|tenant|company)\b[^.]{0,60}\b(on|off|enabled|disabled|switched|set|verify|change|true|false)\b|\b[a-z]+(_[a-z]+){2,}\b/i,
+      covered: (g) => {
+        if (/\b(growth|enterprise|starter|plan tier|rbac|role|another (tenant|company)|different (tenant|company))\b/i.test(g)) return false;
+        const reqs = steps.filter((st) => st.step === "require_setting");
+        const key = g.match(/\b[a-z]+(?:_[a-z]+){2,}\b/)?.[0];
+        if (key) return reqs.some((st) => st.args?.key === key);
+        const gw = new Set(g.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3));
+        return reqs.some((st) => String(st.args?.phrase ?? st.args?.key ?? "").toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3).some((w) => gw.has(w)));
+      },
+      by: "require_setting switches that company setting before the case and back after",
+    },
+    {
+      gap: /tooltip|hover/i,
+      covered: () => has("expect_message", (st) => String(st.args?.kind ?? "") === "tooltip"),
+      by: "expect_message{kind:\"tooltip\", on} hovers the control and reads its tooltip",
+    },
+    {
+      gap: /(dropdown|select|picker|menu|list|presets?|options?|strategy tabs?)\b[^.]{0,60}\b(offer|option|contain|list|item|enumerat|absent|present|greyed|grayed|disabled)|\b(offer|option)s?\b[^.]{0,40}\b(dropdown|select|picker|menu|list)/i,
+      covered: () => has("expect_options"),
+      by: "expect_options opens the list and reads what it offers, with greyed-out items",
+    },
+    {
+      gap: /\b(rows?|table|grid|list)\b[^.]{0,50}\b(count|number|how many|exactly|at least|equal|match|show|read)|\bcount\b[^.]{0,40}\b(rows?|cards?|entries|items|vendors?|participants?)\b/i,
+      covered: () => has("expect_table") || has("expect_remembered", (st) => st.args?.delta !== undefined),
+      by: "expect_table reads the rows and cells; expect_remembered{delta} checks a count that rises or falls",
+    },
+    {
+      gap: /\b(compar|equal|same as|matches?|identical|unchanged|rises? by|increases? by|decreases? by|drops? by|cross[- ]?(check|region|screen|target))/i,
+      covered: () => has("expect_remembered", (st) => stepLabelWords(st).length > 0 || st.args?.delta !== undefined || st.args?.as !== undefined) || has("expect_api_value") || has("expect_qcs_cell", (st) => st.args?.key !== undefined),
+      by: "remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+    },
+    {
+      gap: /\b(⋮|kebab|three[- ]dots?|settings menu|gear|overflow menu)\b[^.]{0,60}\b(item|offer|absent|present|greyed|disabled|enabled)|\bmenu item\b/i,
+      covered: () => has("expect_menu_item") || has("event_menu"),
+      by: "expect_menu_item / event_menu read and choose the ⋮ and Settings menu items",
+    },
+    {
+      gap: /\b(sheet|grid) cell\b|\b(type|enter|put|key)\w*\b[^.]{0,40}\b(into|in) (a|one|the) (price|quantity|numeric|sheet|grid)[^.]{0,20}cell/i,
+      covered: () => has("set_sheet_cell"),
+      by: "set_sheet_cell types into one cell of the price / BOQ sheet; expect_sheet_cell judges what it kept",
+    },
+  ];
+  const kept: string[] = [];
+  const resolved: string[] = [];
+  for (const g of gaps) {
+    const rule = RULES.find((r) => r.gap.test(g) && r.covered(g));
+    if (rule) resolved.push(`“${g.slice(0, 120)}” — ${rule.by}`);
+    else kept.push(g);
+  }
+  return { gaps: kept, resolved };
 }
 
 export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
@@ -1781,18 +2375,29 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
+  if (opts.prepared && /^vendor/i.test(opts.prepared.screen)) {
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].step === "place_bid") {
+        steps[i] = { step: "vendor_bid", args: steps[i].args?.price !== undefined ? { price: steps[i].args!.price } : {}, note: steps[i].note };
+        warnings.push("place_bid → vendor_bid — on the prepared vendor screen the vendor is already signed in; vendor_bid types the price there");
+      }
+    }
+  }
   if (opts.prepared && !steps.some((st) => st.step === "open_prepared")) {
     steps.unshift({ step: "open_prepared", args: { screen: opts.prepared.screen }, note: "the API built this case's state" });
     warnings.push(`added open_prepared(${opts.prepared.screen}) — the API built this case's state`);
   }
-  // lintPlan repairs Procol's flows; on another site it would insert them.
+  // lintPlan repairs Procol's flows; on another site it would insert them — the site lint only tidies.
   const linted = opts.site
-    ? { plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps }, repairs: [] }
+    ? lintSitePlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps })
     : lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
+  warnings.push(...linted.repairs);
   // A plan that acts but never checks proves nothing: the executor refuses to
   // pass it, so say so here, where the case can still be marked untestable.
   const assertionNames = new Set(catalog.steps.filter((st) => st.assertion).map((st) => st.name));
-  if (!linted.plan.steps.some((st) => assertionNames.has(st.step))) {
+  // do_on_screen "passes only when the screen proves the goal", so a goal that reads as a check IS an assertion
+  const checksOnScreen = (st: { step: string; args?: Record<string, unknown> }) => st.step === "do_on_screen" && /\b(check|verify|confirm|expect|must (be|read|show)|is (still )?(shown|visible|listed)|reads?\b)/i.test(String(st.args?.goal ?? ""));
+  if (!linted.plan.steps.some((st) => assertionNames.has(st.step) || checksOnScreen(st))) {
     const gap = "the plan has no assertion step — nothing the case checks can be observed";
     warnings.push(`cannot test this case yet — ${gap}`);
     return {
@@ -1831,11 +2436,28 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
       warnings.push("reschedule_event reads the refusal from the dialog field's own help text — that is the message under the field");
     }
   }
+  // GAPS A STEP IN THE PLAN ALREADY COVERS (10 Nov): the model kept writing "log in as Vendor A in a separate
+  // session" beside a switch_portal of its own, "assert the tooltip" beside an expect_message tooltip. A gap is
+  // dropped ONLY when the plan holds the very step that does it (and, for the vendor, the gap is not about a
+  // second vendor) — anything else stays a gap, and every drop is said out loud.
+  {
+    const r = resolveCoveredGaps(gaps, linted.plan.steps);
+    gaps = r.gaps;
+    warnings.push(...r.resolved.map((x) => `resolved: ${x}`));
+  }
   // The model's "partial" rests on the gaps it listed: when every one of them was resolved
   // above (a step that covers it was added or already present), its "partial" goes with them.
   const gapsAllResolved = declaredGapCount > 0 && gaps.length === 0;
   let coverage: CompileResult["coverage"] =
     parsed.coverage === "none" ? "none" : (parsed.coverage === "partial" && !gapsAllResolved) || gaps.length ? "partial" : "full";
+  // The model said "none" because it believed the SUBJECT had no step — and every gap it listed is done by a step
+  // that IS in the plan (resolveCoveredGaps fires only then). The subject is observed; "partial", never "full",
+  // because the model's own doubt is still on record (10 Nov, UI-VBID-001: "the vendor's list contains the event"
+  // beside its own vendor_open_event).
+  if (coverage === "none" && gapsAllResolved && linted.plan.steps.length) {
+    coverage = "partial";
+    warnings.push("the model judged coverage none, but every gap it named is done by a step in this plan — read as partial");
+  }
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
@@ -1850,7 +2472,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   const labelsKnown = opts.screen
     ? { ...(catalog.labels ?? {}), [`screen ${opts.screen.label}`]: [...opts.screen.controls.map((c) => c.replace(/^\w+\s+"(.*)"(\s+\(disabled\))?$/, "$1")), ...(opts.screen.headings ?? [])] }
     : catalog.labels;
-  const guesses = opts.withholdGeneric || opts.site ? [] : labelGuesses(linted.plan.steps, testCase, labelsKnown);
+  const guesses = opts.withholdGeneric || opts.site ? [] : labelGuesses(linted.plan.steps, testCase, labelsKnown, sourceLabelSet(catalog));
   if (guesses.length) {
     if (coverage === "full") coverage = "partial";
     warnings.push(...guesses.map((g) => `coverage partial: ${g}`));

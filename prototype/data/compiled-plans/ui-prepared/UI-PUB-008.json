@@ -1,0 +1,138 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-008",
+  "title": "Publishing a two-stage event orders the stages correctly",
+  "compiledAt": "2026-11-09T19:55:59.458Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Direct verification that the underlying stage sequence numbers ascend in RFP-then-RFQ order."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "can only test part of this — no step for: Direct verification that the underlying stage sequence numbers ascend in RFP-then-RFQ order."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-PUB-023",
+   "UI-PUB-009"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-PUB-008 Stage Order on Published Event",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-PUB-008 Stage Order"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq",
+      "rfp"
+     ]
+    },
+    "note": "Build the stages in reverse order to test that publication normalizes them to RFP first and RFQ second."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item to the project."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "configure the rfp stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfp needs its own template"
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Set and save the required event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant before publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the valid two-stage event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm publication reached the project page."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Confirm both required stages are present on the published project."
+   },
+   {
+    "step": "expect_order",
+    "args": {
+     "items": [
+      "Technical Stage",
+      "RFQ"
+     ]
+    },
+    "note": "Verify the visible stage order is RFP/Technical Stage first and RFQ second."
+   }
+  ]
+ }
+}

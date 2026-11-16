@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "EVI-RANK-003",
   "title": "A tie at the lowest price: L1 shows that price, whichever vendor",
-  "compiledAt": "2026-10-15T12:41:10.554Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:18:21.623Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available read-back fields do not expose the tie price or line totals, so the plan only checks that an L1/best-bidder result is present."
+   "The available read-back fields do not expose the tie price or line totals, so the plan cannot verify that the displayed price is 100 or that the selected total belongs to one of the tied vendors."
   ],
   "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
   ],
   "validated": true,
   "endpoints": [
@@ -29,16 +30,17 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The buyer invites QA vendor 2 to the live round.",
     "The invited QA vendor places a complete bid of 100 (open, price, submit).",
     "A second QA vendor places a complete bid of 100 (open, price, submit).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is not empty."
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is not empty."
-  }
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; Schema check: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.168Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-RANK-003",
   "title": "A tie at the lowest price: L1 shows that price, whichever vendor",
   "setup": {
@@ -47,10 +49,7 @@
   "act": [
    {
     "op": "add_vendor",
-    "as": "buyer",
-    "params": {
-     "round": "pricing"
-    }
+    "as": "buyer"
    },
    {
     "op": "place_bid",
@@ -75,7 +74,11 @@
     "assert": [
      {
       "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
-      "op": "non_empty"
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
      }
     ]
    }

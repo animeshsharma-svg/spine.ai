@@ -20,6 +20,7 @@
  */
 
 import { GENERIC_STEPS } from "./generic/catalog.js";
+import { VENDOR_PORTAL_CATALOG } from "./vendorPortalCatalog.js";
 import { EXPECTATION_STEPS } from "./expectCatalog.js";
 import { QCS_AUDIENCE_STEPS } from "./qcsAudienceCatalog.js";
 import type { PlanContext } from "./screens.js";
@@ -82,6 +83,12 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { tab: '"Live" | "History" | "Drafts" | "Recurring"' },
   },
   {
+    name: "open_first_event",
+    purpose:
+      "On the events list, open the FIRST event shown under a tab — \"open the first closed event in History\", \"open the top event in Drafts\", \"open the latest live event\" — the list's own order (newest first), no search. With `containing`, the first card whose text has those words (a title fragment, a stage name, \"In - Evaluation\"). Lands on the event's page (a draft reopens its create screen). Use open_event when the case names the event.",
+    args: { tab: '"Live" (default) | "History" | "Drafts" | "Recurring"', containing: "words the card must show (optional)" },
+  },
+  {
     name: "expect_event_in_list",
     purpose:
       "Search the events list by title and assert a matching row exists. Defaults to the title this plan gave its own event, so use it after publish or save_draft to prove the event is where the case says it should be.",
@@ -141,7 +148,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "event_menu",
     purpose:
-      'Open the event menu that holds an action and choose it — for ANY of these words in a case: from the project\'s ⋮ menu (beside Messages): "Send Reminders", "Withdraw Project"; from a stage tab\'s Settings ▾: "Shared With", "Extend Submission Time", "Withdraw", "Convert to Auction", "Rejected Bids", "Order Activity", "Edit Evaluation Time", "Send Bulk Counter Offer", "Recreate Order", "Reschedule Event". The step goes to a stage tab when needed. What each opens (check THESE words, not the item\'s name): Shared With → a “Participation Summary” drawer (Invited · Seen · Bid Placed · Bid Not Placed); Order Activity → an “Activity” drawer (“You created the event …”); Send Reminders → a “Send Reminders” drawer (“Offer submissions” with “N Pending” and View — never press Notify, that messages the vendor); Rejected Bids → “Rejected Bids”; Edit Evaluation Time → “Edit Evaluation Time” (“Evaluation will end at …”). What the item opens (a dialog, drawer or popover) stays open for the next steps (expect_text on its words, click on its buttons, do_on_screen for the rest) unless close:true. Prefer withdraw_event, extend_submission_time, convert_to_auction or reschedule_event where they fit; this is for the rest. A greyed-out item fails the step — to CHECK it is greyed out use expect_menu_item{enabled:false}.',
+      'Open the event menu that holds an action and choose it — for ANY of these words in a case: from the project\'s ⋮ menu (beside Messages): "Send Reminders", "Withdraw Project"; from a stage tab\'s Settings ▾: "Shared With", "Extend Submission Time", "Withdraw", "Convert to Auction", "Rejected Bids", "Order Activity", "Edit Evaluation Time", "Send Bulk Counter Offer", "Recreate Order", "Reschedule Event". The step goes to a stage tab when needed. What each opens (check THESE words, not the item\'s name): Shared With → a “Participation Summary” drawer (Invited · Seen · Bid Placed · Bid Not Placed); Order Activity → an “Activity” drawer (its first line reads “You created the event” to the creator and “<name> has created the event” to anyone else — check “created the event”); Send Reminders → a “Send Reminders” drawer (“Offer submissions” with “N Pending” and View — never press Notify, that messages the vendor); Rejected Bids → “Rejected Bids”; Edit Evaluation Time → “Edit Evaluation Time” (“Evaluation will end at …”). What the item opens (a dialog, drawer or popover) stays open for the next steps (expect_text on its words, click on its buttons, do_on_screen for the rest) unless close:true. Prefer withdraw_event, extend_submission_time, convert_to_auction or reschedule_event where they fit; this is for the rest. A greyed-out item fails the step — to CHECK it is greyed out use expect_menu_item{enabled:false}.',
     args: {
       item: 'the menu item\'s words, e.g. "Order Activity"',
       stage: '"rfq" | "rfp" | "auction" — whose Settings menu (optional)',
@@ -231,7 +238,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "set_sheet_cell",
     purpose:
-      'Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text ("Quantity Requested", "Price", "GST" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for "enter a negative quantity", "type letters into the price", "enter 0", "enter 1,00,000.555". For choosing a product use the product steps, not this.',
+      'Type a value straight into one cell of the price / BOQ sheet (the data grid) like a person — click the cell (double-click if no editor opens), type, press Tab — and note what the cell shows afterwards. Columns are named by header text ("Quantity Requested", "Price", "GST" …). A locked (read-only) cell takes no typing; that is recorded, not failed. Follow with expect_sheet_cell to judge it. Use for "enter a negative quantity", "type letters into the price", "enter 0", "enter 1,00,000.555". A DROPDOWN cell — "Delivery location", "Product Variant", "Unit" — takes the option to pick as value ("Plant Name (LOC-0001)", "Variant 1"): the step opens its list, searches and clicks that option, and reports when the list offers nothing matching; so choosing a delivery location or a variant for a line IS this step, never a gap. For choosing a product use add_line_items{search} (it picks the option whose name IS the product), not this.',
     args: { row: "data row number (default 1)", column: "header text of the column", value: "what to type" },
   },
   {
@@ -334,6 +341,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "require_setting",
+    purpose:
+      "A COMPANY SETTING THE CASE NEEDS a certain way (\"with eRFX projects off\", \"lock_vendors_addition_in_event_creation = Off\", \"verify commercial masking is enabled for the tenant\", the case's Configs Needed). Put it FIRST, one per setting, before any other step. The runner switches it on the approved test company before the case, confirms the switch from the app's own answer, and switches it back after — the plan itself never opens a settings screen for it. Give `key` when the case names the setting key; otherwise `phrase` in the case's words (\"commercial masking\") and the runner finds the key in Procol's settings catalogue. A setting only a Procol employee may change (a hidden one) is reported Blocked by the runner. Never list a needed setting under cannotExpress — this step is how it is done.",
+    args: { key: "the setting key, e.g. lock_vendors_addition_in_event_creation (optional when phrase is given)", phrase: "the setting in the case's words, when no key is named", value: "On | Off | the value — what the case needs" },
+  },
+  {
     name: "ask_tester",
     purpose:
       "THE PART OF THE CASE NO OTHER STEP CAN DO: put this step exactly where it belongs in the order (e.g. after publish, for \"sign in as the evaluator and score the technical response\") and keep every step you DO have before and after it. The run stops there and asks the tester in the chat for the steps or a login (another user, a second company…), then carries them out; if the tester skips it, that part is reported as not tested. Use it instead of returning no steps or guessing: never drop a case because one part has no step, and never mark such a case as covered. One ask_tester per missing part (at most one per plan: ask once, for the one thing the platform truly cannot do — a credential it does not hold, a screen it has never seen), and list the same part under cannotExpress. Never ask_tester to sign in or to open a list the steps can reach. Before it, use the steps that DO exist for everything around it — a vendor's technical response is place_bid (it answers the Technical Stage of a two-stage event), a closed round is close_event — and name in `need` ONLY what no step can do, in one short plain sentence (\"sign in as the assigned evaluator and score the vendor's technical response\"), never the parts other steps do.",
@@ -398,11 +411,28 @@ export const STEP_CATALOG: StepSpec[] = [
       "On the SINGLE-STAGE create screen (open_create path single-stage), open the configuration drawer and set the event type; for an auction, its strategy and the awarding rule. This is where auction strategy is chosen on this build — rank, price or traffic light; knockout and dutch exist only through RFQ→Auction conversion.",
     args: {
       eventType: '"rfq" | "rfp" | "auction"',
-      auctionSubtype: '"rank" | "price" | "traffic_light" (auction only; default rank)',
+      auctionSubtype: '"rank" | "price" | "traffic_light" | "knockout" | "dutch" (auction only; default rank). Knockout and Dutch are greyed out on a FRESH single-stage screen (the app: "can be created only when converting an RFQ to an auction"): reach them with publish → expect_published → convert_to_auction, then this step on the converted screen.',
       awarding: '"lot" (entire lot to one vendor) | "line_item" (partially, multiple vendors)',
-      rangeLower: "traffic light only: lower bound of the specified range (optional)",
-      rangeUpper: "traffic light only: upper bound of the specified range (optional)",
+      trafficBy: 'traffic light only: "Group traffic light by" — "price" (default) | "rank"',
+      rangeLower: 'traffic light only: the GREEN bound ("Gross total less than" by price, "Rank less than" by rank; default 3000 / 1); "" leaves it EMPTY on purpose (a case about "without a range" — the app refuses at publish: "You have not provided valid traffic light ranges.")',
+      rangeUpper: 'traffic light only: the YELLOW bound (default 6000 / 3); "" leaves it empty',
+      dynamicExtension: 'true | false — tick / untick "Dynamic Event Extension" (offered for rank, price and traffic light auctions; NOT Knockout / Dutch). A case about "dynamic time extension / anti-sniping / auto extend" sets true here — the fields below only with it on',
+      extensionOn: '"price" (default) | "rank" — the extension triggers on a change in price or rank',
+      extendByMinutes: '"Time Extension By": 1 | 2 | 3 | 5 are the app\'s presets; any other number goes through "Custom" + "Enter closing time extension" (e.g. 0, 0.5, 10). Default: the first preset',
+      triggerMinutes: '"Trigger time extension on last:" minutes (the app\'s own rule at publish: at least 1 and under half the bidding time — 0.5 or 0 is refused "Invalid Trigger Time for Dynamic Time Extension."; empty: "Trigger time extension cannot be less than 1 min"). Default 1',
+      topBids: '"Time extension on change in:" the top N bids (2, 3, …); default the first option',
+      startPrice: 'knockout / dutch only: the "Starting Price" (what a case calls the base price); "" leaves it empty on purpose',
+      endPrice: 'dutch only: the "Ending Price"',
+      tickSize: 'knockout / dutch only: "Add Tick Size" (0 or a negative number is what a refusal case types)',
+      timeDifference: 'knockout / dutch only: "Add Time Difference" in minutes between two offers. Fields the plan leaves out get a VALID default (start 100, end 200 — a reverse Dutch climbs —, tick 1, time 1), so name ONLY the field the case is about — with its bad value, or "" to leave it empty.',
+      offersOn: '"base_price" | "total_amount" (the "Offers on" choice; optional)',
     },
+  },
+  {
+    name: "add_bidding_currency",
+    purpose:
+      "On the single-stage create screen BEFORE publish, add a second bidding currency: the footer's \"Edit Currencies\" button opens \"Select Currencies\" (Multiple Currency, tick the currency, its rate in the base currency, OK). The button is greyed out on a converted RFQ→auction screen (currencies come only from the RFQ), and absent when the template does not allow multiple currencies — the step says so. A case about \"currency configuration cannot be added in Knockout / Dutch Auction\" adds the currency on the RFQ, publishes, converts, chooses Knockout/Dutch and expects that refusal at publish.",
+    args: { currencies: '["USD"] — the currency codes to add (default USD)', rateInBase: "the rate of one unit in the base currency (default 83)" },
   },
   {
     name: "convert_to_auction",
@@ -456,7 +486,8 @@ export const STEP_CATALOG: StepSpec[] = [
   { name: "assign_evaluator", purpose: "Technical stages only: assign an evaluator to every control that needs one." },
   {
     name: "set_schedule",
-    purpose: "Open the schedule drawer and commit it. Needed before publish.",
+    purpose:
+      'Open the schedule drawer and commit it. Needed before publish. On the SINGLE-STAGE screen the window is kept as the chip shows it unless minutes are given; under the 30-minute preset the drawer\'s Fixed time mode sets an end that many minutes out — a DYNAMIC TIME EXTENSION bidding case needs a short window (minutes: 5 with a 2-minute trigger: the trigger must stay under half the bidding time, or Publish is refused) so the last-minute bid happens inside the run.',
     args: { minutes: "optional event duration in minutes" },
   },
   {
@@ -545,13 +576,13 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "allocate_award",
     purpose:
-      "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters.",
-    args: { vendor: "vendor name (optional; the first that can be allocated)" },
+      "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters. A SPLIT (\"6 units to Vendor B and 4 to Vendor A\", \"award 10 of 10 to B\"): one allocate_award per vendor with `quantity` — it selects that vendor and types the number into its \"Qty Awarded\" cell of the line; then expect_award_counters{proposal} checks the total (6 × 90 + 4 × 100 = 940). Vendor 1 / \"Vendor A\" and vendor 2 / \"Vendor B\" may be named by their number on a prepared two-bid event.",
+    args: { vendor: "vendor name, or 1 / 2 for the first / second QA vendor of a prepared two-bid event (optional; the first that can be allocated)", quantity: "units to award this vendor on the line (a split award; optional — without it the vendor gets the whole line)", line: "which line item (1 = first; default 1)" },
   },
   {
     name: "expect_award_counters",
-    purpose: 'On the awarding screen, assert the counters read as given: "Tot. selected line items" items (e.g. "1/1") and "Awarded Vendors" vendors (e.g. "1/1").',
-    args: { items: 'expected "selected/total" for line items (optional)', vendors: 'expected "selected/total" for vendors (optional)' },
+    purpose: 'On the awarding screen, assert the counters read as given: "Tot. selected line items" items (e.g. "1/1"), "Awarded Vendors" vendors (e.g. "2/2"), and the totals bar: proposal = "Tot. Proposal Value" in rupees (e.g. 940), l1 = "Tot. L1 Proposal Value", nonL1 = "Tot. Non L1 Proposal Value".',
+    args: { items: 'expected "selected/total" for line items (optional)', vendors: 'expected "selected/total" for vendors (optional)', proposal: "expected Tot. Proposal Value, a number (optional)", l1: "expected Tot. L1 Proposal Value (optional)", nonL1: "expected Tot. Non L1 Proposal Value (optional)" },
     assertion: true,
   },
   {
@@ -562,6 +593,62 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "expect_bid_submitted",
     purpose: "Assert the vendor's bid was accepted (the vendor portal shows the stage as Submitted).",
+    assertion: true,
+  },
+  {
+    name: "expect_zone",
+    purpose:
+      'TRAFFIC LIGHT auction: assert which zone a vendor\'s bid is in — on the BUYER\'s side (the stage\'s Responses grid shows a green / yellow / red light in every vendor\'s column header) or on the SUPPLIER PORTAL (the vendor\'s own round shows a "Green Zone" / "Yellow Zone" / "Red Zone" tag instead of a rank). The rule, for a reverse (buy) auction: gross total (price × quantity) ≤ the GREEN bound → green; ≤ the YELLOW bound → yellow; above → red. So a case with three bids 100 / 95 / 120 on quantity 10 and bounds green 950 / yellow 1000 expects the 95 bidder green, the 100 bidder yellow, the 120 bidder red. For "what each vendor sees": switch_portal{to:"vendor", vendor:N} (N = the N-th bidder of this plan) → vendor_open_event → expect_zone{zone, side:"vendor"} per vendor, then switch_portal{to:"buyer"} → expect_zone{bid: <price>, zone} per vendor. rank / bestPrice: whether the vendor\'s page shows a rank / a best price (hidden unless the buyer allowed that zone to see them in the live event\'s Best Prices Visibility / Show Rank settings).',
+    args: {
+      zone: '"green" | "yellow" | "red"',
+      side: '"buyer" (default on the buyer\'s console) | "vendor" (default when the supplier portal is the open side)',
+      bid: "buyer side: the bid price whose column to read (the surest way to name a vendor)",
+      vendor: 'buyer side: a vendor name / email, the N-th bidder of this plan (1, 2, …), or "lowest" / "highest" by price (optional)',
+      rank: "vendor side: true | false — a rank is / is not shown to this vendor (optional)",
+      bestPrice: "vendor side: true | false — a best price is / is not shown to this vendor (optional)",
+    },
+    assertion: true,
+  },
+  {
+    name: "set_zone_visibility",
+    purpose:
+      'On a LIVE traffic light auction, from the buyer\'s console: choose which zones may see the best prices and / or the rank — the stage\'s "Actions ▾" menu → "Show Best Prices" ("Best Prices Visibility": how many best prices, then "Which traffic light zones can see Best Prices?" Green / Yellow / Red Zone, Done) and "Show Rank" ("Which traffic light zones can see Rank?", Done). Use for "zones that the buyer allowed to see the best price / rank": set it, then switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor", rank:true|false, bestPrice:true|false} for a vendor in an allowed zone and one in a zone not allowed. Both items are greyed out in sealed-bid mode (the step says so).',
+    args: {
+      bestPriceZones: '["green"] — the zones that may see the best prices ([] = none); optional',
+      bestPrices: "how many best prices to show (the stepper; default: at least 1 when a zone is given); optional",
+      rankZones: '["green", "yellow"] — the zones that may see the rank ([] = none); optional',
+    },
+  },
+  {
+    name: "wait_for_end_window",
+    purpose:
+      'DYNAMIC TIME EXTENSION: wait until the event is `minutesBefore` minutes from its end — the end read from the app\'s own read of the event on the buyer\'s side (server clock), never a countdown — and remember that end for expect_time_extended. Use it right before the "last-minute" bid: open the bidder\'s portal first (switch_portal{to:"vendor", vendor:N} → vendor_open_event), then wait_for_end_window{minutesBefore:1}, then vendor_bid{price} so the bid lands inside the trigger window (the rule: the end lies within the trigger minutes after the bid, and the bid improves a top-N price). Refuses up front when the wait would exceed maxWaitMinutes — schedule a short window with set_schedule{minutes:5}.',
+    args: { minutesBefore: "how many minutes before the end to bid (default 1)", maxWaitMinutes: "the most this step waits (default 12)" },
+  },
+  {
+    name: "note_end_time",
+    purpose: "Record the event's end (from the app's own read on the buyer's side) without waiting — the baseline for expect_time_extended when no wait is wanted.",
+    args: {},
+  },
+  {
+    name: "expect_time_extended",
+    purpose:
+      'DYNAMIC TIME EXTENSION: assert the event\'s end moved after the last-minute bid — by `byMinutes` (the drawer\'s "Extend time by") when given, else by any amount — on the side asked: "buyer" (the buyer\'s console, its own read of the event) or "vendor" (the OPEN supplier portal, its read). "For everyone" = check it on the bidder\'s portal, then switch_portal to the other vendor + vendor_open_event + check again, then switch_portal{to:"buyer"} + check. Needs wait_for_end_window or note_end_time before the bid (the end before).',
+    args: { byMinutes: "the minutes the end should move by (optional)", side: '"buyer" | "vendor" (default: the open side)' },
+    assertion: true,
+  },
+  {
+    name: "expect_participants_summary",
+    purpose:
+      'The stage\'s participants summary on the buyer\'s console (its Overview sub-tab) — "Total Participants · Active participants · Total Bids · Revised bids · Rejected bids · Counter offers · Dynamic time extended" — read and compared with the values given. "Dynamic time extended" is the minutes the event was extended by last-minute bids in all ("2 min" after one 2-minute extension, "4 min" after two). Without values it only reads the panel.',
+    args: { dynamicTimeExtended: '"2 min" (or 2)', totalBids: "a number", activeParticipants: "a number", totalParticipants: "a number", revisedBids: "a number", expect: '{"<label as shown>": "<value>"} for any other row' },
+    assertion: true,
+  },
+  {
+    name: "expect_report_matches_qcs",
+    purpose:
+      'On Master QCS (open_master_qcs first): press "Download Report", read the xlsx that lands (sheet "QCS Sheet": an attribute block, "Item / Vendor" with the vendor columns, then per line item the grid\'s own rows — Rank, Qty Offer, Qty Awarded, Auction Amount, Auction rate, RFQ Amount, Final Negotiated …) and compare every row the grid shows, vendor by vendor, with the report. Use for "Download Report … the report matches the screen". A difference is reported as a product finding with the row, the vendor, both values.',
+    args: {},
     assertion: true,
   },
   {
@@ -582,6 +669,7 @@ export const STEP_CATALOG: StepSpec[] = [
 // The generic read/verify/navigate/act steps (generic/catalog.ts) close the
 // largest family on the gap ledger: "assert this tooltip / count / value /
 // message", "click this control", "this must NOT render".
+STEP_CATALOG.push(...VENDOR_PORTAL_CATALOG);
 STEP_CATALOG.push(...GENERIC_STEPS);
 // Prepared-state + expectation steps (expectCatalog.ts / expectations.ts): open the
 // screen on the state the API built, and the expectations a screen case needs.

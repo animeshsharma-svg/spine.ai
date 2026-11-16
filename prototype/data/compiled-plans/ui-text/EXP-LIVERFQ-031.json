@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-031",
+  "title": "A live RFQ: \"Edit Evaluation Time\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:46:04.292Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The RFQ's bidding and evaluation times remain unchanged after cancelling the dialog",
+   "The invited vendor list remains unchanged after cancelling the dialog"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The RFQ's bidding and evaluation times remain unchanged after cancelling the dialog; The invited vendor list remains unchanged after cancelling the dialog"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "expect_text",
+   "expect_responses",
+   "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_responses"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 13261
+ },
+ "plan": {
+  "title": "Cancel Edit Evaluation Time on Live RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ directly on its Responses tab as required for prepared-state cases."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live"
+    },
+    "note": "Verify the RFQ is still live before opening the dialog."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify the precondition that no vendor bids are present."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings menu and choose Edit Evaluation Time, leaving its dialog open."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": true
+    },
+    "note": "Confirm the Edit Evaluation Time window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the evaluation-time edit without saving changes."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": false
+    },
+    "note": "Assert that cancelling closes the Edit Evaluation Time window."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live"
+    },
+    "note": "Verify the event remains live after cancellation."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify that no bids were introduced or changed by cancelling."
+   }
+  ]
+ }
+}

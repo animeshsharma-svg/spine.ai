@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-036",
+  "title": "Award a vendor who did not bid",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:22:35.400Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting the exact closed RFQ by its unstated title and verifying that Vendor C was invited but did not bid before opening the awarding screen"
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Selecting the exact closed RFQ by its unstated title and verifying that Vendor C was invited but did not bid before opening the awarding screen"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "start_awarding",
+   "expect_visible",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 105040
+ },
+ "plan": {
+  "title": "Awarding excludes non-bidding vendor",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen where vendor allocation eligibility is shown."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Vendor C",
+     "visible": true
+    },
+    "note": "Confirm the non-bidding vendor is present on the awarding screen."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "allocate_award",
+     "args": {
+      "vendor": "Vendor C"
+     },
+     "expect": "refused",
+     "because": "Bid not present on this line item"
+    },
+    "note": "Attempt to allocate the line to Vendor C and require Procol to refuse because the vendor has no bid."
+   }
+  ]
+ }
+}

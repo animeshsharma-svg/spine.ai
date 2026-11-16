@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-019",
+  "title": "Bidding after the window closes is refused",
+  "compiledAt": "2026-11-09T20:02:36.307Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-002",
+   "UI-SCH-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Refuse bid after event closes",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open a suitable existing closed event with an invited vendor."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view where participation and bid counts are shown."
+   },
+   {
+    "step": "expect_responses",
+    "args": {},
+    "note": "Establish that the buyer's response state is rendered before the attempted bid."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "buyer participation",
+     "text": "Participation"
+    },
+    "note": "Record the buyer-side participation count before the refusal attempt."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the closed event's pricing round in the vendor portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt a bid after the window has closed and require positive refusal evidence."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's Responses view."
+   },
+   {
+    "step": "expect_responses",
+    "args": {},
+    "note": "Verify the buyer response state still renders after the refused bid."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "buyer participation",
+     "text": "Participation",
+     "same": true
+    },
+    "note": "Assert that the buyer-side participation and bid count did not change."
+   }
+  ]
+ }
+}

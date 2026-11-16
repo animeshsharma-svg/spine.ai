@@ -341,6 +341,7 @@ function bodyArgs(rc: RunCtx, inst: SetupInstance, vendorUuid: string): BodyArgs
     stamp: s("stamp") || String(Date.now()),
     proposalUuid: s("proposalUuid") || undefined,
     roundUuids: rounds.length ? rounds : undefined,
+    useRfqQuotes: typeof cat.useRfqQuotes === "boolean" ? cat.useRfqQuotes : undefined,
     nowSec: nowSec(),
   };
 }
@@ -495,10 +496,31 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number, fromPr
   const bad = j.steps.find((s) => s.verdict !== "worked");
   if (bad) return fail(`the setup step “${bad.title}” ${bad.verdict === "not-run" ? "did not run" : bad.verdict === "broken" ? "broke" : "was refused"}: ${bad.actual}`, j, steps);
   const m = j.made ?? {};
-  for (const k of ["eventGroupUuid", "lineItemUuid", "pricingTradeUuid", "technicalTradeUuid", "bidUuid", "templateResponseUuid", "proposalUuid", "tradeProductUuid", "techFormUuid", "techPageUuid", "evalFormUuid"])
+  for (const k of ["eventGroupUuid", "lineItemUuid", "pricingTradeUuid", "technicalTradeUuid", "bidUuid", "templateResponseUuid", "proposalUuid", "tradeProductUuid", "techFormUuid", "techPageUuid", "evalFormUuid", "buyerCompanyUuid"])
     if (m[k]) vals[k] = m[k];
   if (m.pricingTradeUuid || m.technicalTradeUuid) vals.tradeId = m.pricingTradeUuid ?? m.technicalTradeUuid;
   if (m.technicalTradeUuid) vals.rfpTradeId = m.technicalTradeUuid;
+  // The vendor the recipe bid as is the journey's bidder (a vendor of this company with a login), not always
+  // QA vendor 1. A plan where "the vendor" must act on THAT bid — revoke it, bid again as the same company,
+  // see its own draft — signs in as the bidder (13 Nov: API-BID-010 bid as another company and was accepted
+  // for the wrong reason; API-BID-012's revoke by QA vendor 1 was refused 101).
+  // …and the bid belongs to the bidder's USER: a revoke is allowed only to the user who placed the bid, so the same
+  // company under another QA login is still refused (13 Nov, API-BID-012) — sign in as the bidder whenever its login is known and differs
+  // Best of all: the journey's OWN vendor session — the very user that placed the bid (a QA login can resolve to
+  // another user id when the vendor's home company differs from the invited one, 13 Nov)
+  if (m.vendorCompanyUuid && (j as any).actors?.vendorApi) {
+    rc.apis.set("vendor", (j as any).actors.vendorApi);
+    vals.vendorUuid = m.vendorCompanyUuid;
+    rc.onLine(`  setup · "the vendor" in this plan is the session that placed the bid (${String(m.vendorName ?? m.vendorEmail ?? "the bidder")})`);
+  } else if (m.vendorCompanyUuid && (m.vendorEmail || (j as any).vendorEmail) && (m.vendorCompanyUuid !== vals.vendorUuid || String(m.vendorEmail ?? "").toLowerCase() !== String(rc.vendors[0]?.email ?? "").toLowerCase())) {
+    const email = String(m.vendorEmail ?? (j as any).vendorEmail);
+    const r = await withWatchdog(vendorClient(rc.companyId, email, rc.baseURL), 120_000, "signing the bidding vendor in").catch((e) => ({ error: (e as Error).message }) as { api?: any; error?: string });
+    if (r.api) {
+      rc.apis.set("vendor", r.api);
+      vals.vendorUuid = m.vendorCompanyUuid;
+      rc.onLine(`  setup · "the vendor" in this plan is the bidder the recipe used (${String(m.vendorName ?? (j as any).vendorName ?? email)}), signed in`);
+    } else rc.onLine(`  setup · the recipe's bidder could not be signed in (${r.error ?? "sign-in failed"}); "the vendor" stays QA vendor 1`);
+  }
   const unitChoice = j.steps.find((s) => s.kind === "create_draft")?.choices?.unit;
   const inst: SetupInstance = { result: { recipe: recipe.id, ok: true, steps, ms: 0, title: j.title, eventGroupUuid: m.eventGroupUuid, journeyOutcome: j.outcome }, vals, journey: j, unit: unitChoice ?? unit0, qty: qty0, at: Date.now() };
   const buyer = rc.client.ctx.buyerApi;
@@ -673,7 +695,12 @@ const show = (v: unknown): string => {
 const jsonType = (v: unknown) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b) || (a !== null && b !== null && typeof a !== "object" && typeof b !== "object" && String(a) === String(b));
 
+const HTTP_CODES = new Set([200, 201, 202, 204, "200", "201", "202", "204"]);
 function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boolean | null; actual: string } {
+  // "status is 200" on a field named status: the plan meant the HTTP status, not a data field that happens to
+  // be called status (seen 5 Nov: the round's own status "active" was compared with 200 and failed a sound case)
+  if ((a.op === "equals" || a.op === "one_of") && /(^|\.)status$/.test(a.path.replace(/^\$\.?/, "")) && (Array.isArray(value) ? value.every((v) => HTTP_CODES.has(v as never)) : HTTP_CODES.has(value as never)))
+    return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
   if (a.op === "status") return { pass: reply.status === Number(value), actual: `HTTP ${reply.status}` };
   if (a.op === "status_2xx") return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
   if (!reply.ok) return { pass: null, actual: `the read was refused (${said(reply)}), so the field could not be checked` };
@@ -706,6 +733,9 @@ function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boo
     }
     case "contains": {
       if (!present.length) return { pass: false, actual: "absent" };
+      // a yes/no flag cannot "contain" anything: the plan looked in the wrong place, which proves nothing
+      if (present.every((v) => typeof v === "boolean" || typeof v === "number"))
+        return { pass: null, actual: `${show(present[0])} — the field is a flag or a number, not a list; the plan looked in the wrong place` };
       const hit = present.some((v) => (Array.isArray(v) ? v.some((x) => same(x, value)) : typeof v === "string" ? v.includes(String(value)) : same(v, value)));
       return { pass: hit, actual: show(present[0]) };
     }
@@ -876,6 +906,11 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
         method = String(c?.method ?? "GET").toUpperCase();
         path = String(c?.path ?? "");
         body = c?.body;
+      } else if (a.op === "request") {
+        // the case's own request, as the plan carries it (validated: sourcing-event route, known placeholders)
+        method = String(a.request?.method ?? "GET").toUpperCase();
+        path = String(a.request?.path ?? "");
+        body = a.request?.body;
       } else if (op.kind === "write") {
         const vendorFor = a.params?.vendor ?? (who === "vendor2" ? "vendor2" : "vendor");
         const vu = String(tc.vals[vendorFor === "vendor2" ? "vendor2Uuid" : "vendorUuid"] ?? "");
@@ -946,6 +981,12 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
       sentBody = body;
     }
     tc.acts.push({ body: sentBody, data: reply.data });
+    if (a.op === "request" && reply.ok && reply.data?.uuid && a.request) {
+      const k = `${a.request.method} ${a.request.path.split("?")[0].replace(/\{\{\w+\}\}/g, ":id")}`;
+      if (k === "POST /v1/bids") tc.vals.bidUuid = String(reply.data.bid_uuid ?? reply.data.uuid);
+      if (k === "POST /proposal") tc.vals.proposalUuid = String(reply.data.uuid);
+      if (k === "POST /template_responses") tc.vals.templateResponseUuid = String(reply.data.uuid);
+    }
     for (const p of op.produces) {
       const id = p === "lineItemUuid" ? reply.data?.event_group_line_item_ids?.[0] : p === "bidUuid" ? reply.data?.bid_uuid ?? reply.data?.uuid : reply.data?.uuid;
       if (reply.ok && id) {
@@ -1064,7 +1105,15 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
         continue;
       }
       const missing: string[] = [];
-      const path = String(fill(op.path, tc, missing));
+      const path = String(fill(v.op === "request" ? String(v.request?.path ?? "") : op.path, tc, missing));
+      if (!path) {
+        emit({ n, phase: "verify", title, actor: actorWord, expected: "The read-back holds.", actual: "Not read: the request step names no path.", verdict: "couldn't tell", ms: 0 });
+        if (verdict !== "failed") {
+          verdict = "couldn't tell";
+          reason = "The read-back names no path.";
+        }
+        continue;
+      }
       if (missing.length) {
         emit({ n, phase: "verify", title, actor: actorWord, expected: "The read-back holds.", actual: `Not read: ${missing.map((m) => `{{${m}}}`).join(", ")} had no value.`, verdict: "couldn't tell", ms: 0 });
         if (verdict !== "failed") {

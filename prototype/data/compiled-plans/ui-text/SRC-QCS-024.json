@@ -1,0 +1,119 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-024",
+  "title": "Master QCS of a vendor-masked company",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:09:27.213Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_text",
+   "expect_text",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 10354
+ },
+ "plan": {
+  "title": "Masked Vendor Master QCS",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the existing closed RFQ directly on its Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Enable vendor-name masking for the company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": false
+    },
+    "note": "Assert that both bidder columns are present without requiring unmasked company names."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor 1"
+    },
+    "note": "Verify the first vendor is displayed using a masked generic label."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor 2"
+    },
+    "note": "Verify the second vendor is displayed using a masked generic label."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 2
+    },
+    "note": "Check that the first vendor's rank reflects the higher bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 2,
+     "number": 1
+    },
+    "note": "Check that the lower bid is ranked first."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Verify the first vendor's displayed price."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "equals": "90"
+    },
+    "note": "Verify the second vendor's displayed price."
+   }
+  ]
+ }
+}

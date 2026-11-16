@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-001",
+  "title": "Single stage reverse auction: withdraw it while live with bids",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:01:08.721Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that this exact existing auction appears in History because the case provides no title and the plan does not create the event."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that this exact existing auction appears in History because the case provides no title and the plan does not create the event."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_settings_menu",
+   "withdraw_event",
+   "expect_withdrawn",
+   "expect_events_list",
+   "filter_events"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 25525
+ },
+ "plan": {
+  "title": "Withdraw live reverse auction",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while the live auction is still accepting bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw action is shown in the event Settings menu."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Use the configured tenant setup for the reverse auction case."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ],
+     "enabled": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify that withdrawing the live live auction is offered and enabled."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "stage",
+     "stage": "auction",
+     "reason": "QA withdrawal of live reverse auction"
+    },
+    "note": "Withdraw the auction stage with the required remark."
+   },
+   {
+    "step": "expect_withdrawn",
+    "args": {},
+    "note": "Confirm Procol records the auction as withdrawn."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered without an error."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open History, where withdrawn events should be listed."
+   }
+  ]
+ }
+}

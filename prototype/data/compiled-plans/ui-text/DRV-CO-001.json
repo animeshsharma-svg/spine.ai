@@ -1,0 +1,100 @@
+{
+ "meta": {
+  "caseId": "DRV-CO-001",
+  "title": "Vendor interface displays consistent ranking and counter offer rate columns correctly",
+  "group": "DRV-CO",
+  "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
+  "compiledAt": "2026-11-12T13:35:23.112Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The awarding screen displaying the accepted price and recomputed ranking, because the prepared event is live and awarding requires a closed event.",
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The awarding screen displaying the accepted price and recomputed ranking, because the prepared event is live and awarding requires a closed event."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "expect_text",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 11349
+ },
+ "plan": {
+  "title": "Counter Offer Acceptance Updates Bid Price",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses tab with one active vendor bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90,
+     "remark": "Please revise pricing for bulk approval"
+    },
+    "note": "Submit the buyer's counter offer at the specified lower price and remark."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer's counter offer was initiated on the vendor bid."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {},
+    "note": "Have the vendor portal accept the pending counter offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {},
+    "note": "Verify the buyer's Responses grid marks the counter offer as accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90",
+     "present": true
+    },
+    "note": "Verify the Responses tab displays the accepted counter price."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to verify the accepted bid value and ranking."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "equals": "90"
+    },
+    "note": "Assert the vendor's accepted RFQ rate is 90."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify ranking is recomputed from the updated accepted amount."
+   }
+  ]
+ }
+}

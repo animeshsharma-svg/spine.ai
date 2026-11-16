@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-AUTH-007",
+  "title": "A user from company B cannot read company A's event",
+  "compiledAt": "2026-11-09T19:23:07.875Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup and library case cover a draft owned by another buyer in the same company, not a session from company B reading an event owned by company A."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 2,
+   "promptTokens": 11005,
+   "completionTokens": 994,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that reads the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.656Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-AUTH-007",
+  "title": "A user from company B cannot read company A's event",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-084",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

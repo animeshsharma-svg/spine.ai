@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "SRC-WDR-005",
+  "title": "Withdraw an event that is live with no bids without a reason",
+  "group": "SRC-WDR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:22:19.005Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "withdraw_event",
+   "expect_toast",
+   "expect_menu_item"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 6935
+ },
+ "plan": {
+  "title": "Withdraw live event without reason",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with no bids on the buyer side."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "project",
+     "noReason": true
+    },
+    "note": "Attempt to withdraw the project while leaving the withdrawal reason empty."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Please enter reason for withdrawing this event"
+    },
+    "note": "Verify Procol refuses the withdrawal with the required-reason message."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw Project",
+     "present": true,
+     "enabled": true
+    },
+    "note": "Verify the project remains unchanged and the withdrawal action is still available."
+   }
+  ]
+ }
+}

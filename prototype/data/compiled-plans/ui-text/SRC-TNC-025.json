@@ -1,0 +1,185 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-025",
+  "title": "eRFX project level (all stages), one clause Required: the vendor accepts only the Required clause",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:13:26.348Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case's claim that project-level clauses are asked on every stage cannot be observed because the requested setup contains only one RFQ stage; no catalog step can compare the clauses across multiple stages."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The case's claim that project-level clauses are asked on every stage cannot be observed because the requested setup contains only one RFQ stage; no catalog step can compare the clauses across multiple stages."
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "toggle",
+   "vendor_bid",
+   "expect_text"
+  ],
+  "ms": 17700
+ },
+ "plan": {
+  "title": "eRFX Required Terms Acceptance",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Set the required project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project with the requested RFQ-only stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Apply RFQ-specific configuration on the RFQ tab."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the first offered RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add one CYLINDER line item with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the RFQ create screen, set the line item's delivery location to Plant Name (LOC-0001), open Add T&Cs, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days at None, and click Done; stop with the saved project-level terms visible or otherwise proven saved."
+    },
+    "note": "Configure the delivery location and project-level required/optional clauses, which have no dedicated catalog step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor as required for the vendor-side submission."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal while keeping the buyer session open."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event's RFQ pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days"
+    },
+    "note": "Verify that the required project-level clause is shown to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days"
+    },
+    "note": "Verify that the optional project-level clause is also shown."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": true
+    },
+    "note": "Have the vendor accept the required clause."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Delivery within 7 days",
+     "on": false
+    },
+    "note": "Ensure the optional clause remains unaccepted."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Quote 100 for the line and submit; successful submission demonstrates that the unaccepted optional clause does not block bidding."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Verify that the vendor portal shows the bid as submitted."
+   }
+  ]
+ }
+}

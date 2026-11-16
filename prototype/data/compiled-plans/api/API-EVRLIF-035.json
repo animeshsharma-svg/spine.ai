@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-035",
+  "title": "Open-tender search matches title or number literally, and the list sorts only on allowed fields",
+  "compiledAt": "2026-11-09T22:55:01.267Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup creates only one event and cannot create the four named open-tender events or the amended event RFX-n.1.",
+   "The available list_events operation does not expose search text, created-from/to filters, or sort parameters, so literal matching for \"100%\", \"A_B\", and \"rfx-n.1\" cannot be checked.",
+   "The available read-back assertion for list_events supports only status_2xx, so returned ordering and filtering cannot be verified.",
+   "the decisive step tests something else than the case's point: The setup does not provide a separate vendor-login action; vendor access is only available through the published_rfq recipe."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer lists events.",
+    "The buyer lists events.",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.902Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-035",
+  "title": "Open-tender search matches title or number literally, and the list sorts only on allowed fields",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "list_events",
+    "as": "buyer"
+   },
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

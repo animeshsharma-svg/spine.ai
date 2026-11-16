@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-027",
+  "title": "The status endpoint refuses changes after the close, unlike the reject action",
+  "compiledAt": "2026-11-09T19:33:12.319Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The status-changing request cannot be expressed because no operation or request method/path/body was provided for the status endpoint. The included read verifies that the bid remains readable but does not perform the rejected status change."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer reads the bid.",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.837Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-027",
+  "title": "The status endpoint refuses changes after the close, unlike the reject action",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active"
+  }
+ }
+}

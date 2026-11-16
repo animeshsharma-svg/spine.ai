@@ -1,0 +1,117 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-027",
+  "title": "Counter offer while bidding is live on one of the two lines; the vendor accepts",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:04:09.019Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select only line 1 in the counter-offer drawer and leave line 2 untouched.",
+   "Verify that line 1 changes from 100 to 90 while line 2 specifically retains its original quote of 50."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Select only line 1 in the counter-offer drawer and leave line 2 untouched.; Verify that line 1 changes from 100 to 90 while line 2 specifically retains its original quote of 50."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "switch_portal",
+   "expect_counter_offer_accepted",
+   "open_master_qcs",
+   "expect_qcs_amounts"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 15162
+ },
+ "plan": {
+  "title": "Live RFQ Counter Offer Acceptance",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the existing live RFQ with Vendor A's normal bid directly on its Responses screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are available on RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the tenant supports the required eRFX project flow."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90
+    },
+    "note": "Send a buyer counter offer at 90 for the available bid; the catalog cannot target only the first line."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the Responses grid marks Vendor A's bid as having a counter offer."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Act as Vendor A in the supplier portal and accept the pending counter offer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session to verify the accepted offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer's Responses grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer's Master QCS and verify Vendor A's comparison column is rendered."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Master QCS recalculates line amounts and the total from the current accepted prices."
+   }
+  ]
+ }
+}

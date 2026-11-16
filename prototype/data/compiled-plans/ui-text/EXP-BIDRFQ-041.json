@@ -1,0 +1,218 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-041",
+  "title": "Recreate Order: A new order is created with the displayed RFQ details",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:16.990Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the Schedule this event? checkbox is unchecked; the catalog can inspect field values but has no dedicated checkbox-state assertion without changing the control."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that the Schedule this event? checkbox is unchecked; the catalog can inspect field values but has no dedicated checkbox-state assertion without changing the control."
+  ],
+  "source": "llm",
+  "steps": 21,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "expect_value",
+   "expect_value",
+   "expect_value",
+   "expect_text",
+   "expect_text",
+   "expect_api_value",
+   "expect_text",
+   "expect_api_value",
+   "click",
+   "expect_visible",
+   "expect_toast"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 22224
+ },
+ "plan": {
+  "title": "Recreate Order from Live RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with Vendor A's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the prepared RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the bid's Settings menu is available."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order window opened."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Event End Time",
+     "value": "15 Mins"
+    },
+    "note": "Verify the default event end duration remains 15 Mins."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "15 Mins"
+    },
+    "note": "Verify the default evaluation duration remains 15 Mins."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Delivery Date",
+     "value": ""
+    },
+    "note": "Verify the Delivery Date field is empty."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "AAC Block 600x250x150MM(1100013510)",
+     "present": true
+    },
+    "note": "Verify the displayed product detail."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Variant 1",
+     "present": true
+    },
+    "note": "Verify the displayed product variant."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify the displayed quantity is the prepared RFQ quantity, 31."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Gurgaon(loc-002)",
+     "present": true
+    },
+    "note": "Verify the displayed delivery location."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify the displayed unit is the prepared RFQ unit, KG."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Create the new order using the displayed RFQ details."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Verify that the Recreate Order window closes after submission."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "New Order Created"
+    },
+    "note": "Verify the required success message."
+   }
+  ]
+ }
+}

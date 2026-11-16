@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-014",
+  "title": "Multi-currency event",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:09:05.192Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that USD and INR bids are converted using the event exchange rate into base-currency comparison values",
+   "Open Settings and verify that Show Bidding Currency displays vendor currencies and Show Default Currency switches back"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that USD and INR bids are converted using the event exchange rate into base-currency comparison values; Open Settings and verify that Show Bidding Currency displays vendor currencies and Show Default Currency switches back"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "expect_qcs_amounts"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 12263
+ },
+ "plan": {
+  "title": "Multi-Currency Master QCS Comparison",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the existing prepared closed RFQ directly on its Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "show_proposal_value_in_base_currency",
+     "value": "On"
+    },
+    "note": "Enable the required base-currency proposal setting for the tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the scenario."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify both quoted vendors appear as real comparison columns."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the Master QCS ranks vendors according to their compared amounts."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify each displayed line amount equals rate times quantity and each vendor total equals its line amounts."
+   }
+  ]
+ }
+}

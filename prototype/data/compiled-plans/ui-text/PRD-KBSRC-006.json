@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-006",
+  "title": "Buyer cannot fill shaded vendor-side fields in the template table",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:06:45.088Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_sheet_cells",
+   "set_sheet_cell",
+   "expect_sheet_cell"
+  ],
+  "ms": 8501
+ },
+ "plan": {
+  "title": "Buyer Cannot Edit Vendor Fields",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event setup screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Vendor Field Lock Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template so the table renders."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required product row."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Price"
+     ]
+    },
+    "note": "Verify the shaded vendor-side Price cell is marked read-only for the buyer."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "123"
+    },
+    "note": "Attempt to type into the vendor-side cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "refused": true
+    },
+    "note": "Confirm the buyer's input was not accepted."
+   }
+  ]
+ }
+}

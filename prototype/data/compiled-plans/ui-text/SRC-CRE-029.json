@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-029",
+  "title": "Forward auction: Quantity Requested = 10",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:31:08.862Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting the specifically forward (sell) auction template cannot be guaranteed because the case does not provide the template name and the catalog only selects a named template or the first offered template."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting the specifically forward (sell) auction template cannot be guaranteed because the case does not provide the template name and the catalog only selects a named template or the first offered template."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published"
+  ],
+  "ms": 19096
+ },
+ "plan": {
+  "title": "Forward Auction Quantity Requested 10",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Changes the event type from the default RFP to an auction and configures a price-based auction."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provides the required event title using an automatically generated unique title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the first offered auction template; the exact forward/sell template cannot be named from the case."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Adds the specified product with the requested quantity."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes remaining mandatory pricing-sheet fields so the event can proceed."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Explicitly enters the case's requested quantity in the first product row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10",
+     "kept": true
+    },
+    "note": "Verifies that Quantity Requested remains 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the requested delivery location in the first row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "100"
+    },
+    "note": "Adds a concrete price so the total calculation can be checked."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Total Amount",
+     "equals": "1000"
+    },
+    "note": "Verifies that the total is calculated from quantity 10 multiplied by price 100."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Adds the vendor named in the case to the event."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the 30-minute schedule while keeping the event starting now."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publishes the configured event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms the event was successfully published."
+   }
+  ]
+ }
+}

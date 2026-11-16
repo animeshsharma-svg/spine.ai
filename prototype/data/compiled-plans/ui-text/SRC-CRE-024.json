@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-024",
+  "title": "Forward auction: Quantity Requested = 0",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:30:39.310Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_field_error"
+  ],
+  "ms": 9905
+ },
+ "plan": {
+  "title": "Forward Auction Rejects Zero Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the Single Stage create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Sets the event type to a forward auction with a lot-award configuration."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-024 Forward Auction Quantity Zero"
+    },
+    "note": "Provides the required event title for the create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the first available auction pricing template so the product sheet can be populated."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "0"
+    },
+    "note": "Adds the specified product and enters the invalid zero quantity that should trigger inline validation."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Quantity",
+     "message": "Quantity must be greater than zero"
+    },
+    "note": "Verifies the quantity cell is refused with the expected validation message."
+   }
+  ]
+ }
+}

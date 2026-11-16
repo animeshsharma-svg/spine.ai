@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-005",
+  "title": "Vendor submits discount percentage with trailing space",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-12T13:33:49.671Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Log in to the Procol API with a buyer token that can view the stage but lacks reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\"."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Log in to the Procol API with a buyer token that can view the stage but lacks reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\"."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "expect_responses",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 9349
+ },
+ "plan": {
+  "title": "API Reject Bid Permission",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen containing the active vendor bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify the prepared event has the vendor's active direct bid before attempting the API rejection."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "log in to the Procol API with a buyer token lacking reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\""
+    },
+    "note": "The catalog has no step to issue an authenticated API PATCH or inspect its HTTP response body."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the buyer screen remains free of rendering errors after the API permission test."
+   }
+  ]
+ }
+}

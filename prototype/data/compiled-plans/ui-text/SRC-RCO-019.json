@@ -1,0 +1,151 @@
+{
+ "meta": {
+  "caseId": "SRC-RCO-019",
+  "title": "Recreate Order: Change the quantity in the pop-up",
+  "group": "SRC-RCO",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:10:25.297Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "expect_api_value",
+   "event_menu",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "fill",
+   "expect_value",
+   "click",
+   "expect_api_value",
+   "go_to",
+   "expect_api_value"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 22071
+ },
+ "plan": {
+  "title": "Recreate Order Quantity Change",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary for the buyer-side recreate-order flow."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Project Details"
+    },
+    "note": "Confirm the original event currently shows the prepared quantity of 10."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the stage Settings menu and launch the Recreate Order pop-up."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order pop-up opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet",
+     "within": "dialog"
+    },
+    "note": "Verify the pop-up includes Product Sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction Configurations",
+     "within": "dialog"
+    },
+    "note": "Verify the pop-up includes Auction Configurations."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date",
+     "within": "dialog"
+    },
+    "note": "Verify the pop-up includes Delivery Date."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Schedule this event?",
+     "within": "dialog"
+    },
+    "note": "Verify the scheduling option is present."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity Requested",
+     "value": "15",
+     "within": "dialog"
+    },
+    "note": "Change the recreated event quantity from 10 to 15."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Quantity Requested",
+     "value": "15",
+     "within": "dialog"
+    },
+    "note": "Confirm the pop-up retains the changed quantity before creation."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order",
+     "within": "dialog"
+    },
+    "note": "Create the recreated event."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify the newly created event asks for quantity 15."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "back"
+    },
+    "note": "Return to the original closed RFQ."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Project Details"
+    },
+    "note": "Verify the original event still shows quantity 10."
+   }
+  ]
+ }
+}

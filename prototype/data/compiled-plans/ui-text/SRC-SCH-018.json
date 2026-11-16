@@ -1,0 +1,159 @@
+{
+ "meta": {
+  "caseId": "SRC-SCH-018",
+  "title": "Technical stage 90 Mins with RFQ 60 Mins",
+  "group": "SRC-SCH",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:14:24.238Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "do_on_screen",
+   "expect_publish_blocked"
+  ],
+  "ms": 13466
+ },
+ "plan": {
+  "title": "Technical 90m RFQ 60m Schedule Refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing can be attempted."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-SCH-018 Technical 90 RFQ 60"
+    },
+    "note": "Provide the required project title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Create the required Technical and RFQ stages."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the Technical stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template required for the Technical stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required single line item."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Fill the Technical stage questionnaire, including Vendor Assessment."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the required Technical stage evaluator."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 90
+    },
+    "note": "Initialize the schedule drawer with a valid duration before editing the individual stage durations."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one available QA test vendor as the case requires."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the open schedule drawer, keep both stages on Duration, set Technical Stage duration to 90 Mins and RFQ duration to 60 Mins, scroll to verify both Event will end at values, save the schedule, and stop on the create screen."
+    },
+    "note": "Set and commit the separate per-stage durations that no dedicated catalog step can express."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "RFP duration exceeds RFQ end time. Please adjust."
+    },
+    "note": "Attempt publishing and assert the exact schedule-order refusal."
+   }
+  ]
+ }
+}

@@ -1,0 +1,172 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-013",
+  "title": "RFQ bid: Quantity above the requested quantity",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:26:02.963Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "fill",
+   "toggle",
+   "attempt",
+   "expect_message"
+  ],
+  "ms": 22960
+ },
+ "plan": {
+  "title": "RFQ bid rejects quantity above requested",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-BID-013 Quantity Validation"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before configuring its template and items."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Create one line item with the requested quantity set to 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor to the RFQ."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ for vendor bidding."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the RFQ reached a real published event page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event's live RFQ bid sheet in the vendor portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100,
+     "submit": false
+    },
+    "note": "Fill the required price fields without submitting, leaving the quantity available for the targeted invalid value."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity Available",
+     "value": "12"
+    },
+    "note": "Enter a vendor quantity of 12, exceeding the requested quantity of 10."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Terms and Conditions",
+     "on": true
+    },
+    "note": "Accept the required terms so the submission attempt tests quantity validation rather than an unrelated prerequisite."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit Quote"
+     },
+     "expect": "refused",
+     "because": "Quantity cannot be greater than the mentioned quantity"
+    },
+    "note": "Attempt to submit the over-quantity quote and require the application to refuse it."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Quantity cannot be greater than the mentioned quantity"
+    },
+    "note": "Assert the exact expected refusal message."
+   }
+  ]
+ }
+}

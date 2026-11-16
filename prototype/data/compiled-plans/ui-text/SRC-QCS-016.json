@@ -1,0 +1,142 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-016",
+  "title": "Download Report matches the screen",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:09:16.858Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Prove that the report's event number, title, dates, invited-vendor count, and participated-vendor count exactly match the corresponding Master QCS or event-summary values dynamically."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Prove that the report's event number, title, dates, invited-vendor count, and participated-vendor count exactly match the corresponding Master QCS or event-summary values dynamically."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_amounts",
+   "click",
+   "expect_download"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 11666
+ },
+ "plan": {
+  "title": "Master QCS Report Matches Screen",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on the buyer's Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project configuration required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify the two expected vendor columns are present with real names."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 2
+    },
+    "note": "Verify Vendor A's displayed rank before downloading the report."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor B",
+     "number": 1
+    },
+    "note": "Verify Vendor B's displayed rank before downloading the report."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 100
+    },
+    "note": "Verify Vendor A's unit price on Master QCS."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "number": 90
+    },
+    "note": "Verify Vendor B's unit price on Master QCS."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's line amount and total arithmetic on Master QCS."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Verify Vendor B's line amount and total arithmetic on Master QCS."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Report"
+    },
+    "note": "Download the Master QCS comparison report."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "contains": [
+      "Vendor A",
+      "Vendor B",
+      "100",
+      "90",
+      "1000",
+      "900"
+     ],
+     "rows": 1
+    },
+    "note": "Check the downloaded report contains both vendors and the prepared-state prices and totals."
+   }
+  ]
+ }
+}

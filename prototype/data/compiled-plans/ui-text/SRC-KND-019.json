@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-019",
+  "title": "eRFX Auction project: withdraw it while live with bids",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:01:24.808Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared event is a live RFQ pricing round, so this plan cannot verify behavior specific to an eRFX Auction-only project.",
+   "The alternate case where withdrawing a live auction is greyed out with the tooltip \"Auction cannot be withdrawn when the event is live\" cannot be exercised in the configured live RFQ state."
+  ],
+  "warnings": [
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared event is a live RFQ pricing round, so this plan cannot verify behavior specific to an eRFX Auction-only project.; The alternate case where withdrawing a live auction is greyed out with the tooltip \"Auction cannot be withdrawn when the event is live\" cannot be exercised in the configured live RFQ state."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "event_menu",
+   "expect_withdrawn",
+   "filter_events",
+   "expect_event_in_list"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 15272
+ },
+ "plan": {
+  "title": "Withdraw Live eRFX Project",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the existing prepared event without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the project menu exposes the withdrawal action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the tenant."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw Project"
+    },
+    "note": "Open the project menu and choose the requested project-level withdrawal action."
+   },
+   {
+    "step": "expect_withdrawn",
+    "args": {},
+    "note": "Verify that the project is recorded as withdrawn."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Show the History tab where withdrawn projects should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's withdrawn event is present in History."
+   }
+  ]
+ }
+}

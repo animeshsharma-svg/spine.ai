@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-013",
+  "title": "Two bids: award a split: 6 units to B and 4 units to A; no approval flow",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:19:21.592Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the award is final without any approval flow while also creating one PO per awarded vendor; create_po performs approval to completion.",
+   "Verify that the event moves to the History tab after submission without searching the events list from the prepared state."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the award is final without any approval flow while also creating one PO per awarded vendor; create_po performs approval to completion.; Verify that the event moves to the History tab after submission without searching the events list from the prepared state."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
+   "expect_awarded",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 17131
+ },
+ "plan": {
+  "title": "SRC-AWD-013 Split award across two vendors",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ with Vendor A and Vendor B bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable quantity splitting across vendors as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project behavior required by the setup."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate 6 units of the line to Vendor B."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A",
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate the remaining 4 units to Vendor A."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify both vendors are selected and the split total is 6 × 90 + 4 × 100 = 940."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal from the completed allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Complete mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal as required by the case."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify that the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Use the available downstream PO flow to create and read back purchase orders for the awarded vendors."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify two awarded PO line records exist, corresponding to the two awarded vendors."
+   }
+  ]
+ }
+}

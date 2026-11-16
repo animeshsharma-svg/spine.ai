@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "UI-FTNC-002",
+  "title": "A product's own clauses are merged into the default group without duplicates",
+  "compiledAt": "2026-11-09T20:07:57.233Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Select a specific product known to carry terms and conditions when the case does not provide its product name.",
+   "Guarantee adding the same product twice or another product sharing a clause using the catalog's product-selection arguments.",
+   "Directly assert that every dynamically named clause appears exactly once under the default group."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Select a specific product known to carry terms and conditions when the case does not provide its product name.; Guarantee adding the same product twice or another product sharing a clause using the catalog's product-selection arguments.; Directly assert that every dynamically named clause appears exactly once under the default group."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Deduplicate Product Terms and Conditions",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add two product line items to approximate the duplicate/shared-clause scenario."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Open the terms and conditions area where the default group and product clauses can be inspected."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the Terms & Conditions screen, ensure the product carrying terms and conditions is added twice or paired with another product sharing a clause, then verify that each clause appears exactly once under the default group; stop with the default group and its deduplicated clauses visible"
+    },
+    "note": "Perform the product-specific selection and inspect dynamic clause entries that no fixed catalog assertion can name."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions",
+     "visible": true
+    },
+    "note": "Assert that the terms and conditions section remains present after the inspection."
+   }
+  ]
+ }
+}

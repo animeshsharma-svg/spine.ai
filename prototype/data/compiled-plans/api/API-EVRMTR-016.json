@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-016",
+  "title": "Savings are recalculated after the extended end, not at the original end",
+  "compiledAt": "2026-11-09T22:55:36.712Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not expose assertion fields for standard or custom savings, so the recalculated values and their use of the improved price are not verified.",
+   "The available vocabulary cannot verify that custom savings appear about 2 seconds and standard savings about 5 seconds after the new end.",
+   "the decisive step tests something else than the case's point: The setup does not explicitly guarantee a reference price, and the bid price is fixed at 1 because no prior bid price token is available.",
+   "it depends on a company setting this run does not change (show_custom_savings) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/best_line_wise_savings"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer moves the round's bid end time with the increase auction time moved later, with the remarks set to “QA_Platform_extend_…”.",
+    "The invited QA vendor prices the line on the bid at 1.",
+    "The invited QA vendor submits the bid.",
+    "Wait until the round's bid end time has passed.",
+    "As the buyer, read the trade best line wise savings request and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.922Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-016",
+  "title": "Savings are recalculated after the extended end, not at the original end",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{roundEnd+240}}"
+     },
+     {
+      "path": "remarks",
+      "set": "QA_Platform_extend_{{stamp}}"
+     }
+    ]
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 1
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "decisive": true
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    },
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [
+   {
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/trade/{{tradeId}}/best_line_wise_savings"
+    },
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "show_custom_savings"
+ }
+}

@@ -1,0 +1,123 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-010",
+  "title": "A negative price is refused",
+  "compiledAt": "2026-11-09T20:02:23.536Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VBID-010 Negative Price Refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-010 Negative Price"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template before adding items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for the bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor to submit the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor portal can access it."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing bid sheet as the vendor."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": -100
+     },
+     "expect": "refused"
+    },
+    "note": "Submit the negative price and require positive evidence of refusal, including a readable message or disabled submission."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify no response was recorded."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Confirm that the refused negative bid created no vendor response."
+   }
+  ]
+ }
+}

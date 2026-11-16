@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "PRD-KBPTP-038",
+  "title": "Approver approves a budget (with optional remarks); workflow moves to the next approver",
+  "group": "PRD-KBPTP",
+  "compiledAt": "2026-11-10T06:52:57.794Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Reliably verify that the workflow has advanced to the next specific approver and that this approver is pending."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Reliably verify that the workflow has advanced to the next specific approver and that this approver is pending."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "click",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "expect_visible",
+   "click",
+   "expect_text"
+  ],
+  "ms": 74488
+ },
+ "plan": {
+  "title": "Approver approves budget approval note",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the prepared budget approval proposal for the first approver."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "Approvals"
+    },
+    "note": "Open the approval workflow area."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Approval Note",
+     "visible": true
+    },
+    "note": "Confirm the budget's approval note is available to open."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Approval Note"
+    },
+    "note": "Open the budget information and approval details for review."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Approve",
+     "visible": true
+    },
+    "note": "Confirm the first approver has an Approve action."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Enter remarks",
+     "visible": true
+    },
+    "note": "Confirm the optional remarks field is available before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Approve"
+    },
+    "note": "Submit the approval without adding remarks, exercising the optional-remarks path."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Confirm the approval was recorded and the workflow is no longer awaiting this approver."
+   }
+  ]
+ }
+}

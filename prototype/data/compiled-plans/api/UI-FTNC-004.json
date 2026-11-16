@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "UI-FTNC-004",
+  "title": "With the switch off, only clauses marked required block the vendor",
+  "compiledAt": "2026-11-09T22:53:36.089Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The available setup recipes do not guarantee is_tnc_mandatory is off or configure one required and one optional clause.",
+   "No available operation or listed field expresses accepting the required clause while leaving the optional clause unaccepted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid at 1000.",
+    "The invited QA vendor submits the bid.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.196Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-FTNC-004",
+  "title": "With the switch off, only clauses marked required block the vendor",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 1000
+    }
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

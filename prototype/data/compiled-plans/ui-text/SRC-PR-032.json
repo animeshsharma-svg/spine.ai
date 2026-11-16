@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-032",
+  "title": "A line already in progress for its whole quantity cannot be sourced again",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:31:17.638Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Identify the specific PR line used in the setup case when no PR number or line identifier is provided",
+   "Directly assert that the line cannot be ticked if Procol disables its checkbox rather than showing a refusal message",
+   "Publish the event after a refused Purchase Items action because no create screen should be reached"
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "can only test part of this — no step for: Identify the specific PR line used in the setup case when no PR number or line identifier is provided; Directly assert that the line cannot be ticked if Procol disables its checkbox rather than showing a refusal message; Publish the event after a refused Purchase Items action because no create screen should be reached"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "attempt"
+  ],
+  "state": "pr_rfq",
+  "screen": "summary",
+  "ms": 10493
+ },
+ "plan": {
+  "title": "Reject sourcing an in-progress PR line",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions area as the buyer."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "In Progress"
+    },
+    "note": "Switch to the tab containing requisition lines already being sourced."
+   },
+   {
+    "step": "select_pr",
+    "args": {},
+    "note": "Attempt to select the available in-progress requisition line."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "purchase_items",
+     "expect": "refused",
+     "because": "This Line item is already in Progress for some quantity"
+    },
+    "note": "Verify that starting a new project from the in-progress line is refused with the expected business-rule message."
+   }
+  ]
+ }
+}

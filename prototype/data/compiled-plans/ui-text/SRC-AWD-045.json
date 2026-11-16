@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-045",
+  "title": "Show awarded bids on the proposal",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:23:03.722Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly assert that every displayed vendor line is awarded and that no unawarded vendor line is included."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Explicitly assert that every displayed vendor line is awarded and that no unawarded vendor line is included."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "toggle",
+   "expect_table",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value"
+  ],
+  "state": "proposal",
+  "screen": "proposal",
+  "ms": 13166
+ },
+ "plan": {
+  "title": "Show awarded bids on proposal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the existing submitted award proposal directly, as required for the prepared proposal state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before opening the proposal."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Show awarded bids",
+     "on": true
+    },
+    "note": "Enable the proposal filter that should show awarded bids only."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Order Allocation",
+     "min": 1
+    },
+    "note": "Verify that awarded allocation lines are listed after enabling the filter."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Order Allocation"
+    },
+    "note": "Verify that a real awarded vendor is shown in the allocation area."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Order Allocation"
+    },
+    "note": "Verify that the awarded line includes its quantity."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal",
+     "within": "Order Allocation"
+    },
+    "note": "Verify that the awarded line includes the amount held for the proposal."
+   }
+  ]
+ }
+}

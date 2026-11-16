@@ -1,0 +1,188 @@
+{
+ "meta": {
+  "caseId": "SRC-STR-013",
+  "title": "English (rising, with ceiling price) auction: what each side sees during bidding",
+  "group": "SRC-STR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:18:04.121Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Configure the English (rising) auction strategy with a ceiling price; the catalog only supports rank, price, and traffic-light auction strategies.",
+   "Set or verify an auction ceiling price and assert that a bid above that ceiling is refused.",
+   "Assert that bids increase by at least one tick under English auction rules.",
+   "Inspect and assert the exact English-auction views shown to Vendors A, B, and C, including any strategy-specific price or rank display."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "cannot test this case yet — no step can observe: Configure the English (rising) auction strategy with a ceiling price; the catalog only supports rank, price, and traffic-light auction strategies.; Set or verify an auction ceiling price and assert that a bid above that ceiling is refused.; Assert that bids increase by at least one tick under English auction rules.; Inspect and assert the exact English-auction views shown to Vendors A, B, and C, including any strategy-specific price or rank display."
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses"
+  ],
+  "ms": 20171
+ },
+ "plan": {
+  "title": "English Auction Ceiling and Bidding Views",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation flow requested by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the tenant capability required for auction ceiling prices, although no catalog step can configure the ceiling itself."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the closest supported auction mode; English rising with a ceiling is not available in the catalog."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-STR-013 English Ceiling Auction"
+    },
+    "note": "Provide the mandatory event title for publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template so the pricing sheet is created."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product and quantity."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill remaining required pricing-sheet fields."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the first row."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invite three QA vendors without inventing vendor names."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so vendors can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid at 100 using the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 105
+    },
+    "note": "Submit the next vendor's bid at 105 using a separate configured vendor identity."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the second vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2
+    },
+    "note": "Assert the buyer sees two direct vendor responses out of three invited vendors."
+   }
+  ]
+ }
+}

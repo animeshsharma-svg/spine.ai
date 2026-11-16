@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-029",
+  "title": "A line's quantity, unit and closed quantity read from what the buyer entered",
+  "compiledAt": "2026-11-09T22:55:20.743Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup vocabulary cannot create three lines, set a quantity only on a pricing-round line, or award line 1 in partial quantities of 30 and 20.",
+   "The available read-back fields for read_line_items expose only root status and non_empty assertions, so quantity, unit symbol, and closed quantity values cannot be checked.",
+   "The expected values 100 KG, 80, 0 with no unit, and closed quantities 30 then 50 cannot be verified.",
+   "the case reads as “the app answers without a server error”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer lists the event's line items.",
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.914Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-029",
+  "title": "A line's quantity, unit and closed quantity read from what the buyer entered",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

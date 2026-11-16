@@ -1,0 +1,139 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-009",
+  "title": "Submitting an empty bid is refused",
+  "compiledAt": "2026-11-09T20:02:06.931Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-SS-007"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VBID-009 Empty Bid Refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Empty Bid Refusal Test"
+    },
+    "note": "Provide the required event title so the event can be published."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ pricing stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before configuring its pricing sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product so the bid sheet can be opened."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the required buyer-side pricing sheet fields."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor needed to test the supplier submission."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its bid sheet."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ bid sheet in the vendor portal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": "",
+      "submit": true
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to submit the empty bid and require refusal evidence such as a disabled submit or error message."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page to verify the oracle."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0,
+     "stage": "rfq"
+    },
+    "note": "Confirm no vendor response or bid appears on the buyer's RFQ Responses view."
+   }
+  ]
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "UI-FUPL-002",
+  "title": "A file over 10 MB is refused before upload",
+  "compiledAt": "2026-11-09T20:10:21.526Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Provide and select a file larger than 10 MB for the upload control.",
+   "Verify the UI refusal for that oversized file.",
+   "Verify that no upload request was sent."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Provide and select a file larger than 10 MB for the upload control.; Verify the UI refusal for that oversized file.; Verify that no upload request was sent."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject oversized upload before sending",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Upload Sheet",
+     "visible": true
+    },
+    "note": "Confirm the file-upload control required by the case is present."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide and select a file larger than 10 MB in Upload Sheet, verify the on-screen refusal, and verify that no upload request was sent"
+    },
+    "note": "The catalog cannot supply an over-10-MB file or inspect the upload request absence."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any"
+    },
+    "note": "Check for an on-screen response after the tester performs the oversized upload attempt."
+   }
+  ]
+ }
+}

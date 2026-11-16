@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "DRV-EVT-003",
+  "title": "Participation status tracking behavior with vendor integration status setting enabled",
+  "group": "DRV-EVT",
+  "sheet": "derived-track-each-vendor-s-participation-status",
+  "compiledAt": "2026-11-12T13:36:38.921Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Not Participated\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Not Participated\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "expect_text",
+   "expect_text",
+   "expect_participant_count"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 8592
+ },
+ "plan": {
+  "title": "Vendor Integration Status on Participants",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the existing live RFQ directly on its Participants tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "show_vendor_integration_status",
+     "value": "On"
+    },
+    "note": "Enable the required tenant setting before inspecting the participant statuses."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor Integration Status",
+     "present": true
+    },
+    "note": "Assert that vendor integration status is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Not Participated",
+     "present": true
+    },
+    "note": "Assert that the stage participation status tracker is visible for the invited vendor with no bid."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Confirm that invited vendor rows are present on the Participants tab."
+   }
+  ]
+ }
+}

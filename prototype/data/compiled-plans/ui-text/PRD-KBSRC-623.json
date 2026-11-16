@@ -1,0 +1,184 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-623",
+  "title": "Decline option offers both decline and modify",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:26:03.433Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids"
+  ],
+  "source": "llm",
+  "steps": 21,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 12065
+ },
+ "plan": {
+  "title": "Counter offer decline and modify options",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage event so the RFQ stage can be configured."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBSRC-623 Counter Offer"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product required for bidding."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will bid and receive the counter offer."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can submit a bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the RFQ reached its published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid where the counter offer can be initiated."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Send a pending counter offer to the vendor."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Confirm the buyer view marks the counter offer as pending."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the vendor persona's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview where the pending counter offer banner is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer"
+    },
+    "note": "Confirm the vendor can see the pending counter offer banner."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Decline"
+    },
+    "note": "Choose the vendor's Decline option to open the response dialog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": true
+    },
+    "note": "Verify that the decline dialog opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Decline",
+     "within": "dialog"
+    },
+    "note": "Assert the dialog includes the decline choice."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Modify Counter Offer",
+     "within": "dialog"
+    },
+    "note": "Assert the dialog offers the required Modify Counter Offer choice."
+   }
+  ]
+ }
+}

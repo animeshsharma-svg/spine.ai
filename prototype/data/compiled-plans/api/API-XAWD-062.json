@@ -2,13 +2,12 @@
  "meta": {
   "caseId": "API-XAWD-062",
   "title": "Countering above the vendor's price depends on the reversal setting",
-  "compiledAt": "2026-10-03T09:49:20.689Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:08:24.839Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
-   "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+   "it depends on a company setting this run does not change (RFQ trade config allow_price_reversal_in_counter_offer_in_rfq = false) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -26,11 +25,12 @@
    "steps": [
     "The buyer sends the “counter the vendor's price” request, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You cannot increase the price”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.066Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XAWD-062",
   "title": "Countering above the vendor's price depends on the reversal setting",
   "setup": {
@@ -46,7 +46,9 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "300",
+   "message": "You cannot increase the price"
   },
   "dependsOnSetting": "RFQ trade config allow_price_reversal_in_counter_offer_in_rfq = false"
  }

@@ -1,0 +1,18 @@
+import { openAs, tokenFor, ME, pshot, WEB, sleep, settle } from "./pra-lib";
+const { browser, page, net } = await openAs(await tokenFor(ME));
+await page.goto(`${WEB}/purchase-requisitions`, { waitUntil: "domcontentloaded", timeout: 120000 }); await settle(page, 8000);
+await page.getByRole("button", { name: /Search/ }).first().click(); await sleep(1500);
+await pshot(page, "probe-02-search-open");
+const inputs = await page.locator("input:visible").evaluateAll((xs) => xs.map((x) => `${(x as HTMLInputElement).placeholder}|${x.className.slice(0, 40)}`));
+console.log("inputs", inputs);
+const box = page.locator("input:visible").filter({ hasNot: page.locator("[type=checkbox]") }).first();
+await page.keyboard.type("1010", { delay: 60 }); await sleep(3500);
+await pshot(page, "probe-03-search-typed");
+console.log("after type rows", await page.locator(".ant-table-tbody tr").count());
+await page.keyboard.press("Enter"); await sleep(4000);
+await pshot(page, "probe-04-search-enter");
+console.log("url", page.url());
+console.log(net.filter((n) => /purchase_requests|search/.test(n.url)).slice(-6).map((n) => `${n.status} ${n.method} ${decodeURIComponent(n.url).slice(0, 260)}`).join("\n"));
+const firstRow = await page.locator(".ant-table-tbody tr").first().innerText().catch(() => "");
+console.log("row0", firstRow.replace(/\s+/g, " ").slice(0, 300));
+await browser.close();

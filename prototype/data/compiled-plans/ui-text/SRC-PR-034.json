@@ -1,0 +1,147 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-034",
+  "title": "Create a Single Stage RFP from an open material PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:31:40.189Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The explicit Single Stage selection from the PR flow is not directly observable as a distinct control.",
+   "The PR line's delivery-location value and locked state cannot be asserted by the available PR or questionnaire steps.",
+   "That the published event explicitly shows it came from a PR cannot be asserted.",
+   "That the specific selected PR moved to In Progress with this event's number cannot be correlated; the plan can only verify that the In Progress tab has at least one row."
+  ],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 11 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 11 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: The explicit Single Stage selection from the PR flow is not directly observable as a distinct control.; The PR line's delivery-location value and locked state cannot be asserted by the available PR or questionnaire steps.; That the published event explicitly shows it came from a PR cannot be asserted.; That the specific selected PR moved to In Progress with this event's number cannot be correlated; the plan can only verify that the In Progress tab has at least one row."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "expect_text",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "open_event_settings",
+   "expect_menu_item",
+   "expect_table"
+  ],
+  "ms": 22550
+ },
+ "plan": {
+  "title": "Create Single-Stage RFP from Open Material PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": false
+    },
+    "note": "Assert that the RFP questionnaire screen does not expose a pricing column."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title using the product's generated title behavior."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named in the case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured PR-based RFP event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real event project page."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the published event's Settings menu to inspect the PR-specific action restriction."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Assert that Recreate Order is greyed out on the published event."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Verify that the In Progress PR list contains at least one row, while noting that the catalog cannot correlate it to the selected PR and event number."
+   }
+  ]
+ }
+}

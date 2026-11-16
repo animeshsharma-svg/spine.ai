@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-063",
+  "title": "Edit Evaluation Time: Edit Evaluation Time with non‑numeric characters in time field (if time input is free text)",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:46:37.686Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact free-text time portion field and the precise \"ab:cd\" HH:MM parsing behavior cannot be addressed; extend_time only models a custom evaluation-time amount, including letter input."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact free-text time portion field and the precise \"ab:cd\" HH:MM parsing behavior cannot be addressed; extend_time only models a custom evaluation-time amount, including letter input."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "extend_time"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 13208
+ },
+ "plan": {
+  "title": "Edit Evaluation Time Rejects Non-Numeric Input",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ summary; the event already exists in the required live state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdrawal-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab before opening evaluation-time controls."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "evaluation",
+     "option": "custom",
+     "amount": "ab:cd",
+     "unit": "minutes",
+     "expect": "refused"
+    },
+    "note": "Attempt to enter the non-numeric evaluation-time value and assert that Procol refuses it."
+   }
+  ]
+ }
+}

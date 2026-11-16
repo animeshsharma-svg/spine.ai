@@ -3,15 +3,17 @@
   "caseId": "API-BID-025",
   "title": "Revising a bid replaces the price and keeps history",
   "compiledAt": "2026-10-03T09:45:07.685Z",
-  "planVersion": 1,
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "the plan has the buyer send POST /v1/bids, but the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)",
-   "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”",
+   "library case API-BID-025 is written for the buyer, but the plan sends it as vendor",
    "it does not read the record back to confirm what was kept or shown"
   ],
-  "warnings": [],
+  "warnings": [
+   "act 1: library case API-BID-025 is written for the buyer — sent as the buyer",
+   "act 1: sent as the vendor — the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)"
+  ],
   "validated": true,
   "endpoints": [
    "POST /v1/bids"
@@ -25,13 +27,14 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.689Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-BID-025",
   "title": "Revising a bid replaces the price and keeps history",
   "setup": {
@@ -40,14 +43,14 @@
   "act": [
    {
     "op": "library",
-    "as": "buyer",
+    "as": "vendor",
     "caseId": "API-BID-025",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "accept"
   }
  }
 }

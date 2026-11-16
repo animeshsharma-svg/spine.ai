@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EventsPage } from "../pages/EventsPage.js";
 import { BasePage } from "../pages/BasePage.js";
+import type { BrowserContext } from "@playwright/test";
 import { NotOnEventError, VendorPortalPage } from "../pages/VendorPortalPage.js";
+import { EventActionsPage } from "../pages/EventActionsPage.js";
+import { isNoiseMessage } from "../oracle/noise.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
@@ -22,7 +25,7 @@ import { PlanStep, STEP_CATALOG, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark, appMessagesSince } from "./generic/messages.js";
 import { probeControls } from "./probe.js";
-import { extendTime } from "./eventTime.js";
+import { extendTime, readEnd, clockDiff, shownAt } from "./eventTime.js";
 import { appRuleFor, recoveryFor, recoveryWith, type AppRule } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
@@ -34,7 +37,7 @@ import { installSpotlight, beginStep, stepShots, stepActions, spotlightVerify, s
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
-import { resolveScreen, type PlanContext } from "./screens.js";
+import { resolveScreen, screenState, type PlanContext, SCREENS } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 import { sideFrames } from "../support/liveCursor.js";
 import { askTester, SAYS_STOP, mask } from "../explore/ask.js";
@@ -49,6 +52,7 @@ import { orchestrate } from "../support/orchestrator.js";
 import { EvaluationPage } from "../pages/EvaluationPage.js";
 import { runEventMenuStep, type EventMenuState } from "./eventMenuSteps.js";
 import { MasterQcsPage } from "../pages/MasterQcsPage.js";
+import * as XLSX from "xlsx";
 import { amountLabels, cellAt, lineBlocks, qcsNumber, rowLabels, vendorIndex } from "./qcsModel.js";
 import { fillRequiredFields, fillWhatTheAppNamed, sweepSaid, MANDATORY_SAID, type SweepResult } from "../support/requiredFields.js";
 
@@ -320,7 +324,20 @@ export interface PlanResult {
 /** ask_tester parts handed to the explorer in this run (each gets its own evidence folder). */
 let gapCount = 0;
 
+/** The supplier-portal side of a run: a second browser signed in as the vendor (switch_portal). */
+interface PortalState {
+  ctx: BrowserContext;
+  page: Page;
+  side: { stop: () => Promise<void>; relabel: (label: string) => void };
+  email: string;
+  how: string;
+  /** Which page the generic steps act on now. */
+  on: "buyer" | "vendor";
+  buyer: { page: Page; events: EventsPage };
+}
+
 interface RunState {
+  portal?: PortalState;
   /** the tester did part of this run by hand: a later step's work may already be in Procol */
   handDone?: boolean;
   /** set by place_surrogate_bid when Procol already holds what it was about to enter (done by hand) */
@@ -359,6 +376,8 @@ interface RunState {
   typedBids: Array<{ vendor: string; price: number }>;
   /** Bids placed from the vendor portal in this plan: who signed in, the unit price typed, when. */
   portalBids?: Array<{ email: string; price: number; at: number }>;
+  /** The event's end as the app held it before a last-minute bid (wait_for_end_window), server clock + the screen's offset. */
+  endBefore?: { end: number; diff: number; at: number };
   /** Vendors the case named that the participants search did not know (invite_vendor): never on the round. */
   unmatchedVendors: string[];
   /** The events-list tab filter_events chose (Drafts, History, …): a later search must keep it. */
@@ -440,7 +459,24 @@ function namesReason(said: string, because: string): boolean {
   const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w && !REASON_FILLER.has(w));
   const have = new Set(words(said));
   const want = words(because);
-  return want.length > 0 && want.every((w) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`));
+  // "invalid tick size" IS "Please enter valid tick size": a negated word matches its base (in-/un-/non-), and
+  // the app's "valid X" / "not valid X" wording names the same thing as the case's "invalid X" (13 Nov)
+  const same = (w: string) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`) || (/^(in|un|non)[a-z]{3,}$/.test(w) && have.has(w.replace(/^(in|un|non)/, ""))) || have.has(`in${w}`) || have.has(`un${w}`);
+  return want.length > 0 && want.every(same);
+}
+/**
+ * The app refused for the SAME FIELD the case names, in other words: "Invalid Trigger Time for Dynamic Time
+ * Extension." for a case that expects "Trigger time extension cannot be less than 1 min" (14 Nov, SRC-AUC-012 —
+ * the case quotes the screen's empty-field text, the app's rule at publish speaks from the server). Half the
+ * case's content words, at least two of them, appear in the app's words. The step then passes and says that the
+ * words differ, so a reader can decide whether the wording itself is worth a ticket.
+ */
+function sameSubject(said: string, because: string): boolean {
+  const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w.length > 2 && !REASON_FILLER.has(w) && !/^(cannot|can|not|should|must|than|less|more|min|mins|minute|minutes|with|without|enter|select|choose|valid|invalid|required)$/.test(w));
+  const have = new Set(words(said));
+  const want = [...new Set(words(because))];
+  const shared = want.filter((w) => have.has(w) || have.has(w.replace(/s$/, "")) || have.has(`${w}s`));
+  return shared.length >= 2 && shared.length * 2 >= want.length;
 }
 /**
  * Procol checks participants before the template and the products (projectCreation.jsx:1607):
@@ -496,18 +532,62 @@ async function sheetGrid(s: RunState) {
   return { rows, heads, colOf, cell };
 }
 
+/**
+ * Row 1's REQUIRED cells (a "*" in the header) that are still empty, filled by their header: a delivery
+ * location from the company's own list (first option), a number elsewhere. Returns what it filled.
+ */
+async function completeRequiredCells(s: RunState): Promise<string[]> {
+  const g = await sheetGrid(s);
+  const rawHeads = (await g.rows.nth(0).locator("td, th").allInnerTexts().catch(() => [] as string[]));
+  const filled: string[] = [];
+  if ((await g.rows.count()) < 2) return filled;
+  for (let i = 0; i < rawHeads.length; i++) {
+    const head = rawHeads[i].replace(/\s+/g, " ").trim();
+    if (!/\*\s*$/.test(head)) continue;
+    const name = head.replace(/\*/g, "").trim();
+    if (/^(product|product variant|quantity requested)$/i.test(name)) continue; // typed in place already
+    // a traffic-light case that leaves the ranges empty on purpose keeps the sheet's Green / Yellow columns blank
+    if (s.single.leaveRangeCellsEmpty && /green|yellow/i.test(name)) continue;
+    const td = g.rows.nth(1).locator("td").nth(i);
+    const shown = cellText((await td.innerText().catch(() => "")) || "");
+    if (shown) continue;
+    await td.dblclick({ timeout: 5_000 }).catch(async () => { await td.click({ timeout: 5_000 }).catch(() => {}); });
+    await s.page.waitForTimeout(600);
+    const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+    if (await select.count().catch(() => 0)) {
+      const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
+      await search.fill("").catch(() => {});
+      const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
+      for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
+      const text = ((await opt.innerText().catch(() => "")) || "").trim();
+      if (text && (await opt.click({ timeout: 5_000 }).then(() => true).catch(() => false))) filled.push(`${name} = ${text}`);
+      else await s.page.keyboard.press("Escape").catch(() => {});
+      continue;
+    }
+    const input = td.locator("input, textarea").first();
+    if (await input.count().catch(() => 0)) {
+      const value = /price|amount|rate/i.test(name) ? "100" : /quantity|qty/i.test(name) ? "10" : /date/i.test(name) ? "" : "1";
+      if (value) { await input.fill(value).catch(() => {}); await s.page.keyboard.press("Tab").catch(() => {}); filled.push(`${name} = ${value}`); }
+    } else await s.page.keyboard.press("Escape").catch(() => {});
+  }
+  return filled;
+}
+
 /** A cell's text as a person reads it; numbers compared without separators or currency. */
 const cellText = (t: string) => t.replace(/\s+/g, " ").trim();
 const sameCellValue = (a: string, b: string) => {
   const num = (x: string) => {
     // "9,99,99,999 KG" (Indian grouping + unit) is 99999999
-    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z()]+$/, "");
+    // a unit may carry digits after its first letter: "10 M3", "5 CM2" (5 Nov)
+    const c = x.replace(/[₹$€£,\s]/g, "").replace(/(\/)?[A-Za-z][A-Za-z0-9()]*$/, "");
     return /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : null;
   };
   const na = num(a), nb = num(b);
   if (na !== null && nb !== null) return na === nb;
   // a product cell reads "NAME (code)Details", and a long name is cut "70MM CYLINDER WITH KEY & ...(code)"
-  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\(\d+\)\s*$/, "").trim().toLowerCase();
+  // …a location cell "Plant Name(LOC-0001)Details" is the case's "Plant Name (LOC-0001)": the code in brackets and
+  // the spacing are not a difference (13 Nov)
+  const name = (x: string) => cellText(x).replace(/details$/i, "").replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+/g, "").trim().toLowerCase();
   const sa = name(a), sb = name(b);
   if (sa === sb) return true;
   const cut = (x: string, y: string) => /\.\.\.$|…$/.test(x) && y.startsWith(x.replace(/(\.\.\.|…)$/, "").trim());
@@ -1042,6 +1122,182 @@ async function createEventForCase(s: RunState, need: "bids" | "live"): Promise<s
 /** Steps that drive the create screen — nothing to do once the event is published. */
 const CREATE_SCREEN_STEP = /^(compose_stages|expect_stages|set_title|select_template|add_line_items|expect_line_items|fill_sheet|set_schedule|invite_vendor|publish|save_draft|configure_single_stage)$/;
 
+/**
+ * switch_portal: make the supplier portal (signed in as the vendor) or the buyer's console the page the
+ * next steps act on. The vendor's browser is opened once per run and kept; "buyer" does not close it,
+ * so a plan can go back and forth (bid as the vendor, read the buyer's grid, revise as the vendor).
+ */
+/** Everyone invited to the run's event, from the database (the create screen shows four names and a "+N" chip). */
+async function topUpInvitedFromDb(s: RunState, cid: number | null): Promise<void> {
+  if (!allowRealVendors() || invitedFromDb || !s.title) return;
+  const all = await invitedVendorNames(s.title, cid);
+  if (all?.length) {
+    invitedFromDb = true;
+    if (all.length > invitedVendors.length) {
+      console.log(`[bid] ${all.length} vendors are invited to “${s.title}” — choosing who signs in from all of them, not only the names the create screen showed`);
+    }
+    invitedVendors = all;
+  }
+}
+
+async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknown): Promise<string> {
+  if (to === "buyer") {
+    if (!s.portal || s.portal.on === "buyer") return "on the buyer's console already";
+    s.page = s.portal.buyer.page;
+    s.events = s.portal.buyer.events;
+    s.portal.on = "buyer";
+    await s.page.bringToFront().catch(() => {});
+    return `back on the buyer's console at ${new URL(s.page.url()).pathname}`;
+  }
+  const named = vendor ? String(vendor).trim() : "";
+  // vendor: 2 after place_bid steps = the second vendor that BID in this plan (the same person comes back to look at
+  // its zone, 14 Nov); before any bid it is the second vendor on the event, as place_bid{vendor:2} counts
+  const knownEmail = /@/.test(named) ? named : /^\d+$/.test(named) && biddersUsed[Number(named) - 1] ? biddersUsed[Number(named) - 1] : "";
+  // the buyer's page outlives any vendor browser: it is the one the portal was opened from, never the vendor's own
+  const buyerPage = s.portal ? s.portal.buyer.page : s.page;
+  const buyerEvents = s.portal ? s.portal.buyer.events : s.events;
+  if (s.portal) {
+    const want = (knownEmail || named).toLowerCase();
+    // the same vendor (none named, or the one signed in): keep its browser — whichever side is current
+    // (14 Nov: "vendor: 2" while vendor 1's portal was the open side used to answer "on the portal already")
+    if (!want || want === s.portal.email.toLowerCase()) {
+      if (s.portal.on === "vendor") return `on the supplier portal already, signed in as ${s.portal.email}`;
+      s.page = s.portal.page;
+      s.events = new EventsPage(s.page);
+      s.portal.on = "vendor";
+      await s.page.bringToFront().catch(() => {});
+      return `on the supplier portal again, signed in as ${s.portal.email}`;
+    }
+    // A different vendor: sign the first one out by closing its browser.
+    await s.portal.side.stop().catch(() => {});
+    await s.portal.ctx.close().catch(() => {});
+    s.portal = undefined;
+    s.page = buyerPage;
+    s.events = buyerEvents;
+  }
+  const browser = buyerPage.context().browser();
+  if (!browser) throw new Error("no browser available to open a vendor session");
+  // The vendor: the one named (an email, or a name the invited list resolves), else the event's own QA
+  // vendor (the API-built state names them), else the next invited vendor this run can sign in as.
+  // The vendor: the one named (an email, or a name the invited list resolves); else the one who already
+  // bid from the portal in this plan (a place_bid before the switch — the same person comes back to look,
+  // 2 Nov); else the API-built state's vendor; else the next invited vendor this run can sign in as.
+  let email = "";
+  // the N-th vendor on the event is counted among everyone invited (14 Nov: a switch before any bid saw only the
+  // profile's vendor, because only place_bid had read the invited list from the database)
+  if (!knownEmail && named) await topUpInvitedFromDb(s, Number(process.env.COMPANY_ID) || null).catch(() => {});
+  if (knownEmail) email = knownEmail;
+  else if (!named && biddersUsed.length) email = biddersUsed[biddersUsed.length - 1];
+  else if (!named && s.context.vendorEmail) email = String(s.context.vendorEmail);
+  else email = await bidderEmail(named || undefined);
+  const vendorCtx = await browser.newContext();
+  const vendorPage = await vendorCtx.newPage();
+  shareObserver(buyerPage, vendorPage);
+  installSpotlight(vendorPage, joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_")));
+  const side = sideFrames(vendorPage, `Vendor portal · ${email}`);
+  const portal = new VendorPortalPage(vendorPage);
+  let how = "";
+  try {
+    await portal.goto();
+    how = await portal.login(email);
+  } catch (e) {
+    await side.stop().catch(() => {});
+    await vendorCtx.close().catch(() => {});
+    throw new Error(`could not sign in to the supplier portal as ${email}: ${(e as Error).message.split("\n")[0]}`);
+  }
+  s.portal = { ctx: vendorCtx, page: vendorPage, side, email, how, on: "vendor", buyer: { page: buyerPage, events: s.events } };
+  s.page = vendorPage;
+  s.events = new EventsPage(vendorPage);
+  return `on the supplier portal, signed in as ${email} (with ${how})`;
+}
+
+/**
+ * vendor_bid (10 Nov 2026, not yet exercised live): the vendor's own bid on the portal that is ALREADY open — type a
+ * price into the sheet's price cells (place_bid's own fillBid, which types whatever it is given) and press Submit
+ * Quote. The outcome is read, never assumed: the stage's "Submitted" mark = a bid; a refusal toast / a Submit that
+ * stays disabled = "blocked: …" (the words `attempt` takes as the refusal); neither = "could not tell".
+ */
+async function vendorBid(s: RunState, a: Record<string, unknown>): Promise<string> {
+  if (!s.portal || s.portal.on !== "vendor") throw new Error('vendor_bid needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event (or open_prepared{screen:"vendor"}) first');
+  const page = s.portal.page;
+  const portal = new VendorPortalPage(page);
+  const typed = a.price === undefined || a.price === null || a.price === "" ? "100" : String(a.price).trim();
+  const title = s.context.title ?? s.title;
+  // The sheet: open the round when the page is still on the event's overview.
+  const sheetOpen = async () => (await page.locator("[role='columnheader']").filter({ hasText: /price/i }).count().catch(() => 0)) > 0;
+  if (!(await sheetOpen())) {
+    await portal.startBidding(title).catch((e) => {
+      throw new Error(`the bid sheet could not be opened on the supplier portal: ${(e as Error).message.split("\n")[0].slice(0, 160)}`);
+    });
+  }
+  if (portal.stage === "technical") throw new Error("vendor_bid types a PRICE; the round open for this vendor is the Technical Stage (its questionnaire) — automation needs update for a typed technical answer");
+  const mark = await toastMark(page);
+  // fillBid types String(price) into each price cell; a non-number is typed as written (the sheet decides what it keeps).
+  const cells = await portal.fillBid(typed as unknown as number);
+  if (!cells) throw new Error(`the vendor's quote sheet had no Price cell to fill (on ${new URL(page.url()).pathname}) — nothing was typed`);
+  // What the sheet shows in the price column now — the product's answer to what was typed.
+  const kept = await page
+    .evaluate(() => {
+      const headers = [...document.querySelectorAll("[role='columnheader']")];
+      const h = headers.find((x) => /price/i.test((x.textContent || "").replace(/\s+/g, " ")));
+      const col = h?.getAttribute("aria-colindex");
+      const cellsNow = col ? [...document.querySelectorAll(`[role='row'] [aria-colindex="${col}"]`)].filter((c) => !c.closest("[role='row']")?.querySelector("[role='columnheader']")) : [];
+      return cellsNow.map((c) => ((c as HTMLElement).innerText || (c.querySelector("input") as HTMLInputElement | null)?.value || "").replace(/\s+/g, " ").trim()).slice(0, 10);
+    })
+    .catch(() => [] as string[]);
+  const keptWords = kept.length ? kept.map((k) => k || "(empty)").join(", ") : "(not read)";
+  if (a.submit === false) return `typed ${typed} into ${cells} price cell(s) on the supplier portal; the sheet now shows ${keptWords}; not submitted`;
+  // A refusal the sheet gave at once (an inline message under the cell, a toast) — before any Submit.
+  const inline = await appMessagesSince(page, mark).catch(() => []);
+  const refusal = inline.find((m) => m.kind === "error" || m.kind === "inline" || m.kind === "warning");
+  const submit = page.getByRole("button", { name: /submit quote|submit bid|^submit$/i }).first();
+  const submitDisabled = (await submit.count().catch(() => 0)) > 0 && (await submit.isDisabled().catch(() => false));
+  try {
+    await portal.submitBid();
+  } catch (e) {
+    const why = (e as Error).message.split("\n")[0];
+    if (/stays disabled/i.test(why)) return `blocked: "Submit Quote" stays disabled after typing ${typed} (the sheet shows ${keptWords})${refusal ? ` — the sheet says: ${refusal.text}` : ""}`;
+    throw new Error(`could not tell: pressing Submit failed (${why.slice(0, 160)}) after typing ${typed} — the sheet shows ${keptWords}`);
+  }
+  const ok = await portal.bidSubmitted();
+  if (ok) {
+    s.bidSubmitted = true;
+    const n = Number(typed);
+    (s.portalBids ??= []).push({ email: s.portal.email, price: Number.isFinite(n) ? n : NaN, at: Date.now() });
+    // the N-th bidder of the plan (switch_portal{vendor:N} after the bids) counts a portal bid too, not only place_bid
+    if (!biddersUsed.some((u) => u.toLowerCase() === s.portal!.email.toLowerCase())) biddersUsed.push(s.portal.email);
+    return `bid submitted from the supplier portal as ${s.portal.email}: typed ${typed} into ${cells} price cell(s) (the sheet shows ${keptWords})${submitDisabled ? "; Submit was disabled until the terms were ticked" : ""}`;
+  }
+  const after = await appMessagesSince(page, mark).catch(() => []);
+  const said = after.find((m) => m.kind === "error" || m.kind === "inline" || m.kind === "warning") ?? refusal;
+  if (said) return `blocked: ${said.text} (after typing ${typed}; the sheet shows ${keptWords})`;
+  throw new Error(`could not tell: the portal neither marked the quote submitted nor refused it after typing ${typed} (the sheet shows ${keptWords}; messages: ${after.map((m) => `[${m.kind}] ${m.text}`).join(" | ") || "none"})`);
+}
+
+/** vendor_open_event: this plan's event in the supplier portal, on its round (or its overview). */
+async function vendorOpenEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
+  if (!s.portal || s.portal.on !== "vendor") throw new Error("vendor_open_event needs switch_portal{to:\"vendor\"} first — the supplier portal is not open");
+  const portal = new VendorPortalPage(s.portal.page);
+  const title = s.context.title ?? s.title;
+  // A freshly published event reaches the vendor's list late on UAT (the buyer's own list lags too): look
+  // again every ~15s for up to two minutes before calling it NOT INVITED.
+  const started = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await portal.openEvent(title);
+      break;
+    } catch (e) {
+      if (!(e instanceof NotOnEventError)) throw e;
+      if (Date.now() - started > 120_000) throw new Error(`NOT INVITED: “${title}” is not among ${s.portal.email}'s events on the supplier portal after ${Math.round((Date.now() - started) / 1000)}s`);
+      console.log(`[vendor] “${title}” not in ${s.portal.email}'s list yet (look ${attempt}) — waiting for UAT to list it`);
+      await s.portal.page.waitForTimeout(12_000);
+    }
+  }
+  if (a.overview === true || /^(true|yes|1)$/i.test(String(a.overview ?? ""))) return `opened “${title}” on the supplier portal (Event Overview) as ${s.portal.email}`;
+  const stage = /tech|rfp|question/i.test(String(a.stage ?? "")) ? "technical" : "pricing";
+  await portal.startBidding(stage === "technical" ? "technical|rfp" : undefined);
+  return `opened “${title}” on the supplier portal as ${s.portal.email}, on its ${stage} round`;
+}
 /** A goal that is the vendor's — the supplier portal, a vendor's sign-in or bid — never done in the buyer's browser. */
 const VENDOR_GOAL = /\b(vendor|supplier)s?\b[^.]*\b(log ?in|sign ?in|login|portal|bid)\b|\b(log ?in|sign ?in|login)\b[^.]*\b(as|with)\b[^.]*\b(vendor|supplier)\b|\bvendor portal\b/i;
 
@@ -1057,6 +1313,18 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.didByHand = true;
       return `the event is already published (project ${id})`;
     }
+  }
+  // The supplier portal (vendorPortalCatalog.ts): a second browser the generic steps then act on.
+  if (step.step === "switch_portal") return switchPortal(s, String(a.to ?? "vendor").toLowerCase() === "buyer" ? "buyer" : "vendor", a.vendor);
+  if (step.step === "vendor_open_event") return vendorOpenEvent(s, a);
+  if (step.step === "vendor_bid") return vendorBid(s, a);
+  // open_prepared{screen:"vendor"}: the vendor side of an API-built event — sign in and open it there.
+  if (step.step === "open_prepared" && /^vendor/i.test(String(a.screen ?? ""))) {
+    const state = screenState(s.context.state);
+    if (!SCREENS.vendor.needs.includes(state as never)) throw new Error(`the vendor portal needs a published event (${SCREENS.vendor.needs.join("/")}), and this case's state is ${state} — automation needs update`);
+    const signedIn = await switchPortal(s, "vendor", s.context.vendorEmail);
+    const opened = await vendorOpenEvent(s, { overview: a.overview });
+    return `${signedIn}; ${opened}`;
   }
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
   // its inner step back through this function, so a domain step can be tried
@@ -1155,6 +1423,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         draft: /\bdraft\b|to be scheduled/i,
         closed: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended/i,
         ended: /\bclosed\b|\bcompleted\b|evaluation time|in\s*-?\s*evaluation|bidding ended|\bended\b/i,
+        // a running event's row reads "RFQ in Progress" / "Auction in Progress" with "Ends in …" (12 Nov, a PRD said "Live")
+        live: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b/i,
+        published: /\blive\b|in progress|ends in\b|\bongoing\b|\bactive\b|\bupcoming\b|starts in\b/i,
+        upcoming: /\bupcoming\b|starts in\b|\bscheduled\b/i,
+        awarded: /\bawarded\b|\bpo created\b|purchase order/i,
       };
       const said = SAYS[status.toLowerCase()] ? SAYS[status.toLowerCase()].exec(row)?.[0] : row.toLowerCase().includes(status.toLowerCase()) ? status : undefined;
       if (!said) {
@@ -1167,8 +1440,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const shown = await s.create.appliedTemplateName();
       if (shown === null) throw new Error("the stage still offers 'Select Templates' — no template is applied");
       const want = a.name ? String(a.name) : s.templateName;
-      if (want && !shown.toLowerCase().includes(want.toLowerCase()) && !/name not displayed/.test(shown)) {
-        throw new Error(`the stage shows template "${shown}", not "${want}"`);
+      // the menu item's text has two lines ("Buy" over "Buy Template"); the applied name is one of them, or contains
+      // one — any line matching either way is the same template (12 Nov: "Buy\n\nBuy Template" vs "Buy Template")
+      const lines = String(want ?? "").split(/\n/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+      const shownLc = shown.toLowerCase();
+      const same = !lines.length || lines.some((w) => shownLc.includes(w) || w.includes(shownLc));
+      if (want && !same && !/name not displayed/.test(shown)) {
+        throw new Error(`the stage shows template "${shown}", not "${lines.join(" / ")}"`);
       }
       return `template applied: ${shown}`;
     }
@@ -1330,6 +1608,45 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (problems.length) throw new Error(`template menu: ${problems.join("; ")} — ${listed}`);
       return listed;
     }
+    case "add_bidding_currency": {
+      // The footer's "Edit Currencies" button (eventCreation footer.jsx: shown when the template allows multi
+      // currency; DISABLED on a converted RFQ→auction screen unless the RFQ already had currencies) opens the
+      // "Select Currencies" modal (createOrder/currencyModal.jsx): "Multiple Currency" radio, one checkbox per
+      // currency (id = its code) with its "Value in INR" rate, OK.
+      const wanted = (Array.isArray(a.currencies) ? a.currencies : String(a.currencies ?? a.currency ?? "USD").split(/[,\s]+/)).map((c: unknown) => String(c).trim().toUpperCase()).filter(Boolean);
+      const rate = a.rateInBase !== undefined ? String(a.rateInBase) : "83";
+      const button = s.page.getByRole("button", { name: /edit\s*currenc/i }).first();
+      if (!(await button.count().catch(() => 0))) throw new Error("no \"Edit Currencies\" button in the footer: this template does not allow multiple bidding currencies (the company's template setting), so a second currency cannot be added here — not evidence about the product");
+      if (await button.isDisabled().catch(() => false)) {
+        const converted = /isRfqToAuction=true/.test(s.page.url());
+        throw new Error(`the "Edit Currencies" button is greyed out${converted ? " on the converted event's screen — the app only carries currencies the RFQ already had; add them on the RFQ's create screen before publishing" : ""} (the app's own rule, not a bug)`);
+      }
+      await button.click({ timeout: 5_000 });
+      const modal = s.page.locator(".ant-modal").filter({ hasText: /select currencies/i }).first();
+      await modal.waitFor({ state: "visible", timeout: 10_000 });
+      const multi = modal.getByText(/^\s*multiple currency\s*$/i).first();
+      if (await multi.count().catch(() => 0)) await multi.click({ timeout: 3_000 }).catch(() => {});
+      await s.page.waitForTimeout(500);
+      const added: string[] = [];
+      for (const code of wanted) {
+        const box = modal.locator(`input[type="checkbox"]#${code}, input#${code}`).first();
+        if (!(await box.count().catch(() => 0))) throw new Error(`the currency "${code}" is not offered in the Select Currencies list`);
+        if (!(await box.isChecked().catch(() => false))) await box.check({ timeout: 3_000 }).catch(async () => { await box.click({ timeout: 3_000 }); });
+        // the rate input sits in the same row as the checkbox
+        const row = modal.locator(".ant-row").filter({ has: s.page.locator(`input#${code}`) }).first();
+        const rateInput = row.locator(".ant-input-number input, input[placeholder*='Value in']").first();
+        if (await rateInput.count().catch(() => 0)) { await rateInput.fill(rate).catch(() => {}); }
+        added.push(code);
+      }
+      await modal.getByRole("button", { name: /^\s*ok\s*$/i }).first().click({ timeout: 5_000 });
+      await s.page.waitForTimeout(800);
+      const still = await modal.isVisible().catch(() => false);
+      if (still) {
+        const said = ((await modal.locator("[class*='currencyError'], .ant-typography-danger, [role='alert']").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean).join(" · ");
+        throw new Error(`the Select Currencies modal stayed open after OK${said ? `: “${said}”` : ""}`);
+      }
+      return `bidding currenc${added.length === 1 ? "y" : "ies"} added: ${added.join(", ")} (rate ${rate} in the base currency)`;
+    }
     case "set_sheet_cell": {
       const value = String(a.value ?? "");
       const clearing = value === "" || /^\(?(empty|clear|blank)\)?$/i.test(value);
@@ -1347,11 +1664,31 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!clearing && (await select.count().catch(() => 0))) {
         const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
         await search.fill(value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
-        await s.page.waitForTimeout(1200);
-        const esc = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc.replace(/\\\(.*$/, ""), "i") }).first();
+        // the option is matched on the value without its code in brackets, and spacing is not a difference:
+        // "Plant Name (LOC-0001)" in the case is "Plant Name(LOC-0001)" on PROCOL DEMO (13 Nov)
+        const esc = value.replace(/\s*\([^)]*\)\s*$/, "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc, "i") }).first();
+        // the list is searched on the server: give the match up to 6 s to appear before deciding it is not there
+        for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
         if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
         else {
+          // The case's value is another company's master data ("Plant Name (LOC-0001)" on PROCOL DEMO, 13 Nov):
+          // leaving the cell empty makes Publish refuse "Sheet partially filled" and the case fails for a reason it
+          // is not about. When the list offers anything, the first option is used and the step says so; the cell
+          // check (expect_sheet_cell) still reads what was typed against what is shown.
+          await search.fill("").catch(() => {});
+          await s.page.waitForTimeout(800);
+          const any = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
+          const first = ((await any.innerText().catch(() => "")) || "").trim();
+          if (first && (await any.click({ timeout: 5_000 }).then(() => true).catch(() => false))) {
+            typed = true;
+            await s.page.waitForTimeout(400);
+            const shown = cellText((await td.innerText().catch(() => "")) || "");
+            s.typedCells ??= {};
+            // what was really picked is what a later "kept" check compares against
+            s.typedCells[key] = { typed: first, shown, locked: false };
+            return `row ${rowNo} "${a.column}": the list offers nothing matching "${value}" (not this company's data) — used the first it offers, "${first}", so the sheet is complete`;
+          }
           await s.page.keyboard.press("Escape").catch(() => {});
           const shown = cellText((await td.innerText().catch(() => "")) || "");
           s.typedCells ??= {};
@@ -1597,6 +1934,54 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.closed = true;
       return `event closed: ${done}`;
     }
+    case "open_first_event": {
+      const tab = String(a.tab ?? "Live").trim() || "Live";
+      const containing = a.containing ? String(a.containing).trim() : "";
+      await s.events.goto();
+      const onTab = await s.events.openTab(tab);
+      // UAT's list can take most of a minute to fill on a slow day.
+      const shown = await s.page
+        .waitForFunction(() => /RFX-\d+/.test(document.body.innerText), null, { timeout: 60_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!shown) {
+        const empty = ((await s.page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200);
+        throw new Error(`the ${onTab} tab showed no events within a minute — the screen reads: ${empty}`);
+      }
+      await s.page.waitForTimeout(600);
+      // Each card: the smallest block around an RFX number that holds only that one event (EventsPage.pickFromLive).
+      const picked = await s.page.evaluate((want) => {
+        const refs = (el: HTMLElement) => ((el.innerText || "").match(/RFX-\d+/g) || []).length;
+        const leaves: HTMLElement[] = [];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (/RFX-\d+/.test(n.nodeValue || "") && n.parentElement && !leaves.includes(n.parentElement)) leaves.push(n.parentElement);
+        }
+        const boxes: HTMLElement[] = [];
+        for (const leaf of leaves) {
+          let box: HTMLElement = leaf;
+          while (box.parentElement && refs(box.parentElement) === 1 && !/Search Title|Create Event/i.test(box.parentElement.innerText || "")) box = box.parentElement;
+          if (!boxes.includes(box)) boxes.push(box);
+        }
+        for (const el of Array.from(document.querySelectorAll("[data-spine-first]"))) el.removeAttribute("data-spine-first");
+        const needle = (want || "").toLowerCase().replace(/\s+/g, " ").trim();
+        const texts = boxes.map((b) => (b.innerText || "").replace(/\s+/g, " ").trim());
+        const at = texts.findIndex((t) => !needle || t.toLowerCase().includes(needle));
+        if (at < 0) return { at, n: boxes.length, sample: texts.slice(0, 4).map((t) => t.slice(0, 90)) };
+        boxes[at].setAttribute("data-spine-first", "1");
+        return { at, n: boxes.length, text: texts[at].slice(0, 160), sample: [] as string[] };
+      }, containing);
+      if (picked.at < 0) throw new Error(`no card under ${onTab}${containing ? ` showing "${containing}"` : ""} among ${picked.n} — the first cards read: ${picked.sample.join(" | ")}`);
+      const card = s.page.locator("[data-spine-first='1']").first();
+      const link = card.locator("a[href*='/project/'], a[href*='/orders/']").first();
+      const target = (await link.count().catch(() => 0)) ? link : card.getByRole("link").first();
+      await (await target.count().catch(() => 0) ? target : card).click({ timeout: 15_000 });
+      await s.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/^\/orders\/?$/.test(u.pathname), { timeout: 60_000 });
+      await s.events.dismissDistractions().catch(() => false);
+      const id = s.page.url().match(/\/project\/([^/?#]+)/)?.[1];
+      if (id) s.projectId = id;
+      return `opened the first event under ${onTab}${containing ? ` showing "${containing}"` : ""} (card ${picked.at + 1} of ${picked.n}: ${picked.text}) → ${new URL(s.page.url()).pathname}`;
+    }
     case "open_event": {
       // The event the API built for this case is opened by its route, not by
       // searching the list: a search is the subject of list cases only, and the
@@ -1828,20 +2213,35 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "configure_single_stage": {
       const eventType = String(a.eventType ?? "rfq").toLowerCase();
       if (!["rfq", "rfp", "auction"].includes(eventType)) throw new Error(`configure_single_stage: eventType must be rfq, rfp or auction (got "${eventType}")`);
-      const sub = a.auctionSubtype ? String(a.auctionSubtype).toLowerCase().replace(/[\s-]+/g, "_") : undefined;
-      if (sub && !["rank", "price", "traffic_light"].includes(sub)) throw new Error(`configure_single_stage: auctionSubtype must be rank, price or traffic_light (got "${sub}")`);
+      const sub = a.auctionSubtype ? String(a.auctionSubtype).toLowerCase().replace(/[\s-]+/g, "_").replace(/^dutch_auction$/, "dutch").replace(/^knock_?out$/, "knockout") : undefined;
+      if (sub && !["rank", "price", "traffic_light", "knockout", "dutch"].includes(sub)) throw new Error(`configure_single_stage: auctionSubtype must be rank, price, traffic_light, knockout or dutch (got "${sub}")`);
       const awarding = a.awarding ? (/line/i.test(String(a.awarding)) ? "line_item" : "lot") : undefined;
-      if (!/singleStage=true|single-stage/.test(s.page.url())) {
-        throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first");
+      if (!/singleStage=true|single-stage|quick-create/.test(s.page.url())) {
+        throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first (or convert_to_auction, whose converted screen is one)");
       }
+      // Knockout / Dutch fields: a number, or "" to clear ("leave the base price empty"); absent = untouched
+      const priceArg = (v: unknown) => (v === undefined || v === null ? undefined : String(v).trim() === "" ? "" : String(v).trim());
       await s.single.configure({
         eventType: eventType as any,
         auctionSubtype: sub as any,
         awarding: awarding as any,
-        rangeLower: a.rangeLower !== undefined ? Number(a.rangeLower) : undefined,
-        rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
+        trafficBy: a.trafficBy ? (/rank/i.test(String(a.trafficBy)) ? "rank" : "price") : undefined,
+        rangeLower: priceArg(a.rangeLower),
+        rangeUpper: priceArg(a.rangeUpper),
+        // "Dynamic Event Extension": true / false / "on" / "off"; its fields only with it on
+        dynamicExtension: a.dynamicExtension === undefined || a.dynamicExtension === null ? undefined : !/^(false|off|no|0)$/i.test(String(a.dynamicExtension).trim()),
+        extensionOn: a.extensionOn ? (/rank/i.test(String(a.extensionOn)) ? "rank" : "price") : undefined,
+        extendByMinutes: priceArg(a.extendByMinutes ?? a.extendBy),
+        triggerMinutes: priceArg(a.triggerMinutes ?? a.trigger),
+        topBids: a.topBids !== undefined && a.topBids !== null && String(a.topBids).trim() !== "" ? Number(a.topBids) : undefined,
+        startPrice: priceArg(a.startPrice ?? a.basePrice),
+        endPrice: priceArg(a.endPrice),
+        tickSize: priceArg(a.tickSize),
+        timeDifference: priceArg(a.timeDifference),
+        offersOn: a.offersOn ? (/total/i.test(String(a.offersOn)) ? "total_amount" : "base_price") : undefined,
       });
-      return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
+      const fields = [a.startPrice ?? a.basePrice, a.endPrice, a.tickSize].some((v) => v !== undefined) ? ` · ${[["start", a.startPrice ?? a.basePrice], ["end", a.endPrice], ["tick", a.tickSize]].filter(([, v]) => v !== undefined).map(([k, v]) => `${k} ${String(v) === "" ? "(empty)" : v}`).join(", ")}` : "";
+      return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}${fields}`;
     }
     case "create_new_version": {
       if (!/\/project\//.test(s.page.url())) throw new Error("create_new_version needs a published event's project page — publish and expect_published (or open_event) first");
@@ -1904,7 +2304,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const detail = new EventDetailPage(s.page);
       const offered = await detail.openStageOfferingConversion();
       if (!offered) throw new Error(`Convert to Auction is not offered on this event${detail.lastReason ? ` — ${detail.lastReason}` : ""}`);
+      const fromPage = s.page;
       const newPage = await detail.convertToAuction();
+      // the observation pass (server errors, NaN, crashes) follows the run onto the converted event's tab
+      shareObserver(fromPage, newPage);
       // The converted event opens in a new tab; every later step acts there.
       s.page = newPage;
       s.events = new EventsPage(newPage);
@@ -1990,6 +2393,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"), a.quantity !== undefined ? String(a.quantity) : undefined);
+        // Required cells the typed-in-place fill left empty (13 Nov, SRC-AUC-008: Delivery location, Price and
+        // Quantity Available stayed blank on the Buy template and Publish said "Sheet partially filled") are
+        // completed by their column header: a location from the company's own list, a number elsewhere.
+        const completed = await completeRequiredCells(s).catch(() => [] as string[]);
+        if (completed.length) console.log(`[single-stage] completed required cell(s) by header: ${completed.join(", ")}`);
         s.lineItemsAdded = 1;
         const ranges = await s.single.fillRangeCells();
         if (ranges) console.log(`[single-stage] filled ${ranges} traffic-light range cell(s) on the line item`);
@@ -2100,7 +2508,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "set_schedule": {
       if (await isSingleStageScreen(s)) {
-        return "default schedule kept (single-stage sets its window on publish)";
+        if (!a.minutes) return "default schedule kept (single-stage sets its window on publish)";
+        // 14 Nov (SRC-STR-009): the single-stage footer carries the same "Now - <time> (30 Mins)" chip and Schedule
+        // Event drawer as the eRFX screen; a window under the 30-minute preset goes through its Fixed time mode — a
+        // dynamic time extension case has to reach the event's last minutes inside the run.
+        process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
+        await s.create.saveSchedule();
+        const chosen = s.create.scheduleMinutesChosen;
+        const asked = asInt(a.minutes, 30);
+        const windows = s.create.scheduleWindows.map((w) => `ends ${w.endsAt}`).join(" · ");
+        return `schedule saved (single-stage)${windows ? `: ${windows}` : ""}${chosen && chosen !== asked ? ` — asked ${asked} min, the app kept ${chosen} min` : chosen ? ` — ${chosen} min` : ` — asked ${asked} min, the app kept its default`}`;
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
@@ -2155,16 +2572,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const cid = Number(process.env.COMPANY_ID) || null;
         // Everyone invited, not the four names the create screen shows: a
         // vendor this run can sign in as may be hidden in the "+N" chip.
-        if (allowRealVendors() && !invitedFromDb && s.title) {
-          const all = await invitedVendorNames(s.title, cid);
-          if (all?.length) {
-            invitedFromDb = true;
-            if (all.length > invitedVendors.length) {
-              console.log(`[bid] ${all.length} vendors are invited to “${s.title}” — choosing who bids from all of them, not only the names the create screen showed`);
-            }
-            invitedVendors = all;
-          }
-        }
+        await topUpInvitedFromDb(s, cid);
         let email = "";
         let how = "";
         let found: { email: string; name: string; source: string } | null = null;
@@ -2359,7 +2767,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "allocate_award": {
       const award = new AwardPage(s.page);
-      const allocated = await award.allocate(a.vendor ? String(a.vendor) : undefined);
+      // vendor 1 / 2 = the prepared event's first / second QA vendor ("Vendor A" / "Vendor B" of a two-bid event)
+      const raw = a.vendor === undefined ? undefined : String(a.vendor);
+      const vendor = raw && /^(1|a|vendor a)$/i.test(raw) ? s.context?.vendorName : raw && /^(2|b|vendor b)$/i.test(raw) ? (s.context?.values?.secondVendorName ?? raw) : raw;
+      if (a.quantity !== undefined && a.quantity !== null && a.quantity !== "") {
+        if (!vendor) throw new Error("not checked: a split award needs the vendor whose quantity is typed");
+        const q = Number(a.quantity);
+        const r = await award.awardLineQuantity(vendor, q, Number(a.line) || 1);
+        if (!r.popover) throw new Error(`could not tell: the line's "Select for Awarding" for ${vendor} opened no quantity window (partial awarding may be off for this company)${r.said ? ` — the app said "${r.said}"` : ""}`);
+        if (r.said && /cannot|not allowed|more than|exceed|invalid|error/i.test(r.said)) throw new Error(`the app refused ${q} units for ${vendor}: "${r.said}" [product]`);
+        if (!r.qtyAwarded.replace(/[^\d.]/g, "").startsWith(String(q))) throw new Error(`${vendor}'s Qty Awarded reads "${r.qtyAwarded}" after awarding ${q} units, even after reloading the awarding screen (Tot. Proposal Value ₹${r.totals.proposal ?? "?"})`);
+        const c = await award.readCounters();
+        return `awarded ${q} units of line ${Number(a.line) || 1} to ${vendor} — Qty Awarded reads "${r.qtyAwarded}"${r.afterReload ? " (only after a reload — the grid showed “–” at first)" : ""}; Tot. Proposal Value ₹${r.totals.proposal ?? "?"}${c.vendors ? `, Awarded Vendors ${c.vendors.selected}/${c.vendors.total}` : ""}`;
+      }
+      const allocated = await award.allocate(vendor);
       return `allocated ${allocated.items} line item(s) to ${allocated.vendors} vendor(s)`;
     }
     case "expect_award_counters": {
@@ -2368,8 +2789,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const want = (v: unknown) => String(v ?? "").replace(/\s+/g, "");
       if (a.items !== undefined && show(c.items) !== want(a.items)) throw new Error(`"Tot. selected line items" reads ${show(c.items)} — the case expects ${want(a.items)}`);
       if (a.vendors !== undefined && show(c.vendors) !== want(a.vendors)) throw new Error(`"Awarded Vendors" reads ${show(c.vendors)} — the case expects ${want(a.vendors)}`);
-      if (a.items === undefined && a.vendors === undefined) throw new Error("expect_award_counters needs items or vendors to compare");
-      return `line items ${show(c.items)}, vendors ${show(c.vendors)}`;
+      const t = await new AwardPage(s.page).readTotals();
+      const money = (v: unknown) => Number(String(v).replace(/[₹,\s]/g, ""));
+      for (const [k, label] of [["proposal", "Tot. Proposal Value"], ["l1", "Tot. L1 Proposal Value"], ["nonL1", "Tot. Non L1 Proposal Value"]] as const)
+        if (a[k] !== undefined && t[k] !== money(a[k])) throw new Error(`"${label}" reads ₹${t[k] ?? "(not shown)"} — the case expects ₹${money(a[k])}`);
+      if (a.items === undefined && a.vendors === undefined && a.proposal === undefined && a.l1 === undefined && a.nonL1 === undefined) throw new Error("expect_award_counters needs items, vendors or a total to compare");
+      return `line items ${show(c.items)}, vendors ${show(c.vendors)}, Tot. Proposal Value ₹${t.proposal ?? "?"}`;
     }
     case "award_event": {
       const award = new AwardPage(s.page);
@@ -2386,6 +2811,385 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // the plan's gap, never the product's failure.
       if (!s.awarded) throw new Error("not checked: no award was submitted in this plan, so there is no award to confirm");
       return "the event is awarded";
+    case "set_zone_visibility": {
+      // WHICH ZONES MAY SEE THE BEST PRICE / THE RANK (14 Nov): on the live traffic-light stage the buyer's "Actions ▾"
+      // menu (auctionIndicators.jsx) has "Show Best Prices" → the "Best Prices Visibility" window (a − N + stepper for
+      // how many best prices, then "Which traffic light zones can see Best Prices?" Green / Yellow / Red Zone, Done)
+      // and "Show Rank" → "Which traffic light zones can see Rank?" (the same three, Done).
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : undefined);
+      const zonesOf = (v: unknown) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : String(v).split(/[,\s/]+/)).map((z) => String(z).toLowerCase().replace(/\s*zone$/, "").trim()).filter((z) => /^(green|yellow|red)$/.test(z));
+      const openItem = async (label: RegExp, what: string) => {
+        // its accessible name carries the caret icon's label ("Actions icon: down", 14 Nov)
+        const btn = buyerPage.getByRole("button", { name: /^\s*actions\b/i }).filter({ visible: true }).first();
+        await btn.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+        if (!(await btn.count())) {
+          const buttons = (await buyerPage.getByRole("button").filter({ visible: true }).allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 20);
+          throw new Error(`no "Actions" button on this stage's toolbar — the zone visibility settings live under it on a live auction (the toolbar's buttons read: ${buttons.join(" | ") || "none"})`);
+        }
+        await btn.click({ timeout: 10_000 });
+        await buyerPage.waitForTimeout(700);
+        const menu = buyerPage.locator(".ant-dropdown:visible").last();
+        const item = menu.locator(".ant-dropdown-menu-item, .ant-menu-item", { hasText: label }).first();
+        if (!(await item.count())) {
+          const items = (await menu.locator(".ant-dropdown-menu-item, .ant-menu-item").allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+          await buyerPage.keyboard.press("Escape").catch(() => {});
+          throw new Error(`the Actions menu offers no "${what}" (it reads: ${items.join(" | ") || "nothing"})`);
+        }
+        if ((await item.getAttribute("aria-disabled").catch(() => null)) === "true" || /disabled/.test((await item.getAttribute("class").catch(() => "")) ?? "")) {
+          await item.hover({ timeout: 2_000 }).catch(() => {});
+          await buyerPage.waitForTimeout(600);
+          const tip = ((await buyerPage.locator(".ant-tooltip-inner").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean)[0] ?? "";
+          await buyerPage.keyboard.press("Escape").catch(() => {});
+          throw new Error(`"${what}" is greyed out in the Actions menu${tip ? ` — the app says: “${tip}”` : " with no reason shown"}`);
+        }
+        await item.click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(800);
+      };
+      const tickZones = async (modal: ReturnType<typeof buyerPage.locator>, zones: string[]) => {
+        for (const z of ["green", "yellow", "red"]) {
+          const box = modal.locator(".ant-checkbox-wrapper", { hasText: new RegExp(`^\\s*${z}\\s*zone\\s*$`, "i") }).first();
+          if (!(await box.count())) throw new Error(`the window has no "${z[0].toUpperCase()}${z.slice(1)} Zone" box (it reads: “${((await modal.innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200)}”)`);
+          const checked = await box.locator("input[type='checkbox']").isChecked({ timeout: 2_000 }).catch(() => false);
+          if (checked !== zones.includes(z)) await box.click({ timeout: 3_000 });
+        }
+      };
+      const said = async (): Promise<string> => ((await buyerPage.locator(".ant-message-notice, .ant-notification-notice").allInnerTexts().catch(() => [])) as string[]).map((x) => x.replace(/\s+/g, " ").trim()).filter((x) => x && !isNoiseMessage(x)).slice(-1)[0] ?? "";
+      const done: string[] = [];
+      if (a.bestPriceZones !== undefined || a.bestPrices !== undefined) {
+        const zones = zonesOf(a.bestPriceZones);
+        await openItem(/show best prices/i, "Show Best Prices");
+        const modal = buyerPage.locator(".ant-modal:visible", { hasText: /Best Prices Visibility|can see Best Prices/i }).first();
+        await modal.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+          throw new Error(`"Show Best Prices" opened no "Best Prices Visibility" window`);
+        });
+        // the stepper: − [N] + ; the zone boxes are disabled while N is 0
+        const stepper = modal.locator(".ant-btn-group").first();
+        if (await stepper.count()) {
+          const current = async () => Number(((await stepper.locator("button").nth(1).innerText({ timeout: 2_000 }).catch(() => "0")) || "0").trim()) || 0;
+          const want = a.bestPrices !== undefined ? Number(a.bestPrices) : Math.max(await current(), zones.length ? 1 : 0);
+          for (let i = 0; i < 12 && (await current()) !== want; i++) await stepper.locator("button").nth((await current()) < want ? 2 : 0).click({ timeout: 3_000 });
+          done.push(`best prices shown: ${await current()}`);
+        }
+        await tickZones(modal, zones);
+        await modal.getByRole("button", { name: /^\s*done\s*$/i }).click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(1_500);
+        done.push(`best prices visible to ${zones.length ? zones.map((z) => `${z} zone`).join(", ") : "no zone"}${(await said()) ? ` — the app said: “${await said()}”` : ""}`);
+      }
+      if (a.rankZones !== undefined) {
+        const zones = zonesOf(a.rankZones);
+        await openItem(/show rank/i, "Show Rank");
+        const modal = buyerPage.locator(".ant-modal:visible", { hasText: /can see Rank/i }).first();
+        await modal.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+          throw new Error(`"Show Rank" opened no window asking which zones can see the rank`);
+        });
+        await tickZones(modal, zones);
+        await modal.getByRole("button", { name: /^\s*done\s*$/i }).click({ timeout: 5_000 });
+        await buyerPage.waitForTimeout(1_500);
+        done.push(`rank visible to ${zones.length ? zones.map((z) => `${z} zone`).join(", ") : "no zone"}${(await said()) ? ` — the app said: “${await said()}”` : ""}`);
+      }
+      if (!done.length) throw new Error("set_zone_visibility: give bestPriceZones (with bestPrices) and/or rankZones");
+      return done.join("; ");
+    }
+    case "expect_zone": {
+      // TRAFFIC LIGHT ZONES (14 Nov, SRC-STR-005). What each side draws: the supplier portal puts a "Green Zone" /
+      // "Yellow Zone" / "Red Zone" tag on the round's Submission Sheet (no rank, no best price unless the buyer
+      // allowed that zone to see them); the buyer's Responses grid puts a light icon in every vendor's column
+      // header (<img alt="green lighticon">). The rule (bids_group.rb get_color_within_range, a reverse auction):
+      // gross total ≤ GREEN bound → green; ≤ YELLOW bound → yellow; above → red.
+      const want = String(a.zone ?? "").toLowerCase().trim();
+      if (!/^(green|yellow|red)$/.test(want)) throw new Error(`expect_zone: zone must be green, yellow or red (got "${a.zone}")`);
+      const side = a.side ? String(a.side).toLowerCase() : s.portal?.on === "vendor" ? "vendor" : "buyer";
+      if (side === "vendor") {
+        if (!s.portal || s.portal.on !== "vendor") throw new Error('expect_zone{side:"vendor"} needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event first');
+        const page = s.portal.page;
+        const zoneTag = page.getByText(/\b(green|yellow|red)\s*zone\b/i).first();
+        if (!(await zoneTag.isVisible().catch(() => false))) {
+          // the tag sits on the round's sheet: enter the round when the page is still on the event's overview
+          await new VendorPortalPage(page).startBidding(s.context.title ?? s.title).catch(() => {});
+          await zoneTag.waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
+        }
+        const text = ((await zoneTag.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+        // The indicators sit in one row with the zone tag (14 Nov, green zone allowed to see both): "🏆 1 ₹ 950"
+        // (the best price: a trophy, its number and the amount) · "Green Zone" · "Rank: 1". Read that row, not the
+        // whole page (the sheet's own Price and Gross Total carry rupees too).
+        let row = "";
+        for (let up = 1; up <= 4 && !row; up++) {
+          const t = ((await zoneTag.locator(`xpath=ancestor::*[${up}]`).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+          if (t.length > text.length && t.length < 160) row = t;
+        }
+        const rankShown = /\brank\b\s*[:#-]?\s*\d/i.test(row) || /\b(your )?rank\b\s*[:#-]?\s*\d|\bL[1-9]\b/i.test(body);
+        const bestShown = /₹\s*[\d,]+|best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(row.replace(text, "")) || /best (bid )?price|lowest (bid|price)|l1 price|best bid/i.test(body);
+        if (!text) throw new Error(`the supplier portal shows no zone tag for ${s.portal.email} on this round — the case expects the ${want} zone (the page reads: “${body.slice(0, 160)}”)`);
+        const got = (text.toLowerCase().match(/green|yellow|red/) ?? [""])[0];
+        const seen = `${s.portal.email} sees “${text}” on the supplier portal — ${rankShown ? "a rank is shown" : "no rank shown"}, ${bestShown ? "a best price is shown" : "no best price shown"}${row ? ` (the indicators read: “${row}”)` : ""}`;
+        if (got !== want) throw new Error(`${seen}; the case expects the ${want} zone`);
+        const wantRank = a.rank === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.rank));
+        const wantBest = a.bestPrice === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.bestPrice));
+        if (wantRank !== undefined && wantRank !== rankShown) throw new Error(`${seen}; the case expects the rank ${wantRank ? "shown" : "hidden"} for this zone`);
+        if (wantBest !== undefined && wantBest !== bestShown) throw new Error(`${seen}; the case expects the best price ${wantBest ? "shown" : "hidden"} for this zone`);
+        return seen;
+      }
+      // the buyer's side: the stage's Responses grid
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : undefined);
+      const sub = buyerPage.getByRole("tab", { name: /^\s*responses\s*$/i }).filter({ visible: true }).first();
+      if (await sub.count().catch(() => 0)) await sub.click({ timeout: 5_000 }).catch(() => {});
+      await buyerPage.locator("img[alt*='lighticon' i]").first().waitFor({ state: "visible", timeout: 20_000 }).catch(() => {});
+      // The grid draws only the vendor columns in view (MUI virtualisation — 14 Nov: three bids, two columns read):
+      // read, scroll right, read again, until nothing new appears.
+      type Col = { vendor: string; zone: string };
+      const readCols = () =>
+        buyerPage
+          .evaluate(() => {
+            const out: Array<{ vendor: string; zone: string }> = [];
+            for (const h of Array.from(document.querySelectorAll("[role='columnheader']"))) {
+              const name = (h.querySelector("h2")?.textContent || "").replace(/\s+/g, " ").trim();
+              if (!name) continue;
+              const img = h.querySelector("img[alt*='lighticon' i]") as HTMLImageElement | null;
+              out.push({ vendor: name, zone: img ? ((img.alt.match(/green|yellow|red/i) ?? [""])[0] || "").toLowerCase() : "" });
+            }
+            return out;
+          })
+          .catch(() => [] as Col[]);
+      const cols: Col[] = [];
+      const merge = (xs: Col[]) => xs.forEach((c) => { if (!cols.some((k) => k.vendor === c.vendor)) cols.push(c); });
+      merge(await readCols());
+      for (let i = 0; i < 12; i++) {
+        const moved = await buyerPage.evaluate(() => {
+          const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null;
+          if (!sc) return false;
+          const before = sc.scrollLeft;
+          sc.scrollLeft = before + 600;
+          return sc.scrollLeft !== before;
+        }).catch(() => false);
+        if (!moved) break;
+        await buyerPage.waitForTimeout(400);
+        merge(await readCols());
+      }
+      await buyerPage.evaluate(() => { const sc = document.querySelector(".MuiDataGrid-virtualScroller") as HTMLElement | null; if (sc) sc.scrollLeft = 0; }).catch(() => {});
+      // who bid what: Procol's own bid records name the vendor's COMPANY (the grid's header) for each price —
+      // the portal signs in by email, the grid shows the company, and only the record joins the two
+      const eg = decodeProcolId(buyerPage.url().match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? (s.title ? (await eventGroupByTitle(s.title).catch(() => undefined))?.id : undefined);
+      const bids = (eg ? await bidsOfEventGroup(eg).catch(() => null) : null) ?? [];
+      const priceOf = (c: Col) => bids.find((b) => b.vendor && (b.vendor.toLowerCase() === c.vendor.toLowerCase() || b.vendor.toLowerCase().startsWith(c.vendor.toLowerCase().replace(/[.…]+$/, ""))))?.price ?? null;
+      const list = cols.map((c) => `${c.vendor}${priceOf(c) != null ? ` (bid ${priceOf(c)})` : ""} → ${c.zone || "no light"}`).join(" | ") || "no vendor columns";
+      if (!cols.length) throw new Error(`the Responses grid shows no vendor columns yet — nothing to read a zone from`);
+      const sameName = (a1: string, b1: string) => a1.toLowerCase() === b1.toLowerCase() || a1.toLowerCase().startsWith(b1.toLowerCase().replace(/[.…]+$/, "")) || b1.toLowerCase().startsWith(a1.toLowerCase().replace(/[.…]+$/, ""));
+      // whose zone: a bid price the case gives, the n-th bidder of this plan, a name / email, "lowest" / "highest"
+      let pick: Col | undefined;
+      const byPrice = (p: number) => {
+        const rec = bids.filter((b) => b.price != null && Math.abs(Number(b.price) - p) < 0.001);
+        return cols.find((c) => rec.some((b) => sameName(b.vendor, c.vendor)));
+      };
+      if (a.bid !== undefined || a.price !== undefined) pick = byPrice(Number(a.bid ?? a.price));
+      else if (typeof a.vendor === "number" || /^\d+$/.test(String(a.vendor ?? ""))) {
+        const b = s.portalBids?.[Number(a.vendor) - 1];
+        pick = b ? cols.find((c) => sameName(c.vendor, b.email)) ?? byPrice(b.price) : undefined;
+      } else if (/^(lowest|highest)$/i.test(String(a.vendor ?? ""))) {
+        const priced = cols.filter((c) => priceOf(c) != null).sort((x, y) => Number(priceOf(x)) - Number(priceOf(y)));
+        pick = priced[/lowest/i.test(String(a.vendor)) ? 0 : priced.length - 1];
+      } else if (a.vendor) pick = cols.find((c) => sameName(c.vendor, String(a.vendor)) || c.vendor.toLowerCase().includes(String(a.vendor).toLowerCase()));
+      else if (cols.length === 1) pick = cols[0];
+      if (!pick) throw new Error(`could not tell which vendor's zone to read${a.vendor !== undefined ? ` for "${a.vendor}"` : a.bid !== undefined ? ` for the bid ${a.bid}` : ""} — the Responses grid shows: ${list}${bids.length ? "" : " (Procol's bid records could not be read to match a price to a column)"}`);
+      const pickPrice = priceOf(pick);
+      (pick as Col & { price?: string }).price = pickPrice != null ? `bid ${pickPrice}` : "";
+      if (!pick.zone) throw new Error(`${pick.vendor}'s column shows no traffic light on the buyer's Responses — the case expects ${want} (grid: ${list})`);
+      if (pick.zone !== want) throw new Error(`${pick.vendor} is in the ${pick.zone} zone on the buyer's Responses; the case expects ${want} (grid: ${list})`);
+      return `${pick.vendor}${pickPrice != null ? ` (bid ${pickPrice})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
+    }
+    case "expect_report_matches_qcs": {
+      // MASTER QCS REPORT (16 Nov, SRC-STR-010 / 006): "Download Report" on Master QCS saves an xlsx straight away
+      // (RFX-<n>_Master_QCS_Report_<date>.xlsx, sheet "QCS Sheet": an attribute block, then "Item / Vendor" with
+      // the vendor columns, then per line item the same rows as the grid — Rank, Auction Amount, Auction rate, Qty
+      // Offer …; on another build a "Download Reports" panel offers "Download Excel" first). The file is read
+      // and every row the grid shows is compared, vendor by vendor, with the report's row of the same name.
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const qcs = new MasterQcsPage(buyerPage);
+      let g = await qcs.read().catch(() => null);
+      if (!g || !g.vendors.length) {
+        if (/\/project\//.test(buyerPage.url())) await new AwardPage(buyerPage).openMasterQcs().catch(() => false);
+        g = await qcs.read().catch(() => null);
+      }
+      if (!g || !g.vendors.length) throw new Error("no Master QCS comparison grid with vendor columns is on this screen (open_master_qcs first) — nothing to compare the report with");
+      const before = s.downloads.length;
+      const btn = buyerPage.getByRole("button", { name: /^\s*download reports?\s*$/i }).first();
+      if (!(await btn.count().catch(() => 0))) throw new Error(`Master QCS offers no "Download Report" button (buttons: ${(await buyerPage.getByRole("button").allInnerTexts().catch(() => [])).map((t) => t.trim()).filter(Boolean).slice(0, 12).join(", ")})`);
+      await btn.click({ timeout: 8_000 });
+      // a panel build: "Download Reports" → "Download Excel"
+      for (let i = 0; i < 20 && s.downloads.length === before; i++) {
+        await buyerPage.waitForTimeout(500);
+        if (i === 4) {
+          const panel = buyerPage.locator(".ant-drawer:not(.ant-drawer-hidden) .ant-drawer-content, .ant-modal-content, .ant-popover, .ant-dropdown:not(.ant-dropdown-hidden)").filter({ visible: true }).last();
+          const excel = panel.getByRole("button", { name: /download excel|excel|xlsx/i }).first();
+          if (await excel.count().catch(() => 0)) await excel.click({ timeout: 5_000 }).catch(() => {});
+        }
+      }
+      for (let i = 0; i < 40 && s.downloads.length === before; i++) await buyerPage.waitForTimeout(500);
+      const file = s.downloads[s.downloads.length - 1];
+      if (s.downloads.length === before || !file) throw new Error('no file was downloaded within 30 s of pressing "Download Report"');
+      let wb: XLSX.WorkBook;
+      try {
+        wb = XLSX.readFile(file.path);
+      } catch (e) {
+        throw new Error(`the downloaded ${file.name} could not be read as a workbook: ${(e as Error).message.slice(0, 120)}`);
+      }
+      const ws = wb.Sheets[wb.SheetNames.find((n: string) => /qcs/i.test(n)) ?? wb.SheetNames[0]];
+      const rows: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" }) as string[][];
+      const norm = (t: unknown) => String(t ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      const numOf = (t: unknown) => { const m = String(t ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+      const empty = (t: unknown) => /^\s*[-–—]?\s*$/.test(String(t ?? ""));
+      // the vendor header row and the report's column per grid vendor (company name or e-mail, any case)
+      const headAt = rows.findIndex((r) => /item\s*\/\s*vendor/i.test(String(r[0] ?? "")));
+      if (headAt < 0) throw new Error(`the report ${file.name} has no "Item / Vendor" row — its first lines: ${rows.slice(0, 6).map((r) => r.filter(Boolean).join(" | ")).join(" / ").slice(0, 300)}`);
+      const head = rows[headAt].map(norm);
+      const colOf = (vendor: string) => {
+        const v = norm(vendor).replace(/\.{3}$|…$/, "");
+        let i = head.findIndex((h, k) => k > 0 && h && (h === v || h.includes(v) || v.includes(h)));
+        if (i < 0) i = head.findIndex((h, k) => k > 0 && h && v.split(/[@\s]/)[0].length > 3 && h.includes(v.split(/[@\s]/)[0]));
+        return i;
+      };
+      const attrs: Record<string, string> = {};
+      for (const r of rows.slice(0, headAt)) if (r[0] && r[1] !== undefined && String(r[1]).trim()) attrs[String(r[0]).trim()] = String(r[1]).trim();
+      const reportRows = rows.slice(headAt + 1);
+      const problems: string[] = [];
+      let compared = 0, same = 0;
+      const missingVendors = g.vendors.filter((v) => colOf(v) < 0);
+      if (missingVendors.length) problems.push(`the report has no column for ${missingVendors.map((v) => `“${v}”`).join(", ")} (its columns: ${rows[headAt].slice(1).filter(Boolean).join(" | ")})`);
+      for (const block of g.blocks) {
+        for (const row of block.rows) {
+          const label = norm(row.label);
+          if (!label || /^sum total|^pq rating/.test(label)) continue;
+          // the report's row of the same name inside the same line item's section when it has one, else the first
+          const rr = reportRows.find((r) => norm(r[0]) === label) ?? reportRows.find((r) => norm(r[0]).startsWith(label) || label.startsWith(norm(r[0])) && norm(r[0]).length > 3);
+          if (!rr) continue;
+          g.vendors.forEach((vendor, vi) => {
+            const ci = colOf(vendor);
+            if (ci < 0) return;
+            const screen = row.cells[vi] ?? "";
+            const report = rr[ci] ?? "";
+            compared++;
+            if (empty(screen) && empty(report)) { same++; return; }
+            const ns = numOf(screen), nr = numOf(report);
+            const ok = ns !== null && nr !== null ? Math.abs(ns - nr) < 0.005 : norm(screen) === norm(report);
+            if (ok) same++;
+            else problems.push(`“${row.label}” for ${vendor}: the screen shows “${String(screen).trim() || "–"}”, the report says “${String(report).trim() || "(empty)"}”`);
+          });
+        }
+      }
+      const summary = `${file.name}: ${same}/${compared} cell(s) match the grid (${g.vendors.length} vendor(s), rows ${[...new Set(g.blocks.flatMap((b) => b.rows.map((r) => r.label)))].slice(0, 8).join(", ")}); report header: ${Object.entries(attrs).filter(([k]) => /end time|duration|closed|participated|title|ref/i.test(k)).map(([k, v]) => `${k} = ${v}`).join("; ")}`;
+      if (problems.length) throw new Error(`[product] the downloaded report differs from the Master QCS screen — ${problems.slice(0, 6).join("; ")} (${summary})`);
+      if (!compared) throw new Error(`nothing could be compared: the report's rows (${reportRows.slice(0, 12).map((r) => r[0]).filter(Boolean).join(", ")}) share no name with the grid's (${g.blocks.flatMap((b) => b.rows.map((r) => r.label)).slice(0, 10).join(", ")})`);
+      return `the downloaded report matches the Master QCS screen — ${summary}`;
+    }
+    case "note_end_time":
+    case "wait_for_end_window": {
+      // DYNAMIC TIME EXTENSION (14 Nov, SRC-STR-009). A bid is "last minute" when the event's end lies within the
+      // trigger window after it (bid.rb dynamic_extension_needed: bid_end_time between the bid's time and bid time +
+      // "trigger on last N minutes"). So wait until the end is `minutesBefore` away — the end read from the BUYER's
+      // page (the app's own read of the event, on the server's clock), never a countdown drawn on screen — and
+      // remember that end for expect_time_extended. note_end_time records it without waiting.
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      if (!/\/project\//.test(buyerPage.url())) throw new Error(`${step.step} needs the published event's page on the buyer's side — publish and expect_published first`);
+      const before = Number(a.minutesBefore ?? a.before ?? 1);
+      const cap = Number(a.maxWaitMinutes ?? 12) * 60;
+      // the event is read on its STAGE page (the project page reads other records first — 14 Nov: nothing to read)
+      await new EventActionsPage(buyerPage).gotoStage("auction").catch(() => "");
+      const read = await readEnd(buyerPage, { any: true });
+      if (read.end === undefined) throw new Error("the event's end could not be read from the app's own read of the event — not evidence about the product");
+      const diff = await clockDiff(buyerPage);
+      const now = () => Math.round(Date.now() / 1000) - diff;
+      s.endBefore = { end: read.end, diff, at: now() };
+      if (step.step === "note_end_time") return `the event ends at ${shownAt(read.end, diff)} (${Math.round((read.end - now()) / 60)} min from now) — recorded`;
+      const target = read.end - Math.round(before * 60);
+      const wait = target - now();
+      if (wait > cap) throw new Error(`the event ends at ${shownAt(read.end, diff)} — ${Math.round(wait / 60)} min until its last ${before} min, more than this step waits (${cap / 60} min); schedule a shorter window (set_schedule{minutes})`);
+      if (wait <= 0) return `the event ends at ${shownAt(read.end, diff)} — already inside its last ${before} min (${Math.max(0, read.end - now())} s left), no wait`;
+      console.log(`[dte] waiting ${wait} s until ${before} min before the end (${shownAt(read.end, diff)})`);
+      while (target - now() > 0) await buyerPage.waitForTimeout(Math.min(5_000, Math.max(250, (target - now()) * 1000)));
+      return `waited ${wait} s: the event ends at ${shownAt(read.end, diff)}; it is now ${before} min before the end (${read.end - now()} s left)`;
+    }
+    case "expect_time_extended": {
+      // After a last-minute bid the end moves by the drawer's "Extend time by" minutes for everyone (bid.rb
+      // update_dynamic_closing_schedule: a dynamic_extra_time schedule from the old end to old end + extension; every
+      // bid's end_time follows). The end AFTER is read on the side asked — the buyer's console or the open supplier
+      // portal, each from its own app's read — and compared with the end recorded before the bid.
+      const byRaw = a.byMinutes ?? a.by ?? a.minutes;
+      const by = byRaw === undefined || byRaw === null || byRaw === "" ? undefined : Number(byRaw);
+      const side = String(a.side ?? (s.portal?.on === "vendor" ? "vendor" : "buyer")).toLowerCase();
+      if (!s.endBefore) throw new Error("not checked: no end time was recorded before the bid — wait_for_end_window (or note_end_time) must run before the last-minute bid");
+      const page = side === "vendor" ? s.portal?.page : s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      if (!page) throw new Error('expect_time_extended{side:"vendor"} needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event first');
+      if (side !== "vendor") await new EventActionsPage(page).gotoStage("auction").catch(() => "");
+      const after = await readEnd(page, { any: true });
+      if (after.end === undefined) throw new Error(`the event's end could not be read on the ${side === "vendor" ? "supplier portal" : "buyer's console"} after the bid — not evidence about the product`);
+      const { end: was, diff } = s.endBefore;
+      const moved = after.end - was;
+      // what the screen draws beside it — a countdown or an "ends at" line — for the report
+      const body = ((await page.locator("body").innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      const timer = body.match(/\b(\d{1,2}\s*(d|h|m|s|day|days|hr|hrs|min|mins|sec|secs)\b\s*:?\s*){2,4}|\b(ends?|ending|closes?|closing)\s+(at|in|on)\b[^|•]{0,40}/i)?.[0]?.trim() ?? "";
+      const who = side === "vendor" ? `${s.portal!.email} on the supplier portal` : "the buyer's console";
+      const detail = `${who}: the end moved ${shownAt(was, diff)} → ${shownAt(after.end, diff)} (${moved >= 0 ? "+" : "−"}${Math.floor(Math.abs(moved) / 60)} min${Math.abs(moved) % 60 ? ` ${Math.abs(moved) % 60} s` : ""})${timer ? `; the screen reads “${timer}”` : ""}`;
+      if (by === undefined) {
+        if (moved <= 0) throw new Error(`[product] the end did not move — ${detail}`);
+        return detail;
+      }
+      if (Math.abs(moved - by * 60) > 60) throw new Error(`[product] the end moved by ${Math.round(moved / 60)} min, the case expects ${by} min — ${detail}`);
+      return detail;
+    }
+    case "expect_participants_summary": {
+      // The stage's Participants panel (participantsPanel.jsx): "Total Participants · Active participants · Total Bids
+      // · Revised bids · Rejected bids · Counter offers · … · Dynamic time extended" — the server sums the
+      // dynamic_extra_time schedules into "N min" (trade_controller_helper generate_participant_summary_data).
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const ev = new EventActionsPage(buyerPage);
+      await ev.gotoStage(a.stage ? String(a.stage) : "auction");
+      // the panel is drawn on the stage's OVERVIEW sub-tab (?tab=order_info — probe 14 Nov), not on Participants
+      // (the audience list) — the case calls it "the participants panel" after its first row
+      const sub = buyerPage.getByRole("tab", { name: /^\s*overview\s*$/i }).filter({ visible: true }).first();
+      if (await sub.count().catch(() => 0)) await sub.click({ timeout: 5_000 }).catch(() => {});
+      const readPanel = () =>
+        buyerPage.evaluate(() => {
+          const out: Array<{ label: string; value: string }> = [];
+          for (const el of Array.from(document.querySelectorAll("[class*='orderDetailsInfo']"))) {
+            const kids = Array.from(el.children).map((k) => (k.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+            if (kids.length >= 2) out.push({ label: kids[0], value: kids.slice(1).join(" ") });
+          }
+          return out;
+        });
+      let panel: Array<{ label: string; value: string }> = [];
+      for (let i = 0; i < 40 && !panel.some((r) => /participants/i.test(r.label)); i++) {
+        panel = await readPanel().catch(() => []);
+        if (!panel.some((r) => /participants/i.test(r.label))) await buyerPage.waitForTimeout(500);
+      }
+      if (!panel.length) throw new Error(`no participants summary panel on ${new URL(buyerPage.url()).pathname} (tabs: ${(await buyerPage.getByRole("tab").allInnerTexts().catch(() => [])).map((t) => t.trim()).join(", ")})`);
+      const list = panel.map((r) => `${r.label}: ${r.value}`).join(" · ");
+      const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const wants: Array<[string, string]> = [];
+      const alias: Record<string, string> = { dynamicTimeExtended: "Dynamic time extended", totalBids: "Total Bids", revisedBids: "Revised bids", rejectedBids: "Rejected bids", totalParticipants: "Total Participants", activeParticipants: "Active participants", counterOffers: "Counter offers" };
+      for (const [k, v] of Object.entries(a)) {
+        if (k === "stage" || v === undefined || v === null) continue;
+        if (k === "expect" && typeof v === "object") for (const [l, x] of Object.entries(v as Record<string, unknown>)) wants.push([l, String(x)]);
+        else if (alias[k]) wants.push([alias[k], String(v)]);
+      }
+      if (!wants.length) return `participants summary: ${list}`;
+      const problems: string[] = [];
+      for (const [label, want] of wants) {
+        const row = panel.find((r) => norm(r.label) === norm(label)) ?? panel.find((r) => norm(r.label).includes(norm(label)));
+        if (!row) { problems.push(`no “${label}” in the panel`); continue; }
+        const got = norm(row.value);
+        const w = norm(want);
+        // "2 min" = 2 = "2 mins"; a bare number matches the row's number
+        const gotN = got.match(/\d+(?:\.\d+)?/)?.[0], wantN = w.match(/\d+(?:\.\d+)?/)?.[0];
+        const same = got === w || (gotN !== undefined && gotN === wantN && (!/[a-z]/.test(w) || got.replace(/s\b/g, "").startsWith(w.replace(/s\b/g, ""))));
+        if (!same) problems.push(`[product] “${row.label}” reads “${row.value}” — the case expects “${want}”`);
+      }
+      if (problems.length) throw new Error(`${problems.join("; ")} (the panel reads: ${list})`);
+      return `participants summary as expected — ${wants.map(([l, w]) => `${l}: ${w}`).join(", ")} (the panel reads: ${list})`;
+    }
     case "expect_bid_submitted": {
       // An event BUILT with a vendor's bid (the API set-up) has one to confirm too; a plan that neither bid nor
       // started from a bid has nothing to confirm — "not checked", never a failure about the product.
@@ -2492,9 +3296,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           // Say what the screen says instead of "waitForURL timed out": the
           // app refuses single-stage publishes inline (form messages), not
           // with a toast, and the traffic-light range is the usual reason.
-          const inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
-            .map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 4);
+          let inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
+            .map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => /[a-z]{3,}/i.test(t)).slice(0, 4);
           const toast = await s.single.errorToastText(800);
+          // The create screen's own checks (createOrder.jsx getErrors) write their words INTO the configuration
+          // drawer's fields and scroll to the top — no toast, and the drawer is closed. Open it and read them
+          // (14 Nov: "Trigger time extension cannot be less than 1 min", "Traffic light type is required").
+          if (!inline.length && !toast) {
+            const opened = await s.single.openConfigDrawer().then(() => true).catch(() => false);
+            if (opened) {
+              inline = (await s.single.drawer().locator(".ant-form-explain, .ant-form-item-explain, .has-error .ant-form-explain").allInnerTexts().catch(() => [] as string[]))
+                .map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => /[a-z]{3,}/i.test(t)).slice(0, 4);
+              await s.page.keyboard.press("Escape").catch(() => {});
+            }
+          }
           // "Sheet partially filled": a required cell is still empty — filled by kind or asked for by name
           // (Laxmi Organics, 6 Nov: Delivery location), then published once more, instead of stopping here.
           const partial = /partially filled|required|mandatory/i.test([toast ?? "", ...inline].join(" ")) || (await s.create.emptyRequiredSheetCells().catch(() => [])).length > 0;
@@ -2569,7 +3384,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // value already captured it the instant it appeared. Only fall back to
       // a fresh live wait when nothing was captured earlier in the run.
       const captured = s.create.lastQuantityError;
-      const err = captured ?? (await s.create.errorToastText(5_000));
+      // A refusal that already stopped the plan (the drawer kept open on Save, a greyed-out item) IS the app's
+      // answer: a plan that writes expect_publish_blocked and then expect_error judges the same words twice
+      // (14 Nov, SRC-AUC-011 — "Traffic light type is required" passed step 12 and failed step 13 as "expected to refuse")
+      const early = s.earlyRefusal ? (/“([^”]*)”/.exec(s.earlyRefusal)?.[1] ?? s.earlyRefusal) : null;
+      const err = captured ?? early ?? (await s.create.errorToastText(5_000));
       expect(err, "the app was expected to refuse this").toBeTruthy();
       // Case aside: a plan writes "quantity" for the app's "Quantity should be …".
       if (a.contains) expect((err ?? "").toLowerCase(), `the app's words: ${err}`).toContain(String(a.contains).toLowerCase());
@@ -2582,6 +3401,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const because = String(a.because ?? "").toLowerCase().trim();
         if (because && !said.includes(because) && !namesReason(said, because)) {
           if (PARTICIPANTS_FIRST.test(said) && BEFORE_PARTICIPANTS.test(because)) return `blocked before publish — ${s.earlyRefusal}${participantsFirstNote(because)}`;
+          if (sameSubject(said, because)) return `blocked before publish — ${s.earlyRefusal} — the same refusal as the case's "${a.because}", in the app's own words (the wording differs; the field is the same)`;
           throw new Error(`publishing was blocked earlier, but the app's words do not name the reason — the case expects "${because}"; ${s.earlyRefusal}`);
         }
         return `blocked before publish — ${s.earlyRefusal}`;
@@ -2636,6 +3456,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
             throw new Error(`publishing was ALLOWED — the app said "${refusal}"; the case expects it to be refused with "${a.because}" (check the plan really built the case's starting condition)`);
           }
           if (PARTICIPANTS_FIRST.test(String(refusal)) && BEFORE_PARTICIPANTS.test(String(a.because))) return `blocked: ${refusal}${participantsFirstNote(String(a.because))}`;
+          if (sameSubject(String(refusal), String(a.because))) return `blocked: ${refusal} — the same refusal as the case's "${a.because}", in the app's own words (the wording differs; the field is the same)`;
           throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
         }
         return `blocked: ${refusal}`;
@@ -2713,6 +3534,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "ask_tester":
       return askForPart(s, String(a.need ?? a.what ?? "this part of the case"));
+    case "require_setting": {
+      // The runner (prototype sheetRunner) switches the setting before the plan starts and lists what it
+      // applied in UI_SETTINGS_APPLIED. A plan run any other way did not have it applied: say so, never pretend.
+      const want = String(a.key ?? a.phrase ?? "").trim();
+      const applied = (process.env.UI_SETTINGS_APPLIED ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+      if (applied.includes(want) || (a.phrase && applied.some((k) => k.startsWith("phrase:") && k.slice(7) === want))) return `company setting ${want} = ${String(a.value)} was set by the runner before this plan`;
+      throw new Error(`could not tell: the company setting "${want}" must be set to ${String(a.value)} by the runner before the plan, and this run did not set it (only sheet runs switch settings)`);
+    }
     default:
       // validatePlan should have caught this long before now.
       throw new Error(`unknown step "${step.step}"`);
@@ -3093,8 +3922,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   // `picture`: a screenshot too — only where a step failed (Aanya, 26 Oct: no picture per step).
   // `at`: the step's result, which gets the screen in words and what the step did.
   const look = async (i: number, name: string, force: boolean, picture = false, at?: number) => {
+    // The page the step acted on — the supplier portal after switch_portal — not the buyer's page the run began on.
     const o = await Promise.race([
-      observe(page, i + 1, name, { force, picture }).catch(() => null),
+      observe(s.page, i + 1, name, { force, picture }).catch(() => null),
       new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
     ]);
     if (at !== undefined && results[at]) {
@@ -3437,11 +4267,20 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
   }
 
+  // The supplier portal, when a step opened one: its last frame stays in the stream, the browser closes.
+  if (s.portal) {
+    await s.portal.side.stop().catch(() => {});
+    await s.portal.ctx.close().catch(() => {});
+    s.page = s.portal.buyer.page;
+    s.events = s.portal.buyer.events;
+    s.portal = undefined;
+  }
   const byHand = results.filter((r) => r.byHand).length;
   const untested = results.filter((r) => r.untested).length;
   // A plan with no assertion step acted but checked nothing: "a test that acts but never checks proves
   // nothing" is enforced here, not only asked of the compiler (the bench, 29 Oct).
-  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion);
+  // do_on_screen passes only when the screen proves its goal, so a goal that reads as a check counts as one (same rule as the compiler)
+  const asserts = plan.steps.some((st) => STEP_CATALOG.find((c) => c.name === st.step)?.assertion || (st.step === "do_on_screen" && /\b(check|verify|confirm|expect|must (be|read|show)|is (still )?(shown|visible|listed)|reads?\b)/i.test(String((st as any).args?.goal ?? ""))));
   if (!failed && !asserts) console.log(`[plan] ${plan.title}: every step ran, but the plan has no assertion step — it checked nothing, so it is NOT a pass`);
   return { title: plan.title, steps: results, passed: !failed && asserts, ...(asserts ? {} : { unverified: true }), ...(byHand ? { byHand } : {}), ...(untested ? { untested } : {}), observations };
 }

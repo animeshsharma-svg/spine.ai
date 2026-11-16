@@ -1,0 +1,156 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-064",
+  "title": "Edit Evaluation Time: Edit Evaluation Time with no selection (radio left unchosen) still accepts Ok",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:48.502Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "remember",
+   "do_on_screen",
+   "expect_visible",
+   "expect_toast",
+   "expect_remembered"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 17653
+ },
+ "plan": {
+  "title": "Edit Evaluation Time Without Selection",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one invited vendor bid, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the scenario configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the scenario configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the RFQ Responses view where the stage Settings menu is available."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Edit Evaluation Time dialog from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": true
+    },
+    "note": "Confirm the expected evaluation-time dialog opened."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "evaluation_end_before",
+     "text": "Evaluation will end at",
+     "within": "dialog"
+    },
+    "note": "Capture the dialog's evaluation end time before confirming with no selection."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the open Edit Evaluation Time dialog, leave every radio option unselected, including deselecting an already-selected option if necessary, then click Ok and stop after the dialog closes."
+    },
+    "note": "Perform the case-specific no-selection interaction that has no dedicated catalog action."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": false
+    },
+    "note": "Verify that Ok closes the evaluation-time dialog."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Order time updated"
+    },
+    "note": "Verify the expected success toast."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "evaluation_end_before",
+     "text": "Evaluation will end at",
+     "within": "dialog",
+     "same": true
+    },
+    "note": "Verify that the evaluation end time remains unchanged after accepting Ok."
+   }
+  ]
+ }
+}

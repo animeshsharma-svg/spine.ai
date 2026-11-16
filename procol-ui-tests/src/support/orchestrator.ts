@@ -61,7 +61,9 @@ const GUARD = String.raw`(() => {
       const controls = Array.from(box.querySelectorAll("button, [role='button'], a, .anticon-close, .ant-notification-notice-close, .ant-modal-close, [aria-label*='close' i]")).filter(shown);
       const pick =
         controls.find((c) => DECLINE.test(words(c)) && !NEVER.test(words(c))) ||
-        controls.find((c) => c.matches(".anticon-close, .ant-notification-notice-close, .ant-modal-close, [aria-label*='close' i]") && !NEVER.test(words(c)));
+        controls.find((c) => c.matches(".anticon-close, .ant-notification-notice-close, .ant-modal-close, [aria-label*='close' i]") && !NEVER.test(words(c))) ||
+        // a button whose only content is the close icon (the "Turn on notifications" strip's ×, 14 Nov)
+        controls.find((c) => c.querySelector(".anticon-close") && !NEVER.test(words(c)));
       if (!pick) continue;
       try {
         pick.click();

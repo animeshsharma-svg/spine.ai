@@ -2,51 +2,79 @@
  "meta": {
   "caseId": "UI-XDBOQ-006",
   "title": "A good BOQ upload builds the tabbed grid and saves the lines to the project",
-  "compiledAt": "2026-10-04T11:09:53.594Z",
+  "compiledAt": "2026-11-09T19:52:00.280Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Verify specific network call sequence (POST /templates/product_sheet_params followed by PATCH /event_groups)",
-   "Verify line numbers like A.1 and file icon for note rows explicitly"
+   "Uploading the valid two-tab BOQ sample workbook with its exact workbook structure",
+   "Proving the exact network request order and verifying the PATCH payload contains every uploaded line",
+   "Verifying the complete tabbed grid structure, section header contents, line-number formatting, notes-row file icons, and project line count from get_line_items"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify specific network call sequence (POST /templates/product_sheet_params followed by PATCH /event_groups); Verify line numbers like A.1 and file icon for note rows explicitly"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Uploading the valid two-tab BOQ sample workbook with its exact workbook structure; Proving the exact network request order and verifying the PATCH payload contains every uploaded line; Verifying the complete tabbed grid structure, section header contents, line-number formatting, notes-row file icons, and project line count from get_line_items"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
-   "UI-LI-002",
-   "UI-CRE-002"
+   "UI-XDBOQ-020",
+   "UI-LI-002"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "BOQ upload builds tabbed grid and saves lines",
+  "title": "BOQ upload builds project grid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "boq"
     },
-    "note": "Start the BOQ project creation flow"
+    "note": "Open the BOQ project creation screen."
    },
    {
     "step": "set_title",
-    "note": "Provide a title for the BOQ project"
+    "args": {},
+    "note": "Provide the required project title so the BOQ can proceed."
    },
    {
     "step": "select_template",
-    "note": "Pick the pricing template required before uploading or adding items"
+    "args": {},
+    "note": "Apply a BOQ template before uploading the product sheet."
    },
    {
-    "step": "upload",
+    "step": "ask_tester",
     "args": {
-     "label": "Upload",
-     "file": "sample.csv"
+     "need": "upload the valid two-tab BOQ sample workbook and leave the resulting BOQ grid open"
     },
-    "note": "Upload the sample sheet"
+    "note": "The catalog has no fixture or domain action for the required two-tab workbook upload."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/templates/product_sheet_params",
+     "method": "POST",
+     "bodyContains": "multistage"
+    },
+    "note": "Verify that processing the workbook requests multistage product-sheet parameters."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/event_groups/",
+     "method": "PATCH"
+    },
+    "note": "Verify that the project is patched after the product-sheet processing."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "A.1",
+     "present": true
+    },
+    "note": "Check for a representative uploaded line number in the resulting grid."
    },
    {
     "step": "expect_toast",
@@ -54,7 +82,7 @@
      "kind": "success",
      "text": "Product sheet updated"
     },
-    "note": "Assert that the product sheet updated toast appears"
+    "note": "Confirm the product sheet update succeeded."
    }
   ]
  }

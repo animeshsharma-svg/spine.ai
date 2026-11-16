@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-004",
+  "title": "Single stage create screen (RFQ with a product): \"Publish Event\" is greyed out and says why",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:36:35.875Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_disabled",
+   "hover",
+   "expect_message",
+   "attempt"
+  ],
+  "ms": 10090
+ },
+ "plan": {
+  "title": "Single-stage RFQ Publish Disabled Tooltip",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to RFQ and the lot awarding mode."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-CREATESINGLE-004"
+    },
+    "note": "Provide the required event title so the test isolates the Publish Event control behavior."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose the first available RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Publish Event"
+    },
+    "note": "Assert that Publish Event is greyed out."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "button",
+     "name": "Publish Event"
+    },
+    "note": "Reveal the disabled control's explanatory tooltip."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Publish Event",
+     "text": "Please choose a template and add a product"
+    },
+    "note": "Verify the tooltip contains the expected reason."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Publish Event"
+     },
+     "expect": "nothing_opens"
+    },
+    "note": "Try the disabled Publish Event control and verify that it opens nothing or makes no change."
+   }
+  ]
+ }
+}

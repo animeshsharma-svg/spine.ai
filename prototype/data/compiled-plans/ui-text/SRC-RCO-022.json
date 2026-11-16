@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "caseId": "SRC-RCO-022",
+  "title": "Recreate Order: Cancel",
+  "group": "SRC-RCO",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:10:22.774Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the Events list is exactly unchanged and that no newly created event was added after cancelling."
+  ],
+  "warnings": [
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that the Events list is exactly unchanged and that no newly created event was added after cancelling."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "event_menu",
+   "expect_visible",
+   "select",
+   "click",
+   "expect_visible",
+   "expect_events_list"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 16688
+ },
+ "plan": {
+  "title": "Recreate Order Cancel",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary instead of creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the Recreate Order dialog from the event's stage settings."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order pop-up opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "End time",
+     "option": "60 Mins"
+    },
+    "note": "Change the recreate schedule's end-time option to 60 Mins."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the recreate operation without submitting it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Verify that cancelling closes the pop-up."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify that the Events list rendered successfully after cancellation."
+   }
+  ]
+ }
+}

@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-001",
+  "title": "Add a surrogate bid on a live RFQ",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:08:56.299Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enter and verify the value \"Phone quote 27 Oct\" in the Surrogate Bid Reference field."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enter and verify the value \"Phone quote 27 Oct\" in the Surrogate Bid Reference field."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "search_participants",
+   "expect_participant",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 10093
+ },
+ "plan": {
+  "title": "Add surrogate bid on live RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared live RFQ's Participants tab as the buyer."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Find Vendor A's participant row before adding the surrogate bid."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor A",
+     "present": true,
+     "addBid": true
+    },
+    "note": "Verify Vendor A is present and eligible for a surrogate bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 95
+    },
+    "note": "Enter and submit a surrogate bid of 95 for Vendor A."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the bid submission was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "surrogate": 1,
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Verify Responses shows Vendor A's bid and identifies it as a surrogate response."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the comparison grid to verify the submitted bid is counted in Master QCS."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "realNames": true
+    },
+    "note": "Verify Master QCS contains Vendor A's real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 95
+    },
+    "note": "Verify Master QCS shows the surrogate bid rate of 95."
+   }
+  ]
+ }
+}

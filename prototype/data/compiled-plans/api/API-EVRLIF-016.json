@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-016",
+  "title": "A PR amendment closes the previous version immediately",
+  "compiledAt": "2026-11-09T19:58:06.063Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not explicitly verify that both the previous technical round and the latest pricing round have ended; the available library case verifies refusal of the bid on the superseded event version."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /item_versions",
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The buyer updates the event with the title set to “QA_Platform_Renamed_…”.",
+    "The buyer issues a new version of the event with the item uuid set to “…”, with the item type set to “EventGroup”.",
+    "The buyer publishes the event.",
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.897Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-016",
+  "title": "A PR amendment closes the previous version immediately",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "update_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_Renamed_{{stamp}}"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "item_uuid",
+      "set": "{{eventGroupUuid}}"
+     },
+     {
+      "path": "item_type",
+      "set": "EventGroup"
+     }
+    ],
+    "expect": "accept"
+   },
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "expect": "accept"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-047",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

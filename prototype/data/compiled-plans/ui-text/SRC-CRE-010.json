@@ -1,0 +1,99 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-010",
+  "title": "RFQ: Quantity Requested = 0",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:29:37.587Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting the specific Vendor A vendor in the Participants search after the inline error",
+   "Saving the schedule after the inline error",
+   "Attempting publication and asserting that nothing is published"
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting the specific Vendor A vendor in the Participants search after the inline error; Saving the schedule after the inline error; Attempting publication and asserting that nothing is published"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_error"
+  ],
+  "ms": 13378
+ },
+ "plan": {
+  "title": "Single-Stage RFQ Rejects Zero Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensure vendors can be added during event creation as required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the single-stage event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title for a create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Add the specified product, which supplies its Product Variant and creates the first pricing-sheet row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "0"
+    },
+    "note": "Enter the invalid zero quantity and tab out of the cell to trigger inline validation."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Quantity must be greater than zero"
+    },
+    "note": "Assert that Procol rejects the quantity with the expected validation message."
+   }
+  ]
+ }
+}

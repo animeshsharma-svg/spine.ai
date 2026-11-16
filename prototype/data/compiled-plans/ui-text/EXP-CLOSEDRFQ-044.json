@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-044",
+  "title": "Recreate Order: Enter zero and negative numbers in numeric fields",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:42:15.448Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The conditional fallback of selecting 0 from the Event End Time Duration dropdown only if offered, otherwise typing 0 into a custom duration field cannot be expressed as one conditional catalog flow.",
+   "The case does not specify the exact expected message or whether zero event-end duration should be accepted, so the precise outcome for that field cannot be asserted."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The conditional fallback of selecting 0 from the Event End Time Duration dropdown only if offered, otherwise typing 0 into a custom duration field cannot be expressed as one conditional catalog flow.; The case does not specify the exact expected message or whether zero event-end duration should be accepted, so the precise outcome for that field cannot be asserted."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "event_menu",
+   "fill",
+   "fill",
+   "pick_date",
+   "click",
+   "expect_field_error"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 18086
+ },
+ "plan": {
+  "title": "Recreate Order Numeric Validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ with Vendor A's bid; no creation or event-list steps are needed."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bidding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen permission configuration."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage menu and launch the Recreate Order window."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Event End Time Duration",
+     "value": "0"
+    },
+    "note": "Enter the requested zero event-end duration in the available duration control."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "-5"
+    },
+    "note": "Enter the requested negative evaluation duration."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Delivery Date",
+     "date": "20 April 2027"
+    },
+    "note": "Set the future delivery date specified by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Submit the Recreate Order form to observe how the numeric values are handled."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Evaluation Duration"
+    },
+    "note": "Assert that the negative evaluation duration is rejected at the relevant field."
+   }
+  ]
+ }
+}

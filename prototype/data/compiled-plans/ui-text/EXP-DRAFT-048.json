@@ -1,0 +1,141 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-048",
+  "title": "Manage Line Items: Cancel adding a line item discards changes",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:44:58.147Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case is internally inconsistent: it opens an \"Items 1\" draft but expects the draft to still show zero line items after cancellation; the catalog cannot reconcile these two expected starting states."
+  ],
+  "warnings": [
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: The case is internally inconsistent: it opens an \"Items 1\" draft but expects the draft to still show zero line items after cancellation; the catalog cannot reconcile these two expected starting states."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
+   "expect_line_items",
+   "click",
+   "fill",
+   "click",
+   "fill",
+   "fill",
+   "click",
+   "expect_line_items"
+  ],
+  "ms": 12782
+ },
+ "plan": {
+  "title": "Cancel Adding Line Item in Saved Draft",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list so the saved draft can be opened."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered before navigating to Drafts."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab where the saved eRFX draft should appear."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first saved draft; drafts reopen on their create screen."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Establish the stated starting condition that the draft has one line item."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items 1"
+    },
+    "note": "Open the Manage Line Items window."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search and add line items using product name",
+     "value": "AAC BLOCKS"
+    },
+    "note": "Search for the product the case attempts to add."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "AAC BLOCKS"
+    },
+    "note": "Select the searched product from the product results."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "90",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter the requested quantity for the unsaved line item."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "1200",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter the requested price for the unsaved line item."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the Manage Line Items operation so the entered line item should be discarded."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify that cancellation left the draft at its original one-line-item count, proving no new item was added."
+   }
+  ]
+ }
+}

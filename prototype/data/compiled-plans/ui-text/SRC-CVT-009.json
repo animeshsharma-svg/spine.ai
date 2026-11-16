@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "SRC-CVT-009",
+  "title": "Invalid schedule for the auction",
+  "group": "SRC-CVT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:58:34.679Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "convert_to_auction",
+   "do_on_screen",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 11256
+ },
+ "plan": {
+  "title": "Invalid schedule when converting RFQ to auction",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary as the starting state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the conversion flow."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Open the RFQ-to-Auction conversion flow and continue to the converted auction create screen."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the converted auction create screen, choose and save a schedule whose start time is before the closed RFQ ended, leaving the invalid schedule selected for publishing"
+    },
+    "note": "No catalog scheduling step can select an absolute start before the prior RFQ ended, so perform that schedule selection directly on the screen."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "publish",
+     "expect": "refused",
+     "because": "Please Select a Valid Schedule"
+    },
+    "note": "Attempt publishing and assert Procol refuses the invalid schedule with the expected message."
+   }
+  ]
+ }
+}

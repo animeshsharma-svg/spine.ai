@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "UI-FVND-005",
+  "title": "Without the recommendation setting the banner never appears",
+  "compiledAt": "2026-11-09T20:08:51.631Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Configure or independently verify that the tenant lacks the vendor_recommendation_on_product setting.",
+   "Assert the banner by a catalog-known label, because \"Suggested Vendors\" is not a rendered Procol label."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Configure or independently verify that the tenant lacks the vendor_recommendation_on_product setting.; Assert the banner by a catalog-known label, because \"Suggested Vendors\" is not a rendered Procol label."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-FVND-005 — No Vendor Recommendation Banner",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding a product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add any product, which is the action expected to trigger a recommendation banner if the setting were enabled."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the create screen after adding a product, verify that no vendor recommendation banner appears and that vendors are added only through the manual vendor-selection flow; stop when the absence and manual-only flow are evidenced."
+    },
+    "note": "The catalog has no known rendered label for the recommendation banner, so on-screen exploration is required to observe this behavior."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the create screen has no rendering errors or unexpected recommendation-related failure."
+   }
+  ]
+ }
+}

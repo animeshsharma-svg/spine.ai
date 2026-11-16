@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "PRD-KBAI-019",
+  "title": "RFP Generator is only reachable when \"Technical Stage\" is selected for the project",
+  "group": "PRD-KBAI",
+  "compiledAt": "2026-11-10T06:46:51.915Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Generate question using AI\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "coverage partial: unconfirmed label \"Generate question using AI\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "expect_visible",
+   "expect_visible"
+  ],
+  "ms": 28045
+ },
+ "plan": {
+  "title": "RFP Generator Hidden Without Technical Stage",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Technical Stage",
+     "visible": false
+    },
+    "note": "Verify that the Technical Stage event type is not available when it was not selected."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Generate question using AI",
+     "visible": false
+    },
+    "note": "Verify that the RFP Generator's AI question-generation option is not accessible without Technical Stage."
+   }
+  ]
+ }
+}

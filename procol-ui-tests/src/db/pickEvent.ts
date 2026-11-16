@@ -263,7 +263,7 @@ export async function responsesOf(eventGroupId: number): Promise<Array<{ vendor:
                union all
                select r.item_id, r.company_id, r.user_id, 'technical' from template_responses r where r.item_type = 'TradeRequest') x on x.tr = t.id
          join companies c on c.id = x.company_id
-        where e.id = $1`,
+        where e.id = $1 and x.user_id is not null`,
       [eventGroupId],
     );
     return rows.map((r: any) => ({ vendor: String(r.vendor ?? ""), mode: Number(r.rfx_mode), kind: r.kind === "technical" ? "technical" : "bid", surrogate: r.surrogate === true }));

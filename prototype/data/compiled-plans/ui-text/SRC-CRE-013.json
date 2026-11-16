@@ -1,0 +1,151 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-013",
+  "title": "RFQ: Quantity Requested = a decimal 2.5",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:29:48.847Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published"
+  ],
+  "ms": 11259
+ },
+ "plan": {
+  "title": "Single-Stage RFQ Decimal Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Changes the event type from the default to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provides the mandatory event title using a generated unique title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies an RFQ template so the pricing sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Adds the specified product to the RFQ sheet."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "value": "Variant 1"
+    },
+    "note": "Selects the product variant identified by the case."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "2.5"
+    },
+    "note": "Enters the decimal quantity under test."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "kept": true,
+     "equals": "2.5"
+    },
+    "note": "Verifies that the sheet keeps the decimal value without an error."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the required delivery location from the case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the 30-minute start-now schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds one QA test vendor required for publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publishes the completed RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms the RFQ reached a published project page."
+   }
+  ]
+ }
+}

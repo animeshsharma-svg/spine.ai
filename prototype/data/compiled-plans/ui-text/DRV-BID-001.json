@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-001",
+  "title": "Vendor can submit discount percentage per line in Quote Mode",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-12T13:33:22.665Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Direct verification that the rejection remark is persisted in the bid record.",
+   "Direct verification that Vendor A is removed from the best-offer ranking column."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Direct verification that the rejection remark is persisted in the bid record.; Direct verification that Vendor A is removed from the best-offer ranking column."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "click",
+   "fill",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 10660
+ },
+ "plan": {
+  "title": "Reject active vendor bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses tab with Vendor A's active bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Enable the configuration required for rejecting bids during bidding."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor A"
+    },
+    "note": "Open the rejection action for Vendor A's bid."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Remarks",
+     "value": "Pricing too high"
+    },
+    "note": "Enter the rejection reason requested by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Confirm"
+    },
+    "note": "Confirm the bid rejection."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor A",
+     "visible": false
+    },
+    "note": "Verify the Reject action no longer appears for the rejected bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "within": "Vendor A"
+    },
+    "note": "Verify Vendor A's bid status changed to Rejected."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Pricing too high"
+    },
+    "note": "Check whether the submitted rejection remark remains visible on the resulting screen."
+   }
+  ]
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-405",
+  "title": "Evaluate line items and submit the score for approval",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:21:44.223Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
+  ],
+  "warnings": [
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "can only test part of this — no step for: Select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "do_on_screen",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 74220
+ },
+ "plan": {
+  "title": "Submit Technical Evaluation for Approval",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API builds the proposal event this case starts from"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate from Project Details to the Technical Stage."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the technical evaluator, open each submission's Add Evaluation control, select a rank, add a remark, submit the evaluation for every vendor and line item, and stop when the score submission is complete"
+    },
+    "note": "Perform the evaluator-only scoring actions that are not fully represented by a dedicated approval-flow step."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
+    },
+    "note": "The catalog has no step for selecting and submitting a technical evaluation approval workflow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval Page",
+     "present": true
+    },
+    "note": "Verify that the evaluator is taken to the Approval Page after submission."
+   }
+  ]
+ }
+}

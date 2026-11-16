@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-034",
+  "title": "Award more than the line's quantity",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:20:55.002Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 9517
+ },
+ "plan": {
+  "title": "Reject over-quantity award",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared closed RFQ's Responses screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS to begin the award flow for the closed two-bid event."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 6
+    },
+    "note": "Allocate 6 of the 10 requested units to Vendor B."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "allocate_award",
+     "args": {
+      "vendor": "Vendor A",
+      "quantity": 5
+     },
+     "expect": "refused",
+     "because": "more than requested quantity"
+    },
+    "note": "Attempt to allocate 5 more units to Vendor A, making the total 11, and assert Procol refuses the over-award."
+   }
+  ]
+ }
+}

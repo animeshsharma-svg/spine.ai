@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-051",
+  "title": "Source one asset line and one material line in one event",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:33:21.266Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting exactly one asset line and one material line rather than simply two PR lines",
+   "Verifying that Account Assignment A remains associated with the asset row specifically"
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Selecting exactly one asset line and one material line rather than simply two PR lines; Verifying that Account Assignment A remains associated with the asset row specifically"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_count",
+   "expect_text"
+  ],
+  "ms": 15025
+ },
+ "plan": {
+  "title": "Source asset and material PR lines in one RFQ",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 2
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title before publication."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Add the specifically named Vendor A participant."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested Start now schedule with a 30-minute duration."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Goods",
+     "count": 2
+    },
+    "note": "Check that two goods rows are visibly represented, subject to the application's rendered labeling."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Account Assignment A",
+     "present": true
+    },
+    "note": "Check that the expected account-assignment value is visible somewhere in the resulting event data."
+   }
+  ]
+ }
+}

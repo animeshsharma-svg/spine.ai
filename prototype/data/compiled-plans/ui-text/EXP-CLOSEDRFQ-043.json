@@ -1,0 +1,122 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-043",
+  "title": "Recreate Order: Enter a past date for Delivery Date",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:42:05.188Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "event_menu",
+   "select",
+   "fill",
+   "pick_date",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 11033
+ },
+ "plan": {
+  "title": "Recreate Order with Past Delivery Date",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen restriction."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ's Recreate Order window from the stage Settings menu."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "4 Hrs"
+    },
+    "note": "Set the requested event end-time duration."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "20"
+    },
+    "note": "Enter the requested evaluation duration."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Delivery Date",
+     "date": "1 December 2023"
+    },
+    "note": "Choose the past delivery date specified by the case."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt order creation and pass only if the application provides refusal evidence for the past delivery date."
+   }
+  ]
+ }
+}

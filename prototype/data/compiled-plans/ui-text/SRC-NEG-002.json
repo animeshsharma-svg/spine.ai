@@ -1,0 +1,139 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-002",
+  "title": "Counter offer while bidding is live: the vendor accepts",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:02:10.392Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert the exact numeric count shown inside the Accepted Counter Offers panel."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert the exact numeric count shown inside the Accepted Counter Offers panel."
+  ],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "expect_text",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "two_bids",
+  "screen": "responses",
+  "ms": 13961
+ },
+ "plan": {
+  "title": "Live RFQ counter offer acceptance",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ with two bids on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are available on RFQs."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the RFQ project flow is enabled."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send the buyer's counter offer changing Vendor A's price from 100 to 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Assert that Vendor A's response is marked with a pending counter offer."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Use Vendor A's supplier portal session to accept the pending counter offer."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Assert that the buyer's Responses grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Accepted Counter Offers",
+     "present": true
+    },
+    "note": "Assert that the Responses view exposes the accepted-counter-offers category."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the buyer's Master QCS and verify both bid columns remain present."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Assert that Vendor A's accepted counter-offer rate is 90 in Master QCS."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Amount",
+     "vendor": "Vendor A",
+     "equals": "900"
+    },
+    "note": "Assert that Vendor A's amount is 90 multiplied by the prepared quantity of 10."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the Master QCS arithmetic, including Vendor A's line amount and total."
+   }
+  ]
+ }
+}

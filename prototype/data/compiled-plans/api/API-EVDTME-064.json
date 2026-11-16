@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-064",
+  "title": "Reopen on a fully closed round",
+  "compiledAt": "2026-11-09T22:54:41.317Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/:id/reopen_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with one QA vendor invited, no bids, and its bidding window (with the extra closing time) already over.",
+   "steps": [
+    "The buyer sends the trade reopen line items request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.859Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-064",
+  "title": "Reopen on a fully closed round",
+  "setup": {
+   "recipe": "closed_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/{{tradeId}}/reopen_line_items",
+     "body": {
+      "trade_product_uuids": [
+       "Z2dnWmdaUWtnZw=="
+      ],
+      "reopen_time_extension": 600
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "4",
+   "message": "Request not found"
+  }
+ }
+}

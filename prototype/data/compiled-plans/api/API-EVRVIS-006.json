@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-006",
+  "title": "Only the buyer receives the stage's internal \"misc\" data",
+  "compiledAt": "2026-11-09T22:51:23.067Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not configure savings.",
+   "The read_round vocabulary does not expose the stage's misc field, so its presence for the buyer and absence for the vendor cannot be asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.932Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-006",
+  "title": "Only the buyer receives the stage's internal \"misc\" data",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

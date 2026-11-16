@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-021",
+  "title": "Line items: last purchase price is buyer-only; PR creator details and quantities are hidden from vendors and brokers when configured",
+  "compiledAt": "2026-11-09T22:51:42.978Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create last-PO data or disable quantity widgets.",
+   "read_line_items is available only as buyer, so vendor visibility cannot be checked.",
+   "Broker users are not supported as an actor, so broker visibility cannot be checked.",
+   "the decisive step tests something else than the case's point: The buyer assertion checks only that the line-item response is successful and non-empty; it cannot assert that all fields are present.",
+   "it depends on a company setting this run does not change (mask_pr_creator_details_for_vendor) — a failure is reported as couldn't tell, not as a bug",
+   "the part about “po” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.940Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-021",
+  "title": "Line items: last purchase price is buyer-only; PR creator details and quantities are hidden from vendors and brokers when configured",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "mask_pr_creator_details_for_vendor"
+ }
+}

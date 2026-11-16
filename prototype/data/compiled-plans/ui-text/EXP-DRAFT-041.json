@@ -1,0 +1,167 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-041",
+  "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Add Attachments\" is not offered",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:44:57.641Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
+   "expect_visible"
+  ],
+  "ms": 12314
+ },
+ "plan": {
+  "title": "Saved eRFX draft hides Add Attachments",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the setting whose effect on the draft's Add Attachments control is under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration specified by the test case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-041 Add Attachments"
+    },
+    "note": "Give the draft a title so it can be saved and found in Drafts."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the draft with a pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for a valid draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft is fully configured."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product-provided test participant required for the draft setup."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft that the case requires."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save did not produce an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the Events list to reopen the saved draft through the buyer flow."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab specified by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-041 Add Attachments"
+    },
+    "note": "Verify the newly saved draft is present in Drafts."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-041 Add Attachments"
+    },
+    "note": "Open the saved draft from the Drafts list."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Add Attachments",
+     "visible": false
+    },
+    "note": "Assert the Add Attachments control is not offered on the saved draft."
+   }
+  ]
+ }
+}

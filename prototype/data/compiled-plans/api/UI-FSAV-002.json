@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "caseId": "UI-FSAV-002",
+  "title": "Line-item savings use the line's reference multiplied by quantity",
+  "compiledAt": "2026-11-01T19:49:54.470Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "savings calculation formula verification against explicit reference × quantity because line item savings shape is not fully sampled"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/get_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer lists the event's line items.",
+    "As the buyer, list the event's line items and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.195Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-FSAV-002",
+  "title": "Line-item savings use the line's reference multiplied by quantity",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_line_items",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

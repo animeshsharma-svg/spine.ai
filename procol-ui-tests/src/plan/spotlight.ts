@@ -121,7 +121,13 @@ export function installSpotlight(page: Page, evidenceDir: string): void {
         actions.push({ verb, target, ...(value !== undefined ? { value: keepValue(target, value) } : {}) });
       }
       if (enabled || highlight) await spotlight(this, verb, value).catch(() => {});
-      return orig.apply(this, args);
+      try {
+        return await orig.apply(this, args);
+      } catch (e) {
+        // the wrapper hides the method's name in Playwright's own message ("locator.apply: Timeout") — put it back
+        if (e instanceof Error && /^locator\.apply\b/.test(e.message)) e.message = e.message.replace(/^locator\.apply/, `locator.${method}`);
+        throw e;
+      }
     };
   }
 }

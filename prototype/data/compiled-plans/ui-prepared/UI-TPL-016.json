@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-016",
+  "title": "Text in a numeric sheet cell is rejected, not coerced",
+  "compiledAt": "2026-11-09T19:47:54.460Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-020",
+   "UI-TPL-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reject text in numeric sheet cell",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open a standard event create screen with a pricing sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-016 Numeric Validation"
+    },
+    "note": "Provide the required event title so the sheet can be configured."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template to render numeric sheet columns."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item so the pricing sheet has a data row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "abc"
+    },
+    "note": "Enter non-numeric text in the known numeric Price column and move focus away with Tab."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "refused": true,
+     "empty": false,
+     "equals": "0"
+    },
+    "note": "Assert that the cell does not retain `abc`, does not become zero, and is refused or marked invalid."
+   },
+   {
+    "step": "expect_error",
+    "args": {},
+    "note": "Assert that the application shows an error explaining the rejected numeric value."
+   }
+  ]
+ }
+}

@@ -1,0 +1,220 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-016",
+  "title": "Single stage reverse auction, no clause mandatory: the vendor accepts both clauses",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:12:33.355Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 24,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "toggle",
+   "vendor_bid",
+   "expect_text",
+   "switch_portal",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 21144
+ },
+ "plan": {
+  "title": "Single-stage auction optional terms acceptance",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Change the default event type to an auction."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template so the pricing sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product as one line item with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet required for publication."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the single-stage auction create screen, open Terms & Conditions, add clauses \"Payment within 45 days\" and \"Delivery within 7 days\", leave both clause modes as None, leave Mark all Terms & Conditions mandatory unticked, click Done, and stop with both clauses visible"
+    },
+    "note": "Configure the two event-wise terms because no domain step directly edits terms and conditions."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor for Vendor A's bid."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule while retaining the default start-now behavior."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate supplier portal session for Vendor A."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round as the invited vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days"
+    },
+    "note": "Verify the first clause is displayed to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days"
+    },
+    "note": "Verify the second clause is displayed to the vendor."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": true
+    },
+    "note": "Have the vendor accept the first clause."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Delivery within 7 days",
+     "on": true
+    },
+    "note": "Have the vendor accept the second clause."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a quote of 100 for the line after accepting both clauses."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Verify the vendor portal shows the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session to inspect the submitted bid and term state."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days",
+     "within": "Payment within 45 days"
+    },
+    "note": "Verify the first clause remains visible on the buyer side."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Accepted",
+     "within": "Payment within 45 days"
+    },
+    "note": "Verify the buyer-side record marks the first clause as accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days",
+     "within": "Delivery within 7 days"
+    },
+    "note": "Verify the second clause remains visible on the buyer side."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Accepted",
+     "within": "Delivery within 7 days"
+    },
+    "note": "Verify the buyer-side record marks the second clause as accepted."
+   }
+  ]
+ }
+}

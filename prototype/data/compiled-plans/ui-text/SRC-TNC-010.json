@@ -1,0 +1,231 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-010",
+  "title": "Single stage RFP, one clause Required: the vendor accepts only the optional clause",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:11:56.070Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Visually verify that the required clause is highlighted as required rather than merely present and blocking submission."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "can only test part of this — no step for: Visually verify that the required clause is highlighted as required rather than merely present and blocking submission."
+  ],
+  "source": "llm",
+  "steps": 24,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "do_on_screen",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "toggle",
+   "attempt",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "click",
+   "expect_text"
+  ],
+  "ms": 25538
+ },
+ "plan": {
+  "title": "Single-stage RFP required T&C blocks vendor submission",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Keep the event type as RFP."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-TNC-010 Required Clause RFP"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose the questionnaire template for the RFP."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the technical questionnaire setup."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for an RFP."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the single-stage RFP create screen, open Terms & Conditions, add clauses named \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days set to None, click Done, and stop on the create screen showing the configured terms."
+    },
+    "note": "Configure the required and optional event clauses, which have no dedicated catalog step."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor for the vendor-side submission test."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFP."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the event's technical submission screen as the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days",
+     "present": true
+    },
+    "note": "Verify the required clause is shown to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days",
+     "present": true
+    },
+    "note": "Verify the optional clause is shown to the vendor."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Delivery within 7 days",
+     "on": true
+    },
+    "note": "Accept only the optional clause."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": false
+    },
+    "note": "Ensure the required clause remains unaccepted before the negative submission attempt."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt submission with the required clause unchecked; the application must refuse it."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days",
+     "present": true
+    },
+    "note": "Confirm the required clause remains identified on the blocked submission screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": false
+    },
+    "note": "Confirm the vendor submission was not sent."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": true
+    },
+    "note": "Accept the required clause after the blocked attempt."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit"
+    },
+    "note": "Submit the technical response after both clauses are accepted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Verify that the vendor submission succeeds once the required clause is accepted."
+   }
+  ]
+ }
+}

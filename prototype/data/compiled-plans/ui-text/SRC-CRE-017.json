@@ -1,0 +1,124 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-017",
+  "title": "Reverse auction: Quantity Requested = 0",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:30:04.945Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_error",
+   "expect_publish_blocked"
+  ],
+  "ms": 16098
+ },
+ "plan": {
+  "title": "Reverse Auction Quantity Zero Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the scenario."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Changes the event type from the default to Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-017 Reverse Auction Quantity Zero"
+    },
+    "note": "Provides the mandatory event title needed to reach publishing validation."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the first available auction template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Adds the requested product as the first line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the requested delivery location for the first row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "0"
+    },
+    "note": "Enters the invalid zero quantity into the pricing sheet."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "refused": true
+    },
+    "note": "Verifies that the sheet does not retain the zero quantity."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Quantity must be greater than zero"
+    },
+    "note": "Checks the required inline validation message for the refused quantity."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {},
+    "note": "Attempts the requested publish action and verifies that the invalid event cannot be published."
+   }
+  ]
+ }
+}

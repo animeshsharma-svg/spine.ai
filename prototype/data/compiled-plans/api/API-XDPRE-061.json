@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-061",
+  "title": "The unit check treats the unit as a search pattern, so \"%\" passes any PR unit",
+  "compiledAt": "2026-11-09T19:45:59.329Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary does not expose a unit_symbol field for add_rfq_round, so the stage cannot be built with unit_symbol set to \"%\".",
+   "The QA PR line in Nos and the absence of a twin cannot be asserted or configured with the available setup recipes."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event.",
+    "As the buyer, read the event and check that the event carries the round."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the event carries the round."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.133Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-061",
+  "title": "The unit check treats the unit as a search pattern, so \"%\" passes any PR unit",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages",
+      "op": "count_gte",
+      "value": 1,
+      "say": "the event carries the round"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

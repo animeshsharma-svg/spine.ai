@@ -1,0 +1,123 @@
+{
+ "meta": {
+  "caseId": "SRC-RCO-003",
+  "title": "Recreate with Event End Time Duration 30 Mins",
+  "group": "SRC-RCO",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:09:42.939Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The recreated event's new RFX/stage code is not directly assertable.",
+   "The same product and delivery location cannot be asserted as dynamic copied values with the available API-value keys.",
+   "Keeping Evaluation Duration at 30 Mins and leaving scheduling unset cannot be fully asserted in the Recreate Order dialog."
+  ],
+  "warnings": [
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "resolved: “The complete participant set cannot be compared between the old and recreated events.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “The old event remaining unchanged cannot be verified after creating the new event.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “The exact Bidding Ends At value being exactly start plus 30 minutes cannot be calculated or compared with the available ” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: The recreated event's new RFX/stage code is not directly assertable.; The same product and delivery location cannot be asserted as dynamic copied values with the available API-value keys.; Keeping Evaluation Duration at 30 Mins and leaving scheduling unset cannot be fully asserted in the Recreate Order dialog."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_visible",
+   "expect_options",
+   "click",
+   "click",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_text",
+   "expect_screen_clean"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 18242
+ },
+ "plan": {
+  "title": "Recreate Closed RFQ with 30-Minute End Time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ's summary page."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the Recreate Order dialog from the stage settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order pop-up opened."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Event End Time Duration",
+     "options": [
+      "30 Mins"
+     ]
+    },
+    "note": "Verify that the requested 30-minute end-time duration is offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "30 Mins",
+     "within": "dialog"
+    },
+    "note": "Select the 30-minute event end-time duration."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order",
+     "within": "dialog"
+    },
+    "note": "Create the recreated event with the selected duration."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Verify that the recreated event retains the prepared RFQ quantity."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit"
+    },
+    "note": "Verify that the recreated event retains the prepared RFQ unit."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Ends At",
+     "present": true
+    },
+    "note": "Verify that the new live event displays its bidding end-time field."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure the recreated event page has no rendering or server errors."
+   }
+  ]
+ }
+}

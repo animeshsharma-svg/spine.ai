@@ -1,0 +1,109 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-015",
+  "title": "Two bids: award a split: 6 units to B and 4 units to A; approver approves without a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:20:11.520Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Log in as a different user (the approver) in the same session",
+   "Switch approval user credentials dynamically"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Log in as a different user (the approver) in the same session; Switch approval user credentials dynamically"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
+   "click",
+   "expect_message"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 55662
+ },
+ "plan": {
+  "title": "SRC-AWD-015 — Two bids: split award and approval without remark",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS on the prepared closed event with two bids"
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding flow"
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "2",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate 6 units to Vendor B (Vendor 2)"
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "1",
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate 4 units to Vendor A (Vendor 1)"
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Assert that both vendors are awarded and total value is 940"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the award proposal"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal for approval"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Approve"
+    },
+    "note": "Attempt to approve without entering a remark"
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Remark is necessary for approval"
+    },
+    "note": "Assert the approval is refused because the remark is missing"
+   }
+  ]
+ }
+}

@@ -9,9 +9,20 @@
  *   GET  /api/sheets/runs                    past runs, newest first
  *   GET  /api/sheets/report?run=             the report (bugs with screenshots, every case)
  *   GET  /api/sheets/export?run=&format=     the sheet back with Status filled (xlsx | csv)
+ *   GET  /api/sheets/single?text=&c=&headed=&dry=   SSE, single-case mode: case, understanding, then the run's
+ *                                            events (case-start, line, frame, case-done), suggestions, done
+ *   GET  /api/sheets/understand?sheet=&ids=  what the platform understood of each case before running it
+ *   POST /api/sheets/add {cases:[…]}         add typed / suggested rows to the "Typed test cases" sheet
+ *   GET  /api/sheets/derive?text=&c=&max=    SSE, derive the permutation matrix of cases for a feature / flow / PRD /
+ *                                            case / ticket: understanding, grounding, cases, questions, done
+ *   GET  /api/sheets/questions[?format=xlsx] the product questions the derivations could not settle
  */
 import type { RouteHandler } from "./index.js";
-import { importSheetBuffer, listSheets, sheetCases, sheetPrep } from "../checks/sheetCases.js";
+import { addSheetCases, importSheetBuffer, listSheets, sheetCaseById, sheetCases, sheetPrep, TYPED_SHEET } from "../checks/sheetCases.js";
+import { caseFromText, suggestEdgeCases, understandCase } from "../checks/singleCase.js";
+import { deriveCases, allQuestions } from "../agents/deriveCases.js";
+import { askQuestion, cancelQuestions } from "../agents/questions.js";
+import * as XLSX from "xlsx";
 import { activeSheetRun, listSheetRuns, loadSheetRun, runSheetCases, stopSheetRun } from "../checks/sheetRunner.js";
 import { exportSheetRun, renderSheetReport } from "../report/sheetReport.js";
 import { activeCampaign, campaignFrame, campaignResults, listCampaigns, loadCampaign, planModules, renderCampaignReport, resumeCampaigns, startCampaign, stopCampaign } from "../checks/sheetCampaign.js";
@@ -40,7 +51,7 @@ export const handle: RouteHandler = async (ctx) => {
     const sheet = sp.get("sheet") ?? "";
     const cases = sheetCases(sheet || undefined).map((c) => ({
       id: c.id, sheet: c.sheet, module: c.module, scenario: c.scenario, title: c.title, role: c.role, portal: c.portal, priority: c.priority, testType: c.testType, layer: c.layer,
-      preconditions: c.preconditions, testData: c.testData, steps: c.steps, expected: c.expected, startsFrom: startsFrom(c),
+      preconditions: c.preconditions, configs: c.configs ?? "None", testData: c.testData, steps: c.steps, expected: c.expected, reference: c.reference ?? "", startsFrom: startsFrom(c),
     }));
     return ctx.json({ cases }), true;
   }
@@ -138,6 +149,138 @@ export const handle: RouteHandler = async (ctx) => {
   if (ctx.path === "/api/sheets/backlog") return ctx.json({ backlog: backlog() }), true;
 
   if (ctx.path === "/api/sheets/runs") return ctx.json({ runs: listSheetRuns(), active: activeSheetRun() }), true;
+
+  // ── single-case mode: typed words → house-format case → understanding → run → suggestions ──
+  if (ctx.path === "/api/sheets/single") {
+    const text = (sp.get("text") ?? "").trim();
+    const out = ctx.sse();
+    if (!text) {
+      out.send("run-error", { line: "Type the test case first." });
+      out.end();
+      return true;
+    }
+    let closed = false;
+    ctx.req.on("close", () => {
+      closed = true;
+    });
+    const line = (l: string) => !closed && out.send("line", { id: "typed", line: l });
+    try {
+      const made = await caseFromText(text, { log: line });
+      let c = made.case;
+      // Home's "API" choice: the case is checked through the API, whatever words it used
+      if (sp.get("layer") === "api" && c.layer !== "api" && made.source !== "sheet") {
+        [c] = addSheetCases([{ ...c, portal: "API", layer: "api" }], c.sheet);
+        line("Run through the API, as chosen on Home.");
+      }
+      if (!closed) out.send("case", { case: c, source: made.source, note: made.note });
+      const u = await understandCase(c, { compile: true, log: line });
+      if (!closed) out.send("understanding", u);
+      if (sp.get("dry") === "1") {
+        if (!closed) out.send("done", { dry: true, caseId: c.id, sheet: c.sheet });
+        if (!closed) out.end();
+        return true;
+      }
+      if (!u.canRunHere) {
+        if (!closed) out.send("done", { caseId: c.id, sheet: c.sheet, notRun: u.whyNot });
+        if (!closed) out.end();
+        return true;
+      }
+      if (activeSheetRun()) {
+        if (!closed) out.send("run-error", { line: `A sheet run is already going (${activeSheetRun()}). Wait for it to finish or stop it first.` });
+        if (!closed) out.end();
+        return true;
+      }
+      const run = await runSheetCases([c], {
+        companyId: Number(sp.get("c")) || 198678, sheet: c.sheet, headed: sp.get("headed") === "1",
+        emit: (e) => {
+          if (closed) return;
+          if (e.type === "done") return;
+          out.send(e.type, e);
+        },
+      });
+      const result = run.cases[0];
+      const suggestions = await suggestEdgeCases(c, line);
+      if (!closed) out.send("suggestions", { cases: suggestions });
+      if (!closed) out.send("done", { runId: run.id, caseId: c.id, sheet: c.sheet, status: result?.status, why: result?.why, report: `/api/sheets/report?run=${run.id}`, export: `/api/sheets/export?run=${run.id}&format=xlsx` });
+    } catch (err) {
+      if (!closed) out.send("run-error", { line: (err as Error).message });
+    }
+    if (!closed) out.end();
+    return true;
+  }
+  if (ctx.path === "/api/sheets/derive") {
+    const text = (sp.get("text") ?? "").trim();
+    const out = ctx.sse();
+    if (!text) {
+      out.send("run-error", { line: "Type the feature, flow, PRD or case to derive from first." });
+      out.end();
+      return true;
+    }
+    let closed = false;
+    // the derivation asks on screen before it guesses (src/agents/questions.ts): each question has a deadline,
+    // and a closed screen releases whatever is still waiting
+    const runId = `derive-${Date.now().toString(36)}`;
+    ctx.req.on("close", () => {
+      closed = true;
+      cancelQuestions(runId);
+    });
+    try {
+      await deriveCases({
+        text, companyId: Number(sp.get("c")) || 198678, max: Number(sp.get("max")) || 40,
+        ask: (q, timeoutMs) => askQuestion(runId, q, (full) => { if (!closed) out.send("ask", full); }, timeoutMs),
+      }, (e) => {
+        if (closed) return;
+        if (e.type === "line") out.send("line", { id: "derive", line: e.line });
+        else out.send(e.type, e);
+      });
+    } catch (err) {
+      if (!closed) out.send("run-error", { line: (err as Error).message });
+    }
+    if (!closed) out.end();
+    return true;
+  }
+  if (ctx.path === "/api/sheets/questions") {
+    const qs = allQuestions();
+    if (sp.get("format") === "xlsx") {
+      const ws = XLSX.utils.json_to_sheet(qs.map((q) => ({ "#": q.id, Area: q.area, Question: q.question, "Why we ask": q.why, "What we assume now": q.assume, "Came from": q.from, Raised: q.at, Answer: "" })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Product questions");
+      const body = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+      ctx.res.writeHead(200, { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content-disposition": 'attachment; filename="Product_Questions.xlsx"', "cache-control": "no-store" });
+      ctx.res.end(body);
+      return true;
+    }
+    return ctx.json({ questions: qs }), true;
+  }
+  if (ctx.path === "/api/sheets/understand") {
+    const sheet = sp.get("sheet") ?? "";
+    const ids = (sp.get("ids") ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const pool = sheetCases(sheet || undefined);
+    const picked = ids.length ? ids.map((id) => pool.find((c) => c.id.toUpperCase() === id)).filter((c): c is NonNullable<typeof c> => !!c) : pool.slice(0, 60);
+    const compile = sp.get("compile") !== "0";
+    const list = [];
+    for (const c of picked) list.push(await understandCase(c, { compile }));
+    return ctx.json({ understood: list }), true;
+  }
+  if (ctx.path === "/api/sheets/add" && ctx.req.method === "POST") {
+    const b = await ctx.body();
+    const rows = Array.isArray(b?.cases) ? b.cases : [];
+    if (!rows.length) return ctx.json({ why: "No cases to add." }, 400), true;
+    const clean = rows
+      .filter((r: any) => r && r.title && (Array.isArray(r.steps) ? r.steps.length : r.steps))
+      .map((r: any) => ({
+        id: String(r.id || "").trim() || `TYP-${Date.now().toString(36).toUpperCase()}`, module: String(r.module || "Typed"), scenario: String(r.scenario || "-"), title: String(r.title),
+        role: String(r.role || "Buyer"), portal: String(r.portal || "Buyer portal"), preconditions: String(r.preconditions || "-"), configs: String(r.configs || "None"), testData: String(r.testData || "-"),
+        steps: Array.isArray(r.steps) ? r.steps.map(String) : String(r.steps).split(/\n+/).filter(Boolean), expected: String(r.expected || "-"), priority: String(r.priority || "Medium"),
+        testType: String(r.testType || "Positive"), status: "Not Run", reference: r.reference ? String(r.reference) : undefined,
+      }));
+    const added = addSheetCases(clean, String(b?.sheet || TYPED_SHEET));
+    return ctx.json({ added: added.map((c) => ({ id: c.id, sheet: c.sheet, title: c.title })), sheet: added[0]?.sheet ?? TYPED_SHEET }), true;
+  }
+  if (ctx.path === "/api/sheets/case") {
+    const c = sheetCaseById(sp.get("id") ?? "", sp.get("sheet") || undefined);
+    return ctx.json(c ? { case: c } : { why: "no such case" }, c ? 200 : 404), true;
+  }
 
   if (ctx.path === "/api/sheets/report") {
     const run = loadSheetRun(sp.get("run") ?? "");

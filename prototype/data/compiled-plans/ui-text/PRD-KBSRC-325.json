@@ -1,0 +1,145 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-325",
+  "title": "Traffic Light: green band is inclusive of the entered value",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:56.334Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Observe and assert that the vendor bidding exactly at the green boundary shows green while the vendor bidding above it does not.",
+   "Directly inspect the traffic-light colour for the surrogate bid in the buyer view."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Observe and assert that the vendor bidding exactly at the green boundary shows green while the vendor bidding above it does not.; Directly inspect the traffic-light colour for the surrogate bid in the buyer view."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 16490
+ },
+ "plan": {
+  "title": "Traffic Light Green Boundary",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start the single-stage auction creation flow where traffic-light strategy is configurable."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "traffic_light",
+     "awarding": "lot",
+     "rangeLower": 100,
+     "rangeUpper": 200
+    },
+    "note": "Configure a buy traffic-light auction with green inclusive through 100 and a valid upper bound."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Traffic Light Green Boundary Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the bids."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so one can bid exactly at the boundary and the other above it."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured traffic-light auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the auction reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Have the first vendor submit a bid exactly at the green boundary."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the boundary bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 101
+    },
+    "note": "Submit a second vendor bid just above the green boundary using the buyer console."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the above-boundary bid was accepted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "inspect the rendered traffic-light colours and confirm the vendor at price 100 is green while the vendor at price 101 is not green"
+    },
+    "note": "No catalog assertion reads traffic-light colours, so tester inspection is required for the case's oracle."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting screen has no crash, server error, or invalid rendered values."
+   }
+  ]
+ }
+}

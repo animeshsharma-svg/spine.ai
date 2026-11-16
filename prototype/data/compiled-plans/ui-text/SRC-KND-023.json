@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-023",
+  "title": "eRFX Auction project: award it after the close",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:31:22.005Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Guarantee or perform closing the prepared eRFX Auction before awarding because close_event is unavailable for the prepared state",
+   "Verify that the event moves to History specifically after PO creation"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Guarantee or perform closing the prepared eRFX Auction before awarding because close_event is unavailable for the prepared state; Verify that the event moves to History specifically after PO creation"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "start_awarding",
+   "award_event",
+   "expect_awarded",
+   "create_po"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 9813
+ },
+ "plan": {
+  "title": "Award Closed eRFX Auction to Best Vendor",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the existing prepared event rather than searching or creating a new one."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS to inspect the auction bids before awarding."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Confirm the comparison grid contains the prepared vendor with a real company name."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify that ranking follows the lowest final bid."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding flow for the prepared event."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award all available line items to the vendor with the lowest bid and submit the proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Assert that the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Attempt to approve the award and create the resulting purchase order."
+   }
+  ]
+ }
+}

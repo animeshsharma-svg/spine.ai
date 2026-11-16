@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "SRC-IET-019",
+  "title": "Vendor sees the extended end time",
+  "group": "SRC-IET",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:28:35.353Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the vendor's displayed countdown and end time equal the buyer's extended end time E + 15 minutes."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Assert that the vendor's displayed countdown and end time equal the buyer's extended end time E + 15 minutes."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "extend_time",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 12599
+ },
+ "plan": {
+  "title": "Vendor sees extended end time",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "amount": 15,
+     "unit": "minutes",
+     "expect": "saved"
+    },
+    "note": "Extend the live RFQ's submission window by 15 minutes and assert that the buyer-side save succeeds with the expected time sum."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the separate vendor portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the extended RFQ in the vendor's live pricing view."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert that the vendor reached the active RFQ bid sheet, although the dynamic end time itself cannot be compared."
+   }
+  ]
+ }
+}

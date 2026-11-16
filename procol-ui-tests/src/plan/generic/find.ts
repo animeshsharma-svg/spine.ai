@@ -164,6 +164,27 @@ export async function scopeFor(root: Root, within?: string): Promise<{ root: Roo
     if (await foot.count().catch(() => 0)) return { root: foot, note: " (inside the footer)" };
     return { root: root.locator("xpath=//*[false()]"), note: " (no footer is on screen)" };
   }
+  // "in the table", "the only row left in the list": a container named by what it is, not by its words.
+  // Every visible one is the scope (a page with two tables: the row is in one of them).
+  // "the only row left in the table", "the remaining row of the list": filler words around the container's name still name the container.
+  const stripped = w.replace(/\b(the|this|that|only|single|one|last|first|remaining|left|row|rows|item|items|entry|entries|result|results|visible|shown|still|in|of|on|its|a|an)\b/gi, " ").replace(/\s+/g, " ").trim();
+  const container = /^(?:the |this )?(table|grid|data table|results? table|list|results? list|results|rows|form|sidebar|side bar|aside|tabs|tab list|tablist|toolbar)$/i.exec(w)?.[1]?.toLowerCase() ?? (/\b(table|list|grid|form|sidebar|toolbar)\b/i.test(w) && /^(table|grid|list|form|sidebar|toolbar)$/i.test(stripped) ? stripped.toLowerCase() : undefined);
+  if (container) {
+    const sel = /table|grid|rows/.test(container)
+      ? "table, [role='table'], [role='grid'], [role='treegrid']"
+      : /list|results/.test(container)
+        ? "[role='list'], ul, ol, [role='listbox'], [class*='results' i], [class*='list' i]"
+        : container === "form"
+          ? "form, [role='form']"
+          : /side|aside/.test(container)
+            ? "aside, [role='complementary'], [class*='sidebar' i]"
+            : /tab/.test(container)
+              ? "[role='tablist']"
+              : "[role='toolbar']";
+    const boxes = root.locator(sel).filter({ visible: true }).filter({ has: root.locator("xpath=./*") });
+    if (await boxes.count().catch(() => 0)) return { root: boxes, note: ` (inside the ${container})` };
+    return { root: root.locator("xpath=//*[false()]"), note: ` (no ${container} is on screen)` };
+  }
   const re = pattern(w);
   // An open dialog or drawer named by its TITLE ("inside Send Reminders"): the whole of it, not the title
   // bar alone — the smallest block holding "Send Reminders" was its header, so nothing below was found
@@ -363,6 +384,28 @@ async function candidates(start: Root, t: Target): Promise<Array<{ loc: Locator;
     if (t.role) out.push({ loc: root.getByRole(t.role as any, { name: anyOrder }), strategy: `role ${t.role} + the words "${phrase}" in any order${note}` });
     out.push({ loc: root.getByLabel(anyOrder), strategy: `label with the words "${phrase}" in any order${note}` });
     if (!t.role) for (const r of ["button", "link", "textbox", "combobox", "checkbox", "tab"] as const) out.push({ loc: root.getByRole(r, { name: anyOrder }), strategy: `role ${r} + the words "${phrase}" in any order${note}` });
+  }
+  // "Min price" for a field named "Minimum price": every word of the phrase STARTS a word of the name
+  // (an abbreviation), in any order. After the whole-word strategies, before the partial-label ones.
+  const stems = words.filter((w) => w.length >= 3);
+  if (stems.length >= 2 && stems.length === words.length) {
+    const anyPrefix = new RegExp(stems.map((w) => `(?=.*(?<![a-z0-9])${esc(w)})`).join(""), "i");
+    if (t.role) out.push({ loc: root.getByRole(t.role as any, { name: anyPrefix }), strategy: `role ${t.role} + a name starting each word of "${phrase}"${note}` });
+    out.push({ loc: root.getByLabel(anyPrefix), strategy: `label starting each word of "${phrase}"${note}` });
+    out.push({ loc: root.getByPlaceholder(anyPrefix), strategy: `placeholder starting each word of "${phrase}"${note}` });
+    if (!t.role) for (const r of ["button", "link", "textbox", "combobox", "checkbox", "tab"] as const) out.push({ loc: root.getByRole(r, { name: anyPrefix }), strategy: `role ${r} + a name starting each word of "${phrase}"${note}` });
+  }
+  // "Min price" for a field labelled just "Min", "Search contacts" for "Search": a field whose WHOLE
+  // label (or placeholder) is a run of the words, longest run first. After every fuller match, so a
+  // field carrying all the words always wins (bench S-01, 31 Oct).
+  if ((t.label || (!t.role && !t.name && t.text)) && words.length >= 2) {
+    const runs: string[] = [];
+    for (let len = words.length - 1; len >= 1; len--) for (let i = 0; i + len <= words.length; i++) runs.push(words.slice(i, i + len).join(" "));
+    for (const run of runs) {
+      const whole = new RegExp(`^\\s*${esc(run)}\\s*:?\\s*$`, "i");
+      out.push({ loc: root.getByLabel(whole), strategy: `field labelled "${run}" (part of "${phrase}")${note}` });
+      out.push({ loc: root.getByPlaceholder(whole), strategy: `placeholder "${run}" (part of "${phrase}")${note}` });
+    }
   }
   // A locator a past AI heal recorded for these words.
   for (const r of recipesFor(`generic:${(named ?? t.placeholder ?? "").toLowerCase()}`)) {

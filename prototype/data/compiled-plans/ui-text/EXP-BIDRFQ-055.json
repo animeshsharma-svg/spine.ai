@@ -1,0 +1,123 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-055",
+  "title": "Increase Event Time: Window stays open and shows error when no radio option is selected and Ok is pressed",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:30.848Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly deselecting the selected duration radio option before pressing Ok"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Explicitly deselecting the selected duration radio option before pressing Ok"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "extend_time",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 15324
+ },
+ "plan": {
+  "title": "RFQ Increase Time Without Selection",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses view described in the scenario."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "amount": "",
+     "expect": "refused",
+     "confirm": true
+    },
+    "note": "Attempt to confirm Increase Event Time with no duration value, using the closest supported negative-path operation for the requested missing radio selection."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Verify the Increase Event Time window remains open after the refusal."
+   }
+  ]
+ }
+}

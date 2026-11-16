@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-059",
+  "title": "Declining counts as having answered the participation question",
+  "compiledAt": "2026-11-09T19:54:04.541Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The round-level decline cannot be expressed: no available operation or library case submits a successful round-level decline with the required reason."
+  ],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"user_intent_answered\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the invited QA vendor, read the request that reads the round and check that Status check: the reply's status code is 200 — OK — the request worked; Data check: “user intent answered” equals true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is 200 — OK — the request worked; Data check: “user intent answered” equals true."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.822Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRGT-059",
+  "title": "Declining counts as having answered the participation question",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "request",
+    "as": "vendor",
+    "request": {
+     "method": "GET",
+     "path": "/trade/{{tradeId}}?response_type=template"
+    },
+    "assert": [
+     {
+      "op": "status",
+      "value": 200
+     },
+     {
+      "path": "user_intent_answered",
+      "op": "equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -12,7 +12,7 @@
   const q = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const root = () => q("#sht-root");
-  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [], camp: null, from: "3" };
+  const S = { sheets: [], sheet: "", cases: [], picked: new Set(), qtext: "", mod: "", open: new Set(), es: null, run: null, runs: [], camp: null, from: "3", single: null, und: null };
   const PILL = { Pass: "ok", Fail: "bad", "Partly checked": "warn", "Couldn't tell": "idle", "Not run": "idle" };
 
   function clientId() {
@@ -24,6 +24,10 @@
     if (!root()) return;
     const r = await fetch("/api/sheets", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ sheets: [] }));
     S.sheets = r.sheets || [];
+    // a sheet Home just imported opens here with every row ticked
+    let opened = null;
+    try { opened = JSON.parse(sessionStorage.getItem("sht-open") || "null"); sessionStorage.removeItem("sht-open"); } catch { opened = null; }
+    if (opened?.sheet && S.sheets.some((s) => s.id === opened.sheet)) { S.sheet = opened.sheet; S.picked.clear(); S.tickAll = !!opened.tickAll; S.tickIds = Array.isArray(opened.ids) ? opened.ids : null; }
     if (!S.sheet || !S.sheets.some((s) => s.id === S.sheet)) S.sheet = S.sheets[0]?.id || "";
     S.camp = await fetch("/api/sheets/campaign", { cache: "no-store" }).then((x) => x.json()).catch(() => null);
     const runs = await fetch("/api/sheets/runs", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ runs: [] }));
@@ -31,6 +35,9 @@
     if (S.sheet) {
       const c = await fetch(`/api/sheets/cases?sheet=${encodeURIComponent(S.sheet)}`, { cache: "no-store" }).then((x) => x.json()).catch(() => ({ cases: [] }));
       S.cases = c.cases || [];
+      if (S.tickAll) { S.cases.forEach((x) => S.picked.add(x.id)); S.tickAll = false; }
+      // Home's "Run the ticked cases": exactly those rows ticked here, ready for Understand / Run
+      if (S.tickIds) { const want = new Set(S.tickIds.map((x) => String(x).toUpperCase())); S.cases.forEach((x) => { if (want.has(x.id.toUpperCase())) S.picked.add(x.id); }); S.tickIds = null; }
     } else S.cases = [];
     paint();
   }
@@ -56,13 +63,16 @@
         <label class="sht-upload">Upload a sheet (.xlsx or .csv)<input type="file" id="sht-file" accept=".xlsx,.xls,.csv"></label>
         <span class="sht-hint">Columns: Test Case ID, Module, Scenario, Test Case Title, User Role, Portal, Pre-conditions, Test Data, Test Steps, Expected Result, Priority, Test Type, Status. A sheet with the same name replaces the old one.</span>
       </div>
+      <section class="sht-single" id="sht-single">${singleHtml()}</section>
       <section class="sht-camp" id="sht-camp">${campHtml(mods)}</section>
+      <div class="sht-und" id="sht-und" ${S.und ? "" : "hidden"}>${undHtml()}</div>
       <div class="sht-run" id="sht-run" ${S.run ? "" : "hidden"}></div>
       <div class="sht-filters">
         <input type="search" id="sht-q" placeholder="Search IDs, titles, steps, expected results" value="${esc(S.qtext)}">
         <select id="sht-mod"><option value="">All modules</option>${mods.map((m) => `<option ${m === S.mod ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
         <button class="btn" id="sht-all">Tick all shown (${list.length})</button>
         <button class="btn" id="sht-none">Untick all</button>
+        <button class="btn" id="sht-understand" ${S.picked.size ? "" : "disabled"} title="What the platform understood of each ticked case: where it starts, what it will check, whether it can run here">Understand ticked first</button>
         <label class="sht-check"><input type="checkbox" id="sht-headed"> Watch the browser</label>
         <button class="btn primary" id="sht-go" ${S.picked.size && !S.run?.live ? "" : "disabled"}>Run ${S.picked.size || ""} ticked case${S.picked.size === 1 ? "" : "s"} one by one</button>
       </div>
@@ -71,6 +81,23 @@
       ${S.runs.length ? `<section class="sht-past"><h3>Earlier runs</h3><ul>${S.runs.map((r) => `<li><a href="/api/sheets/report?run=${r.id}" target="_blank" rel="noopener">${esc(new Date(r.startedAt).toLocaleString())} · ${esc(r.sheet)} · ${r.total} case${r.total === 1 ? "" : "s"}</a> <span>${Object.entries(r.counts).map(([k, v]) => `${v} ${esc(k.toLowerCase())}`).join(" · ")}</span> <a href="/api/sheets/export?run=${r.id}&format=xlsx">results sheet</a></li>`).join("")}</ul></section>` : ""}`;
     wire();
     if (S.run) paintRun();
+  }
+
+  function singleHtml() {
+    const g = S.single;
+    const busy = g?.live;
+    return `<div class="sht-camphead"><b>Type one test case</b><span class="sht-hint" style="flex-basis:auto">Plain English. It is read as a TEST CASE, not a journey: rewritten into the house columns, understood (where it starts, what it checks, whether it can run here), run, and answered in the same words — with a bug row when it fails and the edge cases worth adding.</span></div>
+      <textarea id="sht-text" rows="3" placeholder='e.g. On a live RFQ with a vendor bid, extend the submission time by 30 minutes and check the end time moved by exactly 30 minutes and Order Activity lists the extension' ${busy ? "disabled" : ""}>${esc(g?.text || "")}</textarea>
+      <div class="sht-filters"><button class="btn" id="sht-single-dry" ${busy ? "disabled" : ""}>Show the understanding only</button><button class="btn primary" id="sht-single-go" ${busy ? "disabled" : ""}>Understand and run it</button><label class="sht-check"><input type="checkbox" id="sht-single-headed"> Watch the browser</label>${g?.case ? `<span class="sht-hint" style="flex-basis:auto">Saved as <b>${esc(g.case.id)}</b> in the sheet "Typed test cases" — it can be run again from the list.</span>` : ""}</div>
+      ${g ? window.spineSingle.render(g) : ""}`;
+  }
+  function undHtml() {
+    if (!S.und) return "";
+    if (S.und.loading) return `<p class="sht-hint">Reading ${S.und.n} ticked case${S.und.n === 1 ? "" : "s"}: where each starts, what it checks, and whether it can run here…</p>`;
+    const list = S.und.list || [];
+    const no = list.filter((u) => !u.canRunHere).length;
+    return `<div class="sht-cchead"><b>Understood ${list.length} case${list.length === 1 ? "" : "s"} before running</b><span class="pill ${no ? "warn" : "ok"}">${list.length - no} can run here</span>${no ? `<span class="pill bad">${no} cannot — see why</span>` : ""}<button class="btn" id="sht-und-close">Close</button></div>
+      <table class="sht-table"><thead><tr><th>Case</th><th>Starts from</th><th>Checks</th><th>Steps cover</th><th>Can run here</th></tr></thead><tbody>${list.map((u) => `<tr><td><b>${esc(u.id)}</b><br><small>${esc(u.goal)}</small></td><td>${esc(u.startState)}${u.configs.length ? `<br><small>settings: ${esc(u.configs.map((x) => `${x.key} = ${JSON.stringify(x.value)}`).join(", "))}</small>` : ""}</td><td>${u.checks.map((k) => `<div><span class="pill idle">${esc(k.how)}</span> ${esc(k.what)}</div>`).join("")}</td><td>${u.layer === "api" ? "API test" : u.coverage ? `<span class="pill ${u.coverage === "full" ? "ok" : u.coverage === "partial" ? "warn" : "bad"}">${esc(u.coverage)}</span>${u.gaps?.length ? `<br><small>${esc(u.gaps.join("; "))}</small>` : ""}` : "-"}</td><td>${u.canRunHere ? `<span class="pill ok">yes</span>` : `<span class="pill bad">no</span><br><small>${esc(u.whyNot || "")}</small>`}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function campHtml(mods) {
@@ -100,7 +127,7 @@
         <button class="sht-title"><span class="sht-id">${esc(c.id)}</span><span>${esc(c.title)}<small>${esc(c.module)} · ${esc(c.layer === "api" ? "API" : c.portal)} · ${esc(c.startsFrom)}</small></span></button>
         <span class="pill ${c.priority === "Critical" ? "bad" : c.priority === "High" ? "warn" : "idle"}">${esc(c.priority)}</span>
         <button class="btn sht-one" ${S.run?.live ? "disabled" : ""}>Run this case</button></div>
-      ${open ? `<div class="sht-body"><p><b>Before you start:</b> ${esc(c.preconditions)}</p>${c.testData && c.testData !== "-" ? `<p><b>Test data:</b> ${esc(c.testData)}</p>` : ""}<ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="sht-exp"><b>What you should see:</b> ${esc(c.expected)}</p></div>` : ""}
+      ${open ? `<div class="sht-body"><p><b>Before you start:</b> ${esc(c.preconditions)}</p>${c.configs && c.configs !== "None" ? `<p><b>Configs needed:</b> ${esc(c.configs)}</p>` : ""}${c.testData && c.testData !== "-" ? `<p><b>Test data:</b> ${esc(c.testData)}</p>` : ""}<ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="sht-exp"><b>What you should see:</b> ${esc(c.expected)}</p>${c.reference ? `<p class="sht-hint" style="flex-basis:auto"><b>Reference:</b> ${esc(c.reference)}</p>` : ""}</div>` : ""}
     </li>`;
   }
 
@@ -111,6 +138,12 @@
     q("#sht-all")?.addEventListener("click", () => { shown().forEach((c) => S.picked.add(c.id)); paint(); });
     q("#sht-none")?.addEventListener("click", () => { S.picked.clear(); paint(); });
     q("#sht-go")?.addEventListener("click", () => start([...S.picked]));
+    q("#sht-single-go")?.addEventListener("click", () => startSingle(false));
+    q("#sht-single-dry")?.addEventListener("click", () => startSingle(true));
+    q("#sht-text")?.addEventListener("input", (e) => { S.single = S.single || {}; S.single.text = e.target.value; });
+    q("#sht-understand")?.addEventListener("click", understandPicked);
+    q("#sht-und-close")?.addEventListener("click", () => { S.und = null; paint(); });
+    if (S.single) window.spineSingle.wire(root(), S.single, { onAdded: (r) => { S.sheet = r.sheet; load(); } });
     q("#sht-file")?.addEventListener("change", upload);
     q("#sht-from")?.addEventListener("change", (e) => (S.from = e.target.value));
     q("#sht-camp-go")?.addEventListener("click", async () => {
@@ -147,6 +180,26 @@
     el.textContent = text;
     root().prepend(el);
     setTimeout(() => el.remove(), 9000);
+  }
+
+  async function understandPicked() {
+    const ids = [...S.picked];
+    if (!ids.length) return;
+    S.und = { loading: true, n: ids.length };
+    paint();
+    const r = await fetch(`/api/sheets/understand?sheet=${encodeURIComponent(S.sheet)}&ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" }).then((x) => x.json()).catch(() => ({ understood: [] }));
+    S.und = { list: r.understood || [] };
+    paint();
+    q("#sht-und")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function startSingle(dry) {
+    const text = (q("#sht-text")?.value || "").trim();
+    if (!text || S.single?.live || S.run?.live) return;
+    const headed = !!q("#sht-single-headed")?.checked;
+    const repaint = () => { const el = q("#sht-single"); if (el) { el.innerHTML = singleHtml(); wire(); } };
+    S.singleRun?.stop?.();
+    S.singleRun = window.spineSingle.start({ text, client: clientId(), headed, dry, onState: (g) => { S.single = g; repaint(); if (!g.live) load(); } });
   }
 
   function start(ids) {

@@ -1,0 +1,135 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-012",
+  "title": "Savings after bidding ends",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:08:55.800Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Exercise the same calculation with a budget of 0 and verify that it never displays Infinity %.",
+   "unconfirmed label \"25%\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Infinity %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"25%\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Infinity %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Exercise the same calculation with a budget of 0 and verify that it never displays Infinity %."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
+   "expect_text",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 15420
+ },
+ "plan": {
+  "title": "Savings after bidding ends",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on the buyer's Master QCS screen."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "100"
+    },
+    "note": "Verify Vendor A's unit bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "equals": "90"
+    },
+    "note": "Verify Vendor B's unit bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": "Vendor A",
+     "key": "quantity"
+    },
+    "note": "Verify the requested quantity shown for Vendor A matches the prepared quantity."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's line amount and total are calculated from rate times quantity."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Verify Vendor B's line amount and total are calculated from rate times quantity."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the lower total is ranked first."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "300"
+    },
+    "note": "Verify the displayed budget savings amount is 300."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "25%"
+    },
+    "note": "Verify the displayed budget savings percentage is 25 percent."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Infinity %",
+     "present": false
+    },
+    "note": "Verify the comparison does not render an infinite savings percentage."
+   }
+  ]
+ }
+}

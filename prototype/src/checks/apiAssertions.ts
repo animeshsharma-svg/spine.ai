@@ -149,6 +149,7 @@ export const STEP_CODE: Record<StepKind, string> = {
   create_draft: "DRAFT",
   add_stage_rfp: "RFPSTG",
   add_stage_pricing: "PRICESTG",
+  allow_revoke: "REVOKEOK",
   publish: "PUBLISH",
   read_back: "READ",
   vendor_login: "VLOGIN",

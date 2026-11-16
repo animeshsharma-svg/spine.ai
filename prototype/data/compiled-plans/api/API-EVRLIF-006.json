@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-006",
+  "title": "A quick-flow round starts as a draft with safe default settings",
+  "compiledAt": "2026-11-09T19:57:41.168Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The company gate variants (show_variant_widget on and off) cannot be configured with the available vocabulary.",
+   "The expected sheet layout and column visibility/editability cannot be asserted because read_round_schema fields are not sampled.",
+   "Terms-not-mandatory, English auction off, alternate bidding off, pickup off, dynamic closing price, end price 0, auction on base price, single closing mode, and the Budget and Historical Price savings strategies cannot be asserted because t"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id",
+   "GET /v1/trade/:id/schema"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with no data.",
+    "As the buyer, read the pricing round and check that Data check: “status” equals draft.",
+    "As the buyer, read the pricing round's schema and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals draft; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.890Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-006",
+  "title": "A quick-flow round starts as a draft with safe default settings",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data",
+      "set": []
+     }
+    ],
+    "expect": "accept",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   },
+   {
+    "op": "read_round_schema",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

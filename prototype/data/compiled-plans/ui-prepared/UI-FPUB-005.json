@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "UI-FPUB-005",
+  "title": "A single product with \"multiple vendor\" closing is refused with its message",
+  "compiledAt": "2026-11-09T20:09:04.288Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Single Product Multiple Vendor Closing Refusal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as an auction so its closing-mode setting is available."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create exactly one product line item for the single-product validation."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the single-stage create screen, set the event closing mode to multiple vendors and stop with that selection visible"
+    },
+    "note": "Set the required multiple-vendor closing configuration, which has no dedicated domain step."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "In case of single product, please choose multiple vendor closing."
+    },
+    "note": "Attempt publish and assert the exact refusal message from the oracle."
+   }
+  ]
+ }
+}

@@ -9,7 +9,8 @@ import { loadCases, heldCases, unrunnableReason, type TestCaseRecord } from "./c
 import { STEP_CODE } from "./apiAssertions.js";
 import { gate } from "./dynamicChecks.js";
 import { STEP_META, type StepKind } from "./journeyModel.js";
-import { hasStoredFullPlan, storedApiPlan } from "./compiledPlans.js";
+import { hasStoredFullPlan, storedApiPlan, planSpeaksForCase } from "./compiledPlans.js";
+import { storedTextPlan } from "./compiledUiText.js";
 import { decideLayerSync } from "../agents/layerDecider.js";
 import { prepFor } from "../ui/uiCasePrep.js";
 
@@ -108,7 +109,7 @@ export interface CaseRoute {
    * automation tree, every field check (API-F…) runs on every API journey.
    */
   runner?: {
-    where: "api-library" | "api-journey" | "ui-crosscheck" | "template-check" | "bidding-matrix" | "api-plan";
+    where: "api-library" | "api-journey" | "ui-crosscheck" | "template-check" | "bidding-matrix" | "api-plan" | "sheet";
     id?: string;
     how: string;
   };
@@ -436,9 +437,47 @@ function apiPlanRoute(c: CatalogCase, why: string, ids: string[]): CaseRoute | n
       resultIds: ids,
     };
   }
+  // A stored PARTIAL plan whose gaps are only at the edges (it does not read the record back,
+  // a part is about the page, a PDF or an e-mail) still speaks for the case — the same rule the
+  // runners use (planSpeaksForCase) — so it runs today too. A partial plan whose gap is the
+  // case's own point (it expects another outcome, needs another caller or state) does not.
+  const stored = storedApiPlan(c.id);
+  if (stored?.meta.validated && stored.meta.coverage === "partial" && planSpeaksForCase(c.id, `${c.title} ${c.setup} ${c.steps} ${c.expected}`)) {
+    return {
+      kind: "api-plan",
+      because: `${why} — a plan compiled from its prose is stored and validated (${stored.meta.endpoints.length} request${stored.meta.endpoints.length === 1 ? "" : "s"}); it covers the case except at the edges: ${stored.meta.gaps.slice(0, 2).join("; ").slice(0, 200)}`,
+      runnable: false,
+      strength: "compile",
+      runsNow: true,
+      runner: { where: "api-plan", id: c.id, how: "Runs its stored, validated API plan (scripts/run-all-runnable.ts --plans, or /api/api-plan/run); the parts it does not cover are named." },
+      resultIds: ids,
+    };
+  }
+  if (stored && stored.meta.coverage !== "none") {
+    return {
+      kind: "api-plan",
+      because: `${why} — compiled once (${stored.meta.coverage}), but the plan does not speak for the case: ${stored.meta.gaps.slice(0, 2).join("; ").slice(0, 200)}`,
+      runnable: false,
+      strength: "none",
+      runsNow: false,
+      runner: { where: "api-plan", id: c.id, how: "Compiled into requests by the API test compiler (/api/api-plan); its plan does not yet cover the case's own point." },
+      resultIds: ids,
+    };
+  }
+  if (stored && stored.meta.coverage === "none") {
+    return {
+      kind: "api-plan",
+      because: `${why} — compiled once: no request in the vocabulary can check what this case is about${stored.meta.gaps.length ? `: ${stored.meta.gaps.slice(0, 2).join("; ").slice(0, 200)}` : ""}`,
+      runnable: false,
+      strength: "none",
+      runsNow: false,
+      runner: { where: "api-plan", id: c.id, how: "The API test compiler found no request for this case's point (see data/compiled-plans/api/index.json)." },
+      resultIds: ids,
+    };
+  }
   return {
     kind: "api-plan",
-    because: `${why} — the API test compiler can turn this case's prose into requests`,
+    because: `${why} — the API test compiler can turn this case's prose into requests (not compiled yet)`,
     runnable: false,
     strength: "compile",
     // Whether its plan covers the case is only known when it compiles.
@@ -639,8 +678,14 @@ export function routeFor(c: CatalogCase): CaseRoute {
     // screen. A stored plan the compiler said covers none of the case is not runnable.
     if (/^UI-/.test(c.group) && c.group !== "UI-XCHK") {
       const d = decideLayerSync(c);
-      if (d.layer === "api")
+      if (d.layer === "api") {
+        // Every claim is API-observable: the API test compiler is the runner for it (a stored, validated
+        // plan runs without a model; otherwise it compiles on request) — 97 of these had no runner at all
+        // before 2 Nov, deflected from the browser and never handed to the API side.
+        const planned = apiPlanRoute(c, "every expectation of this case can be observed through the API — the layer decider keeps the browser out of it", ownIds);
+        if (planned) return planned;
         return { kind: "ui-compile", because: "every expectation of this case can be observed through the API — the layer decider keeps the browser out of it", runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
+      }
       const p = prepFor(c);
       if (!p.ok) return { kind: "ui-compile", because: `the screen-case runner cannot start it yet: ${p.why}`, runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
       if (preparedPlanCoverage(c.id) === "none")
@@ -664,14 +709,42 @@ export function routeFor(c: CatalogCase): CaseRoute {
         resultIds: ownIds,
       };
     }
+    // 10 · the cases written as text — the test sheets (SRC-, DRV-, EXP-, RCA-, TYP-, EMA-, PRA-)
+    //      and the product-sheet cases (PRD-). scripts/night-compile.ts compiled each once and
+    //      stored the compiler's own verdict (compiledUiText.ts); routing reads it without a model.
+    //      Before 10 Nov these 3,120 cases were all "the step catalog covers sourcing events only",
+    //      although the sheet runner compiled and ran them from the Test sheets page.
+    const tp = storedTextPlan(c.id);
+    const sheetRunner: CaseRoute["runner"] = { where: "sheet", id: c.id, how: "Runs from its test sheet (Test sheets page, or type its id on Home); the compiler's stored plan opens the screen and does the case's steps." };
+    if (tp && tp.meta.source !== "fallback") {
+      const gaps = tp.meta.gaps.length ? ` — not covered: ${tp.meta.gaps.slice(0, 2).join("; ").slice(0, 220)}` : "";
+      if (tp.meta.unbuilt) {
+        return { kind: "ui-compile", because: `compiled (${tp.meta.coverage}, ${tp.meta.steps} steps), but it starts from a state the API set-up does not build yet: ${tp.meta.unbuilt.slice(0, 200)}`, runnable: false, strength: "none", runsNow: false, runner: sheetRunner, resultIds: ownIds };
+      }
+      if (tp.meta.coverage === "none") {
+        return { kind: "ui-compile", because: `compiled once: no step can observe what this case is about${gaps}`, runnable: false, strength: "none", runsNow: false, runner: sheetRunner, resultIds: ownIds };
+      }
+      return {
+        kind: "ui-compile",
+        because: tp.meta.coverage === "full"
+          ? `compiled from its text: ${tp.meta.steps} steps cover the whole case${tp.meta.state ? ` (starts from a ${tp.meta.state} event built by API)` : ""}`
+          : `compiled from its text: ${tp.meta.steps} steps cover part of the case${gaps}`,
+        runnable: false,
+        strength: "compile",
+        runsNow: true,
+        runner: sheetRunner,
+        resultIds: ownIds,
+      };
+    }
     return {
       kind: "ui-compile",
-      because:
-        "the browser step catalog covers sourcing events only, so the compiler cannot build a plan " +
-        "for this area yet",
+      because: tp
+        ? "compiled once, but the model did not answer (fallback) — compiled again on the next pass"
+        : "written as text and not compiled yet — the next compile pass (scripts/night-compile.ts) stores the compiler's verdict",
       runnable: false,
       strength: "none",
       runsNow: false,
+      runner: sheetRunner,
       resultIds: ownIds,
     };
   }

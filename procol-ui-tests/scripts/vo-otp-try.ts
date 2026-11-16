@@ -1,0 +1,10 @@
+import { readFileSync } from "node:fs";
+const API = "https://sec-api.ag-ri.in/api";
+const env = Object.fromEntries(readFileSync(".env", "utf8").split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.split("=")[0], l.slice(l.indexOf("=") + 1).trim()]));
+const email = process.argv[2];
+const boot = Buffer.from("agribid_web_key:agribid_web_secret").toString("base64");
+const h = { "access-token": boot, "app-version": "2.30.292", "Content-Type": "application/json" };
+const same = env.CLIENTA_VENDOR_OTP === env.CLIENTA_OTP;
+console.log("vendor OTP differs from buyer OTP:", !same);
+const r = await fetch(API + "/v1/verify_otp", { method: "POST", headers: h, body: JSON.stringify({ email, otp: env.CLIENTA_VENDOR_OTP, device_info: { browser: "Chrome", os: "macOS" }, device_id: "qa-probe", push_token: null }) });
+console.log("verify with CLIENTA_VENDOR_OTP", r.status, (await r.text()).slice(0, 160));

@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-045",
+  "title": "Recreate Order: The custom evaluation duration handles zero, negative, letters and very large values",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:22:34.293Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_visible",
+   "do_on_screen",
+   "expect_screen_clean"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 83703
+ },
+ "plan": {
+  "title": "Recreate Order Evaluation Duration Validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with the vendor bid."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage before accessing its responses and settings."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses view specified by the case."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the Recreate Order window from the RFQ settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window is open before entering test values."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the Recreate Order window, select Custom under Evaluation Duration and separately submit 0, -1, abc, and 999999999999999999999999 in the field with placeholder 10, using unit Min(s). After each Create Order attempt, record the exact field error or refusal message, whether the window remains open or closes, and whether a new order is created; reopen the window when it closes before testing the next value. Stop with the final observed result visible."
+    },
+    "note": "Execute the four conditional input cases and capture each outcome from the buyer-side screen."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the final observed result has no crash, raw error, or server error."
+   }
+  ]
+ }
+}

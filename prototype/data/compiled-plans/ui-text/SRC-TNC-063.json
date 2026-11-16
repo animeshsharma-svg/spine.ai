@@ -1,0 +1,108 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-063",
+  "title": "Recreate Order keeps the mandatory T&C setting",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:20:42.858Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the recreated event contains the exact same T&C clauses as the original event."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the recreated event contains the exact same T&C clauses as the original event."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "event_menu",
+   "click",
+   "expect_no_error",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 13831
+ },
+ "plan": {
+  "title": "Recreate Order preserves mandatory T&C enforcement",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Open the stage Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Confirm recreation while keeping the existing event configuration."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify the recreated order completed without an application error."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to Vendor A's supplier-portal session while retaining the buyer session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Open the recreated event in the vendor portal at its pricing round."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Terms and Conditions",
+     "visible": true
+    },
+    "note": "Verify the vendor bid screen exposes the terms acceptance section."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "submit": true
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to submit without ticking the mandatory clauses and require the portal to refuse submission."
+   }
+  ]
+ }
+}

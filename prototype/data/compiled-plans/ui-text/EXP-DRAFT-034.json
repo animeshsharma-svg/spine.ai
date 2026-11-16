@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-034",
+  "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"360 DEGREE IMAGE MAKE OVERS\" is not offered",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:44:34.994Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
+   "click",
+   "expect_options"
+  ],
+  "ms": 17144
+ },
+ "plan": {
+  "title": "Draft vendor option hidden when vendor addition is unlocked",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the company setting under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration required by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-034 Vendor Option Check"
+    },
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose a pricing template so the draft can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a valid eRFX draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule for the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved, unpublished eRFX draft required by the case."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft was saved without an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to follow the specified Drafts flow."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the draft created by this plan is listed."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-034 Vendor Option Check"
+    },
+    "note": "Open the saved draft from the Drafts list."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participants"
+    },
+    "note": "Open the draft's participant controls."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Invite Vendors you want to add",
+     "absent": [
+      "360 DEGREE IMAGE MAKE OVERS"
+     ]
+    },
+    "note": "Assert that the named vendor is not offered in the draft vendor picker."
+   }
+  ]
+ }
+}

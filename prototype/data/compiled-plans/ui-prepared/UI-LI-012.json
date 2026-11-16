@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "UI-LI-012",
+  "title": "Non-BOQ line items are capped at 65",
+  "compiledAt": "2026-11-09T19:55:11.506Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-LI-003",
+   "UI-LI-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-LI-012 — Non-BOQ line item cap",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a non-BOQ eRFX project."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-LI-012 Line Item Cap"
+    },
+    "note": "Provide the required project title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 65
+    },
+    "note": "Create the maximum allowed 65 line items."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 65
+    },
+    "note": "Verify exactly 65 items were created before publishing."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for all 65 items."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the event schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the project with 65 line items."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the 65-item project published successfully."
+   },
+   {
+    "step": "create_new_version",
+    "args": {},
+    "note": "Open a new editable version retaining the published 65 items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Attempt to add the 66th line item."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Maximum no of product addition reached"
+    },
+    "note": "Verify Procol reports the line item cap error."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 65
+    },
+    "note": "Verify the rejected attempt did not create a 66th line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    }
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "expect_published"
+   }
+  ]
+ }
+}

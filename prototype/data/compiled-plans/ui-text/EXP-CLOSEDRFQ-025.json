@@ -1,0 +1,110 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-025",
+  "title": "A closed RFQ: \"Order Activity\" opens the \"Activity\" window",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:57.202Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "That no event data changes until a button inside the Activity window is pressed cannot be independently observed without an action or state comparison."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: That no event data changes until a button inside the Activity window is pressed cannot be independently observed without an action or state comparison."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "expect_text"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 11754
+ },
+ "plan": {
+  "title": "Closed RFQ Order Activity drawer",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared closed RFQ event; this is the required starting state for prepared cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage referenced by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab before inspecting its Settings menu."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity",
+     "stage": "rfq"
+    },
+    "note": "Choose Order Activity from the RFQ stage Settings menu; the step leaves the resulting Activity drawer open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity",
+     "present": true
+    },
+    "note": "Assert that the Activity window/drawer opened."
+   }
+  ]
+ }
+}

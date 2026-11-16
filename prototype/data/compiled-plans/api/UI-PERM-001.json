@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "caseId": "UI-PERM-001",
+  "title": "A vendor cannot open an event they were not invited to",
+  "compiledAt": "2026-11-01T19:47:01.206Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "act 1: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "A second QA vendor sends the request that reads the round, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to view this event.”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.198Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-PERM-001",
+  "title": "A vendor cannot open an event they were not invited to",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor2",
+    "caseId": "EDGE-BID-020",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "536",
+   "message": "You are not allowed to view this event."
+  }
+ }
+}

@@ -1,0 +1,138 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-027",
+  "title": "Best price is shown on a price-based auction, per configuration",
+  "compiledAt": "2026-11-09T20:06:47.245Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The exact vendor-attribution absence cannot be reliably asserted because the vendor names are dynamically selected and no catalog assertion checks that the best-price indicator has no accompanying vendor name."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "can only test part of this — no step for: The exact vendor-attribution absence cannot be reliably asserted because the vendor names are dynamically selected and no catalog assertion checks that the best-price indicator has no accompanying vendor name."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-TPL-015"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Best price on price-based auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start the single-stage creation flow required for configuring a price-based auction."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the event as a price-based auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-027 Best Price Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the competing bids."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the auction has two competing bidders."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction before placing bids."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the trailing bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the leading bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 1
+    },
+    "note": "Open the trailing vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live auction pricing round as the trailing vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Price"
+    },
+    "note": "Check that the vendor-facing best-price indicator is shown."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Best Price"
+    },
+    "note": "Check that the displayed best-price value is populated from the bid data."
+   }
+  ]
+ }
+}

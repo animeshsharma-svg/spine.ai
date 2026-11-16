@@ -1,0 +1,164 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-019",
+  "title": "Two bids: award only 6 of the 10 units to B (partial award); approver approves without a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:19:48.843Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the approver, open the submitted proposal, approve with an empty remark, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending",
+   "unconfirmed label \"6\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"6\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Sign in as the approver, open the submitted proposal, approve with an empty remark, and verify the refusal \"Remark is necessary for approval\" while the proposal remains pending"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "fill_required",
+   "click",
+   "expect_awarded",
+   "ask_tester",
+   "expect_message"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 12402
+ },
+ "plan": {
+  "title": "Partial award and empty approval remark",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ with Vendor A and Vendor B bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial quantity awarding required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required by the case setup."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding page for the two-bid event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate only 6 of the requested 10 units to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 540
+    },
+    "note": "Verify one of two vendors is awarded and the proposal value is 6 × 90 = 540."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Open the proposal page after the partial allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify navigation to the proposal page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor B"
+    },
+    "note": "Verify the proposal identifies Vendor B as the awarded vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "540"
+    },
+    "note": "Verify the proposal shows the partial award value of 540."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "6"
+    },
+    "note": "Verify the proposal shows the awarded quantity of 6."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Complete any mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the proposal was created and submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the approver, open the submitted proposal, leave the approval remark empty, and attempt approval"
+    },
+    "note": "A separate approver session and the empty-remark approval attempt are not runnable with the buyer session steps."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Remark is necessary for approval"
+    },
+    "note": "Verify the approver's empty-remark attempt is refused with the required message."
+   }
+  ]
+ }
+}

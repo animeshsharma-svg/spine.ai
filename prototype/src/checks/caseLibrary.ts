@@ -68,7 +68,7 @@ function caseFixes(): CaseFixes {
 
 /** Placeholders a case may use — anything else could never be filled in. */
 const KNOWN_PLACEHOLDERS = new Set([
-  "eventGroupUuid", "tradeId", "lineItemUuid", "bidUuid", "proposalUuid", "vendorUuid", "vendorCompanyId",
+  "eventGroupUuid", "tradeId", "lineItemUuid", "bidUuid", "proposalUuid", "vendorUuid", "vendorCompanyId", "buyerCompanyUuid",
   "productUuid", "productQualityUuid", "stamp", "prId", "prItemId", "userUuid", "teamUuid", "categoryUuid",
   "cityUuid", "familyUuid", "orderUuid", "intakeId",
   // Filled from the journey: the technical (RFP) stage — {{tradeId}} is the
@@ -480,6 +480,11 @@ const STATE_NOT_BUILT: Record<string, string> = {
 
 /** Why this case cannot produce an informative result as written, if it cannot. */
 const WRITE_STEP = /\b(activat\w*|apply|applied|issue|patch|post|put|delete|remove|flip|publish|re-?publish|reject|attempt|add|create|submit|update|change|upload|cancel|withdraw\w*|extend|award|approve)\b/i;
+
+/** The starting state a case needs that no run builds (STATE_NOT_BUILT, or the fixes file's needsState), if any. */
+export function stateNotBuilt(id: string): string | undefined {
+  return STATE_NOT_BUILT[id] ?? caseFixes().needsState[id];
+}
 
 export function unrunnableReason(c: TestCaseRecord): string | null {
   if (c.notRunnable) return c.notRunnable;

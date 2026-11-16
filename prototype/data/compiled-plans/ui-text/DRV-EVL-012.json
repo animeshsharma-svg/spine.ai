@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-012",
+  "title": "QCS L1 highlight works when hide_tna_bid_from_qcs is Off",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-12T13:36:19.922Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the displayed bid is specifically a TNA bid.",
+   "Verify that the TNA bid's row is visually highlighted as L1."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the displayed bid is specifically a TNA bid.; Verify that the TNA bid's row is visually highlighted as L1."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "expect_qcs_cell"
+  ],
+  "state": "bid",
+  "screen": "master_qcs",
+  "ms": 8776
+ },
+ "plan": {
+  "title": "QCS TNA L1 Ranking",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live RFQ directly on the buyer's Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_tna_bid_from_qcs",
+     "value": "Off"
+    },
+    "note": "Enable the tenant configuration required for TNA bids to appear in QCS ranking."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert that the submitted bid appears as a real vendor column in QCS."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Assert that the available bid is ranked according to the lowest landed amount."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 1
+    },
+    "note": "Assert that the displayed bid has Rank 1."
+   }
+  ]
+ }
+}

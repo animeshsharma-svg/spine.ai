@@ -1,0 +1,11 @@
+import { openAs, tokenFor, ME, pshot, WEB, sleep, settle } from "./pra-lib";
+const { browser, page, net } = await openAs(await tokenFor(ME));
+await page.goto(`${WEB}/purchase-requisitions`, { waitUntil: "domcontentloaded", timeout: 120000 }); await settle(page, 8000);
+console.log("url", page.url());
+await pshot(page, "probe-01-list");
+const hdr = await page.locator("button").evaluateAll((bs) => bs.map((b) => `${(b.textContent || "").trim().slice(0, 30)}|${b.className.slice(0, 50)}|${b.getAttribute("aria-label") || ""}|dis=${(b as HTMLButtonElement).disabled}`).filter((s) => !s.startsWith("|")).slice(0, 60));
+console.log(hdr.join("\n"));
+console.log("rows", await page.locator(".ant-table-tbody tr").count(), "checkboxes", await page.locator(".ant-table-tbody .ant-checkbox-input").count());
+console.log("ths", (await page.locator(".ant-table-thead th").allInnerTexts()).map((t) => t.trim()).join(" / "));
+console.log(net.filter((n) => /purchase_requests/.test(n.url)).map((n) => `${n.status} ${n.method} ${n.url.slice(0, 200)}`).join("\n"));
+await browser.close();

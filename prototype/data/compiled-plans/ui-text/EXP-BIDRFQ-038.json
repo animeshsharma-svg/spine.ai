@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-038",
+  "title": "A live RFQ with a vendor's bid: with disable_reject_bid_in_bidding_time On — blocked",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:39:54.765Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether Reject is present or disabled specifically inside the submitted bid's ⋮ menu, including the menu's exact resulting contents."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether Reject is present or disabled specifically inside the submitted bid's ⋮ menu, including the menu's exact resulting contents."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "attempt"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 12543
+ },
+ "plan": {
+  "title": "Block Rejecting a Live RFQ Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live RFQ Responses screen with a vendor bid already submitted."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQ responses as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "On"
+    },
+    "note": "Enable the setting that should block bid rejection while bidding is open."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the scenario configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the scenario configuration."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to reject the submitted bid and require positive evidence that Procol blocks the action during live bidding."
+   }
+  ]
+ }
+}

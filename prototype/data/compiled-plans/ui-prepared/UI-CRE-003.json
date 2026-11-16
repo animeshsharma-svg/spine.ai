@@ -1,0 +1,170 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-003",
+  "title": "RFQ-only takes four moves, and they must be in this order",
+  "compiledAt": "2026-11-09T20:01:40.088Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": true,
+  "exemplars": [
+   "UI-CRE-004",
+   "UI-CRE-005"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-CRE-003 RFQ-only stage sequence",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage create screen with its default Auction stage."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-CRE-003 RFQ-only stage sequence"
+    },
+    "note": "Provide the required create-screen title."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Open the Add Stages menu for the first move."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Technical Stage"
+    },
+    "note": "Add the Technical Stage."
+   },
+   {
+    "step": "open_stage_menu",
+    "args": {
+     "stage": "auction"
+    },
+    "note": "Open the Auction stage overflow menu for deletion."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Delete"
+    },
+    "note": "Delete the Auction stage."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Delete"
+    },
+    "note": "Confirm deletion of the Auction stage if the confirmation control is shown."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Verify the first delete leaves only the Technical Stage."
+   },
+   {
+    "step": "open_add_stage_menu",
+    "args": {},
+    "note": "Open Add Stages for the third move."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "RFQ"
+    },
+    "note": "Add the RFQ stage."
+   },
+   {
+    "step": "open_stage_menu",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Open the Technical Stage overflow menu for deletion."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Delete"
+    },
+    "note": "Delete the Technical Stage."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Delete"
+    },
+    "note": "Confirm deletion of the Technical Stage if the confirmation control is shown."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Verify exactly one RFQ stage remains after the second delete."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "RFQ"
+    },
+    "note": "Explicitly select the RFQ tab so its panel renders."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Assert exactly one tab remains and it is RFQ."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Select Templates",
+     "visible": true
+    },
+    "note": "Verify the RFQ-specific create panel is rendered with its template control."
+   }
+  ]
+ }
+}

@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-016",
+  "title": "A negative GST is refused",
+  "compiledAt": "2026-11-09T20:09:45.579Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the negative GST entry in the vendor bid flow and assert that no bid was created."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify the negative GST entry in the vendor bid flow and assert that no bid was created."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-VBID-016 Negative GST Refusal",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation flow containing the pricing sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Negative GST Validation"
+    },
+    "note": "Provide the required event title before configuring the sheet."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage for the GST field."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template so the sheet columns are available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item to create a data row for validation."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Render and populate the pricing sheet before editing GST."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "GST",
+     "value": "-5"
+    },
+    "note": "Enter the negative GST value requested by the case."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "GST",
+     "refused": true
+    },
+    "note": "Assert that the sheet refuses to keep the negative GST value."
+   }
+  ]
+ }
+}

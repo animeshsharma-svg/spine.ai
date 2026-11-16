@@ -2,34 +2,35 @@
  "meta": {
   "caseId": "UI-AWD-017",
   "title": "Awarding more than the requested quantity is refused",
-  "compiledAt": "2026-10-04T11:16:50.568Z",
+  "compiledAt": "2026-11-09T19:39:48.052Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "specifying exact custom quantities like 60 + 60 through the domain step allocate_award"
+   "The catalog has no dedicated awarding-quantity step to enter and independently assert the two 60-unit allocations or verify the absence of a 120-unit proposal."
   ],
   "warnings": [
-   "can only test part of this — no step for: specifying exact custom quantities like 60 + 60 through the domain step allocate_award"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: The catalog has no dedicated awarding-quantity step to enter and independently assert the two 60-unit allocations or verify the absence of a 120-unit proposal."
   ],
   "state": "closed",
   "screen": "master_qcs",
   "technical": false,
   "exemplars": [
-   "UI-AWD-003",
-   "UI-AWD-009"
+   "UI-AWD-005",
+   "UI-AWD-003"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-AWD-017 Awarding more than requested quantity is refused",
+  "title": "Awarding Above Requested Quantity Is Refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared closed event"
+    "note": "Open the prepared closed event with the requested quantity and bid."
    },
    {
     "step": "click",
@@ -37,20 +38,21 @@
      "role": "button",
      "name": "Start Awarding"
     },
-    "note": "Enter the awarding flow"
+    "note": "Enter the awarding flow where allocation quantities can be tested."
    },
    {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Allocate award to trigger allocation UI"
-   },
-   {
-    "step": "expect_message",
+    "step": "do_on_screen",
     "args": {
-     "kind": "any",
-     "text": "requested quantity"
+     "goal": "in the awarding flow, attempt to award 60 units and then another 60 units for the line item whose requested quantity is 100; stop when Procol visibly refuses the excess allocation with a readable message and no proposal is created"
     },
-    "note": "Assert that the over-allocation is refused with a readable message"
+    "note": "Perform the quantity-specific interaction that no catalog domain step can express."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that the attempted over-award produced a readable error refusal."
    }
   ]
  }

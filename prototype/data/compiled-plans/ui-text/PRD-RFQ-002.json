@@ -1,0 +1,110 @@
+{
+ "meta": {
+  "caseId": "PRD-RFQ-002",
+  "title": "Allow Partial Bidding (rfq.bid.allow_partial) = ON",
+  "group": "PRD-RFQ",
+  "compiledAt": "2026-11-10T01:29:38.827Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Set tenant setting rfq.bid.allow_partial to ON as a Tenant Admin.",
+   "Select or verify the required configurable RFQ templates with line terms, global terms, and formulas because no template names are provided and the catalog cannot inspect template capabilities beyond selection.",
+   "Submit a vendor bid for only a subset of RFQ line items; vendor_bid fills every price cell and has no partial-line selection argument.",
+   "Compare the ON behaviour with the setting OFF or prove that the two tenant configurations differ.",
+   "Verify the stated split-award and multiple-PO business impact."
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Set tenant setting rfq.bid.allow_partial to ON as a Tenant Admin.; Select or verify the required configurable RFQ templates with line terms, global terms, and formulas because no template names are provided and the catalog cannot inspect template capabilities beyond selection.; Submit a vendor bid for only a subset of RFQ line items; vendor_bid fills every price cell and has no partial-line selection argument.; Compare the ON behaviour with the setting OFF or prove that the two tenant configurations differ.; Verify the stated split-award and multiple-PO business impact."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published"
+  ],
+  "ms": 11373
+ },
+ "plan": {
+  "title": "RFQ Partial Bidding Setting",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an eRFX create flow for the closest expressible RFQ setup."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so the RFQ can be published."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Make the RFQ stage current before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template; the specific configurable template characteristics cannot be asserted."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create multiple RFQ lines so a subset bid would be meaningful if that behavior were supported by a catalog step."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant required for publishing the RFQ."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the closest reachable multi-line RFQ state."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that the RFQ reached a real published project page."
+   }
+  ]
+ }
+}

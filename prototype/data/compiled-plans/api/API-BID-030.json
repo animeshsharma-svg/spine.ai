@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-BID-030",
+  "title": "A vendor cannot read another vendor's bid",
+  "compiledAt": "2026-11-09T19:23:16.307Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The vocabulary provides only bidUuid and does not provide a token identifying vendor B's bid, so the plan cannot prove that the read targets the other vendor's bid rather than the acting vendor's bid."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor reads the bid."
+   ],
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.691Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-BID-030",
+  "title": "A vendor cannot read another vendor's bid",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "32",
+   "message": "Bid not found"
+  }
+ }
+}

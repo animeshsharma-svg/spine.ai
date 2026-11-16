@@ -1,0 +1,85 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-012",
+  "title": "An approval-required event goes to Requested, not Live",
+  "compiledAt": "2026-11-09T20:19:06.448Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "it depends on a company setting this run does not change (publish approval configured) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id",
+   "GET /reminders/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that Data check: “stages › status” equals Requested.",
+    "As the buyer, read the reminders request and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “stages › status” equals Requested; Status check: the reply's status code is a success (2xx — the request worked); Schema check: the reply is not empty."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.202Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-PUB-012",
+  "title": "An approval-required event goes to Requested, not Live",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].status",
+      "op": "equals",
+      "value": "Requested"
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group"
+    },
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "publish approval configured"
+ }
+}

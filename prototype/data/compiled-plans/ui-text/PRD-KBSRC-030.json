@@ -1,0 +1,157 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-030",
+  "title": "Mandatory T&Cs must be accepted by vendors before submitting bids",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:08:52.911Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure the event-level T&Cs as mandatory and mark every clause as required using a dedicated catalog step"
+  ],
+  "warnings": [
+   "resolved: “Accept every individual mandatory T&C checkbox in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Configure the event-level T&Cs as mandatory and mark every clause as required using a dedicated catalog step"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "ask_tester",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "ms": 17581
+ },
+ "plan": {
+  "title": "Mandatory T&Cs block vendor bids",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ event rather than the default auction stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product that the vendor will quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open Edit Terms and Conditions, mark all event-level terms and conditions as mandatory, click Done, and stop on the RFQ create screen showing the saved mandatory configuration"
+    },
+    "note": "Configure the buyer-side mandatory T&C setting, which has no dedicated domain step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participating vendor before publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event with the mandatory T&C configuration."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ bid sheet as the vendor."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Verify the vendor's bid is refused while mandatory T&Cs remain unaccepted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "tick every mandatory T&C checkbox in the already-open vendor bid sheet without changing the bid price"
+    },
+    "note": "The catalog cannot identify and accept every individual vendor-side clause."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the bid after the mandatory terms have been accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor portal reports the bid as submitted."
+   }
+  ]
+ }
+}

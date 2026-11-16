@@ -1,0 +1,152 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-014",
+  "title": "RFQ bid: Quote only one of two products",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:26:10.001Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Conditionally accept either the refusal message \"Please quote prices for all the products.\" / \"You have to place bid on atleast one product\" or a successful partial bid while recording which behavior occurred."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Conditionally accept either the refusal message \"Please quote prices for all the products.\" / \"You have to place bid on atleast one product\" or a successful partial bid while recording which behavior occurred."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "set_sheet_cell",
+   "click",
+   "expect_message"
+  ],
+  "ms": 13935
+ },
+ "plan": {
+  "title": "RFQ Partial Quote Validation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX creation flow for the RFQ test event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-BID-014 Partial Quote RFQ"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and items."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two products required by the scenario."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the buyer-side pricing sheet so the RFQ can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor used for the vendor-portal submission."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the live RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the RFQ reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Use the separate vendor session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event from the vendor's event list at its RFQ pricing sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "100"
+    },
+    "note": "Enter a quote for product 1 only and leave product 2 unquoted."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote"
+    },
+    "note": "Attempt to submit the partial quote."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any"
+    },
+    "note": "Capture the refusal or success response produced by the partial submission attempt."
+   }
+  ]
+ }
+}

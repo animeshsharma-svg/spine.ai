@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-030",
+  "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver approves with a remark",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:20:50.360Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 for 10 units",
+   "Allocating the required three-way split of 4 units to B, 3 to C, and 3 to A, including totals 360, 285, 300, and 945",
+   "Signing in as the separate approver and approving the proposal with the remark \"OK — QA\"",
+   "Verifying one purchase order per each of the three awarded vendors and the event's transition to History"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 for 10 units; Allocating the required three-way split of 4 units to B, 3 to C, and 3 to A, including totals 360, 285, 300, and 945; Signing in as the separate approver and approving the proposal with the remark \"OK — QA\"; Verifying one purchase order per each of the three awarded vendors and the event's transition to History"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "expect_qcs_vendors",
+   "start_awarding",
+   "expect_award_counters"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 19916
+ },
+ "plan": {
+  "title": "Three-way split award and approval",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly in Master QCS; the prepared state has two bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial awarding as required for split allocation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Assert the available event has two real vendor columns, exposing that vendor C is unavailable."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen to inspect the available allocation state."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "0/1",
+     "vendors": "0/2"
+    },
+    "note": "Assert the awarding screen starts with one line item and two available vendors, not the required three."
+   }
+  ]
+ }
+}

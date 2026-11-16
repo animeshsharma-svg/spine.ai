@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-022",
+  "title": "With vendor masking, buyer users see aliases and no vendor contact details",
+  "compiledAt": "2026-11-09T22:51:54.891Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Depends on the vendor masking setting being enabled and the buyer lacking the unmask right.",
+   "The available read-back vocabulary does not define fields for vendor aliases, rejected bids, bidder remarks, bidder phone numbers, or bidder email addresses.",
+   "No operation separately reads a bids list or rejected-bids list; the plan verifies the round bid count and one bid response only.",
+   "it depends on a company setting this run does not change (vendor) — a failure is reported as couldn't tell, not as a bug",
+   "the part about “email” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the pricing round.",
+    "The buyer reads the bid.",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked); Data check: “bid count” equals 2.",
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Data check: “bid count” equals 2; Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.940Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-022",
+  "title": "With vendor masking, buyer users see aliases and no vendor contact details",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "buyer"
+   },
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     },
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2
+     }
+    ]
+   },
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "vendor"
+ }
+}

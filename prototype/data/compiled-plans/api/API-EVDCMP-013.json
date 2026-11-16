@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-013",
+  "title": "A rejected leader's bid stops counting and the next vendor becomes best",
+  "compiledAt": "2026-11-09T19:30:39.834Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup creates two bidding vendors, not three.",
+   "The vocabulary cannot identify the leader's bid or bind its bidUuid to the rejection request.",
+   "Because the rejection is refused after the round closes, the plan cannot verify that the next vendor becomes best or that its L1 price is shown."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "The buyer sends the bid call, the request the case itself writes.",
+    "The buyer reads the round's comparison (ranks, best bidder)."
+   ],
+   "expected": "The app refuses the step the case is about with “Trade Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.734Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDCMP-013",
+  "title": "A rejected leader's bid stops counting and the next vendor becomes best",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/bids/{{bidUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    },
+    "expect": "reject"
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "95",
+   "message": "Trade Request not found",
+   "codeInferred": true
+  }
+ }
+}

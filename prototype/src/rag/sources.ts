@@ -561,6 +561,36 @@ function trackChunks(trackRows: any[], from: string): Chunk[] {
 }
 
 // ── everything ─────────────────────────────────────────────────────────────
+/**
+ * known-bug (customer-reported): the RCA triage of the last quarter, as one chunk per defect — symptom, root cause,
+ * fix. Local only (data/knowledge/rca-defects.json is never committed); absent → nothing, not an error.
+ */
+function rcaDefectChunks(notes: string[]): Chunk[] {
+  const f = join(DATA, "knowledge", "rca-defects.json");
+  if (!existsSync(f)) return [];
+  let defects: Array<Record<string, string>> = [];
+  try {
+    defects = JSON.parse(readFileSync(f, "utf8")).defects ?? [];
+  } catch (e) {
+    notes.push(`rca defects: unreadable (${(e as Error).message.slice(0, 80)})`);
+    return [];
+  }
+  const moduleOf = (m: string) => (/intake|purchase ?req|approval|vendor|user|integration|report/i.test(m) ? "platform" : "events");
+  return defects
+    .filter((d) => d.ticket && (d.symptom || d.title))
+    .map((d) => ({
+      id: `rca:${d.ticket}`,
+      source: "customer tickets with a root cause (HubSpot/RCA triage, Jul–Sep 2026)",
+      kind: "known-bug" as const,
+      module: moduleOf(d.module ?? ""),
+      labels: [d.ticket, d.module, d.label, d.priority, d.status].filter(Boolean).map(String),
+      text: redact(
+        `Customer-reported defect ${d.ticket} (${d.module}, ${d.priority}, ${d.status}) — ${d.title}. What the customer saw: ${d.symptom} ` +
+          `${d.errorText ? `Error shown: ${d.errorText}. ` : ""}Root cause: ${d.rootCause || "not stated"}. Fix: ${d.fix || "not stated"}.`,
+      ),
+    }));
+}
+
 export async function structuredChunks(): Promise<{ chunks: Chunk[]; counts: Record<string, number>; notes: string[] }> {
   const notes: string[] = [];
   const parts: Array<[string, () => Promise<Chunk[]> | Chunk[]]> = [
@@ -568,6 +598,7 @@ export async function structuredChunks(): Promise<{ chunks: Chunk[]; counts: Rec
     ["error-code", () => errorCodeChunks()],
     ["access-rule", () => accessChunks()],
     ["known-bug", () => knownBugChunks(notes)],
+    ["known-bug-rca", () => rcaDefectChunks(notes)],
     ["experience (track record)", () => experienceChunks(notes)],
     // automation-exemplar (migration 020): cases with a working automation, case words → plan (src/agents/exemplars.ts)
     ["automation-exemplar", async () => (await import("../agents/exemplars.js")).exemplarChunks() as unknown as Chunk[]],

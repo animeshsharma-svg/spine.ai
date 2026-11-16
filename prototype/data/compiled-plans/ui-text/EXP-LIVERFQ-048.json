@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-048",
+  "title": "Increase Event Time: Attempt to set Custom Fixed time to a past datetime shows validation error",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:47:53.518Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enter the exact absolute datetime \"01 October 2026 01:00 AM\"; the fixed-time step accepts only relative expressions such as \"-10m\"."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enter the exact absolute datetime \"01 October 2026 01:00 AM\"; the fixed-time step accepts only relative expressions such as \"-10m\"."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "go_to",
+   "extend_time"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 9532
+ },
+ "plan": {
+  "title": "Past Fixed Submission Time Validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without recreating or searching for the event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the Responses tab before accessing Settings, matching the requested buyer flow."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "fixed",
+     "at": "-10m",
+     "expect": "refused"
+    },
+    "note": "Attempt to set the submission end to a past time and assert Procol refuses it with validation feedback while the dialog remains available."
+   }
+  ]
+ }
+}

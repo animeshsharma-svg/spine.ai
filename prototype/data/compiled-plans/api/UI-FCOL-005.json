@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "UI-FCOL-005",
+  "title": "In an English auction a revised bid must improve by at least the tick size",
+  "compiledAt": "2026-11-09T20:18:51.626Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The setup is a published RFQ rather than an English auction.",
+   "Acceptance of a revision equal to or greater than the tick size is not checked."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/revise_bid/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Quoted price difference must be greater than the tick size”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.193Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-FCOL-005",
+  "title": "In an English auction a revised bid must improve by at least the tick size",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-084",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "214",
+   "message": "Quoted price difference must be greater than the tick size"
+  }
+ }
+}

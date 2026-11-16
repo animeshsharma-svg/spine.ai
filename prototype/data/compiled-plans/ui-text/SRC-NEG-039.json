@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-039",
+  "title": "Counter offer price letters \"abc\"",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:05:20.716Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"abc\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"abc\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "click",
+   "click",
+   "fill",
+   "expect_text",
+   "attempt",
+   "expect_message"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 17447
+ },
+ "plan": {
+  "title": "Counter offer rejects alphabetic price",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Opens the prepared RFQ in evaluation on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensures the RFQ counter-offer control is available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures eRFX/RFQ project functionality is enabled for the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer",
+     "within": "Vendor A"
+    },
+    "note": "Opens the counter-offer editor for Vendor A's normal bid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "within": "Vendor A"
+    },
+    "note": "Ticks Vendor A's line item so the counter-offer price can be edited."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "abc",
+     "within": "Vendor A"
+    },
+    "note": "Attempts to enter alphabetic characters in the counter-offer price cell."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "abc",
+     "present": false,
+     "within": "Vendor A"
+    },
+    "note": "Verifies the price cell does not retain the invalid letters."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Send",
+      "within": "Vendor A"
+     },
+     "expect": "refused",
+     "because": "You must change atleast one column"
+    },
+    "note": "Attempts to send the counter offer and requires Procol to refuse it."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "any",
+     "text": "You must change atleast one column"
+    },
+    "note": "Confirms the expected refusal message is shown."
+   }
+  ]
+ }
+}

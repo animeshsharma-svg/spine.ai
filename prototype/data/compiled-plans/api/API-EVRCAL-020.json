@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-020",
+  "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
+  "compiledAt": "2026-11-09T22:49:52.088Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup does not create two line items or the required first and revised quote history.",
+   "There is no operation to submit a first quote and then revise it for a line.",
+   "The default savings strategy cannot be set or verified with the available fields.",
+   "Line-level reference values, final values, savings per unit, and the absence of savings cannot be asserted because read_indicators exposes only rank and best_bidder fields.",
+   "The stage is already closed by the setup, so no close-stage act is performed."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.886Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-020",
+  "title": "Line-level default reference is each line's lowest first quote; a line with only revised quotes has none",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

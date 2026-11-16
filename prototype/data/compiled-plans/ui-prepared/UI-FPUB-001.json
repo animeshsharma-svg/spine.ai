@@ -2,17 +2,24 @@
  "meta": {
   "caseId": "UI-FPUB-001",
   "title": "With every mandatory field set, Publish lands on the project page as Live",
-  "compiledAt": "2026-10-15T12:42:17.049Z",
+  "compiledAt": "2026-11-09T19:54:55.697Z",
   "tier": "fast",
   "source": "llm",
   "coverage": "partial",
   "gaps": [
-   "Executing Publish with the stated completed setup and observing that publication lands on the project page",
-   "Asserting the backend/API status is active",
-   "Asserting the stage tab's dynamic countdown value because no catalog step exposes or matches countdown text"
+   "The backend/API status value being exactly active",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor, publish)"
   ],
   "warnings": [
-   "can only test part of this — no step for: Executing Publish with the stated completed setup and observing that publication lands on the project page; Asserting the backend/API status is active; Asserting the stage tab's dynamic countdown value because no catalog step exposes or matches countdown text"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The backend/API status value being exactly active"
   ],
   "state": "live",
   "screen": "participants",
@@ -23,46 +30,52 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "Published RFQ lands live with countdown",
+  "title": "Publish lands on Live project",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "The prepared-state rules require opening the existing live event from its Participants screen first."
+    "note": "the API built this case's state"
    },
    {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "participants"
-    },
-    "note": "Confirms the prepared event is on its project page."
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template."
    },
    {
-    "step": "go_to",
+    "step": "add_line_items",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "count": 1
     },
-    "note": "Moves to the pricing stage whose live status and countdown are part of the requested observation."
+    "note": "Add the required complete line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet fields for the line item."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "/project/"
+    },
+    "note": "Verify the browser URL is the project route."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Live",
-     "present": true
+     "text": "Live"
     },
-    "note": "Checks that the live stage status is visible."
+    "note": "Assert the project page shows Live status."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "tab",
-     "name": "RFQ",
-     "visible": true
+     "text": "Bidding Ends At"
     },
-    "note": "Confirms the RFQ stage tab is rendered on the project page."
+    "note": "Assert the stage displays its bidding countdown/end-time information."
    }
   ]
  }

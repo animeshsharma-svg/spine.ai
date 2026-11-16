@@ -1,0 +1,162 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-016",
+  "title": "An unvisited stage is flagged and blocks the publish confirmation",
+  "compiledAt": "2026-11-09T19:54:16.283Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "The eye-off icon itself cannot be asserted; the plan can verify its associated \"Stage is not reviewed\" text.",
+   "unconfirmed label \"OK\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"OK\" (expect_enabled) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "coverage partial: unconfirmed label \"OK\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"OK\" (expect_enabled) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The eye-off icon itself cannot be asserted; the plan can verify its associated \"Stage is not reviewed\" text."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-CRE-007"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-CRE-016 Unvisited stage blocks publish",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-CRE-016 Unvisited Stage Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq",
+      "rfp"
+     ]
+    },
+    "note": "Create an RFQ first stage and an unvisited Technical/RFP second stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work only on the first stage initially, leaving the RFP tab unvisited."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the first RFQ stage with a pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Set the event schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish"
+    },
+    "note": "Open the publish confirmation while the RFP stage remains unvisited."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Stage is not reviewed"
+    },
+    "note": "Verify the unvisited-stage warning is shown in the confirmation flow."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "OK"
+    },
+    "note": "Verify the publish confirmation cannot be accepted while the stage is unvisited."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Close the blocked confirmation modal before visiting the second stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Visit the previously unvisited Technical/RFP stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the visited RFP stage with a template."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the required technical questionnaire."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for the technical stage."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Publish"
+    },
+    "note": "Reopen the publish confirmation after visiting the RFP stage."
+   },
+   {
+    "step": "expect_enabled",
+    "args": {
+     "control": "OK"
+    },
+    "note": "Verify the confirmation OK control is enabled after the stage has been visited."
+   }
+  ]
+ }
+}

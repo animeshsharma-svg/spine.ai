@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-020",
+  "title": "Tie on lowest landed price shows both rows highlighted as L1",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:05:45.240Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The green L1 highlight appearing on both tied vendor rows in Master QCS cannot be directly observed by any catalog assertion."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The green L1 highlight appearing on both tied vendor rows in Master QCS cannot be directly observed by any catalog assertion."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 8415
+ },
+ "plan": {
+  "title": "Tie on Lowest Landed Price Highlights Both Vendors",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ on the buyer side."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Reach the participant list so a surrogate bid can be entered for another invited vendor."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a second vendor bid at the same landed price of 100 to create the tie."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the QCS ranking is based on the tied lowest amount for both vendors."
+   }
+  ]
+ }
+}

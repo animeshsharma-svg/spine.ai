@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "UI-CONV-011",
+  "title": "Conversion is refused on a superseded event version",
+  "compiledAt": "2026-11-01T19:41:30.756Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /item_versions",
+   "POST /trade/move_to_auction"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer issues a new version of the event.",
+    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.191Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-CONV-011",
+  "title": "Conversion is refused on a superseded event version",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "new_version",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AUC-CONV-004",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "UI-FUPL-004",
+  "title": "A partially filled sheet is refused",
+  "compiledAt": "2026-11-09T20:05:39.254Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "A fixture or upload operation that is guaranteed to contain a row with a missing mandatory cell.",
+   "needs a different starting state than live (asked for set_schedule, invite_vendor)"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: A fixture or upload operation that is guaranteed to contain a row with a missing mandatory cell."
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Partially Filled Sheet Publish Refusal",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template before uploading the sheet."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Upload the closest available sheet fixture; its contents cannot be guaranteed to have the required missing mandatory cell."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Sheet partially filled, please check again."
+    },
+    "note": "Assert that publish is refused and the exact partial-sheet validation message is shown."
+   }
+  ]
+ }
+}

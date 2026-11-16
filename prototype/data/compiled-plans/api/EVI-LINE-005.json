@@ -2,25 +2,22 @@
  "meta": {
   "caseId": "EVI-LINE-005",
   "title": "A ₹0 unit price is not a quote and never becomes L1",
-  "compiledAt": "2026-10-15T12:51:26.400Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:09:27.295Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The bid amount is not exposed by a read-back field, so ₹50 is not directly verified.",
-   "The vocabulary does not expose an explicit unquoted state for vendor 1's line; the plan verifies that vendor 2 remains L1.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The plan covers the refused-bid outcome only; it does not verify the alternate outcome where the zero-price line is accepted but left unquoted and vendor 2 remains L1.",
+   "No application error code for a zero unit price is provided."
   ],
-  "warnings": [
-   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /v1/trade/add_audience",
    "POST /v1/bids",
    "POST /v1/bids/:id/create_bid_products",
    "PATCH /v1/bids/:id",
-   "GET /v1/trade/:id/event_indicators"
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -31,16 +28,17 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The buyer invites QA vendor 2 to the live round.",
     "A second QA vendor places a complete bid of 50 (open, price, submit).",
     "The invited QA vendor places a complete bid of 0 (open, price, submit).",
-    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.166Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "EVI-LINE-005",
   "title": "A ₹0 unit price is not a quote and never becomes L1",
   "setup": {
@@ -49,10 +47,7 @@
   "act": [
    {
     "op": "add_vendor",
-    "as": "buyer",
-    "params": {
-     "round": "pricing"
-    }
+    "as": "buyer"
    },
    {
     "op": "place_bid",
@@ -67,25 +62,25 @@
     "params": {
      "price": 0
     },
-    "decisive": true,
-    "ifRefused": "pass"
+    "decisive": true
    }
   ],
   "verify": [
    {
-    "op": "read_indicators",
+    "op": "read_round",
     "as": "buyer",
     "assert": [
      {
-      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "path": "bid_count",
       "op": "equals",
-      "value": 1
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject"
   }
  }
 }

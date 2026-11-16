@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-038",
+  "title": "Try to delete the only row",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-13T11:31:44.074Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "do_on_screen",
+   "expect_text"
+  ],
+  "ms": 11566
+ },
+ "plan": {
+  "title": "Prevent deleting the only product row",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Switch the event type from the default RFP to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-038 Delete Only Row"
+    },
+    "note": "Provide the mandatory event title for a create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the product sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add the specified CYLINDER product as the only line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Set the only row's requested quantity to 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the specified delivery location for the only row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify the product's variant auto-fills as Variant 1."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the RFQ product sheet, hover the only product row, click its bin/delete control, and stop when the screen shows the refusal that at least one product is required and the last row cannot be removed."
+    },
+    "note": "Perform the exact row-level deletion interaction requested by the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "At least one product is required, so the last one can't be removed.",
+     "present": true
+    },
+    "note": "Assert the expected refusal message is visible."
+   }
+  ]
+ }
+}

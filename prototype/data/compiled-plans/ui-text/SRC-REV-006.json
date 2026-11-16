@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-006",
+  "title": "Reverse auction (tick 1): keep the same price",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:46:40.139Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "switch_portal",
+   "expect_responses",
+   "open_prepared",
+   "expect_qcs_vendors"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 11803
+ },
+ "plan": {
+  "title": "Reverse Auction Same-Price Revision Refused",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live reverse auction on the buyer's Responses screen."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live reverse auction and its existing bid for revision."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused",
+     "because": "Quoted price difference must be greater than the tick size"
+    },
+    "note": "Resubmit the unchanged price and require Procol to refuse it with the tick-size message."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's session."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify the buyer still sees the single original direct vendor response after the refused revision."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the buyer's Master QCS view for the same prepared event."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the Master QCS still contains the original real vendor column and no extra response."
+   }
+  ]
+ }
+}

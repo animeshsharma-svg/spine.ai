@@ -1,0 +1,158 @@
+{
+ "meta": {
+  "caseId": "SRC-RVK-002",
+  "title": "RFQ: the vendor tries to bid again after revoking",
+  "group": "SRC-RVK",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:51:49.597Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "resolved: “Revoke Vendor A's previous RFQ quote in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
+  "source": "llm",
+  "steps": 17,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "ask_tester",
+   "attempt"
+  ],
+  "ms": 11325
+ },
+ "plan": {
+  "title": "RFQ Vendor Rebid After Revocation",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage project for the RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFQ Revoke Rebid Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring it."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product required for the quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will submit and later attempt the quote."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the RFQ reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the vendor portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published RFQ's pricing round as the invited vendor."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's initial quote of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the initial vendor quote was submitted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "revoke the vendor's previously submitted RFQ quote in the vendor portal, then return to the quote sheet"
+    },
+    "note": "The catalog has no action for revoking a vendor quote, which is required before testing the rebid refusal."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 110
+     },
+     "expect": "refused",
+     "because": "You cannot place a quote after revoking the previous quote"
+    },
+    "note": "Attempt a new quote after revocation and assert Procol refuses it with the RFQ-specific message."
+   }
+  ]
+ }
+}

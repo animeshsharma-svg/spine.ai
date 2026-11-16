@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-052",
+  "title": "A weight list sent as key/value pairs passes validation, writes rows, then crashes",
+  "compiledAt": "2026-11-09T22:25:43.092Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify HTTP 422 with code 2.",
+   "The plan does not verify that no Weightage row was written.",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.878Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-052",
+  "title": "A weight list sent as key/value pairs passes validation, writes rows, then crashes",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": {
+       "weightage_on": "lot",
+       "values": [
+        [
+         "qa_freight_adj",
+         {
+          "label": "QA_Platform_Freight_{{stamp}}",
+          "input_type": "absolute",
+          "data": {
+           "{{vendorUuid}}": "100"
+          }
+         }
+        ]
+       ]
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

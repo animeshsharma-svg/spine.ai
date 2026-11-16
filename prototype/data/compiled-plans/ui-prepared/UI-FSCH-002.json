@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "UI-FSCH-002",
+  "title": "A start time in the past is refused",
+  "compiledAt": "2026-11-09T20:03:35.855Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002",
+   "UI-CONV-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Past Start Time Refused",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template so scheduling controls become available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item required for the schedule section."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event setup is valid."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Schedule"
+    },
+    "note": "Open the Schedule Event drawer."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Schedule for later"
+    },
+    "note": "Switch from the default start mode to a manually scheduled start."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Start time",
+     "date": "today"
+    },
+    "note": "Select today as the scheduled start date."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Start time",
+     "value": "00:01"
+    },
+    "note": "Set a time already passed today."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Attempt to save the invalid past start time."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Start time cannot be less than the current time"
+    },
+    "note": "Verify the schedule drawer displays the required validation message."
+   }
+  ]
+ }
+}

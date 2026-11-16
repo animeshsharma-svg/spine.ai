@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "EVI-AWD-002",
+  "title": "A tied L1 vendor's award counts as L1",
+  "compiledAt": "2026-11-09T22:53:02.575Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe guarantees two submitted bids but does not explicitly guarantee that the vendors are tied at the best price."
+  ],
+  "warnings": [
+   "verify 1: read_proposal's reply shape has not been sampled; \"total_l1_proposal\" is unverified",
+   "verify 1: read_proposal's reply shape has not been sampled; \"total_non_l1_proposal\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /proposal/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "As the buyer, read the award proposal and check that Data check: “total l1 proposal” equals 1; Data check: “total non l1 proposal” equals 0."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “total l1 proposal” equals 1; Data check: “total non l1 proposal” equals 0."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.159Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "EVI-AWD-002",
+  "title": "A tied L1 vendor's award counts as L1",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_proposal",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "total_l1_proposal",
+      "op": "equals",
+      "value": 1
+     },
+     {
+      "path": "total_non_l1_proposal",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

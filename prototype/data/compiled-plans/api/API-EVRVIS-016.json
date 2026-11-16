@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-016",
+  "title": "The buyer's award remark is not shown to the vendor",
+  "compiledAt": "2026-11-09T22:51:26.688Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe cannot configure a selection remark naming another vendor.",
+   "The available read-back fields do not identify a buyer selection remark field, so its absence cannot be asserted."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.937Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-016",
+  "title": "The buyer's award remark is not shown to the vendor",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

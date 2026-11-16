@@ -1,0 +1,171 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-327",
+  "title": "Traffic Light: minimum revisions before colour is shown",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:13:56.846Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enable \"Set Minimum revision to show Traffic Light color\" and enter the required n value",
+   "Assert that the traffic-light colour is hidden before the nth revision and visible after it"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Enable \"Set Minimum revision to show Traffic Light color\" and enter the required n value; Assert that the traffic-light colour is hidden before the nth revision and visible after it"
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "do_on_screen",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "vendor_bid",
+   "vendor_bid",
+   "vendor_bid",
+   "switch_portal",
+   "expect_no_error"
+  ],
+  "ms": 11802
+ },
+ "plan": {
+  "title": "Traffic Light Minimum Revision Colour",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start the single-stage auction creation flow where traffic-light strategy is configured."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "traffic_light",
+     "awarding": "lot",
+     "rangeLower": 80,
+     "rangeUpper": 120
+    },
+    "note": "Configure the auction with a traffic-light strategy and a valid colour range."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "enable \"Set Minimum revision to show Traffic Light color\" on the auction configuration and enter the required minimum revision value n; stop when the setting is visibly enabled with n shown"
+    },
+    "note": "No catalog step can set this traffic-light minimum-revision option."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the event a required title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the auction pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the product whose price will be revised."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the auction can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid auction schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will submit and revise the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured traffic-light auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor session for vendor-side bidding."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction bid sheet in the supplier portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the initial price inside the configured traffic-light range."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 101
+    },
+    "note": "Make the first changed-price revision, below the configured threshold when n is greater than one."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 102
+    },
+    "note": "Make another changed-price revision toward the nth revision."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 103
+    },
+    "note": "Continue the vendor revision sequence so the threshold can be reached if n is four or less."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session for any available auction-state observation."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the revision flow did not produce an application error."
+   }
+  ]
+ }
+}

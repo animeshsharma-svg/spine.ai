@@ -1,0 +1,163 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-037",
+  "title": "Create an eRFX project, Auction only from an open material PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:07:26.590Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the selected PR line moves to In Progress with this event's number after publishing",
+   "Assert that the published event visibly indicates it was created from a PR"
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Assert that the selected PR line moves to In Progress with this event's number after publishing; Assert that the published event visibly indicates it was created from a PR"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "expect_stages",
+   "set_title",
+   "expect_sheet_cells",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 18071
+ },
+ "plan": {
+  "title": "Create Auction from Open Material PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the PR conversion flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and publishing."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Assert that the created project has exactly one Auction stage."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-037 Auction PR Event"
+    },
+    "note": "Provide the mandatory project title before publishing."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location"
+     ]
+    },
+    "note": "Verify the PR-derived product, variant, quantity, and delivery location cells are locked."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule with the event starting now."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors named by the test case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed auction event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publishing reached a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Assert that Recreate Order is greyed out for an event created from a PR."
+   }
+  ]
+ }
+}

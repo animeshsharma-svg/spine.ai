@@ -132,7 +132,9 @@ export function stepWords(st: PlanStep): string {
     case "start_awarding":
       return "Press Start Awarding.";
     case "allocate_award":
-      return `Allocate the lines${v("vendor") ? ` to ${v("vendor")}` : ""}.`;
+      return v("quantity") ? `Award ${v("quantity")} units${v("line") && v("line") !== "1" ? ` of line ${v("line")}` : ""} to ${/^[12]$/.test(v("vendor")) ? `vendor ${v("vendor") === "1" ? "A" : "B"}` : v("vendor") || "the vendor"} (Qty Awarded).` : `Allocate the lines${v("vendor") ? ` to ${v("vendor")}` : ""}.`;
+    case "require_setting":
+      return `Company setting ${v("key") || v("phrase")} = ${v("value") || "On"} (switched by the runner for this case and back after).`;
     case "convert_to_auction":
       return "Convert the RFQ to an auction from Settings.";
     case "create_new_version":
@@ -182,7 +184,7 @@ export function expectedWords(st: PlanStep): string {
     case "expect_awarded":
       return "The award is submitted.";
     case "expect_award_counters":
-      return `The awarding counters read ${[v("items") && `${v("items")} items`, v("vendors") && `${v("vendors")} vendors`].filter(Boolean).join(", ")}.`;
+      return `The awarding screen reads ${[v("items") && `${v("items")} items`, v("vendors") && `${v("vendors")} vendors`, v("proposal") && `Tot. Proposal Value ₹${v("proposal")}`, v("l1") && `L1 ₹${v("l1")}`].filter(Boolean).join(", ")}.`;
     case "expect_counter_offer_sent":
       return "The counter offer is sent and marked on the grid.";
     case "expect_counter_offer_accepted":

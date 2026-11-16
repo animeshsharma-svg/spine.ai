@@ -1,0 +1,204 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-032",
+  "title": "A live RFQ with a vendor's bid: \"Withdrawing Order...\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:39:51.129Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Directly assert that the bidding start and end times remain unchanged after cancelling the withdrawal dialog” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "expect_text",
+   "expect_responses",
+   "expect_api_value",
+   "expect_api_value",
+   "event_menu",
+   "expect_text",
+   "click",
+   "expect_text",
+   "expect_text",
+   "expect_responses",
+   "expect_api_value",
+   "expect_api_value"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 19238
+ },
+ "plan": {
+  "title": "Cancel Withdrawing Live RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with Vendor A's bid, as required for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers available on RFQ stages as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required buyer bid-action configuration while bidding is open."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required counter-offer percentage configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage before accessing its responses and settings."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the existing bid can be verified."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live"
+    },
+    "note": "Verify the event is live before attempting withdrawal cancellation."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Record that the live RFQ still has exactly one direct vendor response."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Responses"
+    },
+    "note": "Verify the existing response still belongs to the prepared vendor."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Responses"
+    },
+    "note": "Verify the existing bid price is displayed before the withdrawal attempt."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ withdrawal flow without confirming the withdrawal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order..."
+    },
+    "note": "Verify the withdrawing-order window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the withdrawal so the event should remain unchanged."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify the withdrawing-order window closed after cancellation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live"
+    },
+    "note": "Verify the event remains live after cancelling withdrawal."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify the same single direct vendor response remains after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Responses"
+    },
+    "note": "Verify the vendor on the response is unchanged."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Responses"
+    },
+    "note": "Verify the vendor bid remains unchanged."
+   }
+  ]
+ }
+}

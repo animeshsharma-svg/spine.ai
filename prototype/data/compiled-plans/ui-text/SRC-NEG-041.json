@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-041",
+  "title": "Counter offer price 110 (higher than the vendor's 100)",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:05:22.228Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 10745
+ },
+ "plan": {
+  "title": "Reject Counter Offer Above Quote",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen containing Vendor A’s 100 bid and the buyer-side Counter Offer action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are available for the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_counter_offer",
+     "args": {
+      "vendor": "Vendor A",
+      "price": 110
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to send the higher-than-quoted counter offer and verify Procol refuses it."
+   }
+  ]
+ }
+}

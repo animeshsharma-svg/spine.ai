@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "DRV-LI-010",
+  "title": "Delete line item respects hide_line_items_from_project_details_vendor_side setting",
+  "group": "DRV-LI",
+  "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
+  "compiledAt": "2026-11-12T13:37:00.675Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The prepared live RFQ has one active line item, so the exact precondition of two active line items cannot be established."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared live RFQ has one active line item, so the exact precondition of two active line items cannot be established."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "expect_table",
+   "expect_visible"
+  ],
+  "state": "live",
+  "screen": "overview",
+  "ms": 9898
+ },
+ "plan": {
+  "title": "Hide line items on RFQ overview",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "overview"
+    },
+    "note": "Open the buyer-side Overview of the prepared live RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_line_items_from_project_details_vendor_side",
+     "value": "On"
+    },
+    "note": "Enable the tenant setting that masks line items from project details."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Line Items",
+     "rows": 0
+    },
+    "note": "Assert that the masked line-items table contains no data rows."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Delete",
+     "visible": false
+    },
+    "note": "Assert that no Delete control is available when line items are hidden."
+   }
+  ]
+ }
+}

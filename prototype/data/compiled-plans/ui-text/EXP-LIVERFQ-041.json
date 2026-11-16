@@ -1,0 +1,97 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-041",
+  "title": "Recreate Order: Schedule event with past delivery date and verify rejection",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-10T00:47:32.229Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_visible",
+   "toggle",
+   "pick_date",
+   "click",
+   "expect_field_error",
+   "expect_visible"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 10363
+ },
+ "plan": {
+  "title": "Recreate Order rejects past delivery date",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ on the buyer's summary page."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the Recreate Order window opened."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Schedule this event?",
+     "on": true
+    },
+    "note": "Enable scheduling for the recreated order."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Delivery Date",
+     "date": "yesterday"
+    },
+    "note": "Set the Delivery Date to yesterday."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Submit the recreated order with the invalid past delivery date."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Delivery Date"
+    },
+    "note": "Assert that the Delivery Date field shows the application's past-date validation error."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the rejected submission."
+   }
+  ]
+ }
+}

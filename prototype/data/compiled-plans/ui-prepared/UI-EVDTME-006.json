@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "UI-EVDTME-006",
+  "title": "\"Increase time\" on a live staggered round re-times the lines instead of the round",
+  "compiledAt": "2026-11-09T19:41:22.949Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Create or select a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming",
+   "Enter a remark with the time extension",
+   "Assert the exact trade_products_time mapping for lines 2 and 3, including unchanged line 2 start and omitted line 1",
+   "Assert the alternate normal-extension request in buffer status"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Create or select a live staggered auction with line 1 expired, line 2 running, and line 3 upcoming; Enter a remark with the time extension; Assert the exact trade_products_time mapping for lines 2 and 3, including unchanged line 2 start and omitted line 1; Assert the alternate normal-extension request in buffer status"
+  ],
+  "state": "upcoming",
+  "screen": "summary",
+  "technical": false,
+  "exemplars": [
+   "UI-EVDTME-002",
+   "UI-CONV-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Live staggered round time extension payload",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "option": "custom",
+     "amount": 10,
+     "unit": "minutes"
+    },
+    "note": "Perform the closest supported 10-minute submission-time extension."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/staggered_time",
+     "method": "PATCH",
+     "bodyContains": "trade_products_time",
+     "bodyLacks": [
+      "remark",
+      "increase_auction_time"
+     ]
+    },
+    "note": "Check the observable request path and presence/absence of the supported body fields, without claiming to verify the unexpressible nested timing structure."
+   }
+  ]
+ }
+}

@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-EVDREM-058",
+  "title": "A numeric reminder kind crashes",
+  "compiledAt": "2026-11-09T22:28:42.167Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify the exact HTTP 422 status or an error code because no numeric reminder-type error code is provided.",
+   "The plan does not verify that no reminder row or email was created.",
+   "the part about “email” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /reminders/:id/send_reminder"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the reminders send reminder request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.804Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDREM-058",
+  "title": "A numeric reminder kind crashes",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+     "body": {
+      "resource_type": "event_group",
+      "reminder_type": 5,
+      "reminders": {
+       "Z2dnWmdaUWtnZw==": [
+        "Z2dnWmdaUWtnZw=="
+       ]
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

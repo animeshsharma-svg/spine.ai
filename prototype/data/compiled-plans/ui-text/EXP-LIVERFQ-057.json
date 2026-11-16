@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "EXP-LIVERFQ-057",
+  "title": "Withdrawing Order...: Withdraw event is cancelled when closing the window via alternative actions",
+  "group": "EXP-LIVERFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:46:35.320Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "press",
+   "expect_text",
+   "event_menu",
+   "press",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 13108
+ },
+ "plan": {
+  "title": "Withdraw Dialog Closure via Alternate Actions",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared live RFQ summary; this is the required starting state for a prepared case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the configured withdrawal visibility setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while the RFQ is live and accepting bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the configured vendor-masking setting."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage before accessing its Responses tab and Settings menu."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the RFQ Responses tab named in the scenario."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Settings menu and choose Withdraw to open the withdrawal dialog."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Dismiss the withdrawal dialog using the alternative keyboard action."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify that pressing Escape closes the withdrawal dialog without submitting the withdrawal."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Withdraw Project"
+    },
+    "note": "Open the project overflow menu and choose Withdraw Project to test the second withdrawal entry point."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Dismiss the second withdrawal dialog using Escape."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order...",
+     "present": false
+    },
+    "note": "Verify that the project-level withdrawal dialog is also closed without submitting the withdrawal."
+   }
+  ]
+ }
+}

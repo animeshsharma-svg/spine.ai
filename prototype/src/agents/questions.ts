@@ -11,6 +11,8 @@ export interface Question {
   qid: string;
   text: string;
   kind: "one" | "choose" | "text";
+  /** one plain sentence on why it matters */
+  why?: string;
   options?: string[];
   screenshot?: string | null;
   askedAt: string;

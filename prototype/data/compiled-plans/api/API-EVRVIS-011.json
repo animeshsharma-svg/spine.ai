@@ -1,0 +1,107 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-011",
+  "title": "Vendor card rank and colour only while the auction runs, never on a sealed stage",
+  "compiledAt": "2026-11-09T22:51:39.043Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: Cannot create or test a second auction with sealed bids because no setup recipe or operation creates a second auction or configures sealed bidding.",
+   "Cannot check rank before the auction starts because no available setup or operation provides that pre-start auction state.",
+   "Cannot model the required vendor revisions because no revision operation or assertion field is available.",
+   "Traffic colour is not available in the read-back fields or assertion vocabulary.",
+   "The available indicator read-back exposes rank and best_bidder, but not the vendor card itself.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/move_to_auction",
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer converts the pricing round into a live auction.",
+    "The buyer invites QA vendor 2 to the live pricing round for a second QA vendor.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "A second QA vendor places a complete bid (open, price, submit).",
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "Wait until the round has closed (bid end and extra closing time over).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “auction identifiers data › QA vendor 1 › inline › the line › rank” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.934Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-011",
+  "title": "Vendor card rank and colour only while the auction runs, never on a sealed stage",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "convert_to_auction",
+    "as": "buyer"
+   },
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2",
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2"
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "close"
+    }
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

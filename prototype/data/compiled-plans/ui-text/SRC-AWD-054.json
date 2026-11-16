@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-054",
+  "title": "Submit the proposal with \"Recommended Supplier 1\" empty",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:24:02.845Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "do_on_screen",
+   "expect_field_error"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 11560
+ },
+ "plan": {
+  "title": "Reject proposal with missing recommended supplier",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS for the prepared closed RFQ with Vendor A and Vendor B bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before interacting with the prepared event."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10
+    },
+    "note": "Allocate all 10 requested units to Vendor B as specified."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2"
+    },
+    "note": "Confirm the full line is allocated to one of the two bidding vendors before creating the proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Open the proposal form after allocating the award."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the proposal form, fill every required field except Recommended Supplier 1, leave that field empty, click Submit Proposal, and stop with the required-field refusal visible."
+    },
+    "note": "Complete the proposal while deliberately omitting Recommended Supplier 1, then submit to trigger its validation."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Recommended Supplier 1",
+     "message": "required"
+    },
+    "note": "Verify the omitted field is highlighted and the refusal identifies it as required."
+   }
+  ]
+ }
+}

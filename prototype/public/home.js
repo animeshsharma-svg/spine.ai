@@ -766,6 +766,13 @@
   /** API · Browser: one on = that run type, both on = API then browser. */
   const VIA_KEY = "spine.home.via";
   const HINT = { api: "Requests only · fastest", ui: "Real Chrome, watch it live", both: "API first, then a real browser" };
+  const HINT_CASE = "Read as a test case (it has an expected result): understood, run, a verdict per check";
+  const HINT_JOURNEY = "Read as a journey (no expected result): walked and photographed";
+  const HINT_DERIVE = "Read as a topic / feature / PRD: shows the test cases about it first; derive more on request";
+  // What the typed words are is read from the words themselves: steps with an expected result are a test
+  // case; a flow with nothing to check is a journey. No switch — the hint says which it is.
+  let asMode = "case";
+  const detectAs = (text) => (window.spineSingle?.looksLikeDerivation?.(text) ? "derive" : window.spineSingle?.looksLikeCase?.(text) ? "case" : "journey");
   let via = { api: false, ui: true };
   const modeOf = () => (via.api && via.ui ? "both" : via.api ? "api" : "ui");
   /** A run already streaming in this tab: its session is where to type next. */
@@ -782,7 +789,7 @@
     const start = q$("#home-start");
     const hint = q$("#home-hint");
     const mode = modeOf();
-    for (const b of document.querySelectorAll("#home-ask .via")) {
+    for (const b of document.querySelectorAll("#home-ask .via[data-via]")) {
       const on = !!via[b.dataset.via];
       b.setAttribute("aria-pressed", String(on));
       // Turning off the only one on switches to the other; say so.
@@ -790,7 +797,9 @@
       if (only) b.title = `Turn off to run through ${b.dataset.via === "api" ? "the browser" : "the API"} instead`;
       else b.removeAttribute("title");
     }
-    const text = busy() ? "A run is in progress · open it from the sidebar" : HINT[mode];
+    if (box?.value.trim()) asMode = detectAs(box.value);
+    const typed = !!box?.value.trim();
+    const text = busy() ? "A run is in progress · open it from the sidebar" : !typed ? HINT[mode] : asMode === "derive" ? HINT_DERIVE : asMode === "case" ? HINT_CASE : `${HINT_JOURNEY} · ${HINT[mode]}`;
     if (hint && hint.textContent !== text) hint.textContent = text;
     if (start) {
       const off = !box?.value.trim() || busy();
@@ -876,10 +885,34 @@
         syncAsk();
       });
     }
-    const go = () => {
+    q$("#home-plus")?.addEventListener("click", () => q$("#home-sheet")?.click());
+    q$("#home-sheet")?.addEventListener("change", uploadSheet);
+    const go = async () => {
       const text = box.value.trim();
       const runBox = q$("#request");
       if (!text || busy() || !runBox || typeof runInstruction !== "function") return;
+      // Whatever was typed: first the cases the catalog already has about it, grouped by section. A feature /
+      // PRD / flow stops there (derive on request); a test case and a journey go on to run below it.
+      const found = !looksLikeQuestion(text) && window.spineSingle?.searchCases ? await showFound(text, asMode === "derive") : null;
+      // The exact title of a written case was typed: that case is the answer — show it ticked, never run the title as a journey.
+      const exact = found?.groups?.some((g) => (g.cases || []).some((c) => String(c.title || "").trim().toLowerCase() === text.toLowerCase()));
+      if (exact && asMode === "journey") {
+        box.value = "";
+        syncAsk();
+        return;
+      }
+      if (asMode === "derive" && !looksLikeQuestion(text)) {
+        box.value = "";
+        syncAsk();
+        return;
+      }
+      // A TEST CASE runs here on Home through the sheet runner (single-case mode), never as a journey.
+      if (asMode === "case" && !looksLikeQuestion(text) && window.spineSingle) {
+        runTypedCase(text);
+        box.value = "";
+        syncAsk();
+        return;
+      }
       // A question is answered, not run (session.js answerQuestion).
       if (looksLikeQuestion(text) && window.spineSession?.answerQuestion) {
         window.spineSession.answerQuestion(text, modeOf());
@@ -907,6 +940,117 @@
       }
     });
     syncAsk();
+  }
+
+  // ── a typed TEST CASE, answered on Home (singleCase.js) ───────────────────
+  let caseRun = null;
+  function runTypedCase(text) {
+    const mount = q$("#home-case");
+    if (!mount) return;
+    caseRun?.stop?.();
+    mount.hidden = false;
+    const mode = modeOf();
+    let box3 = q$("#home-single");
+    if (!box3) { box3 = document.createElement("section"); box3.id = "home-single"; mount.appendChild(box3); }
+    caseRun = window.spineSingle.start({
+      text, client: clientIdNow(), headed: mode !== "api", layer: mode === "api" ? "api" : "", dry: false,
+      onState: (g) => {
+        box3.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test case</h2>${g.live ? `<span class="pill warn">${g.run ? "running" : g.und ? "starting the run" : g.case ? "understanding it" : "reading it"}</span><button type="button" class="btn" id="home-case-stop">Stop</button>` : `<button type="button" class="btn" id="home-case-close">Close</button>`}</div>${window.spineSingle.render(g)}`;
+        window.spineSingle.wire(box3, g);
+        q$("#home-case-stop")?.addEventListener("click", async () => { await fetch("/api/sheets/stop", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null); });
+        q$("#home-case-close")?.addEventListener("click", () => { box3.remove(); if (!mount.children.length) mount.hidden = true; });
+        if (!g.live) renderRunNow();
+      },
+    });
+    box3.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  const found = { picked: new Set(), text: "" };
+  async function showFound(text, only) {
+    const mount = q$("#home-case");
+    if (!mount) return;
+    found.picked.clear();
+    found.text = text;
+    mount.hidden = false;
+    let panel = q$("#home-found");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "home-found";
+      panel.className = "home-found";
+      mount.prepend(panel);
+    }
+    panel.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases about this</h2><span class="pill warn">searching the catalog</span></div>`;
+    const r = await window.spineSingle.searchCases(text);
+    // which test sheet each shown case lives in (source "sheet:<id>"); a catalog case has none
+    found.sheetOf = {};
+    for (const g of r.groups || []) for (const c of g.cases || []) if (/^sheet:/.test(c.source || "")) found.sheetOf[c.id] = c.source.slice(6);
+    panel.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases about this</h2>${only ? `<button type="button" class="btn" id="home-found-close">Close</button>` : ""}</div>${window.spineSingle.searchCard(r, found)}`;
+    const where = () => { const ids = [...found.picked]; const sheets = new Set(ids.map((id) => found.sheetOf[id]).filter(Boolean)); return { ids, sheets, allSheet: ids.length && ids.every((id) => found.sheetOf[id]) }; };
+    const count = () => {
+      const { ids, sheets, allSheet } = where(); const n = ids.length; const b = q$("#sht-found-run"); const c = q$("#sht-found-count");
+      if (b) { b.disabled = !n; b.textContent = n ? `Run the ${n} ticked case${n === 1 ? "" : "s"}` : "Run the ticked cases"; }
+      if (c) c.textContent = !n ? "Tick the cases to run." : allSheet && sheets.size === 1 ? `${n} ticked — opens the Test sheets page with them ticked; press Run there.` : allSheet ? `${n} ticked from ${sheets.size} sheets — opens the Test sheets page on the first sheet.` : `${n} ticked — opens Run tests with them selected.`;
+    };
+    panel.querySelectorAll(".sht-found-pick").forEach((cb) => cb.addEventListener("change", () => { cb.checked ? found.picked.add(cb.value) : found.picked.delete(cb.value); count(); }));
+    q$("#home-found-all")?.addEventListener("click", () => {});
+    q$("#sht-found-all")?.addEventListener("click", () => { panel.querySelectorAll(".sht-found-pick").forEach((cb) => { cb.checked = true; found.picked.add(cb.value); }); count(); });
+    q$("#sht-found-run")?.addEventListener("click", () => {
+      const { ids, sheets, allSheet } = where();
+      if (!ids.length) return;
+      if (allSheet) {
+        // sheet cases run from the Test sheets page: open it on their sheet with exactly these ticked
+        const sheet = [...sheets][0];
+        try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet, ids: ids.filter((id) => found.sheetOf[id] === sheet) })); } catch { /* ignore */ }
+        location.hash = "#/sheets";
+        return;
+      }
+      location.hash = `#/run-tests?ids=${encodeURIComponent(ids.join(","))}`;
+    });
+    q$("#sht-found-derive")?.addEventListener("click", () => runDerivation(found.text));
+    q$("#home-found-close")?.addEventListener("click", () => { panel.remove(); if (!mount.children.length) mount.hidden = true; });
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    return r;
+  }
+  let deriveRun = null;
+  function runDerivation(text) {
+    const mount = q$("#home-case");
+    if (!mount) return;
+    deriveRun?.stop?.();
+    mount.hidden = false;
+    let box2 = q$("#home-derive");
+    if (!box2) { box2 = document.createElement("section"); box2.id = "home-derive"; mount.appendChild(box2); }
+    deriveRun = window.spineSingle.startDerive({
+      text, client: clientIdNow(), max: 40,
+      onState: (g) => {
+        box2.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases derived</h2>${g.live ? `<span class="pill warn">${g.cases?.length ? "checking against the catalog" : g.grounding ? "writing the permutations" : g.und ? "reading the rules" : "reading it"}</span>` : `<button type="button" class="btn" id="home-case-close">Close</button>`}</div>${window.spineSingle.deriveCard(g)}`;
+        q$("#home-case-close")?.addEventListener("click", () => { box2.remove(); if (!mount.children.length) mount.hidden = true; });
+        q$("#sht-derive-open")?.addEventListener("click", () => { try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet: g.derivation?.sheet, tickAll: true })); } catch { /* ignore */ } });
+        // the questions it asks before writing: answering one re-renders this card (the server goes on when all are in)
+        window.spineSingle.wireAsks?.(box2, g, () => deriveRun?.onState?.(g));
+      },
+    });
+    deriveRun.onState = (g) => { box2.innerHTML = `<div class="home-case-head"><h2 class="mono-label">Test cases derived</h2><span class="pill warn">${g.asks?.some((a) => a.answer === null) ? "waiting for you" : "writing the permutations"}</span></div>${window.spineSingle.deriveCard(g)}`; window.spineSingle.wireAsks?.(box2, g, () => deriveRun?.onState?.(g)); };
+    box2.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function clientIdNow() {
+    const n = Number(q$("#client")?.value);
+    return n > 0 ? n : 198678;
+  }
+  /** A sheet dropped on Home: imported, then opened on Test sheets with every row ticked, ready to understand or run. */
+  async function uploadSheet(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const mount = q$("#home-case");
+    if (mount) { mount.hidden = false; mount.innerHTML = `<p class="sht-hint">Importing "${f.name}"…</p>`; }
+    const buf = await f.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const r = await fetch("/api/sheets/upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: f.name, data: btoa(bin) }) }).then((x) => x.json()).catch(() => ({ why: "The upload did not reach the server." }));
+    e.target.value = "";
+    if (r.why) { if (mount) mount.innerHTML = `<p class="sht-msg bad">${r.why.replace(/[<>&]/g, "")}</p>`; return; }
+    try { sessionStorage.setItem("sht-open", JSON.stringify({ sheet: r.sheet.id, tickAll: true })); } catch { /* ignore */ }
+    if (mount) mount.innerHTML = `<div class="sht-uc"><div class="sht-cchead"><b>Imported "${r.sheet.name.replace(/[<>&]/g, "")}": ${r.sheet.count} test cases${r.sheet.skipped ? ` (${r.sheet.skipped} rows skipped — no title or no steps)` : ""}</b></div><div class="sht-filters"><a class="btn primary" href="#/sheets">Open it — understand first, then run the rows</a></div></div>`;
+    location.hash = "#/sheets";
   }
 
   // ── opening a session by its address: #/session/{id} ─────────────────────

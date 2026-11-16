@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-017",
+  "title": "QCS ranking shows all bidders as “Knocked Out” after conversion to auction (RCA 318540007159)",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-12T13:36:30.217Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the selected event was specifically converted from an RFQ lot with historical savings not copied."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify that the selected event was specifically converted from an RFQ lot with historical savings not copied."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_ranks",
+   "expect_text"
+  ],
+  "ms": 10798
+ },
+ "plan": {
+  "title": "Converted Auction QCS Ranking",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing bid event, relying on the runner to select the fitting converted-auction event because no event title or ID was provided."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the Master QCS and assert that the comparison grid with bidder columns is rendered."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "realNames": true
+    },
+    "note": "Verify that bidder columns are present and headed by real vendor names rather than placeholders."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Auction Landed",
+     "vendor": 1
+    },
+    "note": "Verify that the first bidder's landed-price cell is populated in the QCS."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "Auction Landed",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify that bidder ranks follow the landed-price amounts for the buy auction."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Knocked Out",
+     "present": false
+    },
+    "note": "Verify that no bidder row is marked Knocked Out."
+   }
+  ]
+ }
+}

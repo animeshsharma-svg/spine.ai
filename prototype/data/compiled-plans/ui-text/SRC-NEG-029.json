@@ -1,0 +1,143 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-029",
+  "title": "Counter offer while bidding is live on one of the two lines; the vendor does not answer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:04:24.026Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select only line 1 in the counter-offer drawer and change 100 to 90 while leaving line 2 unchanged.",
+   "Verify the exact per-line counter-offer values and that only the countered line shows the offer.",
+   "Verify that Vendor A cannot revise any line while the counter offer is pending."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Select only line 1 in the counter-offer drawer and change 100 to 90 while leaving line 2 unchanged.; Verify the exact per-line counter-offer values and that only the countered line shows the offer.; Verify that Vendor A cannot revise any line while the counter offer is pending."
+  ],
+  "source": "llm",
+  "steps": 14,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_visible",
+   "switch_portal",
+   "go_to",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_amounts"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 15007
+ },
+ "plan": {
+  "title": "Live RFQ Counter Offer Pending",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Opens the existing live RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensures the RFQ counter-offer control is available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures eRFX project functionality is enabled for the prepared event."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Sends the closest expressible counter offer at 90 during live bidding."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Confirms the buyer's grid marks the vendor bid as having a counter offer initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Moves to Vendor A's separate supplier-portal session while preserving the buyer session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Opens the existing event's vendor overview where the pending counter offer is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer"
+    },
+    "note": "Checks that Vendor A can see the pending counter-offer state."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Accept Counter Offer",
+     "visible": true
+    },
+    "note": "Confirms the offer remains pending and available for vendor response; the plan deliberately does not accept it."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Returns to the buyer's session without changing the vendor's pending state."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigates to the buyer's Master QCS view."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Ensures the comparison grid with the bid is rendered."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verifies the expected single vendor column is present with a real vendor name."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Checks that the displayed line amounts and total follow the current rate-by-quantity arithmetic."
+   }
+  ]
+ }
+}

@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "PRD-KBVDB-014",
+  "title": "Vendor cannot place a commercial bid for a regretted item",
+  "group": "PRD-KBVDB",
+  "compiledAt": "2026-11-10T06:54:53.755Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Create or verify that a vendor regretted a specific line item in the Technical Stage.",
+   "Enter a price only for the specific regretted item and assert that item-level entry or submission is blocked."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Create or verify that a vendor regretted a specific line item in the Technical Stage.; Enter a price only for the specific regretted item and assert that item-level entry or submission is blocked."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_event",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt"
+  ],
+  "ms": 69752
+ },
+ "plan": {
+  "title": "Regretted item commercial bid blocked",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the existing event with the commercial stage available."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Act as the invited vendor in the supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the commercial RFQ/RA bid sheet."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to submit a commercial bid and require the portal to refuse it; this is the closest available check, though vendor_bid cannot limit the attempt to the regretted item."
+   }
+  ]
+ }
+}

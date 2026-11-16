@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-047",
+  "title": "Upload Sheet partially filled",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:57:26.865Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "upload",
+   "expect_message"
+  ],
+  "ms": 9768
+ },
+ "plan": {
+  "title": "Single-stage RFQ partial sheet upload",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ as required by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title before interacting with the sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template so the pricing sheet and Upload Sheet control are available."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Sheet",
+     "file": "sample.csv"
+    },
+    "note": "Attempt the sheet upload using the available CSV fixture; the catalog cannot ensure its contents are partially filled."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Sheet partially filled, please check again."
+    },
+    "note": "Verify that Procol refuses or flags the partially filled sheet with the expected message."
+   }
+  ]
+ }
+}

@@ -2,21 +2,17 @@
  "meta": {
   "caseId": "API-EVDTME-004",
   "title": "Sending only a new start time is silently ignored",
-  "compiledAt": "2026-10-15T12:47:32.764Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:24:51.931Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The plan cannot assert that the response is specifically HTTP 422 beyond the expected rejection code.",
-   "The plan cannot compare the round start time with its exact pre-request value; it only verifies that it remains before a far-future epoch timestamp.",
-   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   "The plan reads the round and verifies that starting_from is an epoch timestamp, but cannot verify that it remains unchanged or in the past because no prior starting_from value is available and lte requires a literal number."
   ],
-  "warnings": [
-   "error code 2 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id",
+   "PATCH /trade/:id",
    "GET /trade/:id"
   ],
   "llm": {
@@ -28,14 +24,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer updates the event with the bid start time moved later.",
-    "As the buyer, read the pricing round and check that “starting from” is at most 9999999999."
+    "The buyer sends the request that updates the round, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Schema check: “starting from” is a Unix timestamp in seconds."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: “starting from” is at most 9999999999."
-  }
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error. Read back afterwards: Schema check: “starting from” is a Unix timestamp in seconds."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.846Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDTME-004",
   "title": "Sending only a new start time is silently ignored",
   "setup": {
@@ -43,18 +40,17 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "request",
     "as": "buyer",
-    "change": [
-     {
-      "path": "bid_start_time",
-      "set": "{{now+3600}}",
-      "add": true
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "bid_start_time": "{{now+3600}}"
      }
-    ],
+    },
     "expect": "reject",
-    "decisive": true,
-    "ifRefused": "pass"
+    "decisive": true
    }
   ],
   "verify": [
@@ -64,15 +60,16 @@
     "assert": [
      {
       "path": "starting_from",
-      "op": "lte",
-      "value": 9999999999
+      "op": "format",
+      "value": "epochSeconds"
      }
     ]
    }
   ],
   "expected": {
    "outcome": "reject",
-   "code": "2"
+   "code": "2",
+   "message": "Insufficient parameters"
   }
  }
 }

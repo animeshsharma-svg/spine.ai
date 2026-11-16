@@ -1,0 +1,1186 @@
+{
+ "cases": [
+  {
+   "id": "VOE-T1-V01",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t1@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T1-V01-partners.png",
+    "VOE-T1-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V02",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Every field of the template is on the form, in order, with the right control",
+   "steps": "Compare the form with the template",
+   "data": "T1",
+   "expected": "Every field in order, with the right control; hidden field absent; right panel '2 Sections'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Company brochure is an attachment ('Upload' tag) \u2014 the first detection read it as unknown; re-checked by hand.\nOK: fields shown: legal_name, business_description, employees, incorporation_date, constitution, products, vendor_type, company_brochure, contact_email, buyer_reference\nOK: the Hidden field 'Internal code' is not shown\nOK: Legal name: text\nOK: Business description: long text\nOK: Number of employees: number\nOK: Incorporation date: date\nOK: Constitution: dropdown\nOK: Products supplied: multi-select\nOK: Vendor type: radio\nNOT OK: Company brochure: unknown\nOK: Contact email: text\nOK: Buyer reference: text\nOK: right panel '2 Sections': Company profile, Contacts",
+   "shots": [
+    "VOE-T1-V02.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V03",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Required marks, helper text and the read-only field",
+   "steps": "Look at required marks, helper text, read-only field",
+   "data": "T1",
+   "expected": "Required fields carry *; helper text under labels; Buyer reference greyed and not editable",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: * on: legal_name, employees, incorporation_date, constitution, vendor_type, contact_email\nOK: helper under Legal name: 'As printed on your GST certificate'\nOK: helper under Buyer reference: 'Filled by the buyer'\nOK: Buyer reference (Read-only) is greyed and cannot be typed into",
+   "shots": [
+    "VOE-T1-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V04",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Dropdown, multi-select and radio show the template's options",
+   "steps": "Open dropdown, multi-select and radio",
+   "data": "T1",
+   "expected": "Options exactly as in the template",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Constitution: Proprietorship, Partnership, Company\nOK: Products supplied: Steel, Cement, Electricals\nOK: Vendor type radios: Indian, Foreign",
+   "shots": [
+    "VOE-T1-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V05",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Submit with required fields missing is refused",
+   "steps": "Submit with required fields missing",
+   "data": "Only Legal name filled",
+   "expected": "Submit refused 'Please fill all required fields'; missing fields marked",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Missing required fields get a red '!' next to the label (seen on the screenshot); Submit stays enabled on an untouched form.\nNOT OK: Submit is disabled on an untouched form\nOK: Submit with only Legal name: enabled true; message 'Please fill all required fields'\nNote: errors on the form: none marked",
+   "shots": [
+    "VOE-T1-V05.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V06",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Number field refuses letters",
+   "steps": "Type letters into the number field",
+   "data": "'abc'",
+   "expected": "Letters are not accepted",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: typing 'abc' leaves '' (the box is a number input)\nOK: 120 is kept",
+   "shots": [
+    "VOE-T1-V06.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V07",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Attachment limited to PDF",
+   "steps": "Upload a Word file into the PDF-only attachment",
+   "data": "brochure.docx",
+   "expected": "Refused: only PDF allowed",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-06"
+   ],
+   "actual": "NOT OK: uploading brochure.docx (template allows PDF only): modal: Upload Participant attachments | Click or drag file to this area to upload | Maximum file size : 20 MB | Or upload from URLs | Add URL | \u00a0 | Upload | Attachments (1) | brochure.docx | CancelSave; field shows 'Company brochure | brochure.docx'\nNote: automation stopped: locator.click: Timeout 30000ms exceeded.",
+   "shots": [
+    "VOE-T1-V07-stopped.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-V08",
+   "t": "T1",
+   "side": "Vendor portal",
+   "title": "Fill every field and submit",
+   "steps": "Fill every field and submit",
+   "data": "Valid answers",
+   "expected": "'Response submitted successfully'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: chosen: Constitution 'Company', Products 'Steel, Cement,'\nOK: Submit: 'Response submitted successfully'",
+   "shots": [
+    "VOE-T1-V08-filled.png",
+    "VOE-T1-V08-after.png"
+   ]
+  },
+  {
+   "id": "VOE-T1-B02",
+   "t": "T1",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"cFhRa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793267750,\"template\":{\"uuid\":\"Y1pja1E=\",\"name\":\"QA_Platform VOE 653131 T1 All field types\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WFpOY2Nj | Ask Clara | PS | QV | Qa_platform Voe 653131 T1 Vendor | Review Pending | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 12m : 25s | Live | Started At | 29 October 2026 03:25 PM | Submission Duration | 30 mins | Evaluation Duration | 30 mins | Vendor Response | Start Evaluation | Jump Section | Download PDF | Company profile | Response | Legal name | As printed on your GST certificate | QA Steel Pvt Ltd | Business description | Manufacturer of GI coated sheets | Number of employees | 120 | Incorporation date | 29 October 2026 | Constitution | Company | Products supplied | Steel+1 more | Vendor type | Indian | Company brochure | brochure.d... | Contacts | Response | Contact email | qa.contact@example.com | Buyer reference | F",
+   "shots": [
+    "VOE-T1-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-B01",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Validations'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Start returned 200; the vendor got the event (V01). Only the in-progress tab search was not automated.\nOK: Prospects tab lists 'QA_Platform VOE 653131 T2D Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T2 Validations' (7 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 04:22 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nNote: automation stopped: locator.fill: Timeout 30000ms exceeded.",
+   "shots": [
+    "VOE-T2D-B01-drawer.png",
+    "VOE-T2D-B01-stopped.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V01",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t2d@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T2D-V01-partners.png",
+    "VOE-T2D-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V02",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "PAN in the wrong format",
+   "steps": "Wrong PAN format, Submit",
+   "data": "PAN 'ABC12'",
+   "expected": "Refused with 'PAN must look like ABCDE1234F'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: format mask ^[A-Z]{5}[0-9]{4}[A-Z]$: lower-case 'abcde1234f' stays as typed ('abcde1234f') \u2014 the mask neither capitalises nor blocks\nNote: PAN 'ABCD1234F': the answer is marked failed (none); hover text ''\nNote: hover text names the rule: ''\nOK: Submit refused \u2192 'PAN must look like ABCDE1234F'\nOK: the Submit message names the problem (field is required): 'PAN must look like ABCDE1234F'",
+   "shots": [
+    "VOE-T2D-V02.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V03",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "GSTIN that does not contain the PAN (optional field)",
+   "steps": "GSTIN that does not contain the PAN, Submit",
+   "data": "GSTIN 27ZZZZZ9999Z1Z5",
+   "expected": "Refused with 'GSTIN must contain the PAN'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: GSTIN '27AAAAA0000A1Z5' with PAN ABCPE1234F: the answer is marked failed (none); hover text ''\nNote: hover text names the rule: ''\nOK: Submit refused \u2192 'GSTIN must contain the PAN'\nOK: the Submit message names the problem: 'GSTIN must contain the PAN'",
+   "shots": [
+    "VOE-T2D-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V04",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "Re-entered account number must match; paste is blocked",
+   "steps": "Re-enter account number different / try to paste",
+   "data": "000123456789 vs 000123456780",
+   "expected": "Refused with 'Account numbers do not match'; paste blocked",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: pasting into Re-enter account number leaves ''\nNote: re-entered '000123456780': the answer is marked failed (none); hover text ''\nNote: hover text names the rule: ''\nOK: Submit refused \u2192 'Account numbers do not match'\nOK: the Submit message names the problem (field is required): 'Account numbers do not match'",
+   "shots": [
+    "VOE-T2D-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V05",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "IFSC in the wrong format",
+   "steps": "IFSC in a wrong format, Submit",
+   "data": "IFSC 'HDFC123'",
+   "expected": "Refused with 'IFSC must look like HDFC0001234'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: IFSC 'HDFC123': the answer is marked failed (none); hover text ''\nNote: hover text names the rule: ''\nOK: Submit refused \u2192 'IFSC must look like HDFC0001234'\nOK: the Submit message names the problem (field is required): 'IFSC must look like HDFC0001234'",
+   "shots": [
+    "VOE-T2D-V05.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V06",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "Mobile number in the wrong format",
+   "steps": "Mobile in a wrong format, Submit",
+   "data": "Mobile '98765'",
+   "expected": "Refused with 'Mobile must be 10 digits'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: mobile '98765': the answer is marked failed (none); hover text ''\nNote: hover text names the rule: ''\nOK: Submit refused \u2192 'Mobile must be 10 digits'\nOK: the Submit message names the problem (field is required): 'Mobile must be 10 digits'",
+   "shots": [
+    "VOE-T2D-V06.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V07",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "A well-formed PAN goes through the PAN check",
+   "steps": "Well-formed PAN through the external PAN check",
+   "data": "ABCPE1234F (not a real PAN)",
+   "expected": "Check runs; result shown next to the field",
+   "prio": "P3",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: PAN 'ABCPE1234F' (well-formed, not a real PAN) \u2192 none",
+   "shots": [
+    "VOE-T2D-V07.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-V08",
+   "t": "T2",
+   "side": "Vendor portal",
+   "title": "All answers valid: Submit goes through",
+   "steps": "Everything valid, Submit",
+   "data": "Valid answers",
+   "expected": "'Response submitted successfully'; buyer sees green checks",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: states before Submit: pan=none, gstin=none, account_number=none, reenter_account_number=none, ifsc=none, mobile=failed\nOK: Submit \u2192 'Response submitted successfully'",
+   "shots": [
+    "VOE-T2D-V08-after.png"
+   ]
+  },
+  {
+   "id": "VOE-T2D-B02",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"WGdwa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793271137,\"template\":{\"uuid\":\"Y0Rja1E=\",\"name\":\"QA_Platform VOE 653131 T2 Validations\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WGRkY2Nj | Ask Clara | PS | QV | Qa_platform Voe 653131 T2d Vendor | Review Pending | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 56m : 49s | Live | Started At | 29 October 2026 04:22 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | Vendor Response | Start Evaluation | Jump Section | Download PDF | Tax and bank | Response | PAN | ABCPE1234F | GSTIN | 27ABCPE1234F1Z5 | Account number | 000123456789 | Re-enter account number | 000123456789 | IFSC | HDFC0001234 | Mobile number | 9876543210 | Send For Approval | Reject | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowY",
+   "shots": [
+    "VOE-T2D-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-B01",
+   "t": "T3",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Conditional logic'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Start returned 200; the vendor got the event (V01). Only the in-progress tab search was not automated.\nOK: Prospects tab lists 'QA_Platform VOE 653131 T3 Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T3 Conditional logic' (7 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 04:29 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nNote: automation stopped: locator.fill: Timeout 30000ms exceeded.",
+   "shots": [
+    "VOE-T3-B01-drawer.png",
+    "VOE-T3-B01-stopped.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V01",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t3@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T3-V01-partners.png",
+    "VOE-T3-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V02",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "Starting state: hidden and optional fields as built",
+   "steps": "Open the form fresh",
+   "data": "T3",
+   "expected": "Udyam hidden; State hidden while Country is empty; GSTIN required; turnover and CIN optional",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-01"
+   ],
+   "actual": "Probe on a fresh form: State is shown while Country is empty \u2014 the 'is empty' rule never applies.\nNOT OK: shown: vendor_type, gstin, annual_turnover, company_name, cin, certifications, iso_certificate, country, state (Udyam hidden by default; State hidden while Country is empty)\nOK: GSTIN required; Annual turnover and CIN optional",
+   "shots": [
+    "VOE-T3-V02.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V03",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "Vendor type Foreign hides GSTIN and makes turnover required",
+   "steps": "Choose Vendor type Foreign",
+   "data": "Foreign",
+   "expected": "GSTIN disappears; Annual turnover gets *",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: GSTIN disappears\nOK: Annual turnover gets *",
+   "shots": [
+    "VOE-T3-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V04",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "Vendor type MSME shows Udyam (required); Indian brings everything back",
+   "steps": "Foreign \u2192 MSME \u2192 Indian",
+   "data": "Vendor type changes",
+   "expected": "MSME: Udyam shown with *, GSTIN back. Indian: Udyam hidden, GSTIN shown, turnover optional",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-02"
+   ],
+   "actual": "Probe on a fresh form: Foreign hides GSTIN; MSME then shows Udyam* but GSTIN stays hidden; Indian leaves GSTIN hidden, Udyam shown and required, turnover required. Nothing a rule did is undone.\nOK: Udyam number appears with *\nNOT OK: GSTIN is back\nNOT OK: Indian: Udyam hidden again, GSTIN shown, turnover optional",
+   "shots": [
+    "VOE-T3-V04-msme.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V05",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "'Company name contains Pvt' makes CIN required (case-sensitive)",
+   "steps": "Company name containing 'Pvt'",
+   "data": "'QA Steel Pvt Ltd'",
+   "expected": "CIN becomes required",
+   "prio": "P2",
+   "status": "Fail",
+   "bugs": [
+    "VOB-04"
+   ],
+   "actual": "Probe: 'QA Steel Pvt Ltd' \u2192 CIN optional; exactly 'Pvt' \u2192 CIN*; then 'QA Steel' \u2192 CIN still *. 'Contains' behaves as 'is exactly' on the vendor form (the Studio preview treats it as contains).\nNOT OK: 'QA Steel Pvt Ltd' \u2192 CIN*\nNote: 'qa steel pvt ltd' \u2192 CIN optional (same as the studio preview: plain, case-sensitive match)",
+   "shots": [
+    "VOE-T3-V05.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V06",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "Certification ISO 9001 makes the certificate required; Country shows State",
+   "steps": "Certifications and Country",
+   "data": "ISO 14001 / ISO 9001; Country 'India'",
+   "expected": "ISO 9001 makes certificate required; typing a Country shows State",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-01"
+   ],
+   "actual": "ISO 9001 rule works. Typing a Country crashes the whole form: 'Oops! Something Broke Down\u2026' (TypeError: e is not a function).\nOK: ISO 14001 only \u2192 certificate optional\nOK: adding ISO 9001 \u2192 certificate*\nNOT OK: typing a Country shows State",
+   "shots": [
+    "VOE-T3-V06.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-V07",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "A field made required by a rule blocks Submit; a hidden required field does not",
+   "steps": "Submit with a rule-required field empty; then with a hidden required field",
+   "data": "MSME without Udyam; Foreign without GSTIN",
+   "expected": "First refused; second goes through (hidden field not required)",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [
+    "VOB-02"
+   ],
+   "actual": "Probe: MSME with Udyam empty \u2192 'Please fill all required fields'. Foreign hides GSTIN (required in the template) and clears it; Submit then goes through \u2192 'Response submitted successfully'. Note: Udyam stayed required after switching to Foreign (bug VOB-02).\nNote: automation stopped: locator.click: Timeout 30000ms exceeded.",
+   "shots": [
+    "VOE-T3-V07-stopped.png"
+   ]
+  },
+  {
+   "id": "VOE-T3-B02",
+   "t": "T3",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"WFpEa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793271598,\"template\":{\"uuid\":\"Y1hja1E=\",\"name\":\"QA_Platform VOE 653131 T3 Conditional logic\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WGNkY2Nj | Ask Clara | PS | QV | Qa_platform Voe 653131 T3 Vendor | In Progress | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 56m : 40s | Live | Started At | 29 October 2026 04:29 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | No Vendor Response To Show | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowYes, I'm in",
+   "shots": [
+    "VOE-T3-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-B01",
+   "t": "T4",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Prefill and data sources'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Prospects tab lists 'QA_Platform VOE 653131 T4 Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T4 Prefill and data sources' (9 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 05:54 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nOK: the prospect moved to 'Onboarding In Progress' (In Progress)",
+   "shots": [
+    "VOE-T4-B01-drawer.png",
+    "VOE-T4-B01-in-progress.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-V01",
+   "t": "T4",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t4@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T4-V01-partners.png",
+    "VOE-T4-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-V02",
+   "t": "T4",
+   "side": "Vendor portal",
+   "title": "Prefill on load fills answers from the vendor's Procol profile",
+   "steps": "Open the form",
+   "data": "Vendor profile",
+   "expected": "Legal name, email, address prefilled from the vendor's Procol profile",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Legal name prefilled: 'QA_Platform VOE 653131 T4 Vendor' (company is 'QA_Platform VOE 653131 T4 Vendor' / home 'QA_Platform VOE 653131 T4 Vendor Home')\nOK: Registered address prefilled: 'QA Platform Street T4'\nOK: Company email prefilled: 'qa_voe_653131_t4@example.com'",
+   "shots": [
+    "VOE-T4-V02.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-V03",
+   "t": "T4",
+   "side": "Vendor portal",
+   "title": "Dropdowns load their options from the data sources",
+   "steps": "Open Billing currency, Country, Region",
+   "data": "\u2014",
+   "expected": "Each list loads options from its data source",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Billing currency: 215 options (ADP-Andorran Peseta --> (Old --> EUR)-Peseta, AED-United Arab Emirates Dirham-Dirham, AFA-Afghani (Old)-Afghani, AFN-Afghani-Afghani, ALL-Albanian Lek-Lek)\nOK: Country: 253 options (Andorra, Utd.Arab Emir., Afghanistan, Antigua/Barbuda, Anguilla)\nOK: Region: 36 options (Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Goa)",
+   "shots": [
+    "VOE-T4-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-V04",
+   "t": "T4",
+   "side": "Vendor portal",
+   "title": "Changing Country resets Region",
+   "steps": "Pick Country + Region, then change Country",
+   "data": "\u2014",
+   "expected": "Region is cleared",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Region 'Andhra Pradesh' \u2192 after changing Country 'Select option'",
+   "shots": [
+    "VOE-T4-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-V05",
+   "t": "T4",
+   "side": "Vendor portal",
+   "title": "Submit; the supplier code is written back to the vendor record",
+   "steps": "Fill and submit with a supplier code",
+   "data": "QAVOE-653131",
+   "expected": "Submitted; supplier code saved on the vendor record (written back)",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "First run: Submit refused 'Please fill 'Billing currency'' because the automation's click on the 215-item list did not register. Rerun choosing INR, India, Maharashtra by typing: 'Response submitted successfully'; legal name and email still prefilled; no page errors.\nNOT OK: Submit: 'Please fill 'Billing currency''",
+   "shots": [
+    "VOE-T4-V05-filled.png"
+   ]
+  },
+  {
+   "id": "VOE-T4-B02",
+   "t": "T4",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"ZEROa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793276692,\"template\":{\"uuid\":\"a2dja1E=\",\"name\":\"QA_Platform VOE 653131 T4 Prefill and data sources\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WGtEY2Nj | Ask Clara | 99+ | PS | QV | Qa_platform Voe 653131 T4 Vendor | In Progress | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 58m : 13s | Live | Started At | 29 October 2026 05:54 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | No Vendor Response To Show | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowYes, I'm in",
+   "shots": [
+    "VOE-T4-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-B01",
+   "t": "T5",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Three sections all required'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Prospects tab lists 'QA_Platform VOE 653131 T5 Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T5 Three sections all required' (9 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 06:00 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nOK: the prospect moved to 'Onboarding In Progress' (In Progress)",
+   "shots": [
+    "VOE-T5-B01-drawer.png",
+    "VOE-T5-B01-in-progress.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-V01",
+   "t": "T5",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t5@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T5-V01-partners.png",
+    "VOE-T5-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-V02",
+   "t": "T5",
+   "side": "Vendor portal",
+   "title": "Three sections in the side panel",
+   "steps": "Open the form",
+   "data": "T5",
+   "expected": "'3 Sections': Section A, B, C with all six fields",
+   "prio": "P2",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: '3 Sections': Section A, B, C\nOK: fields: a_name, a_count, b_choice, b_date, c_notes, c_doc",
+   "shots": [
+    "VOE-T5-V02.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-V03",
+   "t": "T5",
+   "side": "Vendor portal",
+   "title": "Only Section A filled: Submit refused",
+   "steps": "Fill only Section A, Submit",
+   "data": "A name, A count",
+   "expected": "Refused",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Submit: 'Please fill all required fields'\nNote: errors marked: none",
+   "shots": [
+    "VOE-T5-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-V04",
+   "t": "T5",
+   "side": "Vendor portal",
+   "title": "Required attachment must be uploaded",
+   "steps": "Fill everything except the required document",
+   "data": "\u2014",
+   "expected": "Refused",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: everything except the required document: Submit 'Please fill all required fields'",
+   "shots": [
+    "VOE-T5-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-V05",
+   "t": "T5",
+   "side": "Vendor portal",
+   "title": "All three sections complete: Submit",
+   "steps": "Upload the document and submit",
+   "data": "registration.pdf",
+   "expected": "'Response submitted successfully'",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "First run: Submit refused 'Please fill 'B date'' although the field showed 29th Oct 2026 (set with the calendar's Today button; after reopening the field was empty). Rerun picking the 15th from the calendar: draft saved the date and Submit \u2192 'Response submitted successfully'.\nNOT OK: Submit: 'Please fill 'B date''",
+   "shots": [
+    "VOE-T5-V06-after.png",
+    "VOE-T5-V05-after.png"
+   ]
+  },
+  {
+   "id": "VOE-T5-B02",
+   "t": "T5",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"ZFhra1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793277052,\"template\":{\"uuid\":\"a2tja1E=\",\"name\":\"QA_Platform VOE 653131 T5 Three sections all required\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WERnY2Nj | Ask Clara | 99+ | PS | QV | Qa_platform Voe 653131 T5 Vendor | In Progress | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 58m : 21s | Live | Started At | 29 October 2026 06:00 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | No Vendor Response To Show | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowYes, I'm in",
+   "shots": [
+    "VOE-T5-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-B01",
+   "t": "T6",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Empty, number and AND rules'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Prospects tab lists 'QA_Platform VOE 653131 T6 Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T6 Empty, number and AND rules' (8 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 04:46 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nOK: the prospect moved to 'Onboarding In Progress' (In Progress)",
+   "shots": [
+    "VOE-T6-B01-drawer.png",
+    "VOE-T6-B01-in-progress.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-V01",
+   "t": "T6",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t6@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T6-V01-partners.png",
+    "VOE-T6-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-V02",
+   "t": "T6",
+   "side": "Vendor portal",
+   "title": "AND rule: SWIFT code appears only when Foreign AND turnover above 10 lakh",
+   "steps": "AND rule: Foreign AND turnover > 10 lakh shows SWIFT",
+   "data": "Foreign alone; 5 lakh; 25 lakh; back to 9 lakh",
+   "expected": "SWIFT only at Foreign + 25 lakh; hidden again at 9 lakh",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-03",
+    "VOB-02"
+   ],
+   "actual": "Fresh-form probes: Foreign alone (turnover empty) \u2192 SWIFT shown*; Indian + 25 lakh \u2192 SWIFT shown*. The AND rule fires on any one condition.\nOK: fresh form: SWIFT code hidden\nNOT OK: Foreign only (turnover empty): SWIFT still hidden\nNOT OK: Foreign + turnover 5,00,000: SWIFT still hidden\nOK: Foreign + turnover 25,00,000: SWIFT appears with *\nNOT OK: turnover back to 9,00,000: SWIFT hidden again",
+   "shots": [
+    "VOE-T6-V02-and-true.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-V03",
+   "t": "T6",
+   "side": "Vendor portal",
+   "title": "Number rule: HR policy required only when employees are more than 100",
+   "steps": "Number rule: employees > 100 requires HR policy",
+   "data": "150, 99, 20",
+   "expected": "Only 150 makes HR policy required",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-05"
+   ],
+   "actual": "Fresh-form probes with the limit saved as text '100': 50 \u2192 required, 99 \u2192 required (compared as text).\nOK: 150 employees \u2192 HR policy *\nNOT OK: 99 employees \u2192 HR policy optional (checks a number, not text order)\nNOT OK: 20 employees \u2192 HR policy optional",
+   "shots": [
+    "VOE-T6-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-V04",
+   "t": "T6",
+   "side": "Vendor portal",
+   "title": "'Is not empty' rule: typing a GSTIN makes the GST certificate required",
+   "steps": "'Is not empty' rule on GSTIN",
+   "data": "Type a GSTIN",
+   "expected": "Certificate becomes required; form keeps working",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-01"
+   ],
+   "actual": "OK: GSTIN empty: certificate optional\nNOT OK: typing a GSTIN crashed the form: 'Oops! Something Broke Down\u2026' ()",
+   "shots": [
+    "VOE-T6-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T6-B02",
+   "t": "T6",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"WGtwa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793272568,\"template\":{\"uuid\":\"RGNja1E=\",\"name\":\"QA_Platform VOE 653131 T6 Empty, number and AND rules\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | WFFYY2Nj | Ask Clara | 99+ | PS | QV | Qa_platform Voe 653131 T6 Vendor | In Progress | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 57m : 40s | Live | Started At | 29 October 2026 04:46 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | No Vendor Response To Show | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowYes, I'm in",
+   "shots": [
+    "VOE-T6-B02.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-B01",
+   "t": "T7",
+   "side": "Buyer (cpanel)",
+   "title": "Start onboarding for the prospect with template 'Number rules with numeric limits'",
+   "steps": "Buyer: Vendors \u2192 Prospects \u2192 tick the QA prospect \u2192 Start Onboarding \u2192 pick the studio template, 1 day window \u2192 Start",
+   "data": "Prospect created for this template",
+   "expected": "Drawer lists the studio-made template; Start sends the request (200); prospect moves to Onboarding In Progress",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: Prospects tab lists 'QA_Platform VOE 653131 T7 Vendor' with status 'Not Initiated'\nOK: drawer 'Onboarding Prospects' opens with Onboarding Template *, time frame and the prospect\nOK: the studio-made template is offered: 'QA_Platform VOE 653131 T7 Number rules with numeric limits' (9 templates in the list)\nNote: submission window choices: 30 Mins, 1 Hrs, 4 Hrs, 1 Days, Custom duration\nNote: window: Prospect Submission Deadline: 30 October 2026 04:58 PM\nOK: Start \u2192 POST create_vendor_onboarding_events 200\nOK: the prospect moved to 'Onboarding In Progress' (In Progress)",
+   "shots": [
+    "VOE-T7-B01-drawer.png",
+    "VOE-T7-B01-in-progress.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-V01",
+   "t": "T7",
+   "side": "Vendor portal",
+   "title": "The prospect finds the onboarding event and opens the form",
+   "steps": "Vendor signs in on quotes.ag-ri.in with the e-mail code \u2192 Events \u2192 Business Partners \u2192 opens the onboarding event \u2192 Submission Sheet",
+   "data": "QA prospect e-mail",
+   "expected": "Live onboarding event with countdown; Business Partners shows PROCOL DEMO 'Submission Pending'; form opens",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "OK: signed in on quotes.ag-ri.in as qa_voe_653131_t7@example.com\nOK: Live events show '[Procol Demo] Vendor Onboarding \u2014 VENDOR ONBOARDING' with a countdown\nOK: Business Partners: PROCOL DEMO \u2014 'Onboarding In Progress', 'Submission Pending', 'View Onboarding Event'\nOK: the Submission Sheet opens",
+   "shots": [
+    "VOE-T7-V01-partners.png",
+    "VOE-T7-V01-form.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-V02",
+   "t": "T7",
+   "side": "Vendor portal",
+   "title": "AND rule: SWIFT code appears only when Foreign AND turnover above 10 lakh",
+   "steps": "AND rule: Foreign AND turnover > 10 lakh shows SWIFT",
+   "data": "Foreign alone; 5 lakh; 25 lakh; back to 9 lakh",
+   "expected": "SWIFT only at Foreign + 25 lakh; hidden again at 9 lakh",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-03",
+    "VOB-02"
+   ],
+   "actual": "OK: fresh form: SWIFT code hidden\nNOT OK: Foreign only (turnover empty): SWIFT still hidden\nNOT OK: Foreign + turnover 5,00,000: SWIFT still hidden\nOK: Foreign + turnover 25,00,000: SWIFT appears with *\nNOT OK: turnover back to 9,00,000: SWIFT hidden again",
+   "shots": [
+    "VOE-T7-V02-and-true.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-V03",
+   "t": "T7",
+   "side": "Vendor portal",
+   "title": "Number rule: HR policy required only when employees are more than 100",
+   "steps": "Number rule: employees > 100 requires HR policy",
+   "data": "150, 99, 20",
+   "expected": "Only 150 makes HR policy required",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-02"
+   ],
+   "actual": "Fresh-form probes with the limit saved as the number 100: 99 \u2192 optional, 50 \u2192 optional, 150 \u2192 required (correct). Fails only because 150 then 20 stays required (rule never undone, VOB-02).\nOK: 150 employees \u2192 HR policy *\nNOT OK: 99 employees \u2192 HR policy optional (checks a number, not text order)\nNOT OK: 20 employees \u2192 HR policy optional",
+   "shots": [
+    "VOE-T7-V03.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-V04",
+   "t": "T7",
+   "side": "Vendor portal",
+   "title": "'Is not empty' rule: typing a GSTIN makes the GST certificate required",
+   "steps": "'Is not empty' rule on GSTIN",
+   "data": "Type a GSTIN",
+   "expected": "Certificate becomes required; form keeps working",
+   "prio": "P1",
+   "status": "Fail",
+   "bugs": [
+    "VOB-01"
+   ],
+   "actual": "OK: GSTIN empty: certificate optional\nNOT OK: typing a GSTIN crashed the form: 'Oops! Something Broke Down\u2026' ()",
+   "shots": [
+    "VOE-T7-V04.png"
+   ]
+  },
+  {
+   "id": "VOE-T7-B02",
+   "t": "T7",
+   "side": "Buyer (cpanel)",
+   "title": "The buyer sees the vendor's submitted answers",
+   "steps": "Buyer opens the vendor \u2192 Onboarding Details after the vendor submits",
+   "data": "\u2014",
+   "expected": "Status Review Pending; every answer the vendor gave is shown section by section",
+   "prio": "P1",
+   "status": "Pass",
+   "bugs": [],
+   "actual": "Note: onboarding requests for the vendor: [{\"uuid\":\"WGROa1Fj\",\"title\":\"[Procol Demo] Vendor Onboarding | 29th October 2026\",\"created_at\":1793273340,\"template\":{\"uuid\":\"RHBja1E=\",\"name\":\"QA_Platform VOE 653131 T7 Number rules with numeric limits\"}}]\nOK: vendor page opens on the onboarding details tab\nNote: page says: \ud83d\udd14 Turn on notifications to get real time updates for your events.Enable Now | Vendors/ | ZGdrY2Nj | Ask Clara | 99+ | PS | QV | Qa_platform Voe 653131 T7 Vendor | In Progress | Selling firm | Connected since 1 day | Messages | Info | Onboarding Details | Activity | Order Configurations | 23h : 57m : 41s | Live | Started At | 29 October 2026 04:58 PM | Submission Duration | 1 day | Evaluation Duration | 30 mins | No Vendor Response To Show | ApprovalsComments | No approvals present | No comments present |   | Want to stay updated? | Enable browser notifications to stay updated on all things Procol. You can opt out anytime. | Not nowYes, I'm in",
+   "shots": [
+    "VOE-T7-B02.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-T3-V08",
+   "t": "T3",
+   "side": "Vendor portal",
+   "title": "Reopen the form after the crash",
+   "steps": "After the 'Something Broke Down' page, sign in again and open the form",
+   "data": "\u2014",
+   "expected": "Form opens; nothing typed before the crash is kept",
+   "status": "Pass",
+   "actual": "Form reopens normally; Country is empty (the crash happened before the draft saved).",
+   "shots": [
+    "probe-T3-08.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [
+    "VOB-03",
+    "VOB-02",
+    "VOB-05"
+   ],
+   "id": "VOE-T6-V05",
+   "t": "T6",
+   "side": "Vendor portal",
+   "title": "Fresh form, one rule at a time (limits as text)",
+   "steps": "Reset draft and reload before each step",
+   "data": "Foreign; 5 lakh then Foreign; Indian + 25 lakh; employees 99 / 1000 / 150\u219220 / 50",
+   "expected": "SWIFT only for Foreign + > 10 lakh; HR policy only for > 100",
+   "status": "Fail",
+   "actual": "Foreign alone \u2192 SWIFT*; 5 lakh then Foreign \u2192 SWIFT*; Indian + 25 lakh \u2192 SWIFT*; 99 \u2192 required; 50 \u2192 required; 150\u219220 stays required.",
+   "shots": [
+    "probe-T6-and-one-side.png",
+    "probe-T6-sticky.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [
+    "VOB-03",
+    "VOB-02"
+   ],
+   "id": "VOE-T7-V05",
+   "t": "T7",
+   "side": "Vendor portal",
+   "title": "Fresh form, one rule at a time (limits as numbers)",
+   "steps": "Reset draft and reload before each step",
+   "data": "Same as T6",
+   "expected": "SWIFT only for Foreign + > 10 lakh; HR policy only for > 100",
+   "status": "Fail",
+   "actual": "Foreign alone \u2192 SWIFT*; Indian + 25 lakh \u2192 SWIFT* (AND broken). 99 \u2192 optional; 50 \u2192 optional; 1000 \u2192 required (numbers fine). 150\u219220 stays required.",
+   "shots": [
+    "probe-T7-and-one-side.png",
+    "probe-T7-sticky.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-T4-V06",
+   "t": "T4",
+   "side": "Buyer (cpanel)",
+   "title": "Supplier code is written back to the vendor record",
+   "steps": "After approval, read the vendor's company record",
+   "data": "QAVOE-653131",
+   "expected": "companies.misc.supplier_code = the vendor's answer",
+   "status": "Not Run",
+   "actual": "Not run: the backend writes mapped answers only when the response is accepted (approval). After submit the record has no supplier code, as designed. Approval needs a named PROCOL DEMO approver.",
+   "shots": [
+    "VOE-T4-V05-filled.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-BUY-01",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "Send For Approval: buyer form must be filled first",
+   "steps": "Vendor in Review Pending \u2192 Send For Approval \u2192 Next with the buyer form empty",
+   "data": "Buyer form (5 fields)",
+   "expected": "Next refused, naming the missing field",
+   "status": "Pass",
+   "actual": "'Please fill 'Billing Currency'' (backend 572); drawer stays on the buyer form.",
+   "shots": [
+    "buyer-T2D-approve-2-drawer.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-BUY-02",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "Buyer form filled \u2192 category/location \u2192 approval workflow \u2192 Continue",
+   "steps": "Fill Billing currency, Vendor code, Group, GL account \u2192 Next \u2192 Next \u2192 approver \u2192 Continue",
+   "data": "INR, QAVOE\u2026T2D, Import, 400100",
+   "expected": "Request sent; vendor 'Approval Pending'; approvals panel shows the request and approver",
+   "status": "Pass",
+   "actual": "Vendor shows 'Approval Pending'; 'Request to Accept Vendor' by Procol Support, approver Shivdesh Singh, expires in 2 days. Each buyer-form answer saved as it was entered.",
+   "shots": [
+    "buyer-T2D-approvals-2-approval.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-BUY-03",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "Validated answers show as checked to the buyer",
+   "steps": "Open the vendor's Onboarding Details",
+   "data": "T2 vendor",
+   "expected": "Answers with checks show the result",
+   "status": "Pass",
+   "actual": "PAN, GSTIN, Re-enter account, IFSC, Mobile show a green check next to the answer.",
+   "shots": [
+    "buyer-T2D-approve-5-step2.png"
+   ]
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-BUY-04",
+   "t": "T2",
+   "side": "Buyer (cpanel)",
+   "title": "Approver approves \u2192 vendor becomes a connected vendor",
+   "steps": "Approver opens the request and approves",
+   "data": "\u2014",
+   "expected": "Vendor moves to the Vendors tab; portal shows Connected",
+   "status": "Not Run",
+   "actual": "Not run: only Shivdesh Singh, Kaish Sharma and Devesh Jaiin can approve on PROCOL DEMO; the test account (Procol Support) is not offered as an approver.",
+   "shots": []
+  },
+  {
+   "prio": "P1",
+   "bugs": [],
+   "id": "VOE-BUY-05",
+   "t": "T3",
+   "side": "Buyer (cpanel)",
+   "title": "Reject onboarding",
+   "steps": "Review Pending vendor \u2192 Reject",
+   "data": "\u2014",
+   "expected": "Rejection recorded, vendor in Rejected",
+   "status": "Not Run",
+   "actual": "Not run: on PROCOL DEMO rejection also goes through the approval workflow to the same three approvers ('Reject Onboarding' \u2192 approver \u2192 Continue). Panel opened and checked; not sent.",
+   "shots": [
+    "buyer-T3-reject-2-panel.png"
+   ]
+  }
+ ],
+ "bugs": [
+  {
+   "id": "VOB-01",
+   "sev": "High",
+   "title": "An 'is empty' / 'is not empty' rule crashes the vendor's onboarding form",
+   "steps": "1. Template with a rule 'Country IS EMPTY \u2192 hide State' (or 'GSTIN IS NOT EMPTY \u2192 require certificate').\n2. Start onboarding for a prospect with it.\n3. Vendor opens the form and types anything into Country (or GSTIN).",
+   "expected": "State appears (or the certificate becomes required); the form keeps working. On load, State is hidden while Country is empty.",
+   "actual": "The whole page is replaced by 'Oops! Something Broke Down\u2026' with 'TypeError: e is not a function' in the console. The vendor cannot fill that field at all. On load the rule also never applies: State is shown while Country is empty. The Studio offers and saves both comparisons, and the backend evaluates them; the form's comparison list has no entry for them.",
+   "cases": [
+    "VOE-T3-V02",
+    "VOE-T3-V06",
+    "VOE-T6-V04",
+    "VOE-T7-V04"
+   ],
+   "shots": [
+    "probe-T3-08.png",
+    "VOE-T3-V02.png"
+   ]
+  },
+  {
+   "id": "VOB-02",
+   "sev": "High",
+   "title": "Rules never undo when the vendor changes the answer back",
+   "steps": "1. Template T3: Foreign hides GSTIN; MSME shows and requires Udyam; not Indian requires turnover.\n2. Vendor picks Foreign, then MSME, then Indian.",
+   "expected": "Indian: GSTIN visible again, Udyam hidden, turnover optional (the form returns to the template's default).",
+   "actual": "GSTIN stays hidden, so an Indian vendor can never enter the GSTIN the template requires, and Submit goes through without it. Udyam stays visible and required, turnover stays required. Same for numbers: employees 150 \u2192 20 keeps HR policy required; turnover 25 lakh \u2192 9 lakh keeps SWIFT shown. Only a draft Reset restores the form.",
+   "cases": [
+    "VOE-T3-V04",
+    "VOE-T3-V07",
+    "VOE-T7-V03",
+    "VOE-T6-V02",
+    "VOE-T7-V02"
+   ],
+   "shots": [
+    "probe-T3-04.png",
+    "probe-T7-sticky.png"
+   ]
+  },
+  {
+   "id": "VOB-03",
+   "sev": "High",
+   "title": "An AND rule fires when only one of its conditions is true",
+   "steps": "1. Template rule: Vendor type IS Foreign AND Annual turnover > 10,00,000 \u2192 show and require SWIFT code.\n2. Fresh form: choose Foreign with turnover empty. Separately: choose Indian and type 25,00,000.",
+   "expected": "SWIFT stays hidden in both cases; it appears only for Foreign with turnover above 10 lakh.",
+   "actual": "SWIFT code appears with * in both cases. The form checks only the answer just changed, so an AND rule behaves like OR. Vendors are asked for fields that do not apply to them.",
+   "cases": [
+    "VOE-T6-V02",
+    "VOE-T7-V02",
+    "VOE-T6-V05",
+    "VOE-T7-V05"
+   ],
+   "shots": [
+    "probe-T6-and-one-side.png",
+    "VOE-T7-V02-and-true.png"
+   ]
+  },
+  {
+   "id": "VOB-04",
+   "sev": "Medium",
+   "title": "'Contains' on a text answer works as 'is exactly' on the vendor form",
+   "steps": "1. Template rule: Company name CONTAINS 'Pvt' \u2192 require CIN.\n2. Vendor types 'QA Steel Pvt Ltd'. Then types exactly 'Pvt'.",
+   "expected": "'QA Steel Pvt Ltd' makes CIN required (the Studio preview does this).",
+   "actual": "'QA Steel Pvt Ltd' leaves CIN optional. Only the exact text 'Pvt' makes CIN required. The Studio preview and the live form disagree.",
+   "cases": [
+    "VOE-T3-V05"
+   ],
+   "shots": [
+    "probe-T3-05.png",
+    "probe-T3-06.png"
+   ]
+  },
+  {
+   "id": "VOB-05",
+   "sev": "Medium",
+   "title": "A number rule compares as text when its limit is saved as text",
+   "steps": "1. Template rule: Number of employees IS GREATER THAN '100' (limit saved as text).\n2. Fresh form: type 50, then 99.",
+   "expected": "50 and 99 are not more than 100, so HR policy stays optional (the backend compares these as numbers).",
+   "actual": "HR policy becomes required for 50 and 99 (text order: '5' > '1'). With the limit saved as the number 100 the same rule works. Which form the Studio saves was not confirmed here, so this matters if any template carries text limits.",
+   "cases": [
+    "VOE-T6-V03",
+    "VOE-T6-V05"
+   ],
+   "shots": [
+    "probe-T6-sticky.png"
+   ]
+  },
+  {
+   "id": "VOB-06",
+   "sev": "Medium",
+   "title": "Attachment limited to PDF accepts a Word file",
+   "steps": "1. Template T1: Company brochure, attachment, allowed type PDF.\n2. Vendor uploads brochure.docx and submits.",
+   "expected": "The .docx is refused with a message that only PDF is allowed.",
+   "actual": "The upload dialog accepts brochure.docx, the field shows it, and the response is submitted with it. The buyer sees 'brochure.d\u2026' in the vendor's answers.",
+   "cases": [
+    "VOE-T1-V07"
+   ],
+   "shots": [
+    "VOE-T1-V07-stopped.png",
+    "VOE-T1-B02.png"
+   ]
+  }
+ ],
+ "obs": [
+  "Rule behaviour on the vendor form was checked twice: by the runner, and by probes that reset the draft and reload before every step, so stickiness could not mask a comparison.",
+  "The saved draft is restored about 7 seconds after the form appears. Anything typed before that is overwritten. Earlier validation runs (T2, T2B, T2C) were affected and are left out; T2D is the clean run.",
+  "The format mask on PAN does not force capitals; lower-case 'abcde1234f' is kept as typed (and then refused by the format check).",
+  "The buyer form is copied for each vendor the first time Send For Approval is opened; later changes to the buyer-form template do not reach that vendor.",
+  "A date set with the calendar's Today button showed on screen but was not saved once (T5); picking a day saved it. Today worked in T1, so this is noted, not filed.",
+  "Mapped answers (entity mappings, e.g. supplier code) are written to the vendor record only when the onboarding is accepted, not on submit.",
+  "A required buyer-form dropdown with no options blocks Send For Approval with only 'Please fill \u2026'. This happened with the QA buyer form's payment-terms source, which has no data on PROCOL DEMO; it was switched to the currency list.",
+  "Creating a buyer-form template makes it the company's active buyer form: the backend picks the newest one. Creating one in the Studio silently replaces the existing form for every new approval."
+ ],
+ "tpl": {
+  "T1": "All field types \u2014 2 sections: text (required, helper), long text, number, date, dropdown, multi-select, radio, PDF attachment, email, read-only, hidden",
+  "T2": "Validations \u2014 PAN (format + PAN check), GSTIN must contain PAN, account number + re-enter (must match, no paste), IFSC format, mobile format",
+  "T3": "Conditional logic \u2014 Foreign hides GSTIN; MSME shows + requires Udyam; not Indian requires turnover; company name contains 'Pvt' requires CIN; ISO 9001 requires certificate; Country empty hides State",
+  "T4": "Prefill and data sources \u2014 legal name / email / address from the vendor's Procol profile; currency, country, region lists; Country resets Region; supplier code written back to the vendor record",
+  "T5": "Three sections, every field required \u2014 text, number, dropdown, date, long text, attachment",
+  "T6": "Empty, number and AND rules (limits saved as text) \u2014 Foreign AND turnover > 10 lakh shows SWIFT; employees > 100 requires HR policy; GSTIN not empty requires certificate",
+  "T7": "Same as T6 with the limits saved as numbers"
+ },
+ "tally": {
+  "Pass": 47,
+  "Fail": 13,
+  "Not Run": 3
+ }
+}

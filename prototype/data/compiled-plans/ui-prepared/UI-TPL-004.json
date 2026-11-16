@@ -1,0 +1,81 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-004",
+  "title": "A stage with no template fails publish on savings, not on the template",
+  "compiledAt": "2026-11-09T19:57:29.856Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added select_template — the Items drawer stays inert without one",
+   "added select_template — the Items drawer stays inert without one"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-015",
+   "UI-TPL-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Publish blocked without template",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage create screen for the event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-004 Template Omission"
+    },
+    "note": "Provide the required event title while leaving the template unselected."
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item; this is allowed in the no-template negative case so other publish prerequisites can be completed."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Provide the required participant so the missing template remains the tested publish precondition."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Savings configuration is mandatory"
+    },
+    "note": "Assert that Publish is refused with the current savings-related message."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Select Templates"
+    },
+    "note": "Assert that the unselected template control also has error styling."
+   }
+  ]
+ }
+}

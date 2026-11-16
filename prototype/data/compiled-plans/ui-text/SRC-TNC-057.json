@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-057",
+  "title": "Cancel discards changes",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:16:31.259Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "do_on_screen",
+   "expect_text"
+  ],
+  "ms": 14715
+ },
+ "plan": {
+  "title": "T&C Cancel Discards Changes",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Set the event type to RFP as required by the scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title for a create flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose the RFP template so the product sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Add the requested CYLINDER product to enable the sheet and T&C flow."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity before testing Terms & Conditions."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's create screen, select the CYLINDER WITH KEY & KNOB product so Product Variant shows Default Variant, choose Plant Name (LOC-0001) for Delivery location, open Terms & Conditions, add a clause, click Cancel, reopen Terms & Conditions, and prove the clause is absent."
+    },
+    "note": "Perform and verify the modal-specific cancellation behavior that has no dedicated domain step."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms & Conditions"
+    },
+    "note": "Assert the Terms & Conditions interface is open after reopening."
+   }
+  ]
+ }
+}

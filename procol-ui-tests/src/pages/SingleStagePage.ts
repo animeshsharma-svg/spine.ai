@@ -1,7 +1,6 @@
 import { isNoiseMessage } from "../oracle/noise.js";
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
-import { recordStuck } from "../oracle/stuck.js";
 import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
@@ -9,7 +8,7 @@ import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from
 import { vendorCount } from "../master/params.js";
 
 export type EventType = "rfq" | "rfp" | "auction";
-export type AuctionSubtype = "rank" | "price" | "traffic_light";
+export type AuctionSubtype = "rank" | "price" | "traffic_light" | "knockout" | "dutch";
 export type Awarding = "lot" | "line_item";
 
 const EVENT_TYPE_LABEL: Record<EventType, RegExp> = {
@@ -21,6 +20,11 @@ const SUBTYPE_LABEL: Record<AuctionSubtype, RegExp> = {
   rank: /Rank Based/i,
   price: /Price Based/i,
   traffic_light: /Traffic Light/i,
+  // Knockout and Dutch cards exist on the drawer but are DISABLED on a fresh single-stage screen (the app's
+  // tooltip: "Knockout auctions can be created only when converting an RFQ to an auction"); they are chosen on
+  // the converted event's create screen (convert_to_auction) — orderConfigBlocks.jsx / auctionConfiguration.jsx
+  knockout: /^Knockout/i,
+  dutch: /Dutch Auction/i,
 };
 const AWARDING_LABEL: Record<Awarding, RegExp> = {
   lot: /entire lot to single vendor/i,
@@ -31,9 +35,27 @@ export interface SingleStageConfig {
   eventType: EventType;
   auctionSubtype?: AuctionSubtype;
   awarding?: Awarding;
-  /** Traffic light only: the specified range's bounds (defaults 50 / 150). */
-  rangeLower?: number;
-  rangeUpper?: number;
+  /** Traffic light only: "Group traffic light by" Price (default) or Rank, and the GREEN / YELLOW bounds
+   *  (defaults 3000 / 6000 by price, 1 / 3 by rank; "" leaves a bound empty on purpose). */
+  trafficBy?: "price" | "rank";
+  rangeLower?: number | string;
+  rangeUpper?: number | string;
+  /** "Dynamic Event Extension" (rank / price / traffic light auctions): tick or untick it; with it on, the
+   *  Price | Rank choice, "Time Extension By" minutes (1 / 2 / 3 / 5 are presets, anything else is Custom),
+   *  "Trigger time extension on last:" minutes and "Time extension on change in:" the top N bids. */
+  dynamicExtension?: boolean;
+  extensionOn?: "price" | "rank";
+  extendByMinutes?: number | string;
+  triggerMinutes?: number | string;
+  topBids?: number;
+  /** Knockout / Dutch only (the converted event's screen): "Starting Price" (the case's "base price"; "" clears it),
+   *  "Ending Price" (Dutch), "Add Tick Size", and the "Offers on" choice. Omitted = left as the screen has it. */
+  startPrice?: number | string;
+  endPrice?: number | string;
+  tickSize?: number | string;
+  /** "Add Time Difference" (minutes between two successive offers; required with the tick size) */
+  timeDifference?: number | string;
+  offersOn?: "base_price" | "total_amount";
 }
 
 /**
@@ -57,7 +79,7 @@ export class SingleStagePage extends BasePage {
     await this.dismissDistractions();
   }
 
-  private drawer() {
+  drawer() {
     return this.page
       .locator(".ant-drawer, [role='dialog']")
       .filter({ hasText: /Configuration for Event/i })
@@ -65,7 +87,7 @@ export class SingleStagePage extends BasePage {
   }
 
   /** Open the config drawer via the Event Type chip (shows RFP/RFQ/Auction). */
-  private async openConfigDrawer(): Promise<void> {
+  async openConfigDrawer(): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       await this.dismissDistractions();
       await this.click(
@@ -94,6 +116,8 @@ export class SingleStagePage extends BasePage {
    */
   /** Set when a traffic-light auction was configured — the sheet needs the same bounds per line item. */
   trafficLightRange: { green: string; yellow: string } | null = null;
+  /** The case leaves the traffic-light ranges EMPTY on purpose: the sheet's Green / Yellow columns stay blank too. */
+  leaveRangeCellsEmpty = false;
 
   /**
    * The traffic-light sheet carries two extra REQUIRED columns per line item —
@@ -132,11 +156,46 @@ export class SingleStagePage extends BasePage {
     return filled;
   }
 
+  /** Toasts seen and closed while configuring (their words go in the step's detail). */
+  closedNotices: string[] = [];
+  /**
+   * Close every antd notification toast. One sits in the top-right corner over the drawer's RFQ card
+   * (UAT, 5 Nov): a forced click landed on the toast, the drawer closed and RFQ was never chosen.
+   */
+  private async closeNotices(): Promise<void> {
+    // every call is bounded: a toast can vanish between being counted and being read, and a locator call with
+    // no timeout then waits forever (5 Nov: a step hung 15 minutes until the run's budget closed the browser)
+    const notes = this.page.locator(".ant-notification-notice:visible");
+    for (let i = 0; i < 5; i++) {
+      if (!(await notes.count().catch(() => 0))) return;
+      const n = notes.first();
+      const words = ((await n.innerText({ timeout: 1_000 }).catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      if (words && !this.closedNotices.includes(words.slice(0, 160))) this.closedNotices.push(words.slice(0, 160));
+      // the browser-notifications prompt is declined ("Not now", the privacy-preserving answer); others are closed
+      const notNow = n.getByRole("button", { name: /^not now$/i }).first();
+      const x = n.locator(".ant-notification-notice-close").first();
+      if (await notNow.count().catch(() => 0)) await notNow.click({ timeout: 2_000 }).catch(() => {});
+      else if (await x.count().catch(() => 0)) await x.click({ timeout: 2_000 }).catch(() => {});
+      await this.page.waitForTimeout(400).catch(() => {});
+      if (await n.isVisible({ timeout: 500 }).catch(() => false)) await n.evaluate((el) => el.remove(), undefined, { timeout: 1_000 }).catch(() => {});
+    }
+  }
+
   async configure(cfg: SingleStageConfig): Promise<void> {
+    await this.closeNotices();
+    // The create screen opens with the company's default event type. When that is already the type asked for and
+    // nothing else is to be set (no auction sub-type, no partial awarding), the drawer has nothing to do — and on
+    // UAT (5 Nov) changing the type in it re-rendered the page and lost the choice. Leave it closed.
+    {
+      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic|knockout|dutch)\b/i }).first().innerText({ timeout: 10_000 }).catch(() => "")) || "").trim();
+      const wantNow = cfg.eventType === "auction" ? /auction|rank|price|traffic|knockout|dutch/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
+      if (wantNow.test(chip) && !cfg.auctionSubtype && cfg.awarding !== "line_item" && cfg.dynamicExtension === undefined) return;
+    }
     await this.openConfigDrawer();
     const d = this.drawer();
 
     const pick = async (re: RegExp, label: string) => {
+      await this.closeNotices();
       // Options are custom cards `div.pro-radio-tabs__tab[role=radio]` (not antd
       // radios). Click the card; force bypasses the inner text-node overlay.
       // Wait for the option to render first (awarding/sub-type appear only after
@@ -145,54 +204,222 @@ export class SingleStagePage extends BasePage {
         [d.locator(".pro-radio-tabs__tab", { hasText: re }), d.getByRole("radio", { name: re }), d.getByText(re)],
         { label: `${label}-visible`, timeout: TIMEOUTS.MEDIUM },
       );
-      await this.click(
-        [
-          d.locator(".pro-radio-tabs__tab", { hasText: re }),
-          d.getByRole("radio", { name: re }),
-          d.getByText(re),
-        ],
-        { label, timeout: TIMEOUTS.MEDIUM, force: true },
-      );
-      await this.pause(500);
+      // Click like a person (no force) and confirm the card reads checked; a toast or a re-render can eat a
+      // click (UAT 5 Nov: the drawer closed and RFQ was never chosen). Three tries, the drawer reopened between.
+      const card = d.locator(".pro-radio-tabs__tab", { hasText: re }).first();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (!(await d.isVisible().catch(() => false))) await this.openConfigDrawer();
+        await this.closeNotices();
+        const clicked = await card.click({ timeout: 5_000 }).then(() => true).catch(() => false);
+        if (!clicked) await this.click([card, d.getByRole("radio", { name: re }), d.getByText(re)], { label, timeout: TIMEOUTS.MEDIUM, force: true }).catch(() => {});
+        await this.pause(500);
+        // the card's own radio input is the truth (14 Nov: the class test read "unselected" as selected, so a
+        // Traffic Light click lost to a re-render went unnoticed and the drawer saved Rank)
+        const input = card.locator("input[type='radio']").first();
+        const isChecked = async () => {
+          const cls = (await card.getAttribute("class", { timeout: 2_000 }).catch(() => "")) ?? "";
+          return (await input.count().catch(() => 0))
+            ? await input.isChecked({ timeout: 2_000 }).catch(() => false)
+            : (await card.getAttribute("aria-checked", { timeout: 2_000 }).catch(() => null)) === "true" || (/(^|\s|--)(checked|active|selected)(\s|$)/.test(cls) && !/unselected|inactive|unchecked/.test(cls));
+        };
+        // a controlled radio shows the click at once and REVERTS on the next render when the app lost the change
+        // (14 Nov: Traffic Light read checked, the drawer saved Rank) — the choice counts only once it survives a beat
+        if ((await isChecked()) && (await this.pause(700), await isChecked())) return;
+      }
+      throw new Error(`the configuration drawer would not keep "${label}" selected after three tries`);
     };
 
     await pick(EVENT_TYPE_LABEL[cfg.eventType], `event-type:${cfg.eventType}`);
     // Give the conditional sections (sub-type / awarding) a beat to render.
     await this.pause(500);
     if (cfg.eventType === "auction" && cfg.auctionSubtype) {
+      if (cfg.auctionSubtype === "knockout" || cfg.auctionSubtype === "dutch") {
+        // On a fresh single-stage screen these cards are greyed out with the app's own reason (a tooltip); say
+        // that reason instead of clicking three times and reporting "would not keep selected".
+        const card = d.locator(".pro-radio-tabs__tab", { hasText: SUBTYPE_LABEL[cfg.auctionSubtype] }).first();
+        if (await card.count()) {
+          const cls = (await card.getAttribute("class").catch(() => "")) ?? "";
+          const ariaDisabled = (await card.getAttribute("aria-disabled").catch(() => null)) === "true";
+          if (ariaDisabled || /disabled/i.test(cls)) {
+            await card.hover({ timeout: 2_000 }).catch(() => {});
+            await this.pause(600);
+            const tip = ((await this.page.locator(".ant-tooltip-inner").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean)[0] ?? "";
+            throw new Error(`the product does not offer "${cfg.auctionSubtype}" on this screen — the card is greyed out${tip ? ` and the app says: “${tip}”` : " with no reason shown"} (a Knockout / Dutch auction is made by converting a published RFQ: convert_to_auction, then this step on the converted screen)`);
+          }
+        }
+      }
       await pick(SUBTYPE_LABEL[cfg.auctionSubtype], `subtype:${cfg.auctionSubtype}`);
-      if (cfg.auctionSubtype === "traffic_light") {
-        // Traffic light needs a "specified range" before Save (the journey was
-        // deferred for exactly this). The drawer's range controls have never
-        // been captured, so record them here — with the tree — and try the
-        // obvious shape: a range-type choice plus lower/upper number inputs.
-        await recordStuck(this.page, {
-          label: "capture:single-stage-traffic-light-drawer",
-          message: "captured on request — the traffic light range controls, before Save",
-          triedCandidates: [],
-          healerTried: false,
-        }).catch(() => {});
-        // Captured 2026-09-11: "* Group traffic light by: Price | Rank", then
-        // GREEN "Gross total less than" textbox "range green" (placeholder
-        // 3000) and YELLOW textbox "range yellow" — plain textboxes, not
-        // number inputs. Range is inclusive of price; green must be the lower.
-        const green = d.getByRole("textbox", { name: /range green/i }).first();
-        const yellow = d.getByRole("textbox", { name: /range yellow/i }).first();
-        const lo = String(cfg.rangeLower ?? 3000);
-        const hi = String(cfg.rangeUpper ?? 6000);
-        if (await green.count()) await green.fill(lo).catch(() => {});
-        if (await yellow.count()) await yellow.fill(hi).catch(() => {});
-        this.trafficLightRange = { green: lo, yellow: hi };
+      if (cfg.auctionSubtype === "knockout" || cfg.auctionSubtype === "dutch") {
+        // The drawer's Knockout / Dutch block (orderConfigBlocks.jsx): "Offers on" radios, "Starting Price"
+        // (required), "Ending Price" (Dutch), "Add Tick Size" (required). Fields the plan names are set; the rest
+        // stay as the screen has them, so a case about ONE field tests that field.
+        await this.pause(500);
+        const field = (label: RegExp) => d.locator(".ant-form-item", { hasText: label }).locator("input").first();
+        const setField = async (label: RegExp, v: number | string | undefined, name: string) => {
+          if (v === undefined) return;
+          const input = field(label);
+          if (!(await input.count())) throw new Error(`no "${name}" field in the configuration drawer for a ${cfg.auctionSubtype} auction`);
+          await input.fill(String(v)).catch(async () => { await input.click({ timeout: 3_000 }); await input.fill(String(v)); });
+        };
+        if (cfg.offersOn) {
+          const radio = d.getByText(cfg.offersOn === "total_amount" ? /Offers on Total Amount/i : /Offers on Base Price/i).first();
+          if (await radio.count()) await radio.click({ timeout: 3_000 }).catch(() => {});
+        }
+        // Every field the app requires here gets a valid value unless the plan names it (a number, or "" to
+        // leave it empty on purpose): the refusal must then be about the ONE field the case is about (13 Nov:
+        // Dutch start 100 / end 200 was refused for the tick size and the time difference the plan never set).
+        const valueOr = (v: number | string | undefined, dflt: string) => (v === undefined ? dflt : v);
+        await setField(/^\s*Starting Price/i, valueOr(cfg.startPrice, "100"), "Starting Price");
+        // a reverse (buy) Dutch auction climbs from the starting offer to the ending one: start 100 / end 200 is accepted (13 Nov)
+        if (cfg.auctionSubtype === "dutch" || cfg.endPrice !== undefined) await setField(/^\s*Ending Price/i, valueOr(cfg.endPrice, "200"), "Ending Price");
+        await setField(/Add Tick Size/i, valueOr(cfg.tickSize, "1"), "Add Tick Size");
+        await setField(/Add Time Difference/i, valueOr(cfg.timeDifference, "1"), "Add Time Difference");
       }
     }
-    if (cfg.awarding) {
-      await pick(AWARDING_LABEL[cfg.awarding], `awarding:${cfg.awarding}`);
+    // The awarding rule ("How will you award this event?") decides WHERE a traffic light's ranges live: entire
+    // lot → the drawer's GREEN / YELLOW boxes; line items → two columns on the product sheet (configuration.jsx
+    // showTrafficBanner). A traffic-light case that names no rule gets the lot, so the ranges are the drawer's.
+    const awarding = cfg.awarding ?? (cfg.auctionSubtype === "traffic_light" ? "lot" : undefined);
+    if (awarding) {
+      await pick(AWARDING_LABEL[awarding], `awarding:${awarding}`);
+      await this.pause(400);
+    }
+    if (cfg.eventType === "auction" && cfg.auctionSubtype === "traffic_light") {
+      // "* Group traffic light by: Price | Rank" (required: "Traffic light type is required"), then GREEN
+      // "Gross total less than" textbox "range green" (placeholder 3000) and YELLOW "range yellow" — plain
+      // textboxes (rangeItem.jsx). With Rank they read "Rank less than" and take ranks. Range is inclusive;
+      // green is the lower bound. "" for a bound leaves it empty on purpose (the case is about the refusal).
+      {
+        // the type is required ("Traffic light type is required" kept the drawer open, 14 Nov): Price unless the plan says Rank
+        const group = d.locator(".ant-form-item", { hasText: /Group traffic light by/i }).first();
+        const radio = group.locator(".ant-radio-wrapper", { hasText: cfg.trafficBy === "rank" ? /^\s*Rank\s*$/i : /^\s*Price\s*$/i }).first();
+        // the group renders a beat after the Traffic Light card is chosen; a count taken at once read 0 (14 Nov)
+        await radio.waitFor({ state: "visible", timeout: 6_000 }).catch(() => {});
+        if (!(await radio.count())) {
+          const chosen = ((await d.locator(".pro-radio-tabs__tab", { hasText: /Traffic Light/i }).first().locator("input[type='radio']").isChecked({ timeout: 1_000 }).catch(() => false)) ? "Traffic Light reads chosen" : "Traffic Light does NOT read chosen");
+          throw new Error(`no "Group traffic light by" choice in the configuration drawer (${chosen}; the drawer reads: “${(((await d.innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200))}”)`);
+        }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await radio.click({ timeout: 3_000 });
+          await this.pause(600);
+          if (await radio.locator("input[type='radio']").isChecked({ timeout: 1_000 }).catch(() => false)) break;
+        }
+      }
+      const green = d.getByRole("textbox", { name: /range green/i }).first();
+      const yellow = d.getByRole("textbox", { name: /range yellow/i }).first();
+      const byRank = cfg.trafficBy === "rank";
+      const lo = cfg.rangeLower === undefined ? (byRank ? "1" : "3000") : String(cfg.rangeLower);
+      const hi = cfg.rangeUpper === undefined ? (byRank ? "3" : "6000") : String(cfg.rangeUpper);
+      if (await green.count()) await green.fill(lo).catch(() => {});
+      if (await yellow.count()) await yellow.fill(hi).catch(() => {});
+      this.leaveRangeCellsEmpty = lo === "" && hi === "";
+      this.trafficLightRange = lo === "" && hi === "" ? null : { green: lo, yellow: hi };
+    }
+    if (cfg.eventType === "auction" && cfg.dynamicExtension !== undefined) {
+      // "Dynamic Event Extension" (orderConfigBlocks.jsx DynamicExtensionTime; offered for every auction strategy
+      // but Knockout / Dutch): a checkbox, then Price | Rank, "Time Extension By" (1 / 2 / 3 / 5 min or Custom with
+      // "Enter closing time extension"), "Trigger time extension on last:" minutes (the app's own rule: at least 1,
+      // and under half the bidding time — else 501 "Invalid Trigger Time for Dynamic Time Extension." at publish)
+      // and "Time extension on change in:" the top N bids. Only the fields the plan names are set; the two the app
+      // requires with no default (the extension and the top bids) get the first option.
+      // the checkbox and its words are siblings inside one form item (probe 14 Nov: the wrapper itself has no text)
+      // the INNERMOST form item holding the checkbox (the screen may wrap the whole block in an outer form item, whose
+      // first following sibling is not the Price | Rank group — 14 Nov, "locator.apply: Timeout" on the Price click)
+      const box = d.locator(".ant-form-item", { hasText: /Dynamic Event Extension/i }).filter({ has: this.page.locator("input[type='checkbox']") }).last();
+      if (!(await box.count())) throw new Error(`no "Dynamic Event Extension" option in the configuration drawer for this auction (the product offers it for rank, price and traffic light auctions, not Knockout / Dutch)`);
+      const input = box.locator("input[type='checkbox']").first();
+      const isOn = () => input.isChecked({ timeout: 3_000 }).catch(() => false);
+      // the drawer re-renders after a card is picked and the box sits below the fold: a 3 s click timed out once
+      // (14 Nov) — scroll it into view, click with more time, and read the box back; a lost click is tried again
+      for (let attempt = 0; attempt < 3 && (await isOn()) !== cfg.dynamicExtension; attempt++) {
+        const tick = box.locator(".ant-checkbox").first();
+        await tick.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+        await tick.click({ timeout: 8_000 }).catch(async () => tick.click({ timeout: 4_000, force: true }).catch(() => {}));
+        await this.pause(500);
+      }
+      if ((await isOn()) !== cfg.dynamicExtension) throw new Error(`the "Dynamic Event Extension" box could not be ${cfg.dynamicExtension ? "ticked" : "cleared"} in the drawer (it reads ${(await isOn()) ? "ticked" : "clear"} after three tries)`);
+      if (cfg.dynamicExtension) {
+        const item = (label: RegExp) => d.locator(".ant-form-item", { hasText: label }).first();
+        // Two builds of this block exist: presets (1 / 2 / 3 / 5 min | Custom) under "Time Extension By" / "Extend
+        // time by:", or — DEMO, probe 14 Nov — Custom from the start: a plain "Extend time by:" minutes box
+        // (placeholder 10), "Trigger time extension on last:" (placeholder 1), "Time extension on change in:".
+        const presets = d.locator(".ant-form-item", { hasText: /Extend time by|Time Extension By/i }).filter({ has: this.page.locator(".ant-radio-group") }).first();
+        const minutesBox = () => d.locator(".ant-form-item", { hasText: /Extend time by|Enter closing time extension/i }).filter({ has: this.page.locator("input:not([type='radio']):not([type='checkbox'])") }).first().locator("input:not([type='radio']):not([type='checkbox'])").first();
+        if (!(await presets.count()) && !(await minutesBox().count())) throw new Error(`"Dynamic Event Extension" was ticked but its fields did not appear in the drawer`);
+        if (cfg.extensionOn) {
+          // the Price | Rank group comes right after the checkbox's form item (the traffic light has its own Price | Rank)
+          let group = box.locator("xpath=following-sibling::*[1]").locator(".ant-radio-group").first();
+          if (!(await group.count())) group = box.locator("xpath=following-sibling::*[contains(@class,'ant-radio-group')][1]");
+          // last resort: the drawer's last "Price | Rank" group (the block sits below the traffic light's own group)
+          if (!(await group.count())) group = d.locator(".ant-radio-group").filter({ hasText: /^\s*Price\s*Rank\s*$/i }).last();
+          const want = cfg.extensionOn === "rank" ? /^\s*Rank\s*$/i : /^\s*Price\s*$/i;
+          if (!(await group.count())) throw new Error(`no Price | Rank choice under "Dynamic Event Extension" in the drawer (the block reads: “${(((await box.locator("xpath=..").innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200))}”)`);
+          await group.getByText(want).first().click({ timeout: 5_000 });
+        }
+        const minutes = cfg.extendByMinutes === undefined ? undefined : String(cfg.extendByMinutes).trim();
+        const preset = minutes !== undefined && /^[1235]$/.test(minutes) && (await presets.count()) ? presets.getByText(new RegExp(`^${minutes}\\s*min`, "i")).first() : null;
+        if (preset && (await preset.count())) await preset.click({ timeout: 8_000 });
+        else if (minutes !== undefined || !(await presets.count())) {
+          if (await presets.count()) {
+            await presets.getByText(/^Custom$/i).first().click({ timeout: 8_000 });
+            await this.pause(300);
+          }
+          const custom = minutesBox();
+          if (!(await custom.count())) throw new Error(`no "Extend time by" minutes box appeared in the drawer`);
+          // the box is required: a plan that names no extension gets 2 minutes (the app's placeholder is 10)
+          const current = ((await custom.inputValue({ timeout: 2_000 }).catch(() => "")) || "").trim();
+          if (minutes !== undefined || !current) {
+            await custom.fill(minutes ?? "2");
+            await this.page.keyboard.press("Tab").catch(() => {});
+          }
+        } else if (!(await presets.locator(".ant-radio-wrapper-checked").count())) {
+          await presets.locator(".ant-radio-wrapper").first().click({ timeout: 8_000 });
+        }
+        {
+          const trig = item(/Trigger time extension on last/i).locator("input").first();
+          if (!(await trig.count())) throw new Error(`no "Trigger time extension on last" box in the drawer`);
+          const current = ((await trig.inputValue({ timeout: 2_000 }).catch(() => "")) || "").trim();
+          // required too: a plan that names no trigger gets the app's own minimum, 1 minute
+          if (cfg.triggerMinutes !== undefined || !current) {
+            await trig.fill(cfg.triggerMinutes === undefined ? "1" : String(cfg.triggerMinutes));
+            await this.page.keyboard.press("Tab").catch(() => {});
+          }
+        }
+        const topItem = item(/Time extension on change in/i);
+        const chosen = ((await topItem.locator(".ant-select-selection-selected-value").innerText({ timeout: 1_000 }).catch(() => "")) || "").trim();
+        if (cfg.topBids !== undefined || !chosen) {
+          await topItem.locator(".ant-select").first().click({ timeout: 8_000 });
+          await this.pause(400);
+          const menu = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+          const opt = cfg.topBids !== undefined ? menu.locator(".ant-select-dropdown-menu-item", { hasText: new RegExp(`\\b${cfg.topBids}\\b`) }).first() : menu.locator(".ant-select-dropdown-menu-item").first();
+          if (!(await opt.count())) throw new Error(`"Time extension on change in" offers no "top ${cfg.topBids} bids" option (the list reads: ${(await menu.locator(".ant-select-dropdown-menu-item").allInnerTexts().catch(() => [])).join(", ") || "nothing"})`);
+          await opt.click({ timeout: 8_000 });
+        }
+      }
     }
 
-    await this.click([d.getByRole("button", { name: /^Save$/i }), this.page.getByRole("button", { name: /^Save$/i })], {
-      label: "config-save",
-      timeout: TIMEOUTS.MEDIUM,
-    });
+    // Some builds apply the choice and close the drawer by themselves (UAT, 5 Nov: the drawer was gone before
+    // Save). Then there is nothing to save — but only when the event-type chip now shows what was chosen.
+    const want = cfg.eventType === "auction" ? /auction|rank|price|traffic|knockout|dutch/i : cfg.eventType === "rfq" ? /^RFQ\b/i : /^RFP\b/i;
+    const appliedByItself = async (): Promise<boolean> => {
+      if (await d.isVisible().catch(() => false)) return false;
+      const chip = ((await this.page.getByRole("button", { name: /^(RFP|RFQ|Auction|rank|price|traffic|knockout|dutch)\b/i }).first().innerText({ timeout: 3_000 }).catch(() => "")) || "").trim();
+      if (want.test(chip)) return true;
+      throw new Error(`the configuration drawer closed before Save and the event type reads "${chip || "nothing"}", not ${cfg.eventType}`);
+    };
+    await this.pause(1200);
+    if (await appliedByItself()) return void (await this.dismissDistractions());
+    try {
+      await this.click([d.getByRole("button", { name: /^Save$/i }), this.page.getByRole("button", { name: /^Save$/i })], {
+        label: "config-save",
+        timeout: TIMEOUTS.MEDIUM,
+      });
+    } catch (e) {
+      // the drawer may close while Save is being clicked (UAT 5 Nov): judge by the outcome, not the click
+      await this.pause(800);
+      if (await appliedByItself()) return void (await this.dismissDistractions());
+      throw e;
+    }
     // Drawer closes on save — unless the app REFUSED the configuration (e.g. a traffic-light
     // range whose lower bound is above the upper): then the drawer stays open with its own
     // message. Report that refusal instead of carrying on under an open drawer (the next step
@@ -200,8 +427,13 @@ export class SingleStagePage extends BasePage {
     await this.pause(800);
     const stillOpen = await d.isVisible().catch(() => false);
     if (stillOpen) {
-      const said = ((await d.locator(".ant-form-explain, .ant-form-item-explain, .ant-form-item-explain-error, .ant-typography-danger, [role='alert'], .ant-message-error, [class*='error' i]").allInnerTexts().catch(() => [])) as string[])
-        .map((x) => x.trim()).filter(Boolean);
+      // The field's own help renders a beat after Save ("Please enter valid end price" under Ending Price, antd
+      // FormItem help); read the explain elements first, and only then anything marked error — a form item in
+      // error state has innerText "₹" (the price prefix), which is not a message (13 Nov, SRC-AUC-006).
+      await this.pause(800);
+      const words = (xs: string[]) => xs.map((x) => x.trim()).filter((x) => /[a-z]{3,}/i.test(x));
+      let said = words((await d.locator(".ant-form-explain, .ant-form-item-explain, .ant-form-item-explain-error, .ant-typography-danger, [role='alert'], .ant-message-error").allInnerTexts().catch(() => [])) as string[]);
+      if (!said.length) said = words((await d.locator("[class*='error' i]").allInnerTexts().catch(() => [])) as string[]);
       const toast = ((await this.page.locator(".ant-message-notice, .ant-notification-notice").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean);
       const msg = [...new Set([...said, ...toast])].filter((x) => !isNoiseMessage(x)).join(" · ").slice(0, 240);
       // no message element: say what the drawer reads near its range fields, so a person can see
@@ -323,10 +555,25 @@ export class SingleStagePage extends BasePage {
       await picker.hover({ timeout: 5_000 }).catch(() => {});
       await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     }
-    await pick.click({ timeout: 8_000 }).catch(async (e) => {
-      if (!(await pick.isVisible().catch(() => false))) throw new Error(`the template menu closed before "${name || "the template"}" could be chosen, twice (not evidence about the product)`);
-      throw e;
-    });
+    // The hover menu can close between the re-open and the click (12 Nov, a sanity flow lost its whole run on
+    // it). Try the open-and-click up to three times before giving up; each attempt is short.
+    let clicked = false;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3 && !clicked; attempt++) {
+      if (!(await pick.isVisible().catch(() => false))) {
+        await picker.hover({ timeout: 5_000 }).catch(() => {});
+        await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+        await this.pause(400);
+      }
+      try {
+        await pick.click({ timeout: 4_000 });
+        clicked = true;
+      } catch (e) {
+        lastErr = e;
+        if (await pick.isVisible().catch(() => false)) throw e;
+      }
+    }
+    if (!clicked) throw new Error(`the template menu closed before "${name || "the template"}" could be chosen, three times (not evidence about the product)${lastErr ? `: ${String((lastErr as Error).message).split("\n")[0].slice(0, 80)}` : ""}`);
     // Some tenants confirm a template choice in a modal — accept it.
     const confirm = this.page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-btn-primary").filter({ hasText: /ok|yes|confirm|proceed|continue/i }).first();
     if (await confirm.isVisible().catch(() => false)) await confirm.click({ timeout: 5_000 }).catch(() => {});
@@ -350,7 +597,7 @@ export class SingleStagePage extends BasePage {
       throw new Error('"Select Templates" stayed disabled for 30s — the template list never finished loading (not evidence about the product)');
     }
     await this.page.locator(".ant-drawer-open .ant-drawer-mask, .ant-drawer-open").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
-    const typeBtn = this.page.getByRole("button", { name: /^(rfq|rfp|rfi|auction|rank|price|traffic)\b/i }).first();
+    const typeBtn = this.page.getByRole("button", { name: /^(rfq|rfp|rfi|auction|rank|price|traffic|knockout|dutch)\b/i }).first();
     const eventType = ((await typeBtn.innerText().catch(() => "")) || "").trim();
     await this.click([picker, this.page.getByText(/select templates/i)], { label: "open-templates", timeout: TIMEOUTS.MEDIUM });
     await picker.hover({ timeout: 5_000 }).catch(() => {});
@@ -396,9 +643,12 @@ export class SingleStagePage extends BasePage {
     await sheet.fillCell(0, "variant", { key: "variant", type: "dropdown" }, "").catch(() => {});
     // A case's own quantity is typed exactly as given — 0, -5, letters — so the app's validation is what is tested.
     await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, quantity ?? randomNumber());
-    // The delivery location is one of the client's locations, not the product: searching it with the
-    // product's name matched nothing and the cell stayed empty (Laxmi Organics, 6 Nov). Its first entry.
-    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, "").catch(() => {});
+    // The delivery location is the company's own list, not the product's name: an empty search lists every location
+    // and the first is taken (13 Nov, SRC-AUC-008: searching the product's name there found nothing, the dropdown
+    // stayed open and swallowed the price and quantity typed next — Publish then said "Sheet partially filled").
+    await sheet.fillCell(0, "buyer_hub", { key: "buyer_hub", type: "delivery_location" }, "").catch(async () => {
+      await this.page.keyboard.press("Escape").catch(() => {});
+    });
     await sheet.fillCell(0, "price", { key: "price", type: "price" }, randomNumber());
     await sheet.fillCell(0, "participant_quantity", { key: "participant_quantity", type: "number" }, randomNumber()).catch(() => {});
   }

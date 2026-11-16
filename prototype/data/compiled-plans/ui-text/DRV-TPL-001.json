@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "DRV-TPL-001",
+  "title": "A hidden baseline price can be added to a template and viewed by the buyer for internal benchmarking",
+  "group": "DRV-TPL",
+  "sheet": "derived-provide-configurable-rfq-templates-line-",
+  "compiledAt": "2026-11-09T23:11:17.537Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot guarantee that the selected live RFQ uses the specific active template containing formula fields named Subtotal and Gross Total Amount."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The catalog cannot guarantee that the selected live RFQ uses the specific active template containing formula fields named Subtotal and Gross Total Amount."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "fill",
+   "expect_value",
+   "expect_value"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 15328
+ },
+ "plan": {
+  "title": "Vendor Formula Fields in RFQ Bid Sheet",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the supplier portal as the invited QA vendor."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's commercial pricing bid sheet."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Unit Price",
+     "value": "100"
+    },
+    "note": "Enter the requested unit price without submitting the quote, allowing the sheet formulas to recalculate."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Subtotal",
+     "value": "1000"
+    },
+    "note": "Verify the Subtotal formula displays 1000 for unit price 100 and quantity 10."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Gross Total Amount",
+     "value": "1000"
+    },
+    "note": "Verify the Gross Total Amount formula displays the expected calculated value."
+   }
+  ]
+ }
+}

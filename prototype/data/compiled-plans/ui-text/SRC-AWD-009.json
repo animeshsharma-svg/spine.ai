@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-009",
+  "title": "Two bids: award all 10 units to Vendor A (not the lowest); no approval flow",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:19:01.079Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether the proposal asks for a reason when skipping the lowest bidder",
+   "Whether the event moves to History after the award"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Whether the proposal asks for a reason when skipping the lowest bidder; Whether the event moves to History after the award"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "award_event",
+   "expect_awarded",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 10119
+ },
+ "plan": {
+  "title": "Award All Units to Non-Lowest Bidder",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ with two bids in Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding page for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A",
+     "quantity": 10
+    },
+    "note": "Allocate all 10 units to Vendor A, the non-lowest bidder."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 1000
+    },
+    "note": "Verify one line is selected, one of two vendors is awarded, and the proposal total is 10 × 100 = 1,000."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Create and submit the proposal for the allocation to Vendor A."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted without an approval step."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete downstream award processing and create the purchase order."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify the PO contains the awarded line with all 10 units."
+   }
+  ]
+ }
+}

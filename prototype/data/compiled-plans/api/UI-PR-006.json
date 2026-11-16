@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "UI-PR-006",
+  "title": "A PR-created event cannot be cloned",
+  "compiledAt": "2026-11-09T20:03:43.281Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "POST /event_groups/:id/create_clone"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer publishes the event.",
+    "The buyer sends the event groups create clone request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.200Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-PR-006",
+  "title": "A PR-created event cannot be cloned",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-111",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

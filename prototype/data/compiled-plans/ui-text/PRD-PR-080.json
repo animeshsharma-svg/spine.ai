@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "PRD-PR-080",
+  "title": "PR Approval: step 1 \"Budget Check\" blocks if exceeded",
+  "group": "PRD-PR",
+  "compiledAt": "2026-11-10T04:39:06.745Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Create and submit a purchase requisition whose GL-code budget is exceeded, run the approval workflow to step 1 Budget Check, and verify the item is blocked there with no later step active."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Create and submit a purchase requisition whose GL-code budget is exceeded, run the approval workflow to step 1 Budget Check, and verify the item is blocked there with no later step active."
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "ask_tester",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 16073
+ },
+ "plan": {
+  "title": "PR Approval Budget Check Blocks Exceeded Item",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Provides the closest available entry point to the purchase requisition area; it does not create, submit, or trigger the approval workflow."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "create and submit a purchase requisition with an exceeded GL-code budget, let approval reach step 1 Budget Check, and stop when the workflow shows the item blocked with no later step active"
+    },
+    "note": "The catalog has no step for creating the employee submission, configuring an exceeded budget, or advancing and inspecting the approval workflow."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Budget Check",
+     "present": true
+    },
+    "note": "Checks that the workflow screen identifies the expected step after the tester performs the unavailable setup and progression."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "blocked",
+     "present": true
+    },
+    "note": "Checks for the expected blocked outcome shown in the workflow."
+   }
+  ]
+ }
+}

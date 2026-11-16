@@ -1,0 +1,106 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-057",
+  "title": "CAPEX procurement needs the IP number",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:24:22.927Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "select",
+   "expect_value",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 9847
+ },
+ "plan": {
+  "title": "CAPEX Proposal Requires IP/CBA",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ with the two bids in Master QCS."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow required to allocate the line before creating the proposal."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10
+    },
+    "note": "Allocate all 10 requested units to Vendor B as specified."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify the full line is allocated to one vendor and the proposal value is 10 × 90 = 900."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Open the proposal form after completing the allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Procurement Type",
+     "option": "CAPEX"
+    },
+    "note": "Set Procurement Type to CAPEX."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Procurement Type",
+     "value": "CAPEX"
+    },
+    "note": "Confirm the proposal form reflects the CAPEX selection."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Submit Proposal"
+     },
+     "expect": "refused"
+    },
+    "note": "Submit with the IP Number and CBA left empty and verify Procol refuses the proposal or reports the missing requirement."
+   }
+  ]
+ }
+}

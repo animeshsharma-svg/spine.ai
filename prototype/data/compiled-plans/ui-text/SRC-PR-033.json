@@ -1,0 +1,183 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-033",
+  "title": "Create a Single Stage RFQ from an open material PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:07:15.832Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The PR flow's exact Single Stage RFQ selection is not expressible; choose_stages can create an RFQ stage but cannot select the Single Stage mode from the PR workflow.",
+   "The delivery location's transferred value and locked state cannot be asserted by the catalog.",
+   "The PR moving to In Progress with this event number cannot be asserted.",
+   "The published event being explicitly identified as originating from a PR cannot be asserted."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: The PR flow's exact Single Stage RFQ selection is not expressible; choose_stages can create an RFQ stage but cannot select the Single Stage mode from the PR workflow.; The delivery location's transferred value and locked state cannot be asserted by the catalog.; The PR moving to In Progress with this event number cannot be asserted.; The published event being explicitly identified as originating from a PR cannot be asserted."
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "expect_sheet_columns",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_sheet_cells",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "expect_menu_item"
+  ],
+  "ms": 20633
+ },
+ "plan": {
+  "title": "SRC-PR-033 Single Stage RFQ from Material PR",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr"
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and avoid the publish restriction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-033 Single Stage RFQ"
+    },
+    "note": "Provide the required event title so publishing can proceed."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Quantity Requested",
+      "Price"
+     ]
+    },
+    "note": "Verify that the RFQ price sheet rendered its expected columns."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity",
+     "within": "Line Items"
+    },
+    "note": "Verify that the PR quantity is shown on the create screen."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "unit",
+     "within": "Line Items"
+    },
+    "note": "Verify that the PR unit is shown on the create screen."
+   },
+   {
+    "step": "expect_sheet_cells",
+    "args": {
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Verify that PR-derived item, variant, and requested quantity fields are locked."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Add the two vendors explicitly named by the test case."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule starting now with the requested 30-minute duration."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the completed RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": false
+    },
+    "note": "Verify the published PR-created event does not allow Recreate Order."
+   }
+  ]
+ }
+}

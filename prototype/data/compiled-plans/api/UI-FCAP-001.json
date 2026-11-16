@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "UI-FCAP-001",
+  "title": "A price cap added for one vendor caps only that vendor",
+  "compiledAt": "2026-11-01T19:50:22.845Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Testing vendor B's bid above X in the same execution flow requires additional sequential steps or a separate test case"
+  ],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/update_vendor_validations",
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "Add price cap X for vendor A.",
+    "Vendor A tries to bid above X.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (nothing was created)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (nothing was created)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.192Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-FCAP-001",
+  "title": "A price cap added for one vendor caps only that vendor",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "price_cap",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor",
+     "price": 100
+    },
+    "say": "Add price cap X for vendor A."
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 110
+    },
+    "decisive": true,
+    "say": "Vendor A tries to bid above X."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 2,
+      "say": "the round counts no new bid (nothing was created)"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

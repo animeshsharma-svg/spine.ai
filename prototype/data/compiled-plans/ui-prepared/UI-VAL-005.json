@@ -1,0 +1,91 @@
+{
+ "meta": {
+  "caseId": "UI-VAL-005",
+  "title": "SQL-ish input is handled as text",
+  "compiledAt": "2026-11-09T19:58:05.506Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-VAL-009",
+   "UI-TPL-008"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "SQL-ish Search Input Handling",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event so its participant list can be tested."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the events list, the first subject under test."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered normally before searching."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Title",
+     "value": "'; DROP TABLE event_groups; --"
+    },
+    "note": "Enter the SQL-like string as literal search text in the events list."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No Results found",
+     "present": true
+    },
+    "note": "Verify the events search reaches the normal empty-result state."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the events search produced no application error or server failure."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published event's participant list."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Vendors",
+     "value": "'; DROP TABLE event_groups; --"
+    },
+    "note": "Enter the same SQL-like string as literal search text in the participant list."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No vendors to show",
+     "present": true
+    },
+    "note": "Verify the participant search reaches the normal empty-result state."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the participant search produced no application error or server failure."
+   }
+  ]
+ }
+}

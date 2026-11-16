@@ -1,0 +1,162 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-618",
+  "title": "Bulk counter offer on a Global Field",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:25:47.824Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "do_on_screen",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "event_menu",
+   "do_on_screen",
+   "expect_toast",
+   "expect_count"
+  ],
+  "ms": 16879
+ },
+ "plan": {
+  "title": "Bulk Counter Offer on Global Field",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Bulk Counter Offer Global Field Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ so bulk counter offers are available on its pricing stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding items."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "configure a global field on the RFQ create screen and leave the event showing that global field ready for use in the pricing sheet"
+    },
+    "note": "Configure the global field required by the case; no dedicated catalog step exists for creating one."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the RFQ."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite multiple vendors so the bulk action can target all of them."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ before collecting bids."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the RFQ reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a bid from the first invited vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the first vendor's bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a bid from a different invited vendor so the bulk action has multiple recipients."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor's bid was accepted."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Send Bulk Counter Offer",
+     "stage": "rfq"
+    },
+    "note": "Open the bulk counter-offer drawer from the RFQ Settings menu."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "select the configured global field, enter a new counter value, click Send Counter Offer, and stop when the screen shows the global field's original and counter values highlighted for the bulk request"
+    },
+    "note": "Perform and observe the global-field bulk counter offer flow, including the value comparison that has no dedicated assertion step."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Verify Procol reports the bulk counter offer as successfully sent."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Counter Offer Requested",
+     "count": 2
+    },
+    "note": "Verify every invited vendor has the Counter Offer Requested tag."
+   }
+  ]
+ }
+}

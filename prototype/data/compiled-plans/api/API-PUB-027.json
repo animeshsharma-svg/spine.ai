@@ -2,21 +2,19 @@
  "meta": {
   "caseId": "API-PUB-027",
   "title": "An approval-gated stage becomes `requested`, not `active`",
-  "compiledAt": "2026-10-15T12:58:27.371Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:16:10.211Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)",
-   "The setup recipe cannot configure publish approval gating.",
-   "The plan does not check that an approval record exists.",
-   "library case EDGE-PUB-015 needs a starting state no recipe builds (“Config-dependent: a workspace whose approval flow requires approval for create_trade”)"
+   "Approval record existence cannot be checked because no available read operation exposes approval records.",
+   "it depends on a company setting this run does not change (publish approval configured) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
    "PATCH /event_groups/:id",
-   "GET /trade/:id"
+   "GET /event_groups/:id"
   ],
   "llm": {
    "calls": 0,
@@ -27,14 +25,15 @@
   "words": {
    "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
    "steps": [
-    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
-    "As the buyer, read the pricing round and check that “status” equals requested."
+    "The buyer publishes the event.",
+    "As the buyer, read the event and check that Data check: “stages › status” contains requested."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “status” equals requested."
-  }
+   "expected": "The app accepts it. Read back afterwards: Data check: “stages › status” contains requested."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.027Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-027",
   "title": "An approval-gated stage becomes `requested`, not `active`",
   "setup": {
@@ -42,27 +41,27 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "publish_event",
     "as": "buyer",
-    "caseId": "EDGE-PUB-015",
     "decisive": true
    }
   ],
   "verify": [
    {
-    "op": "read_round",
+    "op": "read_event",
     "as": "buyer",
     "assert": [
      {
-      "path": "status",
-      "op": "equals",
+      "path": "stages[*].status",
+      "op": "contains",
       "value": "requested"
      }
     ]
    }
   ],
   "expected": {
-   "outcome": "no-5xx"
-  }
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "publish approval configured"
  }
 }

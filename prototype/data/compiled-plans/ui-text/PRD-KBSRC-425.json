@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-425",
+  "title": "Evaluator accepts a re-evaluation request and resubmits",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:23:42.639Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Accept the re-evaluation request and click Accept and Re-evaluate",
+   "Modify technical scores and recommendations, submit under the TR status widget, select any approval flow, add closing remarks, and submit the updated evaluation",
+   "Verify that the updated evaluation is finalised with updated ranks"
+  ],
+  "warnings": [
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "can only test part of this — no step for: Accept the re-evaluation request and click Accept and Re-evaluate; Modify technical scores and recommendations, submit under the TR status widget, select any approval flow, add closing remarks, and submit the updated evaluation; Verify that the updated evaluation is finalised with updated ranks"
+  ],
+  "source": "llm",
+  "steps": 4,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "ask_tester",
+   "expect_text"
+  ],
+  "ms": 70254
+ },
+ "plan": {
+  "title": "Evaluator accepts and resubmits re-evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API builds the proposal event this case starts from"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate to the Technical Stage where re-evaluation requests are shown."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the assigned technical evaluator, accept the Re-evaluation Requested line items, update their scores and recommendations, submit the TR evaluation with closing remarks and any required approval flow, and finish when the updated evaluation is finalised"
+    },
+    "note": "The catalog has no step for accepting or resubmitting a technical re-evaluation, especially under the evaluator's required session."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "You have successfully Re-evaluated the Line Items!",
+     "present": true
+    },
+    "note": "Assert the oracle confirmation is visible after the evaluator completes the missing workflow."
+   }
+  ]
+ }
+}

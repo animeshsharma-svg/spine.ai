@@ -1,0 +1,154 @@
+{
+ "meta": {
+  "caseId": "UI-VBID-007",
+  "title": "Every price cell on a multi-line sheet is filled",
+  "compiledAt": "2026-11-09T20:01:58.620Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Directly count the filled vendor bid-sheet price cells and assert that the count equals the three-row line-item count."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Directly count the filled vendor bid-sheet price cells and assert that the count equals the three-row line-item count."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SS-007",
+   "UI-TPL-014"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Multi-line bid price submission",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-VBID-007 Multi-line Price Check"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ pricing stage rather than the default auction stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 3
+    },
+    "note": "Create the three-line event required by the case."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 3
+    },
+    "note": "Verify that exactly three line items are present."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the required pricing-sheet fields for all three lines."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule so the event can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will submit the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event’s RFQ bid sheet in the supplier portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Enter a price in every price cell and submit the quote."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the vendor submission was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer’s event page."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid for the submitted bid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify that the submitted vendor appears as a real vendor column."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Check every line item’s displayed rate and amount, plus the total, confirming the buyer comparison contains prices for all three lines."
+   }
+  ]
+ }
+}

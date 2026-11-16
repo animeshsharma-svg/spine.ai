@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-EVRCAL-029",
+  "title": "A vendor never receives savings data in its own quote or sheet",
+  "compiledAt": "2026-11-09T22:48:01.138Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not explicitly configure a budget reference for savings",
+   "Savings visibility in the vendor's event page and other vendor-facing sheet fields is not checked",
+   "it depends on a company setting this run does not change (savings configuration enabled) — a failure is reported as couldn't tell, not as a bug",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"savings\" is unverified",
+   "verify 2: the request's reply shape has not been sampled; \"savings\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id",
+   "GET /v1/trade/:id/quote_details/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Schema check: “savings” is absent.",
+    "As the buyer, read the trade quote details request and check that Schema check: “savings” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “savings” is absent; Schema check: “savings” is absent."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.887Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRCAL-029",
+  "title": "A vendor never receives savings data in its own quote or sheet",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "savings",
+      "op": "absent"
+     }
+    ]
+   },
+   {
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}?additional_request_bid_required=false"
+    },
+    "assert": [
+     {
+      "path": "savings",
+      "op": "absent"
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "savings configuration enabled"
+ }
+}

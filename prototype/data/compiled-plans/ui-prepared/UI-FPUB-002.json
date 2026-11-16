@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "UI-FPUB-002",
+  "title": "Missing participants is reported before a missing template",
+  "compiledAt": "2026-11-09T20:03:26.302Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "needs a different starting state than live (asked for invite_vendor)"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "added open_prepared(participants) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "technical": false,
+  "exemplars": [
+   "UI-SUR-001"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Missing participants precede missing template",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item without selecting a template, as permitted for the missing-template scenario."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please add participants to proceed!"
+    },
+    "note": "Assert that the missing-participants refusal is reported before the missing-template refusal."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Savings configuration is mandatory"
+    },
+    "note": "Assert the next publish refusal after participants exist and the template is still missing."
+   }
+  ]
+ }
+}

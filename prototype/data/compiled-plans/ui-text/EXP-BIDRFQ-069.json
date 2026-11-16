@@ -1,0 +1,134 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-069",
+  "title": "Edit Evaluation Time: Edit Evaluation Time with hide_counter_offer_rfq = On (should not affect this window)",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:54.791Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "event_menu",
+   "extend_time",
+   "expect_toast",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 16013
+ },
+ "plan": {
+  "title": "Edit Evaluation Time with RFQ Counter Offer Hidden",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with an existing vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "On"
+    },
+    "note": "Enable hiding counter offers on RFQs, the configuration under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required buyer bidding-time configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow the buyer to edit bidding fields as required by the case setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required counter-offer percentage configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage of the prepared event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the buyer's Responses view where the stage Settings menu is available."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ Edit Evaluation Time window from Settings."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "evaluation",
+     "option": "preset",
+     "preset": "15 minutes",
+     "expect": "saved"
+    },
+    "note": "Confirm the evaluation-time change through Ok and verify the new end time is saved."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Order time updated"
+    },
+    "note": "Verify the expected success toast."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": false
+    },
+    "note": "Verify the Edit Evaluation Time window closes after saving."
+   }
+  ]
+ }
+}

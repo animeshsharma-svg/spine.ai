@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "UI-SUR-006",
+  "title": "Every price cell in the drawer is filled, not just the first",
+  "compiledAt": "2026-11-09T20:09:50.458Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup creates only one line item, so a multi-line event cannot be tested.",
+   "The vocabulary does not expose price-cell or offered-quantity-cell fields for asserting that every grid cell was filled.",
+   "The bid read-back shape is not sampled, so the verification cannot confirm completeness across all lines.",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.207Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-SUR-006",
+  "title": "Every price cell in the drawer is filled, not just the first",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

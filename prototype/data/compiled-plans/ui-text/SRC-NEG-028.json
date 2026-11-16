@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-028",
+  "title": "Counter offer while bidding is live on one of the two lines; the vendor rejects",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:04:27.373Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot perform or assert a vendor rejecting a pending counter offer.",
+   "The catalog cannot target only line 1 when placing a counter offer; place_counter_offer accepts a price but has no line-selection argument.",
+   "The prepared-state catalog does not expose the requested two distinct line prices of 100 and 50 for separate line assertions; its Master QCS assertions are limited to the prepared event data."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The catalog cannot perform or assert a vendor rejecting a pending counter offer.; The catalog cannot target only line 1 when placing a counter offer; place_counter_offer accepts a price but has no line-selection argument.; The prepared-state catalog does not expose the requested two distinct line prices of 100 and 50 for separate line assertions; its Master QCS assertions are limited to the prepared event data."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "ask_tester",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 21209
+ },
+ "plan": {
+  "title": "Live RFQ Counter Offer Rejection",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the existing live RFQ on the buyer's Responses tab as required for the prepared state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are available for the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Open Vendor A's own bid and send the available counter offer at 90; line-specific selection cannot be expressed."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer's Responses grid records the pending counter offer."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in to Vendor A's supplier portal, open the pending counter offer, reject it, and return to the buyer session"
+    },
+    "note": "The catalog has no vendor-side reject-counter-offer action or assertion."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS after the tester completes the rejection."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the vendor column remains present with a real vendor name."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Verify the prepared vendor's current RFQ rate remains populated after the rejection."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Verify the displayed line amount and total arithmetic follows the current bid price."
+   }
+  ]
+ }
+}

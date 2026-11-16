@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-009",
+  "title": "Selecting a bid shows the approval step only when approval selection is enabled",
+  "compiledAt": "2026-11-09T20:04:52.730Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Toggle Company setting approval_selection_enabled between ON and OFF for separate runs",
+   "Verify the full close_bid request body and its approval_workflows payload"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Toggle Company setting approval_selection_enabled between ON and OFF for separate runs; Verify the full close_bid request body and its approval_workflows payload"
+  ],
+  "state": "proposal",
+  "screen": "master_qcs",
+  "technical": false,
+  "exemplars": [],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Approval step depends on selection setting",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared live RFQ with an existing bid, as required for bid-selection checks."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the bid responses where the Select control is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Select"
+    },
+    "note": "Open the bid-selection drawer for the selected bid."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "step through the bid-selection drawer without submitting the award, stopping on the approval-step content or its validation state"
+    },
+    "note": "The catalog has no dedicated step for navigating this drawer or triggering its approver validation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please select approvers in all approval steps"
+    },
+    "note": "Assert the approval-selection validation message when approvers are not selected."
+   }
+  ]
+ }
+}

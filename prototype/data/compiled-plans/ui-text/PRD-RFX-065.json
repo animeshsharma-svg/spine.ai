@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "PRD-RFX-065",
+  "title": "Recurring Events: refused for a user without the Buyer role",
+  "group": "PRD-RFX",
+  "compiledAt": "2026-11-10T01:35:55.740Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the non-Buyer user and attempt to schedule a recurring event.",
+   "Sign in as a Buyer in the same tenant and repeat the recurring-event scheduling attempt.",
+   "Verify whether the tenant's RBAC configuration intentionally grants recurring-event access to roles other than Buyer."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as the non-Buyer user and attempt to schedule a recurring event.; Sign in as a Buyer in the same tenant and repeat the recurring-event scheduling attempt.; Verify whether the tenant's RBAC configuration intentionally grants recurring-event access to roles other than Buyer."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "expect_text",
+   "ask_tester",
+   "open_events_list",
+   "expect_events_list"
+  ],
+  "ms": 13054
+ },
+ "plan": {
+  "title": "Recurring Events RBAC Access",
+  "steps": [
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Reach the events list where the Recurring Events area is available."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully before inspecting recurring events."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Recurring"
+    },
+    "note": "Open the Recurring Events view relevant to the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Recurring",
+     "present": true
+    },
+    "note": "Confirm the recurring-events area is visibly present; this does not assert role-based permission."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide the non-Buyer and Buyer user sessions in the same Enterprise tenant, attempt to schedule a recurring event with each, and report whether the non-Buyer is refused or the action is absent while the Buyer can proceed"
+    },
+    "note": "Alternate-role authentication and the recurring scheduling permission comparison are not expressible by the catalog."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to a known screen after the tester's role comparison."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Assert that the events list is available after the comparison."
+   }
+  ]
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-005",
+  "title": "Sending only a new end time does not extend the round",
+  "compiledAt": "2026-11-09T19:33:47.716Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot verify that the ending_at value was unchanged because no pre-request ending_at value is available for comparison.",
+   "The alternative behavior in which HTTP 200 applies the new end time is not covered."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates the round, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Schema check: “ending at” is present."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error. Read back afterwards: Schema check: “ending at” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.846Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-005",
+  "title": "Sending only a new end time does not extend the round",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}",
+     "body": {
+      "bid_end_time": "{{now+7200}}"
+     }
+    },
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "ending_at",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

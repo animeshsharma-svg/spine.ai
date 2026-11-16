@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "PRD-RFQ-020",
+  "title": "Vendor Bid Submission: refused for a user without the Vendor role",
+  "group": "PRD-RFQ",
+  "compiledAt": "2026-11-10T01:30:22.309Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Signing in as and attempting bid submission with a user who has no Vendor role without tester-provided access",
+   "Submitting a quote by Excel upload",
+   "Submitting or revising a quote through quick-fill"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Signing in as and attempting bid submission with a user who has no Vendor role without tester-provided access; Submitting a quote by Excel upload; Submitting or revising a quote through quick-fill"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "ask_tester",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "ms": 10869
+ },
+ "plan": {
+  "title": "Vendor role bid submission access",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create a controlled RFQ event for the role comparison."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Vendor Role Bid Access Test"
+    },
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ, which supports vendor quote submission."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product for the quote sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor needed for the Vendor-role comparison."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so bid submission is available."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is a real published project before testing access."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the same-tenant user with no Vendor role, attempt manual bid submission for this event, and report whether Procol refuses or does not offer the action"
+    },
+    "note": "The catalog cannot sign in as an arbitrary non-Vendor user or perform that role-specific permission comparison."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the invited Vendor's supplier session for the control case."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published RFQ in the Vendor portal at its pricing round."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a manual quote as the Vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the Vendor-role user can successfully submit the bid."
+   }
+  ]
+ }
+}

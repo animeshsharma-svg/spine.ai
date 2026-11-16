@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-037",
+  "title": "Award an unverified vendor",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:22:36.415Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select the specific existing closed RFQ by its title because the test case does not provide the title.",
+   "Independently verify that Vendor C is marked as unverified before attempting the allocation."
+  ],
+  "warnings": [
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Select the specific existing closed RFQ by its title because the test case does not provide the title.; Independently verify that Vendor C is marked as unverified before attempting the allocation."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "open_master_qcs",
+   "start_awarding",
+   "attempt"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 104384
+ },
+ "plan": {
+  "title": "Block Award to Unverified Vendor",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_bid_selection_for_unverified_vendor",
+     "value": "Off"
+    },
+    "note": "Disable selection of unverified vendors as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid where awarding begins."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow so Vendor C can be selected for allocation."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "allocate_award",
+     "args": {
+      "vendor": "Vendor C"
+     },
+     "expect": "refused",
+     "because": "You cannot select bid for an unverified vendor."
+    },
+    "note": "Attempt to allocate the award to Vendor C and assert Procol refuses with the required message."
+   }
+  ]
+ }
+}

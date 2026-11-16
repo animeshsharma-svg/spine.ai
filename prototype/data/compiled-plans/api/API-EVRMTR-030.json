@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-030",
+  "title": "The number of items on a round is counted the way the buyer sees them",
+  "compiledAt": "2026-11-09T19:59:19.646Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available setup recipes create only one line item, so the three-line state cannot be established.",
+   "No available operation or read-back field exposes a technical or pricing round item count.",
+   "No available setup recipe or operation creates an alternate-bidding round with two products and two variants, nor exposes multi-product or variant counts."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer reads the technical round.",
+    "The buyer reads the pricing round.",
+    "As the buyer, read the technical round and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the buyer, read the pricing round and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.926Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-030",
+  "title": "The number of items on a round is counted the way the buyer sees them",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer"
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

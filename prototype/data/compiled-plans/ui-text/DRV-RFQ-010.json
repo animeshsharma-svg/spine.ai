@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-010",
+  "title": "Lot total quantity equals sum of its line items after split",
+  "group": "DRV-RFQ",
+  "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
+  "compiledAt": "2026-11-12T13:38:20.425Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'.",
+   "unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_api_value",
+   "expect_text"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 10031
+ },
+ "plan": {
+  "title": "Vendor sealed RFQ price visibility",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared RFQ state with two vendors that have already submitted bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable sealed commercial bidding for the tenant as required by the case."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Continue in Vendor A's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the assigned live RFQ's commercial bid view."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify Vendor A can see its own submitted bid price."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "---"
+    },
+    "note": "Verify the other vendor's commercial price is displayed as masked."
+   }
+  ]
+ }
+}

@@ -1,0 +1,205 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-013",
+  "title": "Asset PR → single stage reverse auction → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:14:20.594Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify the selected PR is specifically an asset PR with Account Assignment A and quantity 10.",
+   "Verify the exact reverse-auction template and tick size 1 are selected.",
+   "Add and verify one Required T&C clause.",
+   "Set or verify a separate 30-minute evaluation duration in the schedule.",
+   "Verify Vendor A and Vendor B by their exact identities because the case does not provide their exact vendor names; the plan uses two distinct QA vendors and awards the lower bid.",
+   "Verify the event's Live → evaluation → History transitions.",
+   "Verify the PR transitions Open → In Progress → ordered.",
+   "Open Purchase Orders, Events History, and the originating PR as requested after PO creation.",
+   "Verify that Account Assignment A is present on the created PO."
+  ],
+  "warnings": [
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Verify the selected PR is specifically an asset PR with Account Assignment A and quantity 10.; Verify the exact reverse-auction template and tick size 1 are selected.; Add and verify one Required T&C clause.; Set or verify a separate 30-minute evaluation duration in the schedule.; Verify Vendor A and Vendor B by their exact identities because the case does not provide their exact vendor names; the plan uses two distinct QA vendors and awards the lower bid.; Verify the event's Live → evaluation → History transitions.; Verify the PR transitions Open → In Progress → ordered.; Open Purchase Orders, Events History, and the originating PR as requested after PO creation.; Verify that Account Assignment A is present on the created PO."
+  ],
+  "source": "llm",
+  "steps": 25,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items"
+  ],
+  "ms": 15782
+ },
+ "plan": {
+  "title": "Asset PR to Reverse Auction PO",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the supported 30-minute event duration before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite exactly two QA vendors for the two required vendor bids."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the single-stage auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm publication reached a real event page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first QA vendor's quote of 100 through the vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the second QA vendor's quote of 90 through a distinct vendor portal session."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the bidding window to end before evaluating and awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid after bidding has ended."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the lower bid ranks ahead of the higher bid, establishing the L1 result."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the complete event to the lowest-ranked vendor."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for purchase order creation."
+    },
+    "note": "Approve the submitted award with the required remark."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete PO creation from the approved award."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Confirm one PO contains the awarded PR line and its requested quantity."
+   }
+  ]
+ }
+}

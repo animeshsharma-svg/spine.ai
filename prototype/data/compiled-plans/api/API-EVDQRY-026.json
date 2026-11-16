@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-026",
+  "title": "An attachment without its file link crashes the request",
+  "compiledAt": "2026-11-09T22:28:04.268Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The request operation cannot assert the POST response status or error code; the expected HTTP 422 with code 2 is not directly checked.",
+   "it does not read the record back to confirm what was kept or shown",
+   "the part about “pdf” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/chats"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the chats request, the request the case itself writes."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.781Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-026",
+  "title": "An attachment without its file link crashes the request",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/v1/chats?module=PurchaseRequest&module_uuid=Z2dnWmdaUWtnZw==",
+     "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}",
+      "attachments": [
+       {
+        "type": "chats",
+        "value": [
+         {
+          "name": "QA_Platform_file_{{stamp}}.pdf"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

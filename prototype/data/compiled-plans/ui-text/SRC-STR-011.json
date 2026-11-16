@@ -1,0 +1,152 @@
+{
+ "meta": {
+  "caseId": "SRC-STR-011",
+  "title": "Dutch (price falls step by step) auction: what each side sees during bidding",
+  "group": "SRC-STR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:17:54.677Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Configure a Dutch auction strategy with a step-by-step falling price.",
+   "Run the Dutch price drop to 90 and observe the live price.",
+   "Provide separate supplier-portal sessions for Vendors A, B, and C.",
+   "Have Vendor A accept first and verify the lot is awarded at the accepted price.",
+   "Attempt later vendor accepts and verify they are refused.",
+   "Inspect Vendor A's and Vendor B's screens during the Dutch bidding and compare them with the buyer's Responses view."
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "cannot test this case yet — no step can observe: Configure a Dutch auction strategy with a step-by-step falling price.; Run the Dutch price drop to 90 and observe the live price.; Provide separate supplier-portal sessions for Vendors A, B, and C.; Have Vendor A accept first and verify the lot is awarded at the accepted price.; Attempt later vendor accepts and verify they are refused.; Inspect Vendor A's and Vendor B's screens during the Dutch bidding and compare them with the buyer's Responses view."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "convert_to_auction",
+   "expect_no_error"
+  ],
+  "ms": 15111
+ },
+ "plan": {
+  "title": "Dutch Auction Price Drop and Acceptance",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Use the supported eRFX path needed to reach RFQ-to-Auction conversion."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is possible."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title for a valid create flow."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ stage because auction conversion is the supported path to converted auction modes."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before adding its template and items."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product and quantity to approximate the Dutch-auction lot."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the RFQ can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invite three QA vendors to approximate Vendors A, B, and C without inventing vendor names."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the prepared RFQ before conversion."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that the RFQ reached a real published project page."
+   },
+   {
+    "step": "place_bid"
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Reach the supported converted-auction create screen, although Dutch strategy selection remains unavailable."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the conversion completed without an application error."
+   }
+  ]
+ }
+}

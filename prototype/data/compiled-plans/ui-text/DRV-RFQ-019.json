@@ -1,0 +1,152 @@
+{
+ "meta": {
+  "caseId": "DRV-RFQ-019",
+  "title": "Vendors cannot see other competing vendors invited to the Request for Best Offer",
+  "group": "DRV-RFQ",
+  "sheet": "derived-buyer-can-create-a-request-for-best-offe",
+  "compiledAt": "2026-11-09T23:11:03.100Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that Vendor A's participant or details widget contains no visibility of Vendor B's invitation; the case does not name Vendor B and no catalog assertion can generically verify competitor-invitation absence."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that Vendor A's participant or details widget contains no visibility of Vendor B's invitation; the case does not name Vendor B and no catalog assertion can generically verify competitor-invitation absence."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "vendor_open_event",
+   "expect_visible",
+   "expect_text"
+  ],
+  "ms": 15393
+ },
+ "plan": {
+  "title": "RFQ vendor competitor visibility",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start the RFQ creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required RFQ line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite Vendor A and Vendor B as required by the scenario."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the live RFQ."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the RFQ reached a real published event page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the supplier portal as the invited QA vendor representing Vendor A."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview/details view where participant visibility would be exposed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Details",
+     "visible": true
+    },
+    "note": "Confirm Vendor A is on the event details view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open Vendor A's RFQ bidding panel."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Verify Vendor A sees its own quote submission control."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms and Conditions",
+     "present": true
+    },
+    "note": "Verify the vendor's own bidding prompt and required terms are visible."
+   }
+  ]
+ }
+}

@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-062",
+  "title": "Approval chain: two approvers, both approve",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:24:41.572Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "award_event",
+   "ask_tester",
+   "expect_awarded",
+   "create_po",
+   "expect_po_items"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 13028
+ },
+ "plan": {
+  "title": "Two-Approver Award Approval Chain",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ with the two bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_po_enabled",
+     "value": "On"
+    },
+    "note": "Enable PO creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required by the case."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Allocate all requested units to Vendor B and submit the award proposal."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "have Approver 1 and then Approver 2 approve the submitted proposal with remarks, verifying it waits after the first approval"
+    },
+    "note": "The catalog has no distinct approver-session or approval-chain step."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the proposal is approved after the tester completes the approval chain."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Create the purchase order after the award approval is complete."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify the PO contains the awarded line with the full quantity."
+   }
+  ]
+ }
+}

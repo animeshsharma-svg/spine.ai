@@ -1,0 +1,93 @@
+{
+ "meta": {
+  "caseId": "SRC-WDR-024",
+  "title": "A withdrawn event can be cloned; a draft cannot",
+  "group": "SRC-WDR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:23:55.025Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Identify the specific withdrawn event and draft project because their titles are not provided.",
+   "Verify that the cloned draft contains the same products as the withdrawn event.",
+   "Reliably open the specific draft project after cloning without its title.",
+   "Verify the exact refusal message for attempting to clone the draft because the draft clone action is not exposed by a dedicated catalog step."
+  ],
+  "warnings": [
+   "added open_prepared(draft) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Identify the specific withdrawn event and draft project because their titles are not provided.; Verify that the cloned draft contains the same products as the withdrawn event.; Reliably open the specific draft project after cloning without its title.; Verify the exact refusal message for attempting to clone the draft because the draft clone action is not exposed by a dedicated catalog step."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "event_menu",
+   "expect_navigated",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
+   "expect_visible"
+  ],
+  "state": "draft",
+  "screen": "draft",
+  "ms": 15110
+ },
+ "plan": {
+  "title": "Clone withdrawn event and reject draft clone",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "draft"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Clone Project"
+    },
+    "note": "Use the available project menu action corresponding to cloning the withdrawn event."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Assert that the clone action reaches a create screen for the new draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list is rendered before selecting the draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show draft events, the state containing the setup draft project."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first available draft as the closest possible substitute for the unnamed setup draft."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Save as draft",
+     "visible": true
+    },
+    "note": "Confirm the selected event is on the draft create screen; the catalog does not expose the draft clone action or its refusal."
+   }
+  ]
+ }
+}

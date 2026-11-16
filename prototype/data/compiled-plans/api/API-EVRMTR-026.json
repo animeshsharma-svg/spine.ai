@@ -1,0 +1,74 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-026",
+  "title": "A vendor cannot read a round's activity log",
+  "compiledAt": "2026-11-09T19:39:43.611Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "read_history reads the event's history, not a round-specific activity log",
+   "The plan does not independently assert that the vendor refusal is not a server error"
+  ],
+  "warnings": [
+   "a plan with only read-backs is judged by its assertions; the expected outcome is treated as accept",
+   "verify 2: read_history's reply shape has not been sampled; \"code\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id/history"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the event's history and check that Status check: the reply's status code is a success (2xx — the request worked).",
+    "As the invited QA vendor, read the event's history and check that Data check: “code” equals 536."
+   ],
+   "expected": "The app refuses it with “You are not allowed to view this event.”, and never with a server error. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Data check: “code” equals 536."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.924Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-026",
+  "title": "A vendor cannot read a round's activity log",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_history",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   },
+   {
+    "op": "read_history",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "code",
+      "op": "equals",
+      "value": 536
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "536",
+   "message": "You are not allowed to view this event.",
+   "codeInferred": true
+  }
+ }
+}

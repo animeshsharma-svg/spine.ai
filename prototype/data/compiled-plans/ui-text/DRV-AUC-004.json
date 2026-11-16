@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "DRV-AUC-004",
+  "title": "Lot rank visibility in line-item based events respects company setting when On",
+  "group": "DRV-AUC",
+  "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
+  "compiledAt": "2026-11-12T13:25:47.556Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Send POST /api/trade/move_to_auction with use_rfq_quotes_as_bids:false",
+   "Assert the HTTP 422 response body contains \"use_rfq_quotes_as_bids must be true for conversion\""
+  ],
+  "warnings": [
+   "cannot test this case yet — no step can observe: Send POST /api/trade/move_to_auction with use_rfq_quotes_as_bids:false; Assert the HTTP 422 response body contains \"use_rfq_quotes_as_bids must be true for conversion\""
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_prepared",
+   "convert_to_auction",
+   "expect_request"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 16251
+ },
+ "plan": {
+  "title": "Reject RFQ conversion without quote-bid flag",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with an existing vendor bid."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Attempt the closest supported RFQ-to-auction conversion action."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "/trade/move_to_auction",
+     "method": "POST",
+     "bodyContains": "use_rfq_quotes_as_bids"
+    },
+    "note": "Observe whether the UI conversion sends the relevant backend request, without claiming the required false payload or response-body refusal."
+   }
+  ]
+ }
+}

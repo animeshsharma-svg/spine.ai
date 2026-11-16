@@ -1,0 +1,104 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-002",
+  "title": "Add a surrogate bid on a live reverse auction",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:18:25.510Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Enter or verify the Surrogate Bid Reference value \"Phone quote 27 Oct\" because place_surrogate_bid has no reference-text argument or assertion.",
+   "Verify finding the prepared auction by typing its title in Search Title from the Events list, because prepared-state cases must begin on the event's Participants screen."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Enter or verify the Surrogate Bid Reference value \"Phone quote 27 Oct\" because place_surrogate_bid has no reference-text argument or assertion.; Verify finding the prepared auction by typing its title in Search Title from the Events list, because prepared-state cases must begin on the event's Participants screen."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 16097
+ },
+ "plan": {
+  "title": "SRC-SUR-002 — Add surrogate bid on live reverse auction",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared live reverse auction directly on its Participants tab, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case configuration."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 95
+    },
+    "note": "Have the buyer enter and save a 95 bid on behalf of Vendor A."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the surrogate bid was accepted and submitted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "surrogate": 1,
+     "stage": "rfq"
+    },
+    "note": "Assert that the buyer's Responses view contains one response marked as a Surrogate Bid."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the comparison grid to verify the accepted surrogate bid participates in ranking."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "95"
+    },
+    "note": "Assert that Vendor A's QCS rate reflects the submitted surrogate bid."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Assert that the surrogate bid is ranked using the reverse-auction amount ordering."
+   }
+  ]
+ }
+}

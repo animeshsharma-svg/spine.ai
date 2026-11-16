@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-026",
+  "title": "Forward auction: Quantity Requested = letters \"abc\"",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:30:49.766Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_error"
+  ],
+  "ms": 10455
+ },
+ "plan": {
+  "title": "Forward Auction Rejects Non-Numeric Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Changes the event type from the default RFP to Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-CRE-026 Forward Auction Quantity Letters"
+    },
+    "note": "Provides the mandatory event title required for a create test."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies the first available auction template so the pricing sheet is rendered."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "abc"
+    },
+    "note": "Adds the specified product and enters the invalid letters value into its quantity during line-item creation."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "quantity"
+    },
+    "note": "Confirms the inline validation rejects the non-numeric Quantity Requested value."
+   }
+  ]
+ }
+}

@@ -1,0 +1,111 @@
+{
+ "meta": {
+  "caseId": "SRC-BID-016",
+  "title": "RFQ bid: Upload an attachment with the bid",
+  "group": "SRC-BID",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:26:17.263Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated assertion that the buyer can open the uploaded quote.pdf from Vendor A's bid."
+  ],
+  "warnings": [
+   "resolved: “The vendor portal's exact bid-attachment control label is not defined in the catalog; using the guessed label \"Attachmen” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: The catalog has no dedicated assertion that the buyer can open the uploaded quote.pdf from Vendor A's bid."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "upload",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "go_to",
+   "expect_responses",
+   "expect_text"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 14300
+ },
+ "plan": {
+  "title": "RFQ bid attachment upload",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ without recreating or republishing it."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared live RFQ's pricing round from the vendor event list."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Attachment",
+     "file": "quote.pdf"
+    },
+    "note": "Attempt to attach quote.pdf to the vendor bid; the attachment label is not catalog-confirmed."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Enter the requested quote and submit the vendor bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal accepted the submitted quote."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's console to inspect the submitted response."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view for the RFQ bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Assert that the buyer sees Vendor A's direct response."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "quote.pdf",
+     "present": true
+    },
+    "note": "Check whether the uploaded filename is visible in the buyer's response view, as the closest available evidence of file availability."
+   }
+  ]
+ }
+}

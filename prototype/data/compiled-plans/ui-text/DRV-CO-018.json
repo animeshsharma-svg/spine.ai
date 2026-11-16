@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "DRV-CO-018",
+  "title": "RCA 208623700706 – Vendor cannot modify accepted counter offer price",
+  "group": "DRV-CO",
+  "sheet": "derived-accepted-counter-offers-create-an-audita",
+  "compiledAt": "2026-11-09T23:04:31.004Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that no additional auditable bid revision was created."
+  ],
+  "warnings": [
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that no additional auditable bid revision was created."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "expect_toast"
+  ],
+  "state": "dutch",
+  "screen": "responses",
+  "ms": 11151
+ },
+ "plan": {
+  "title": "DRV-CO-018 — Accepted Counter Offer Price Is Read-Only",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to Vendor A's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's pricing round where the accepted counter offer is shown."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "submit": false
+     },
+     "expect": "refused",
+     "because": "Cannot modify after acceptance"
+    },
+    "note": "Attempt to edit the price without submitting; this should be refused because the accepted counter offer is immutable."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Cannot modify after acceptance"
+    },
+    "note": "Assert the expected refusal toast is displayed."
+   }
+  ]
+ }
+}

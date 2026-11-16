@@ -1,0 +1,179 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDRFQ-039",
+  "title": "Recreate Order: Create Order with all required fields filled with valid values",
+  "group": "EXP-CLOSEDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:41:57.361Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Open Vendor A's bid-row ⋮ menu and select Settings → Recreate Order as a separate entry path.",
+   "unconfirmed label \"60\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"45\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"15 January 2027\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"60\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"45\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"15 January 2027\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Open Vendor A's bid-row ⋮ menu and select Settings → Recreate Order as a separate entry path."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "event_menu",
+   "expect_visible",
+   "select",
+   "fill",
+   "pick_date",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_toast"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 19160
+ },
+ "plan": {
+  "title": "Recreate Closed RFQ Order",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ summary containing the bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Recreate Order",
+     "stage": "rfq"
+    },
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order window opened."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "60"
+    },
+    "note": "Set the recreated order's event end-time duration to 60 minutes."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": "45"
+    },
+    "note": "Enter the required 45-minute evaluation duration."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "label": "Delivery Date",
+     "date": "2027-01-15"
+    },
+    "note": "Choose the requested future delivery date."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Create the order with the completed valid fields."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Verify that the Recreate Order window closed after creation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "60"
+    },
+    "note": "Verify the new order entry shows the 60-minute event end time."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "45"
+    },
+    "note": "Verify the new order entry shows the 45-minute evaluation duration."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "15 January 2027"
+    },
+    "note": "Verify the new order entry shows the selected delivery date."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Order created successfully"
+    },
+    "note": "Verify the creation success confirmation when the toast is shown."
+   }
+  ]
+ }
+}

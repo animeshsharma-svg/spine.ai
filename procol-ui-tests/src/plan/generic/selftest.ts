@@ -89,13 +89,48 @@ const FORMS = `<html><body>
 <p id="r" role="status"></p>
 </body></html>`;
 
+/** A server-rendered page whose scripts take over late (Next.js-style): the button is drawn at once, live only after 1.2s. */
+const SSR = `<html><body><script>window.__next_f=[];</script>
+<p id="p" role="status">Page 1 of 5</p><button id="n" type="button">Next page</button>
+<label for="f">From</label><input id="f"/>
+<script>setTimeout(function(){var b=document.getElementById('n');b['__reactFiber$selftest']={};document.body['__reactFiber$selftest']={};document.getElementById('f')['__reactFiber$selftest']={};
+b.addEventListener('click',function(){var s=document.getElementById('p');s.textContent='Page '+(parseInt(s.textContent.slice(5))+1)+' of 5'});},1200)</script>
+</body></html>`;
+
+/** Shapes from the QA agent bench, 31 Oct: a table scope, a short label, a tab beside a select, a dropdown of dates, two controls with one name, a calendar with sold-out days. */
+const BENCH = `<html><body>
+<label for="q">Search contacts</label><input id="q" oninput="setTimeout(()=>{document.querySelectorAll('tbody tr').forEach(r=>{r.hidden=!r.textContent.includes(this.value)})},400)"/>
+<table aria-label="Contacts"><tbody>
+<tr><td>Lucas Moreau</td><td><button onclick="document.getElementById('r').textContent='Opened Lucas'">Open</button></td></tr>
+<tr><td>Felix Tanaka</td><td><button onclick="document.getElementById('r').textContent='Opened Felix Tanaka (Vienna)'">Open</button></td></tr>
+</tbody></table>
+<div><label for="mn">Min</label><input id="mn"/> <label for="mx">Max</label><input id="mx"/></div>
+<div role="tablist"><button role="tab" aria-selected="true" onclick="document.getElementById('r').textContent='Top 50 tab'">Top 50</button><button role="tab">New &amp; hot</button></div>
+<label for="g">Genre</label><select id="g"><option>All music</option><option>Rock</option></select>
+<label for="dt">Date</label><select id="dt"><option>11 November 2026</option><option>12 November 2026</option></select>
+<main><button type="button" onclick="document.getElementById('r').textContent='Booked'">Book firing</button></main>
+<aside><a href="#book">Book firing</a></aside>
+<div role="group" aria-label="November 2026">
+<button type="button" aria-label="14 November 2026, sold out" disabled>14</button>
+<button type="button" aria-label="15 November 2026" onclick="document.getElementById('r').textContent='Picked 15'">15</button>
+<button type="button" aria-label="16 November 2026, sold out" disabled>16</button>
+<button type="button" aria-label="19 November 2026" onclick="document.getElementById('r').textContent='Picked 19 November 2026'">19</button>
+<button type="button" aria-label="22 November 2026" onclick="document.getElementById('r').textContent='Picked 22'">22</button>
+</div>
+<p id="r" role="status"></p>
+</body></html>`;
+
 interface Case {
   name: string;
   html: string;
   step: PlanStep;
   expect: "pass" | "fail";
-  /** The failure text must contain this (for fail cases). */
+  /** The outcome text must contain this (a fail's reason; a pass's detail when given). */
   because?: string;
+  /** Run as on a site that is not Procol. */
+  site?: boolean;
+  /** A step to run first (its outcome is not judged). */
+  before?: PlanStep;
 }
 
 const CASES: Case[] = [
@@ -139,7 +174,19 @@ const CASES: Case[] = [
   { name: "a covered control is clicked after closing the pop-up over it", html: FORMS, step: { step: "click", args: { role: "button", name: "Search shelters" } }, expect: "pass", because: "No thanks" },
   { name: "within a row includes the details row it expands into", html: FORMS, step: { step: "expect_text", args: { text: "Tracking code", within: "Harbor Books", timeoutMs: 3000 } }, expect: "pass" },
   { name: "choose_by_number: the cheapest result that is not Sponsored", html: FORMS, step: { step: "choose_by_number", args: { by: "lowest", measure: "price", exclude: "Sponsored", role: "link" } }, expect: "pass", because: "44.5" },
-  { name: "choose_by_number: the cheapest unit price by a regex measure, among the AA packs only", html: FORMS, step: { step: "choose_by_number", args: { by: "lowest", measure: "\\$([\\d.]+)/count", only: "Alkaline AA", role: "button", name: "Add to cart" } }, expect: "pass", because: "0.41" },
+  { name: "choose_by_number: the cheapest unit price by a regex measure, among the AA packs only", html: FORMS, step: { step: "choose_by_number", args: { by: "lowest", measure: "\\$([\\d.]+)/count", only: "Alkaline AA", role: "button", name: "Add to cart" } }, expect: "pass", because: "0.52" },
+  // A server-rendered page whose scripts take over late: an action waits for the control to be live.
+  { name: "a click waits until the page's scripts have taken the control over (SSR hydration)", html: SSR, step: { step: "click", args: { role: "button", name: "Next page" } }, expect: "pass", because: "waited" },
+  { name: "the click that waited actually took effect", html: SSR, before: { step: "click", args: { role: "button", name: "Next page" } }, step: { step: "expect_text", args: { text: "Page 2 of 5", timeoutMs: 2000 } }, expect: "pass" },
+  { name: "a fill waits for a late-hydrating field too", html: SSR, step: { step: "fill", args: { label: "From", value: "2026-10-01" } }, expect: "pass", because: "waited" },
+  // Shapes from the QA agent bench.
+  { name: "within \"table\" is the table, and a list still being filtered is given time to settle", html: BENCH, before: { step: "fill", args: { label: "Search contacts", value: "Tanaka" } }, step: { step: "click", args: { role: "button", name: "Open", within: "table" } }, expect: "pass", because: "inside the table" },
+  { name: "\"Min price\" finds the field labelled \"Min\"", html: BENCH, step: { step: "fill", args: { label: "Min price", value: "50" } }, expect: "pass", because: 'labelled "Min"' },
+  { name: "select: the option the select lacks is a tab beside it", html: BENCH, step: { step: "select", args: { label: "Genre", option: "Top 50" } }, expect: "pass", because: "stands for it" },
+  { name: "pick_date on a dropdown of dates chooses the option", html: BENCH, step: { step: "pick_date", args: { label: "Date", date: "12 November 2026" } }, expect: "pass", because: "dropdown of dates" },
+  { name: "attempt on a site: one name on a button AND a sidebar link = ambiguous, nothing pressed", html: BENCH, site: true, step: { step: "attempt", args: { step: "click", args: { text: "Book firing" }, expect: "refused" } }, expect: "pass", because: "ambiguous" },
+  { name: "attempt on Procol still presses the content's control (no ambiguity rule there)", html: BENCH, step: { step: "attempt", args: { step: "click", args: { text: "Book firing" }, expect: "refused" } }, expect: "fail", because: "allowed" },
+  { name: "choose_by_number by date: the earliest open day after the cutoff, sold-out days left out", html: BENCH, step: { step: "choose_by_number", args: { measure: "date", by: "earliest", after: "15 November 2026", role: "button" } }, expect: "pass", because: "19 November 2026" },
 ];
 
 async function run(page: Page, c: Case) {
@@ -147,7 +194,8 @@ async function run(page: Page, c: Case) {
   // re-declared const in a page script would silently not run).
   await page.goto("about:blank");
   await page.setContent(c.html);
-  const ctx: GenericCtx = { page, events: new EventsPage(page), title: "QA_Platform_selftest", memory: {}, prevMark: 0, downloads: [] };
+  const ctx: GenericCtx = { page, events: new EventsPage(page), title: "QA_Platform_selftest", memory: {}, prevMark: 0, downloads: [], site: c.site };
+  if (c.before) await runGenericStep(ctx, c.before, async () => undefined).catch(() => null);
   const started = Date.now();
   try {
     const out = await runGenericStep(ctx, c.step, async (inner) => {
@@ -165,7 +213,7 @@ const page = await browser.newPage();
 let bad = 0;
 for (const c of CASES) {
   const r = await run(page, c);
-  const good = c.expect === "pass" ? r.ok : !r.ok && (!c.because || r.text.includes(c.because));
+  const good = c.expect === "pass" ? r.ok && (!c.because || r.text.includes(c.because)) : !r.ok && (!c.because || r.text.includes(c.because));
   if (!good) bad++;
   console.log(`${good ? "OK  " : "BAD "} ${c.name}\n      ${r.ok ? "passed" : "failed"} in ${r.ms}ms: ${r.text}`);
 }

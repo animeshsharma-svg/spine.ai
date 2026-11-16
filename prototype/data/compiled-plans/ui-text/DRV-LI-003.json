@@ -1,0 +1,87 @@
+{
+ "meta": {
+  "caseId": "DRV-LI-003",
+  "title": "Delete button is disabled on a draft RFQ with a single line item",
+  "group": "DRV-LI",
+  "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
+  "compiledAt": "2026-11-12T13:36:53.248Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Opening the RFQ stage's Overview tab on the prepared draft, because open_prepared{screen:\"draft\"} lands on the draft create screen and no catalog step establishes that Overview tab.",
+   "unconfirmed label \"⋮\" (hover) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"⋮\" (expect_message) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"⋮\" (hover) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"⋮\" (expect_message) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Opening the RFQ stage's Overview tab on the prepared draft, because open_prepared{screen:\"draft\"} lands on the draft create screen and no catalog step establishes that Overview tab."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "click",
+   "expect_disabled",
+   "hover",
+   "expect_message"
+  ],
+  "state": "draft",
+  "screen": "draft",
+  "ms": 10532
+ },
+ "plan": {
+  "title": "Draft RFQ single-line delete disabled",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "draft"
+    },
+    "note": "Open the API-prepared draft RFQ with its single active line item."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_deletion_enabled",
+     "value": "On"
+    },
+    "note": "Enable the case-required deletion configuration before interacting with the draft."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Items"
+    },
+    "note": "Open the line-item drawer containing the single line item's overflow controls."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Delete"
+    },
+    "note": "Verify the Delete action for the only active line item is greyed out."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "text": "⋮"
+    },
+    "note": "Hover the line item's overflow control to reveal the deletion guard tooltip."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "⋮",
+     "text": "You cannot delete this line item from the project"
+    },
+    "note": "Verify the required guard explanation is shown."
+   }
+  ]
+ }
+}

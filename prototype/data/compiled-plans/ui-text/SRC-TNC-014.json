@@ -1,0 +1,200 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-014",
+  "title": "Single stage RFP, Mark all mandatory: the vendor accepts both clauses",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:12:19.082Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added"
+  ],
+  "source": "llm",
+  "steps": 22,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "do_on_screen",
+   "expect_text",
+   "add_line_items",
+   "invite_vendor",
+   "set_schedule",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "toggle",
+   "click",
+   "click",
+   "expect_bid_submitted",
+   "switch_portal",
+   "expect_text"
+  ],
+  "ms": 18908
+ },
+ "plan": {
+  "title": "Single-stage RFP mandatory terms accepted by vendor",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Keep the event type as RFP."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a questionnaire template to the RFP."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the single-stage RFP create screen, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", enable \"Mark all Terms & Conditions mandatory\", click Done, and stop on the create screen showing both clauses as \"Overridden by Mark all mandatory\""
+    },
+    "note": "Configure the two mandatory clauses, which has no dedicated catalog step."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Overridden by Mark all mandatory"
+    },
+    "note": "Verify the mandatory override is visible after configuring the clauses."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one available QA vendor for the submission."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule required for publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured RFP."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor portal while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the event's RFP questionnaire as the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Payment within 45 days"
+    },
+    "note": "Verify the first mandatory clause is shown to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days"
+    },
+    "note": "Verify the second mandatory clause is shown to the vendor."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": true
+    },
+    "note": "Accept the first mandatory clause."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Delivery within 7 days",
+     "on": true
+    },
+    "note": "Accept the second mandatory clause."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Quick Fill"
+    },
+    "note": "Fill the technical questionnaire so the vendor can submit."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit"
+    },
+    "note": "Submit the vendor's accepted technical response."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor submission was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendors who have placed the bid, have accepted the Terms and Conditions."
+    },
+    "note": "Verify the buyer sees confirmation that the bidding vendor accepted the terms."
+   }
+  ]
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-016",
+  "title": "Configuration for Event: Verify that vendor addition is locked during event creation",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:43:35.945Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "resolved: “Directly verify the Add Vendor control inside the Configuration for Event window is disabled or absent rather than merel” — require_setting switches that company setting before the case and back after"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "attempt"
+  ],
+  "ms": 19891
+ },
+ "plan": {
+  "title": "Single-stage RFQ vendor lock",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the tenant setting that should prevent vendor addition during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Apply the requested ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the requested terms-and-conditions configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Set the event type to RFQ and open its configuration flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-CREATESINGLE-016 Vendor Lock"
+    },
+    "note": "Provide the mandatory event title for the create screen."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the first available RFQ template, corresponding to the requested Buy Template action."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "invite_vendor",
+     "args": {
+      "count": 1
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt to add a vendor and require positive evidence that the tenant lock prevents the action."
+   }
+  ]
+ }
+}

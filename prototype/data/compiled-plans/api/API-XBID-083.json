@@ -2,13 +2,13 @@
  "meta": {
   "caseId": "API-XBID-083",
   "title": "Decreasing the price is refused when price decrease is not allowed",
-  "compiledAt": "2026-10-15T12:13:50.226Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:21.193Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
-   "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   "the decisive step tests something else than the case's point: the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
+   "it depends on a company setting this run does not change (`is_price_decrease_allowed` must be off for this case's outcome to hold) — a failure is reported as couldn't tell, not as a bug"
   ],
   "warnings": [],
   "validated": true,
@@ -26,11 +26,12 @@
    "steps": [
     "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with “You cannot decrease the price”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.106Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-XBID-083",
   "title": "Decreasing the price is refused when price decrease is not allowed",
   "setup": {
@@ -46,7 +47,9 @@
   ],
   "verify": [],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "reject",
+   "code": "301",
+   "message": "You cannot decrease the price"
   },
   "dependsOnSetting": "`is_price_decrease_allowed` must be off for this case's outcome to hold"
  }

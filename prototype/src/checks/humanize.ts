@@ -18,6 +18,7 @@ export const STEP_OBJECT: Record<StepKind, string> = {
   create_draft: "the new event",
   add_stage_rfp: "the technical round",
   add_stage_pricing: "the pricing round",
+  allow_revoke: "the round set to let bidders revoke",
   publish: "the published event",
   read_back: "the event",
   vendor_login: "the vendor's sign-in",

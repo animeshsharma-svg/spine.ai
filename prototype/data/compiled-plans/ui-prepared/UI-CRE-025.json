@@ -1,0 +1,218 @@
+{
+ "meta": {
+  "caseId": "UI-CRE-025",
+  "title": "Reopening a saved draft restores every field",
+  "compiledAt": "2026-11-09T19:54:34.342Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Exact participant identity and selection state after reopening the draft",
+   "Complete field-by-field comparison of all saved schedule fields"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "resolved: “Complete field-by-field comparison of every sheet cell beyond the explicitly set Price cells” — set_sheet_cell types into one cell of the price / BOQ sheet; expect_sheet_cell judges what it kept",
+   "can only test part of this — no step for: Exact participant identity and selection state after reopening the draft; Complete field-by-field comparison of all saved schedule fields"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-005",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Reopening a saved draft restores fields",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage create screen for the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Set the draft title so it can be found and checked after reopening."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Set the draft's stage configuration to RFQ."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two line items required by the setup."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "value": "125"
+    },
+    "note": "Set a known sheet value that can be compared after reopening."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "125"
+    },
+    "note": "Confirm the first entered sheet value before saving."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "value": "250"
+    },
+    "note": "Set a second known sheet value for restoration checking."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "equals": "250"
+    },
+    "note": "Confirm the second entered sheet value before saving."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the draft schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required by the setup."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the fully configured event as a draft."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Leave the create screen and open the events list."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Navigate to the Drafts tab where the saved event should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Verify the saved draft is listed with the expected title."
+   },
+   {
+    "step": "open_event",
+    "args": {
+     "title": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Reopen the named draft from the events list."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of the project",
+     "value": "UI-CRE-025 Draft Restore"
+    },
+    "note": "Verify that the title was restored."
+   },
+   {
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Verify that the saved stage set was restored."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that the pricing template remains applied."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify that the line-item badge restored the expected count."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "price",
+      "quantity"
+     ]
+    },
+    "note": "Verify that the pricing sheet rendered from the restored template."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Price",
+     "equals": "125"
+    },
+    "note": "Verify the first saved sheet value after reopening."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Price",
+     "equals": "250"
+    },
+    "note": "Verify the second saved sheet value after reopening."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 Mins",
+     "present": true
+    },
+    "note": "Verify that the saved schedule duration is visible after reopening."
+   }
+  ]
+ }
+}

@@ -2,14 +2,12 @@
  "meta": {
   "caseId": "API-BID-010",
   "title": "A second bid from the same company is refused",
-  "compiledAt": "2026-10-15T12:07:28.610Z",
-  "planVersion": 1,
-  "source": "exemplar",
+  "compiledAt": "2026-11-13T15:18:35.603550Z",
+  "planVersion": 2,
+  "source": "hand-written",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "error code 875 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
    "POST /v1/bids"
@@ -21,15 +19,15 @@
    "usd": 0
   },
   "words": {
-   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "preconditions": "A fresh RFQ event where the invited QA vendor has an active bid.",
    "steps": [
-    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+    "The same vendor sends POST /v1/bids again on the same pricing round."
    ],
-   "expected": "The app refuses the step the case is about with “Revise bid is locked. You cannot edit your quote after submission.”, and never with a server error."
+   "expected": "The app refuses the second bid (code 99 / 96: one active bid per company), and never with a server error."
   }
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-BID-010",
   "title": "A second bid from the same company is refused",
   "setup": {
@@ -37,17 +35,15 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "open_bid",
     "as": "vendor",
-    "caseId": "EDGE-BID-052",
-    "decisive": true
+    "decisive": true,
+    "say": "The same QA vendor, which already has an active bid on this round, opens a second bid."
    }
   ],
   "verify": [],
   "expected": {
-   "outcome": "reject",
-   "code": "875",
-   "message": "Revise bid is locked. You cannot edit your quote after submission."
+   "outcome": "reject"
   }
  }
 }

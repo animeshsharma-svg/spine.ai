@@ -1,0 +1,30 @@
+// T3 part 2: does the crash survive a reopen? then certificate rule, rule-required blocks Submit, hidden-required does not.
+import { chromium } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import * as F from "./vo-form.js";
+import { vendorUiLogin } from "./vo-vendor-ui.js";
+const OUT = "/Users/animesh/Desktop/procol/prototype/data/evidence/vo-e2e";
+const setup = JSON.parse(readFileSync(`${OUT}/setup.json`, "utf8"));
+const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } }); const page = await ctx.newPage();
+const errs: string[] = []; page.on("pageerror", (e) => errs.push(e.message.slice(0, 120)));
+console.log("login", await vendorUiLogin(page, setup.prospects.T3.email));
+let ok = true; await F.openOnboardingForm(page).catch(() => { ok = false; });
+const body = (await page.locator("body").innerText()).slice(0, 200).replace(/\n+/g, " | ");
+console.log("reopen: form shown", ok, "| page:", body, "| errors:", errs.splice(0).join(" || "));
+await page.screenshot({ path: `${OUT}/shots/probe-T3-reopen.png`, fullPage: true });
+if (!ok) { await browser.close(); process.exit(0); }
+console.log("country value after reopen:", JSON.stringify(await F.valueOf(page, "country")));
+await F.resetDraft(page); await page.waitForTimeout(3000);
+const shown = async () => (await F.keysShown(page)).join(",");
+await F.chooseOption(page, "certifications", ["ISO 14001"]); console.log("ISO 14001 → certificate required:", await F.isRequired(page, "iso_certificate"));
+await F.chooseOption(page, "certifications", ["ISO 9001"]); console.log("+ISO 9001 → certificate required:", await F.isRequired(page, "iso_certificate"));
+await F.chooseRadio(page, "vendor_type", "MSME");
+await F.fillText(page, "gstin", "27ABCPE1234F1Z5"); await F.typeInto(page, "annual_turnover", "5000000"); await F.fillText(page, "company_name", "QA Steel"); await F.upload(page, "iso_certificate", "iso9001.pdf");
+console.log("MSME, Udyam empty →", JSON.stringify(await F.submit(page)), "| shown:", await shown());
+await page.screenshot({ path: `${OUT}/shots/probe-T3-udyam-refused.png`, fullPage: true });
+await F.chooseRadio(page, "vendor_type", "Foreign");
+console.log("Foreign → shown:", await shown(), "| gstin value kept:", JSON.stringify(await F.valueOf(page, "gstin")));
+await F.fillText(page, "udyam_number", "UDYAM-MH-01-0000001");
+const s = await F.submit(page); console.log("Foreign, Udyam filled →", JSON.stringify(s), "| errors:", errs.join(" || "));
+await page.waitForTimeout(3000); await page.screenshot({ path: `${OUT}/shots/probe-T3-submitted.png`, fullPage: true });
+await browser.close();

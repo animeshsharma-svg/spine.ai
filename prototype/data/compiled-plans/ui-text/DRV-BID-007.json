@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-007",
+  "title": "Vendor cannot submit discount percentage below 0",
+  "group": "DRV-BID",
+  "sheet": "derived-a-buyer-rejects-a-vendor-bid",
+  "compiledAt": "2026-11-12T13:34:12.659Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_visible"
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "ms": 9227
+ },
+ "plan": {
+  "title": "Vendor Cannot Reject Bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Continue in the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's RFQ pricing round where the vendor's bid status is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Assert that the vendor can see its own bid status."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject Bid",
+     "visible": false
+    },
+    "note": "Assert that the buyer-only Reject Bid control is not visible to the vendor."
+   }
+  ]
+ }
+}

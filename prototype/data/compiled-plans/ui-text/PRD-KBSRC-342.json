@@ -1,0 +1,203 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-342",
+  "title": "Show Best Prices reveals best price to suppliers and adds a QCS row",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:15:13.920Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated assertion that the displayed supplier price is specifically the best-price value for each line item rather than another visible occurrence of the same price.",
+   "The exact label and per-line structure of the added QCS row are not defined in the catalog; the plan uses the expected label \"Best Price\".",
+   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The catalog has no dedicated assertion that the displayed supplier price is specifically the best-price value for each line item rather than another visible occurrence of the same price.; The exact label and per-line structure of the added QCS row are not defined in the catalog; the plan uses the expected label \"Best Price\"."
+  ],
+  "source": "llm",
+  "steps": 22,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "expect_bid_submitted",
+   "go_to",
+   "click",
+   "click",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "ms": 16227
+ },
+ "plan": {
+  "title": "Show Best Prices to Auction Suppliers",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Create the rank-based auction required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Configure a single-stage rank-based auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Show Best Prices Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Use one line item so the lowest bid and added QCS row are unambiguous."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two suppliers so a lowest bid can be calculated."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so suppliers can submit bids."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first supplier bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second supplier bid was accepted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's live Auction Responses tab where the Actions control is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Open the Responses actions menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Show Best Prices"
+    },
+    "note": "Enable the feature under test."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Inspect the supplier-facing result in the supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction pricing round for the invited supplier."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Price",
+     "present": true
+    },
+    "note": "Verify the supplier view identifies the best-price information."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100",
+     "present": true
+    },
+    "note": "Verify the supplier view shows the deterministic lowest bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to inspect QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's QCS after enabling best prices."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Best Price",
+     "vendor": 1,
+     "number": 100
+    },
+    "note": "Verify the QCS contains the lowest bid in the expected added row."
+   }
+  ]
+ }
+}

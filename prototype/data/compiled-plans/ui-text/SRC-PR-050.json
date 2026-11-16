@@ -1,0 +1,132 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-050",
+  "title": "Source two service lines in one event",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:33:16.776Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the selected lines are specifically service lines after event creation.",
+   "Assert that exactly two activity rows are rendered in the event and that each activity has an individual vendor quote."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
+   "can only test part of this — no step for: Assert that the selected lines are specifically service lines after event creation.; Assert that exactly two activity rows are rendered in the event and that each activity has an individual vendor quote."
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "choose_stages",
+   "expect_pr_items",
+   "select_template",
+   "fill_sheet",
+   "set_title",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted"
+  ],
+  "ms": 17162
+ },
+ "plan": {
+  "title": "Source Two Service Lines in One Event",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions"
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    }
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "items": 2
+    }
+   },
+   {
+    "step": "purchase_items"
+   },
+   {
+    "step": "choose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "expect_pr_items"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-050 Service Lines"
+    },
+    "note": "Provide the mandatory event title before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ],
+     "names": [
+      "Vendor A"
+     ]
+    },
+    "note": "Invite the vendor named in the case."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication reached a real project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Have Vendor A submit a quote across the event's pricing cells."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify Vendor A's quote was accepted by the supplier portal."
+   }
+  ]
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "SRC-STR-004",
+  "title": "Price-based (best price visible) auction: the result after it ends",
+  "group": "SRC-STR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:07:07.645Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the selected existing finished auction is specifically price-based (best-price visible) rather than another auction strategy.",
+   "Assert that every value in the downloaded report exactly matches the corresponding Master QCS value."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the selected existing finished auction is specifically price-based (best-price visible) rather than another auction strategy.; Assert that every value in the downloaded report exactly matches the corresponding Master QCS value."
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "open_master_qcs",
+   "expect_qcs_ranks",
+   "click",
+   "expect_download"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 10507
+ },
+ "plan": {
+  "title": "Finished price-based auction Master QCS and report",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "lowest",
+     "order": "lowest"
+    },
+    "note": "Assert that final bid ranks follow the lowest auction amounts, with the lowest bid ranked first for this reverse price-based auction."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Report"
+    },
+    "note": "Download the report from the event's Master QCS/project view."
+   },
+   {
+    "step": "expect_download",
+    "args": {
+     "contains": [
+      "Rank"
+     ]
+    },
+    "note": "Assert that a downloaded report was saved and contains ranking information."
+   }
+  ]
+ }
+}

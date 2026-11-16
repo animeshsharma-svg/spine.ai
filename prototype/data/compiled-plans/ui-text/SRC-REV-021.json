@@ -1,0 +1,180 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-021",
+  "title": "Minimum revisions before the strategy shows",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:11:38.405Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "resolved: “The vendor portal's exact rank-indicator label is not confirmed in the catalog; the plan checks the generic visible text” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "expect_text",
+   "vendor_bid",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 11961
+ },
+ "plan": {
+  "title": "Auction rank visibility after revisions",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start a single-stage auction creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Set minimum revisions to show rank",
+     "value": 2
+    },
+    "note": "Configure the tenant prerequisite before creating the auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-REV-021 Rank Revision Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product so the auction has a bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid auction schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will submit and revise the bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate vendor session while leaving the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's vendor bid sheet."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit Vendor A's initial bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the vendor portal accepted the initial bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": false
+    },
+    "note": "Verify rank remains hidden after the initial bid."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit one changed price as the vendor's revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the revised bid was submitted."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": true
+    },
+    "note": "Verify the rank indicator is shown after the revision threshold is reached."
+   }
+  ]
+ }
+}

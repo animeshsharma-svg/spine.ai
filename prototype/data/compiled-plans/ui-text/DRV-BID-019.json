@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "DRV-BID-019",
+  "title": "Quote Mode disabled when is_alternate_bidding_allowed = false",
+  "group": "DRV-BID",
+  "sheet": "derived-vendors-can-submit-commercial-quotes-for",
+  "compiledAt": "2026-11-12T13:35:11.763Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Discount %\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Discount %\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_count",
+   "expect_count"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 8801
+ },
+ "plan": {
+  "title": "DRV-BID-019 — Quote Mode Disabled",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ rather than creating a different event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_alternate_bidding_allowed",
+     "value": "Off"
+    },
+    "note": "Disable alternate quote types for the tenant before opening the RFQ."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the vendor-side session required by the case."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ's vendor pricing sheet."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Price",
+     "count": 1
+    },
+    "note": "Verify that exactly one price column is shown."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "Discount %",
+     "max": 0
+    },
+    "note": "Verify that the Discount % quote option is not offered."
+   }
+  ]
+ }
+}

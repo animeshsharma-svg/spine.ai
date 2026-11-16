@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "SRC-PAR-014",
+  "title": "Invite a new vendor by e-mail with a bad address",
+  "group": "SRC-PAR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:06:15.803Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "do_on_screen",
+   "expect_message"
+  ],
+  "ms": 13053
+ },
+ "plan": {
+  "title": "Invite vendor with invalid email",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen required to reach the participant invitation controls."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to RFQ before configuring its template and pricing sheet."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PAR-014 Invalid Vendor Email"
+    },
+    "note": "Provide the required event title so the create screen is valid for reaching participant invitation."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet is available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the requested CYLINDER product and quantity to prepare the sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first product row."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's create screen, open the participant invitation control, choose to invite a new vendor, enter the name and the email abc@, submit the invitation form, and stop with the validation message Please enter a valid email visible."
+    },
+    "note": "Perform the new-vendor invitation workflow, which has no dedicated catalog step, and submit the malformed email."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "Please enter a valid email"
+    },
+    "note": "Assert the exact validation message required by the case."
+   }
+  ]
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-362",
+  "title": "Create and publish a serial bidding auction",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:17:48.079Z",
+  "tier": "fast",
+  "coverage": "none",
+  "gaps": [
+   "Enable the Serial Bidding toggle because no catalog step can configure or verify this control.",
+   "Enter a separate submission duration for each line item because no catalog step exposes per-line-item serial duration fields.",
+   "Verify that the vendor sees only one active line item at a time and that each line item has its own submission duration."
+  ],
+  "warnings": [
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Enable the Serial Bidding toggle because no catalog step can configure or verify this control.; Enter a separate submission duration for each line item because no catalog step exposes per-line-item serial duration fields.; Verify that the vendor sees only one active line item at a time and that each line item has its own submission duration."
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
+  ],
+  "ms": 77060
+ },
+ "plan": {
+  "title": "Create and publish serial bidding auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage creation flow needed to choose Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Serial Bidding Auction"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add multiple line items so the requested one-at-a-time behavior would be meaningful."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the required vendor participant."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor session to inspect the supplier-side bid experience."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert that the vendor bid sheet is available, without claiming it proves serial bidding."
+   }
+  ]
+ }
+}

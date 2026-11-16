@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "caseId": "EXP-BIDRFQ-056",
+  "title": "Increase Event Time: Increase event time when buyer edit permission is disabled shows permission error",
+  "group": "EXP-BIDRFQ",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:40:31.571Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The catalog cannot configure or verify a distinct buyer permission specifically governing editing the submission time; c” — require_setting switches that company setting before the case and back after"
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "expect_navigated",
+   "extend_time"
+  ],
+  "state": "bid",
+  "screen": "summary",
+  "ms": 14581
+ },
+ "plan": {
+  "title": "RFQ Extend Time Permission Error",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ with the vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the stated buyer bid-edit configuration, although it does not specifically configure submission-time editing permission."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the RFQ Responses tab before opening the event settings action."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Confirm the Responses screen is ready."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "preset",
+     "preset": "15 minutes",
+     "expect": "refused"
+    },
+    "note": "Attempt the Increase Event Time action and assert that the buyer is refused."
+   }
+  ]
+ }
+}

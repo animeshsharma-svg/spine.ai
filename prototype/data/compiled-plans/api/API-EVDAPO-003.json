@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "caseId": "API-EVDAPO-003",
+  "title": "Each order carries the vendor's own awarded unit price",
+  "compiledAt": "2026-11-09T19:23:35.258Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "There is no operation to read orders or their unit prices, and no assertion mechanism to compare an order price with the awarded bid price."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"price\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "As the buyer, read the bid and check that Schema check: “price” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “price” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.715Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDAPO-003",
+  "title": "Each order carries the vendor's own awarded unit price",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "price",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "meta": {
+  "caseId": "EXP-CLOSEDQCS-009",
+  "title": "Master QCS of a closed RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
+  "group": "EXP-CLOSEDQCS",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-09T23:24:41.956Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "resolved: “Verify that the event status and schedule times remain unchanged after cancellation” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "click",
+   "expect_text",
+   "click",
+   "expect_visible",
+   "expect_qcs_vendors",
+   "expect_qcs_cell"
+  ],
+  "state": "closed",
+  "screen": "master_qcs",
+  "ms": 9773
+ },
+ "plan": {
+  "title": "Cancel Create New Version from Closed RFQ Master QCS",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly on Master QCS, as required for this state."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Record the single real vendor column before attempting to create a new version."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Verify the existing vendor bid is present before the confirmation action."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create New Version"
+    },
+    "note": "Open the new-version confirmation window."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to create a new version?",
+     "present": true
+    },
+    "note": "Assert that the expected confirmation prompt is shown."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the new-version operation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Verify that the confirmation window closes."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify that the vendor column is unchanged after cancellation."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "key": "bidPrice"
+    },
+    "note": "Verify that the existing bid remains unchanged after cancellation."
+   }
+  ]
+ }
+}

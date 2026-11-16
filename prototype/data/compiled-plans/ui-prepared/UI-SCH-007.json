@@ -2,71 +2,150 @@
  "meta": {
   "caseId": "UI-SCH-007",
   "title": "End before start is refused",
-  "compiledAt": "2026-10-04T11:23:49.869Z",
+  "compiledAt": "2026-11-09T19:44:56.553Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly fill start and end times in the schedule drawer with custom values (the current schedule step commits whatever default or drawer state opens without separate date inputs)."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Explicitly fill start and end times in the schedule drawer with custom values (the current schedule step commits whatever default or drawer state opens without separate date inputs)."
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "none",
   "screen": "create",
   "technical": false,
   "exemplars": [
    "UI-SCH-003",
-   "UI-SCH-002"
+   "UI-SCH-001"
   ],
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "UI-SCH-007 — End before start is refused",
+  "title": "End Before Start Schedule Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Open create screen for a single stage event to reach the schedule control"
+    "note": "Open the event create screen to reach the schedule drawer."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a title so it has valid basic state"
+    "args": {
+     "title": "UI-SCH-007 End Before Start"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
-    "note": "Select a template so schedule is accessible"
+    "args": {},
+    "note": "Apply a pricing template so scheduling is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add line item so schedule is enabled"
+    "note": "Add the required line item for the schedule controls to become usable."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before opening the schedule drawer."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Schedule"
+    },
+    "note": "Open the schedule drawer, matching the test setup."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Start time",
+     "value": "2027-01-01 10:00"
+    },
+    "note": "Set a valid future start time for the baseline schedule."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "End time",
+     "value": "2027-01-01 11:00"
+    },
+    "note": "Set a valid baseline end time after the start."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "baseline_start",
+     "label": "Start time"
+    },
+    "note": "Record the start value that must remain after the refused save."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "baseline_end",
+     "label": "End time"
+    },
+    "note": "Record the valid end value that must remain after the refused save."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "End time",
+     "value": "2027-01-01 09:00"
+    },
+    "note": "Set the end time earlier than the start to exercise the validation."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Schedule"
+     "name": "Save Schedule"
     },
-    "note": "Open the schedule drawer"
+    "note": "Attempt to save the invalid schedule."
    },
    {
-    "step": "attempt",
+    "step": "expect_message",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Save Schedule"
-     },
-     "because": "Start time should be less than end time",
-     "expect": "refused"
+     "kind": "error"
     },
-    "note": "Attempt to save an invalid schedule and verify it is refused"
+    "note": "Assert that Procol reports a readable refusal."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Close the still-open schedule drawer after the refused save."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Schedule"
+    },
+    "note": "Reopen the schedule drawer to inspect whether the invalid values were persisted."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "baseline_start",
+     "label": "Start time",
+     "same": true
+    },
+    "note": "Verify the original start value is still shown."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "baseline_end",
+     "label": "End time",
+     "same": true
+    },
+    "note": "Verify the original valid end value is still shown."
    }
   ]
  }

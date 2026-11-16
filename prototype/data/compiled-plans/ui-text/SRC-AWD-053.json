@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "SRC-AWD-053",
+  "title": "Submit the proposal with \"Procurement Type\" empty",
+  "group": "SRC-AWD",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:23:59.673Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "do_on_screen",
+   "click",
+   "expect_field_error",
+   "expect_navigated"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 19156
+ },
+ "plan": {
+  "title": "Reject proposal with empty Procurement Type",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ directly in Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled as required by the case configuration."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding screen for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10
+    },
+    "note": "Allocate all 10 requested units to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify one line is selected, Vendor B is the sole awarded vendor, and the proposal value is 10 × 90 = 900."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Open the proposal form after completing the allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal form opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Fill every required proposal field except Procurement Type, leaving Procurement Type empty, and stop on the proposal form."
+    },
+    "note": "Complete the proposal form while deliberately leaving the required Procurement Type field blank."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt to submit the incomplete proposal."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Procurement Type",
+     "message": "is a required field"
+    },
+    "note": "Verify Procurement Type is highlighted as required and submission is refused."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal remains unsubmitted on the proposal form."
+   }
+  ]
+ }
+}

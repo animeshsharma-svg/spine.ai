@@ -151,7 +151,12 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
   if (process.env.SLINGRING_LOG_SIZE) console.log(`[llm] slingring ${model}: ${messages.reduce((n, m) => n + String(m.content ?? "").length, 0)} chars in, deadline ${deadline}ms`);
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // A batch (the night compile, several compiles in flight) trips the gateway's per-user rate limit
+  // (429 "Rate limit exceeded for user", 10 Nov) far more often than a person does; handing those to
+  // the next provider changes which model wrote the plan. SLINGRING_429_RETRIES raises the number of
+  // waits (backing off 3 s, 6 s, 12 s, 24 s…) before the chain moves on; one retry stays the default.
+  const retries429 = Math.max(1, Number(process.env.SLINGRING_429_RETRIES ?? 1));
+  for (let attempt = 0; attempt <= retries429; attempt++) {
     const stop = AbortSignal.timeout(deadline);
     let res: Response;
     try {
@@ -190,14 +195,30 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
       }
       return content;
     }
-    if ((res.status === 429 || res.status === 503) && attempt === 0) {
+    if ((res.status === 429 || res.status === 503) && attempt < retries429) {
+      // An exhausted budget is also a 429 ("ExceededBudget … Spend=250.4, Budget=250.0", 31 Oct) — it
+      // will not clear in six seconds. Remember it for ten minutes, so the next calls go straight to the
+      // next provider instead of each waiting out a retry first.
+      const text = await res.clone().text().catch(() => "");
+      if (/budget/i.test(text)) {
+        slingringOverBudgetUntil = Date.now() + 10 * 60_000;
+        throw new Error(`Slingring 429: ${text.slice(0, 200)} — budget exhausted; skipping Slingring for 10 minutes`);
+      }
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
-      await sleep(Math.min(6000, retryAfter * 1000 || 2500));
+      if (retries429 > 1) console.log(`[llm] slingring ${res.status} (${text.slice(0, 60).replace(/\s+/g, " ")}) — retry ${attempt + 1}/${retries429}`);
+      // one retry: the old 2.5–6 s; a batch (SLINGRING_429_RETRIES > 1): 3 s, 6 s, 12 s, 24 s… up to 60 s
+      await sleep(retries429 > 1 ? Math.min(60_000, Math.max(retryAfter * 1000, 3000 * 2 ** attempt)) : Math.min(6000, retryAfter * 1000 || 2500));
       continue;
     }
     throw new Error(`Slingring ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
   return "";
+}
+
+/** When the gateway said the budget is gone: until then, the chain starts at the next provider. */
+let slingringOverBudgetUntil = 0;
+export function slingringOverBudget(): boolean {
+  return Date.now() < slingringOverBudgetUntil;
 }
 
 /** The same request, streamed: the gateway's empty-answer cache does not catch it. */
@@ -311,9 +332,52 @@ async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<s
  * hand-off so a run's output is never quietly attributed to the wrong model.
  * Returns "" only when NO provider could answer.
  */
+/**
+ * ONE QUEUE FOR EVERY MODEL CALL. The gateway rate-limits bursts per user (429, 10 Nov: six compiles in
+ * flight plus three agents), and a session that waits in silence looks hung. So every call goes through
+ * one queue: at most LLM_CONCURRENCY (2) in flight, the rest waiting in order; `llmQueueState()` tells a
+ * page how many are ahead, and `onLlmWait` lets a long step say "waiting for the model (3 ahead)".
+ */
+const CONCURRENCY = Math.max(1, Number(process.env.LLM_CONCURRENCY ?? 2));
+let inFlight = 0;
+const waiting: Array<() => void> = [];
+let queued = 0, served = 0;
+export function llmQueueState(): { inFlight: number; waiting: number; served: number; concurrency: number } {
+  return { inFlight, waiting: waiting.length, served, concurrency: CONCURRENCY };
+}
+const waitListeners = new Set<(ahead: number) => void>();
+/** Called when a call has to wait; `ahead` is how many are in front of it. Returns the unsubscribe. */
+export function onLlmWait(fn: (ahead: number) => void): () => void {
+  waitListeners.add(fn);
+  return () => waitListeners.delete(fn);
+}
+async function acquire(): Promise<void> {
+  queued++;
+  if (inFlight < CONCURRENCY) { inFlight++; return; }
+  const ahead = waiting.length + inFlight;
+  for (const fn of waitListeners) { try { fn(ahead); } catch { /* a listener never breaks a call */ } }
+  await new Promise<void>((resolve) => waiting.push(resolve));
+  inFlight++;
+}
+function release(): void {
+  inFlight--;
+  served++;
+  const next = waiting.shift();
+  if (next) next();
+}
+
 export async function chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
+  await acquire();
+  try {
+    return await chatNow(messages, opts);
+  } finally {
+    release();
+  }
+}
+
+async function chatNow(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
   const chain: Array<[string, () => Promise<string>]> = [];
-  if (process.env[AI.slingring.apiKeyEnvVar]) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
+  if (process.env[AI.slingring.apiKeyEnvVar] && !slingringOverBudget()) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
   if (process.env[AI.groq.apiKeyEnvVar]) chain.push(["groq", () => groqChat(messages, opts)]);
   if (process.env.GOOGLE_API_KEY) chain.push(["gemini", () => geminiChat(messages, opts)]);
   if (!chain.length) return "";

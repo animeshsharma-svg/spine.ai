@@ -166,6 +166,19 @@ export class ParticipantsPage extends BasePage {
       label: "participant-add-confirm",
       timeout: TIMEOUTS.SHORT,
     });
+    // Some builds keep the tick pending until "Update audience" is pressed (16 Nov, Aanya's BID-005: the vendor was
+    // ticked, the button never pressed, the round unchanged); an "Update Audience Remarks" dialog may then ask why.
+    const update = this.page.getByRole("button", { name: /^\s*update audience\s*$/i }).filter({ visible: true }).first();
+    if (await update.count().catch(() => 0)) {
+      await update.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await this.page.waitForTimeout(600);
+      const remarks = this.page.locator(".ant-modal-content, [role='dialog']").filter({ hasText: /update audience remarks|remarks?/i }).filter({ visible: true }).last();
+      if (await remarks.count().catch(() => 0)) {
+        const box = remarks.locator("textarea, input[type='text']").first();
+        if (await box.count().catch(() => 0)) await box.fill("Added by the spine.ai test").catch(() => {});
+        await remarks.getByRole("button", { name: /^(update|submit|ok|confirm|save|yes)\b/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      }
+    }
     await this.waitForSpinnerHidden().catch(() => {});
     const refusal = (await this.errorToastText(3_000).catch(() => "")) || "";
     let selected: boolean | null = null;

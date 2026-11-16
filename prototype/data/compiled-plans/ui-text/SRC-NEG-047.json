@@ -1,0 +1,96 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-047",
+  "title": "Vendor tries to accept after the evaluation time ended",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:05:39.993Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Place the counter offer specifically near the end of the evaluation period",
+   "Wait until the evaluation period ends before attempting acceptance"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Place the counter offer specifically near the end of the evaluation period; Wait until the evaluation period ends before attempting acceptance"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "attempt",
+   "open_prepared",
+   "expect_qcs_cell"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 19808
+ },
+ "plan": {
+  "title": "Counter offer acceptance after evaluation ends",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ evaluation state on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable counter offers on RFQs as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Send a counter offer to Vendor A's normal bid; the case does not specify a counter price, so the step's default is used."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "accept_counter_offer",
+     "args": {
+      "vendor": "Vendor A"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt acceptance from Vendor A's supplier portal and require evidence that the counter offer is no longer accepted."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to the prepared Master QCS to inspect the original bid after the refused acceptance."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 100
+    },
+    "note": "Verify Vendor A's original rate remains 100 after the failed acceptance."
+   }
+  ]
+ }
+}

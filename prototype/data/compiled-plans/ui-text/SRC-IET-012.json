@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "SRC-IET-012",
+  "title": "Extend to a fixed time: 10 minutes BEFORE the current end E (still in the future)",
+  "group": "SRC-IET",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:27:47.343Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Set the fixed time to exactly 10 minutes before the current end E while it is still in the future; the catalog only supports E+30m, relative-to-now values, or an absolute past-time refusal.",
+   "Verify that the Increase Event Time window remains open with the red field-level message after refusal."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Set the fixed time to exactly 10 minutes before the current end E while it is still in the future; the catalog only supports E+30m, relative-to-now values, or an absolute past-time refusal.; Verify that the Increase Event Time window remains open with the red field-level message after refusal."
+  ],
+  "source": "llm",
+  "steps": 3,
+  "stepNames": [
+   "open_prepared",
+   "go_to",
+   "extend_time"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 10825
+ },
+ "plan": {
+  "title": "Extend to Fixed Time Before Current End",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared live RFQ without searching the events list or creating a new event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Reach the RFQ stage page where Extend Submission Time is available."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "fixed",
+     "at": "-10m",
+     "expect": "refused",
+     "message": "New time cannot be less than existing event time"
+    },
+    "note": "Closest available fixed-time negative check; it verifies the refusal wording for a time in the past, but cannot represent E-10m."
+   }
+  ]
+ }
+}

@@ -32,7 +32,7 @@ const TARGET_ARGS: Record<string, string> = {
   label: "a form field's label (instead of role+name)",
   text: "plain visible text (instead of role+name)",
   placeholder: "an input's placeholder (instead of label)",
-  within: 'optional region: "dialog" | "menu" | the text of the row/card it sits in',
+  within: 'optional region: "dialog" | "menu" | "table" | "list" | "form" | the text of the row/card it sits in (a name, an id — the words that tell that row from the others)',
 };
 
 export const GENERIC_STEPS: StepSpec[] = [
@@ -143,8 +143,42 @@ export const GENERIC_STEPS: StepSpec[] = [
     name: "expect_remembered",
     generic: true,
     assertion: true,
-    purpose: "Re-read what remember{key} read and assert it is the same (same:true, default) or changed (same:false).",
-    args: { key: "the remember key", same: "true | false" },
+    purpose:
+      "Compare what remember{key} read with what the screen shows now: the SAME element re-read (same:true, default; same:false = it must have changed), or ANOTHER element named here by role+name / label / text / within — on this screen, another tab, the other portal after switch_portal (the vendor's total vs the buyer's grid, the footer chip vs the drawer, the vendor name on Responses vs Overview). as:\"number\" compares as numbers (₹, commas, spaces ignored); delta:\"+1\" means the number now equals the remembered one plus 1 (\"the count rises by one\"); contains:true passes when one text contains the other.",
+    args: { key: "the remember key", same: "true | false (default true) — when comparing with the same or another element", ...TARGET_ARGS, as: '"text" (default) | "number"', delta: 'for numbers: the expected difference, e.g. "+1", "-1", "0" (optional)', contains: "true: one text containing the other is enough (optional)" },
+  },
+  {
+    name: "expect_options",
+    generic: true,
+    assertion: true,
+    purpose:
+      "Open a dropdown / select / menu / picker named by its label, name or current text and assert WHAT IT OFFERS: options that must be offered, options that must NOT be offered, options offered but greyed out (disabled), the exact count, or only:true (nothing beyond `options` is offered). Reads the visible options (native select, antd select / dropdown, menu items, a radio group, a tab strip), then closes the list again. Use for \"the duration presets are 30 Mins, 1 Hour, 4 Hours, 24 Hours\", \"the menu offers only X, Y and Z\", \"Book Building is not offered\", \"template T is offered but greyed out\". With no opener named it reads the menu that is already open.",
+    args: {
+      ...TARGET_ARGS,
+      options: "array of option texts that must be offered (optional)",
+      absent: "array of option texts that must NOT be offered (optional)",
+      disabled: "array of option texts that must be offered but greyed out (optional)",
+      enabled: "array of option texts that must be offered and not greyed out (optional)",
+      count: "exact number of options offered (optional)",
+      only: "true: nothing beyond `options` is offered (optional)",
+    },
+  },
+  {
+    name: "expect_table",
+    generic: true,
+    assertion: true,
+    purpose:
+      "Read a table or grid on screen (HTML table, antd table, ARIA grid) and assert its rows: how many data rows (rows / min / max), that a row holding the given words exists (row) or does not (row + present:false), and what that row shows under a column header (cells: {\"Column header\": \"value\"} — contains, ₹ and commas ignored for numbers). Use for \"the list has 25 rows\", \"the row for X shows Y under Z\", \"no row for X\", \"each row shows a status\". Name the table by a word of its heading, caption or region (within) when the screen has several; the step waits for the rows to settle.",
+    args: {
+      within: "words of the table's heading / caption, or a region (\"dialog\") — optional when the screen has one table",
+      rows: "exact number of data rows (optional)",
+      min: "at least this many data rows (optional)",
+      max: "at most this many data rows (optional)",
+      row: "words that identify one row (optional)",
+      present: "false: that row must be absent (optional)",
+      cells: 'object {header: expected text} to check on that row, e.g. {"Status": "Live", "Qty": "10"} (optional)',
+      eachRow: 'object {header: expected text} every data row must satisfy (optional)',
+    },
   },
   {
     name: "switch_tab",
@@ -156,17 +190,19 @@ export const GENERIC_STEPS: StepSpec[] = [
     name: "pick_date",
     generic: true,
     purpose:
-      "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date. Use for any check-in / departure / date-of-birth field that opens a calendar.",
+      "Choose a date in a calendar picker: opens the field named by its label, turns the calendar to the right month (its next/previous buttons or month/year selects), presses the day. For a plain date input it types the date; for a dropdown of dates it chooses the matching option. Use for any check-in / departure / date-of-birth / meeting date field.",
     args: { label: "the date field's label (optional when the calendar is already open)", date: 'the date, e.g. "12 December 2026" or "2026-12-12"' },
   },
   {
     name: "choose_by_number",
     generic: true,
     purpose:
-      "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". Reports the numbers it compared.",
+      "Compare the blocks on screen (rows, cards, list items) by a number each shows — a price, a unit price, hours, a rating — and press a control in the lowest or highest one: \"add the cheapest pack\", \"click the cheapest result that is not Sponsored\", \"open the longer-lasting model\". With measure \"date\" it compares the DATES in the controls' names instead and presses the earliest (or latest) that is open — disabled, sold-out, unavailable and past days are left out: \"click the first available date after 15 November 2026\" is choose_by_number{measure:\"date\", by:\"earliest\", after:\"15 November 2026\", role:\"button\"}. Reports what it compared.",
     args: {
-      by: '"lowest" (default) | "highest"',
-      measure: '"price" (default: a money amount) | "number" | a regex with one capture group for the figure, e.g. "([\\d.]+)\\s*hours"',
+      by: '"lowest" (default) | "highest" | for dates: "earliest" (default) | "latest"',
+      measure: '"price" (default: a money amount) | "number" | "date" (the date in each control\'s name) | a regex with one capture group for the figure, e.g. "([\\d.]+)\\s*hours"',
+      after: 'for dates: only dates after this one count, e.g. "15 November 2026" (optional)',
+      before: 'for dates: only dates before this one count (optional)',
       only: 'only blocks naming this, as whole words, take part — e.g. "Voltpine Alkaline AA" keeps the AA packs and not the AAA ones (optional)',
       exclude: "blocks containing this text are left out, e.g. \"Sponsored\" (optional)",
       within: "the region holding the blocks (optional)",
@@ -233,7 +269,7 @@ export const GENERIC_STEPS: StepSpec[] = [
     generic: true,
     assertion: true,
     purpose:
-      "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
+      "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. On a site that is not Procol, words that name two DIFFERENT controls (a submit button and a sidebar link with the same label) are also a refusal: nothing is pressed. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
     args: {
       step: 'the action to try: "click" | "save_draft" | "publish" | "add_line_items" | "set_schedule" | "fill" | "select" | "toggle" | …',
       args: "the inner step's args as an object, e.g. {role:\"button\", name:\"Items\"} for a click",
@@ -246,4 +282,4 @@ export const GENERIC_STEPS: StepSpec[] = [
 export const GENERIC_NAMES = GENERIC_STEPS.map((s) => s.name);
 
 /** Steps that only read the screen — no state changes. */
-export const GENERIC_READS = new Set(["expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "expect_remembered", "remember", "hover", "press", "expect_download", "expect_dialog"]);
+export const GENERIC_READS = new Set(["expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "expect_remembered", "remember", "hover", "press", "expect_download", "expect_dialog", "expect_table", "expect_options"]);

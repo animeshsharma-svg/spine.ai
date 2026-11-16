@@ -1,0 +1,163 @@
+{
+ "meta": {
+  "caseId": "SRC-AUC-018",
+  "title": "Auction with price-based reverse auction, valid",
+  "group": "SRC-AUC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:18:42.467Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "expect_text",
+   "set_title",
+   "select_template",
+   "expect_template_selected",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published"
+  ],
+  "ms": 50055
+ },
+ "plan": {
+  "title": "SRC-AUC-018 Price-Based Reverse Auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendors can be added during event creation as required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Sets the event to a price-based reverse auction with lot-level awarding."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price Based"
+    },
+    "note": "Confirms the selected auction strategy is price based."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-AUC-018 Price-Based Reverse Auction"
+    },
+    "note": "Provides the mandatory event title before publishing."
+   },
+   {
+    "step": "select_template",
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Selects the reverse/buy auction template."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Confirms a template has been applied to the auction stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Adds the specified product with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fills the required pricing sheet fields for the line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the requested delivery location in the first row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verifies the requested quantity was retained."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Verifies the requested delivery location was retained."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the 30-minute start-now schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Adds exactly two QA test vendors for the auction."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publishes the completed auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms publication reached a real project page."
+   }
+  ]
+ }
+}

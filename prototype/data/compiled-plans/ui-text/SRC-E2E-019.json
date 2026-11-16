@@ -1,0 +1,280 @@
+{
+ "meta": {
+  "caseId": "SRC-E2E-019",
+  "title": "Event made directly (eRFX RFQ without a PR) → complete award to L1 → PO",
+  "group": "SRC-E2E",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:15:09.211Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact identity of Vendor A and Vendor B is not asserted because the case does not provide their names; the plan verifies two distinct vendor bids and awards to the lowest bidder.",
+   "The vendor selection interaction by searching and clicking the named vendors is represented by invite_vendor with a count, not by entering vendor names."
+  ],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "can only test part of this — no step for: The exact identity of Vendor A and Vendor B is not asserted because the case does not provide their names; the plan verifies two distinct vendor bids and awards to the lowest bidder.; The vendor selection interaction by searching and clicking the named vendors is represented by invite_vendor with a count, not by entering vendor names."
+  ],
+  "source": "llm",
+  "steps": 34,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "expect_template_selected",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks",
+   "award_event",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "expect_menu_item",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status"
+  ],
+  "ms": 14033
+ },
+ "plan": {
+  "title": "Direct eRFX RFQ award to PO",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the direct eRFX project creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Set the required project title from the case."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the project with an RFQ-only stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before applying its template and configuring its sheet."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "expect_template_selected",
+    "note": "Verify that the RFQ stage has a template applied."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add one CYLINDER line item with the required quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Enter the requested delivery location in the line-item sheet."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "kept": true,
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify that the delivery location was retained."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the project contains exactly one line item."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the 30-minute start-now schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two QA vendors for the two required bids."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "note": "Verify that the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor's quote at 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Verify that the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the second vendor's quote at 90."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Verify that the second vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2,
+     "stage": "rfq"
+    },
+    "note": "Confirm that the buyer sees two direct vendor responses from both invited vendors."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the published bidding window before awarding."
+   },
+   {
+    "step": "open_master_qcs",
+    "note": "Open Master QCS to compare the two submitted bids."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify that two real vendor columns are present."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that the lower-priced bid ranks better."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the entire event to the lowest bidder, corresponding to the 90 quote."
+   },
+   {
+    "step": "expect_awarded",
+    "note": "Verify that the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {},
+    "note": "Approve the submitted award as the buyer-side approver."
+   },
+   {
+    "step": "create_po",
+    "note": "Complete PO creation from the approved award."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 1,
+     "quantity": 10
+    },
+    "note": "Verify that one PO contains the full quantity of the awarded line item."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order",
+     "enabled": true
+    },
+    "note": "Verify that Recreate Order remains available for this direct event."
+   },
+   {
+    "step": "open_events_list",
+    "note": "Return to the events list to verify the post-award location."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab after completion."
+   },
+   {
+    "step": "expect_event_in_list",
+    "note": "Verify that the created event appears in History."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Verify the completed event's history status."
+   }
+  ]
+ }
+}

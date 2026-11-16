@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "EVI-TOT-003",
+  "title": "The pre-tax amount equals Σ price × quantity",
+  "compiledAt": "2026-11-09T20:03:29.944Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify that amount equals the sum of unit price multiplied by quantity because arithmetic comparison is not expressible with the available assertion operations."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"amount\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked); Schema check: “amount” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked); Schema check: “amount” is present."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.180Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "EVI-TOT-003",
+  "title": "The pre-tax amount equals Σ price × quantity",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     },
+     {
+      "path": "amount",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

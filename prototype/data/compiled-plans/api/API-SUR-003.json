@@ -2,19 +2,20 @@
  "meta": {
   "caseId": "API-SUR-003",
   "title": "A surrogate bid is refused on an offline-trading event",
-  "compiledAt": "2026-10-15T13:02:02.999Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:55:50.644Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "The available setup recipes do not create an offline-trading event; EDGE-BID-094 checks refusal of a disabled surrogate bid instead."
+   "the decisive step tests something else than the case's point: The setup vocabulary cannot configure an offline-trading event.",
+   "The refusal code is not specified.",
+   "it depends on a company setting this run does not change (offline trading) — a failure is reported as couldn't tell, not as a bug"
   ],
-  "warnings": [
-   "error code 10 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "POST /bids/template_input"
+   "POST /bids/template_input",
+   "GET /trade/:id"
   ],
   "llm": {
    "calls": 0,
@@ -25,13 +26,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The buyer enters a bid on a vendor's behalf (surrogate bid) for the invited QA vendor.",
+    "As the buyer, read the pricing round and check that the round counts no new bid (the refused bid left nothing)."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
-  }
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error. Read back afterwards: the round counts no new bid (the refused bid left nothing)."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.038Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-SUR-003",
   "title": "A surrogate bid is refused on an offline-trading event",
   "setup": {
@@ -39,16 +42,31 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "surrogate_bid",
     "as": "buyer",
-    "caseId": "EDGE-BID-094",
+    "params": {
+     "vendor": "vendor"
+    },
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0,
+      "say": "the round counts no new bid (the refused bid left nothing)"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "reject",
-   "code": "10"
-  }
+   "outcome": "reject"
+  },
+  "dependsOnSetting": "offline trading"
  }
 }

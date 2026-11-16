@@ -1,0 +1,126 @@
+{
+ "meta": {
+  "caseId": "EMA-APR-007",
+  "title": "Approving after another approver of the same step already rejected",
+  "group": "EMA-APR",
+  "sheet": "email-approvals-test-cases",
+  "compiledAt": "2026-11-12T13:47:03.365Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Configure step 1 with Asha and Chetan, submit the event into the email approval workflow, have Chetan reject by email, have Asha approve without changing the subject, send the reply, wait for mailbox processing, and verify Asha receives the no-longer-waiting-for-approval bounce-back."
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Configure step 1 with Asha and Chetan, submit the event into the email approval workflow, have Chetan reject by email, have Asha approve without changing the subject, send the reply, wait for mailbox processing, and verify Asha receives the no-longer-waiting-for-approval bounce-back."
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "ask_tester",
+   "open_events_list",
+   "expect_event_status"
+  ],
+  "ms": 25678
+ },
+ "plan": {
+  "title": "EMA-APR-007 Email Approval After Rejection",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the event that will enter the approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Enable the required email approval capability before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite for the event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Use the case's event title so the resulting state can be checked in the events list."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available pricing template required for the event."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the event is publishable."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before scheduling and publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product's available participant so publication is not blocked by missing participants."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Submit the completed event into the configured approval flow as the event creator."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "Configure step 1 with Asha and Chetan, use the connected mailboxes to have Chetan reject this event with a comment, have Asha click Approve without changing the subject and send the email, wait 1-2 minutes for Procol to process it, and verify the no-longer-waiting-for-approval bounce-back."
+    },
+    "note": "The catalog has no mailbox, email reply, rejection, or named approver workflow action."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to inspect the resulting event state."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov",
+     "status": "Rejected"
+    },
+    "note": "Check the observable portion of the expected result: the event remains rejected."
+   }
+  ]
+ }
+}

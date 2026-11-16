@@ -29,9 +29,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
+import { decideLayerSync } from "../src/agents/layerDecider.js";
 import { allCases } from "../src/checks/testCatalog.js";
 import { routeFor } from "../src/checks/caseRouting.js";
-import { compileApiPlan, validatePlan, PLAN_VERSION, planInWords } from "../src/agents/apiPlanner.js";
+import { compileApiPlan, validatePlan, PLAN_VERSION, planInWords, recheckStoredPlan } from "../src/agents/apiPlanner.js";
 import { COMPILED_API_DIR, storedApiPlan, allStoredApiPlans, storedPlanProblems } from "../src/checks/compiledPlans.js";
 import { catalogCaseText } from "../src/agents/apiPlanner.js";
 import { caseById } from "../src/checks/testCatalog.js";
@@ -53,30 +54,55 @@ const IDS = new Set((arg("ids") ?? "").split(",").map((s) => s.trim()).filter(Bo
 const log = (s: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${s}`);
 
 // ── re-check what is stored, without a model ───────────────────────────────
+// Every stored plan goes through the validator with its case's words (actors fixed from the app
+// allow-lists, the outcome read against the words), gets a read-back when it has none, has its
+// coverage judged again (apiPlanner.recheckStoredPlan) and is checked for actor/app/role problems.
 if (REVALIDATE) {
   const idxFile = join(COMPILED_API_DIR, "index.json");
   const idx = existsSync(idxFile) ? JSON.parse(readFileSync(idxFile, "utf8")) : { cases: {} };
+  const tally = { checked: 0, full: 0, invalid: 0, changed: 0, upgraded: 0, downgraded: 0 };
   for (const sp of allStoredApiPlans()) {
-    const v = await validatePlan(sp.plan);
     const cat = caseById(sp.meta.caseId);
-    const extra = v.ok ? await storedPlanProblems(v.plan, cat ? catalogCaseText(cat) : sp.meta.title) : v.errors;
+    const text = cat ? catalogCaseText(cat) : sp.meta.title;
+    const heads = cat ? [cat.title, cat.expected].filter(Boolean) : [];
+    const re = await recheckStoredPlan(sp.plan, text, heads, sp.meta.gaps ?? []);
     const was = sp.meta.coverage;
-    if (!v.ok) sp.meta.validated = false;
-    if (extra.length && sp.meta.coverage === "full") sp.meta.coverage = "partial";
-    // Earlier code findings are replaced, not piled up.
-    sp.meta.gaps = [...new Set([...extra, ...sp.meta.gaps.filter((g) => !/^the plan has the |^the case needs a caller who is not/.test(g))])];
+    tally.checked += 1;
+    if (!re.ok) {
+      sp.meta.validated = false;
+      sp.meta.gaps = [...new Set([...re.errors, ...sp.meta.gaps])];
+      tally.invalid += 1;
+    } else {
+      const extra = await storedPlanProblems(re.plan, text);
+      sp.plan = { ...re.plan, caseId: sp.meta.caseId, title: sp.meta.title };
+      sp.meta.validated = true;
+      sp.meta.coverage = extra.length ? "partial" : re.coverage;
+      sp.meta.gaps = [...new Set([...extra, ...re.gaps])];
+      sp.meta.warnings = re.warnings.slice(0, 20);
+      sp.meta.planVersion = PLAN_VERSION;
+      (sp.meta as any).words = planInWords(sp.plan);
+      (sp.meta as any).recheckedAt = new Date().toISOString();
+      if (re.changed.length) tally.changed += 1;
+      if (was !== "full" && sp.meta.coverage === "full") tally.upgraded += 1;
+      if (was === "full" && sp.meta.coverage !== "full") tally.downgraded += 1;
+    }
+    if (sp.meta.validated && sp.meta.coverage === "full") tally.full += 1;
     writeFileSync(join(COMPILED_API_DIR, `${sp.meta.caseId}.json`), JSON.stringify(sp, null, 1));
     if (idx.cases[sp.meta.caseId]) Object.assign(idx.cases[sp.meta.caseId], { coverage: sp.meta.coverage, why: sp.meta.gaps });
-    if (was !== sp.meta.coverage || extra.length) log(`${sp.meta.caseId}: ${was} → ${sp.meta.coverage}${extra.length ? ` — ${extra.join("; ").slice(0, 220)}` : ""}`);
+    if (was !== sp.meta.coverage || re.changed.length || !re.ok) log(`${sp.meta.caseId}: ${was} → ${sp.meta.coverage}${re.changed.length ? ` (${re.changed.join(", ")})` : ""}${!re.ok ? ` — INVALID: ${re.errors.join("; ").slice(0, 200)}` : ""}`);
   }
-  writeFileSync(idxFile, JSON.stringify({ ...idx, updatedAt: new Date().toISOString() }, null, 1));
-  log(`re-checked ${allStoredApiPlans().length} stored plan(s): ${allStoredApiPlans().filter((p) => p.meta.validated && p.meta.coverage === "full").length} full`);
+  writeFileSync(idxFile, JSON.stringify({ ...idx, updatedAt: new Date().toISOString(), planVersion: PLAN_VERSION }, null, 1));
+  log(`re-checked ${tally.checked} stored plan(s): ${tally.full} full, ${tally.changed} changed in code, ${tally.upgraded} upgraded to full, ${tally.downgraded} downgraded, ${tally.invalid} no longer valid`);
   process.exit(0);
 }
 
 // ── which cases ─────────────────────────────────────────────────────────────
+// --decided: also the UI cases the layer decider hands to the API side (every claim API-observable).
+const DECIDED = flag("decided") || flag("decided-only");
+const DECIDED_ONLY = flag("decided-only");
 const wanted = allCases().filter((c) => {
-  if (c.layer !== "api") return false;
+  if (DECIDED_ONLY && !/^UI-/.test(c.id)) return false;
+  if (c.layer !== "api" && !(DECIDED && /^UI-/.test(c.id) && decideLayerSync(c).layer === "api")) return false;
   if (IDS.size) return IDS.has(c.id);
   // "automate" cases only (the build order's own filter), unless asked otherwise.
   if (!ALL_VERDICTS && c.verdict !== "automate") return false;

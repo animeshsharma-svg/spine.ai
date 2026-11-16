@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-006",
+  "title": "A template already used by the RFQ is offered but disabled",
+  "compiledAt": "2026-11-09T19:47:48.169Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Identify the exact template selected on the RFQ and assert that same template is disabled in the other stage's picker",
+   "Hover the disabled template and verify the tooltip text \"Template used in RFQ has already been selected\"",
+   "Click the disabled template and assert that it does not apply"
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Identify the exact template selected on the RFQ and assert that same template is disabled in the other stage's picker; Hover the disabled template and verify the tooltip text \"Template used in RFQ has already been selected\"; Click the disabled template and assert that it does not apply"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-001",
+   "UI-TPL-020"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "RFQ Template Disabled on Other Stage",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title so the create flow is valid."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Create the technical stage and RFQ stage required by the case."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage first, where the template is selected."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the first available RFQ template; this establishes the template that should be unavailable on the other stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Move to the other stage where the previously selected template should be disabled."
+   },
+   {
+    "step": "expect_template_menu",
+    "args": {
+     "min": 1
+    },
+    "note": "Assert that the other stage's template picker renders available templates; the catalog cannot assert the previously selected template's disabled state or tooltip."
+   }
+  ]
+ }
+}

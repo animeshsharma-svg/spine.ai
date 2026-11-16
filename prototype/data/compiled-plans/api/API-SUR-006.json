@@ -2,15 +2,16 @@
  "meta": {
   "caseId": "API-SUR-006",
   "title": "The event's creator can place a surrogate bid",
-  "compiledAt": "2026-10-15T12:07:35.487Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:17.776Z",
+  "planVersion": 2,
   "source": "library-case",
   "coverage": "partial",
   "gaps": [
-   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
-   "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen"
   ],
-  "warnings": [],
+  "warnings": [
+   "a read-back was added in code: As the buyer, read the pricing round and check that the round counts the new bid."
+  ],
   "validated": true,
   "endpoints": [
    "POST /bids/template_input"
@@ -24,13 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer sends the bid call, exactly as the matching library case writes it."
+    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
-  }
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.039Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-SUR-006",
   "title": "The event's creator can place a surrogate bid",
   "setup": {
@@ -38,15 +41,27 @@
   },
   "act": [
    {
-    "op": "library",
+    "op": "surrogate_bid",
     "as": "buyer",
-    "caseId": "API-SUR-006",
     "decisive": true
    }
   ],
-  "verify": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
   "expected": {
-   "outcome": "no-5xx"
+   "outcome": "accept"
   }
  }
 }

@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "caseId": "SRC-CRE-009",
+  "title": "RFQ: Quantity Requested = blank",
+  "group": "SRC-CRE",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T16:29:34.276Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_error",
+   "set_sheet_cell",
+   "set_schedule",
+   "invite_vendor",
+   "expect_publish_blocked"
+  ],
+  "ms": 11739
+ },
+ "plan": {
+  "title": "Single-Stage RFQ Rejects Blank Quantity",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Enables adding vendors during event creation as required by the case."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "Changes the default event type to RFQ."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFQ Blank Quantity Validation"
+    },
+    "note": "Provides the mandatory event title so the quantity validation is the only publish blocker."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Applies an RFQ pricing template before adding the product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER"
+    },
+    "note": "Adds the specified CYLINDER product to the pricing sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": ""
+    },
+    "note": "Leaves the first line item's requested quantity blank and tabs out of the cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "refused": true
+    },
+    "note": "Checks that the blank quantity is not accepted by the sheet."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "quantity"
+    },
+    "note": "Asserts the inline validation identifies the missing quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the required delivery location from the case so it does not mask the quantity validation."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits the required 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds one available QA vendor participant without inventing a vendor name."
+   },
+   {
+    "step": "expect_publish_blocked",
+    "args": {
+     "because": "Please fill valid quantity on every line item"
+    },
+    "note": "Attempts publication and verifies Procol refuses it because the requested quantity is blank."
+   }
+  ]
+ }
+}

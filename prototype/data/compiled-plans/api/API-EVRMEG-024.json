@@ -1,0 +1,106 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-024",
+  "title": "The amended draft keeps each window's length and their order",
+  "compiledAt": "2026-11-09T19:39:05.072Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available operations do not express setting an amendment time A.",
+   "The available operations do not provide assertions for comparing each window's duration with its configured 2-day or 1-day length.",
+   "The available assertions do not compare the RFP and RFQ window start and end times to verify their exact order or that both start at A.",
+   "The effect of publishing the amendment is not checked because no publishing step or verified re-timing behavior is specified."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /item_versions",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer issues a new version of the event.",
+    "As the buyer, read the technical round and check that Schema check: “starting from” is present; Schema check: “ending at” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is a Unix timestamp in seconds.",
+    "As the buyer, read the pricing round and check that Schema check: “starting from” is present; Schema check: “ending at” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is a Unix timestamp in seconds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Schema check: “starting from” is present; Schema check: “ending at” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is a Unix timestamp in seconds; Schema check: “starting from” is present; Schema check: “ending at” is present; Schema check: “starting from” is a Unix timestamp in seconds; Schema check: “ending at” is a Unix timestamp in seconds."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.912Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-024",
+  "title": "The amended draft keeps each window's length and their order",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "new_version",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_rfp_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "starting_from",
+      "op": "exists"
+     },
+     {
+      "path": "ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "starting_from",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   },
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "starting_from",
+      "op": "exists"
+     },
+     {
+      "path": "ending_at",
+      "op": "exists"
+     },
+     {
+      "path": "starting_from",
+      "op": "format",
+      "value": "epochSeconds"
+     },
+     {
+      "path": "ending_at",
+      "op": "format",
+      "value": "epochSeconds"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

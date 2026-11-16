@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "API-AWD-022",
+  "title": "A rejected proposal returns the event to awardable",
+  "compiledAt": "2026-11-13T12:32:28.271Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The exact field indicating `should_allow_awarding` is not exposed in the read_event schema, so verification is limited to successful creation of a new proposal."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /proposal/:id/reject",
+   "POST /proposal",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the award proposal call, the request the case itself writes.",
+    "The buyer opens an award proposal.",
+    "As the buyer, read the event and check that Data check: “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-AWD-022",
+  "title": "A rejected proposal returns the event to awardable",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/proposal/{{proposalUuid}}/reject",
+     "body": {
+      "rejection_remarks": "QA_Platform_{{stamp}}",
+      "allow_rebidding": true
+     }
+    }
+   },
+   {
+    "op": "open_proposal",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

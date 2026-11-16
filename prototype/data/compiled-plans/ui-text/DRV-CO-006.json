@@ -1,0 +1,70 @@
+{
+ "meta": {
+  "caseId": "DRV-CO-006",
+  "title": "Vendor attempting a second accept on the same counter offer is refused",
+  "group": "DRV-CO",
+  "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
+  "compiledAt": "2026-11-12T13:35:50.354Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "A prepared live RFQ with Vendor A's counter offer already accepted once",
+   "Attempting to accept the same already-accepted counter offer a second time and verifying the product's specific refusal message"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: A prepared live RFQ with Vendor A's counter offer already accepted once; Attempting to accept the same already-accepted counter offer a second time and verifying the product's specific refusal message"
+  ],
+  "source": "llm",
+  "steps": 5,
+  "stepNames": [
+   "open_prepared",
+   "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
+   "expect_message"
+  ],
+  "state": "live",
+  "screen": "responses",
+  "ms": 13750
+ },
+ "plan": {
+  "title": "Reject duplicate counter-offer acceptance",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the closest available prepared counter-offer event context."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the vendor portal where the acceptance action is performed."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event in Vendor A's portal and remain on the event overview."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide the live RFQ with Vendor A's counter offer already accepted once, then attempt to accept that same counter offer a second time in the vendor portal"
+    },
+    "note": "The catalog has no step for constructing the already-accepted state or clicking a second accept on it."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that the duplicate acceptance attempt produced an error refusal."
+   }
+  ]
+ }
+}

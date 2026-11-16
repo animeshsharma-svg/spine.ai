@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "UI-SAV-013",
+  "title": "A vendor must see the terms before bidding where acceptance is required",
+  "compiledAt": "2026-11-09T22:53:42.942Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe cannot configure the terms-acceptance-required gate or guarantee event clauses.",
+   "The plan does not verify that the vendor can see the terms before bidding.",
+   "The plan does not verify that bidding becomes available after terms are accepted.",
+   "The blocking error code is not specified.",
+   "it does not read the record back to confirm what was kept or shown",
+   "it depends on a company setting this run does not change (terms) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The vendor opens a bid without accepting the required terms.",
+    "The vendor submits the bid without accepting the required terms."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.206Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-SAV-013",
+  "title": "A vendor must see the terms before bidding where acceptance is required",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "say": "The vendor opens a bid without accepting the required terms."
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-104",
+    "expect": "reject",
+    "decisive": true,
+    "say": "The vendor submits the bid without accepting the required terms."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  },
+  "dependsOnSetting": "terms"
+ }
+}

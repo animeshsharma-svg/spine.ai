@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "UI-XDNEG-010",
+  "title": "The bulk counter-offer note is silently dropped",
+  "compiledAt": "2026-11-09T19:53:08.250Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the note is shown in the counter-offer details for every vendor, including a second vendor's own portal session."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Verify that the note is shown in the counter-offer details for every vendor, including a second vendor's own portal session."
+  ],
+  "state": "bid",
+  "screen": "responses",
+  "technical": false,
+  "exemplars": [
+   "UI-XDNEG-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Bulk counter-offer note payload",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared live round with its existing vendor bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Create the second active bid required by the setup."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second bid was accepted."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Send Bulk Counter Offer"
+    },
+    "note": "Open the bulk counter-offer drawer from Settings."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "change a counter-offer price, type the note \"Bulk counter-offer note\", send the bulk counter offer, and stop when the send result is shown"
+    },
+    "note": "Perform the price change, note entry, and send action in the open bulk counter-offer flow."
+   },
+   {
+    "step": "expect_request",
+    "args": {
+     "path": "raise_bulk_counter_offer",
+     "method": "POST",
+     "bodyLacks": "remarks"
+    },
+    "note": "Verify the known defect: the bulk counter-offer request omits the remarks field."
+   }
+  ]
+ }
+}

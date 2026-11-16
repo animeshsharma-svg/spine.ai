@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-033",
+  "title": "Counter offer during evaluation time on one of the two lines; the vendor accepts",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:04:41.199Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The required existing RFQ in evaluation with two lines where Vendor A quoted 100 and 50; the prepared state provides one line in closed_two_bids.",
+   "Tick only line 1 and leave the second line untouched; place_counter_offer has no line-selection argument.",
+   "Verify that an untouched second line retains its original quote."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The required existing RFQ in evaluation with two lines where Vendor A quoted 100 and 50; the prepared state provides one line in closed_two_bids.; Tick only line 1 and leave the second line untouched; place_counter_offer has no line-selection argument.; Verify that an untouched second line retains its original quote."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "accept_counter_offer",
+   "expect_counter_offer_accepted",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
+  ],
+  "state": "closed_two_bids",
+  "screen": "responses",
+  "ms": 13261
+ },
+ "plan": {
+  "title": "Counter Offer Acceptance During Evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the prepared RFQ Responses screen containing Vendor A's normal bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project flows are enabled."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90
+    },
+    "note": "Send the available counter offer to Vendor A's own bid at 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer's Responses grid marks the counter offer as initiated for Vendor A."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Have Vendor A accept the pending counter offer in the vendor portal."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer-side Responses grid marks Vendor A's counter offer as accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open Master QCS to inspect the resulting comparison values."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Verify Vendor A's countered price is reflected in Master QCS."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the Master QCS amount and total arithmetic follows the current accepted price."
+   }
+  ]
+ }
+}

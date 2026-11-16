@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-013",
+  "title": "Adding a lot weight for an invited vendor makes the round a weighted round",
+  "compiledAt": "2026-11-09T19:24:04.967Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available read-back fields do not expose the saved weight scope (lot), weight keys (qa_freight_adj and weighted_total), or QA vendor 1's saved value of 100.",
+   "The available vocabulary does not provide a response assertion for HTTP 200 or the message 'Weights added successfully!' from the weight update request."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id/edit_weight_parameters",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade edit weight parameters request, the request the case itself writes.",
+    "As the buyer, read the pricing round and check that Data check: “rfx mode” equals weighted."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “rfx mode” equals weighted."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.864Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDWGT-013",
+  "title": "Adding a lot weight for an invited vendor makes the round a weighted round",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "PATCH",
+     "path": "/trade/{{tradeId}}/edit_weight_parameters",
+     "body": {
+      "weightages": {
+       "weightage_on": "lot",
+       "values": {
+        "qa_freight_adj": {
+         "label": "QA_Platform_Freight_{{stamp}}",
+         "input_type": "absolute",
+         "data": {
+          "{{vendorUuid}}": "100"
+         }
+        }
+       }
+      }
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "rfx_mode",
+      "op": "equals",
+      "value": "weighted"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

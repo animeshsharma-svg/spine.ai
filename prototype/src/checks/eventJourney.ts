@@ -149,6 +149,11 @@ export interface JourneyRunOptions {
   /** The line item's quantity (the dashboard's input); the sibling's test data otherwise. */
   quantity?: number;
   /**
+   * Each bidder's price per unit, in bidding order (the first vendor, then extraBidders): a case's "Vendor A
+   * quoted 100 and Vendor B quoted 90" (12 Nov). A bidder without one bids the sibling's test-data price.
+   */
+  bidPrices?: number[];
+  /**
    * How many line items the draft is created with (default 1): the catalog
    * product repeated, which the backend accepts. Every later step still works
    * on the first line item.
@@ -187,6 +192,14 @@ export interface JourneyRunOptions {
    * event goes to the whole suggestion (Aanya, 2026-10-09).
    */
   inviteCount?: number;
+  /**
+   * A caller's last word on a round's body just before it is sent (the screen-state
+   * set-up, src/ui/uiSetup.ts, 10 Nov): a forward auction (configurations.order_type
+   * "sell"), a dutch / knockout strategy with its prices and tick, vendor masking on the
+   * round. Called with the body the builder made and the round's kind; it edits in place.
+   * Unset, the body is sent as built.
+   */
+  stageBody?: (body: Record<string, any>, stage: StageKind) => void;
 }
 
 /** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees and bidders. */
@@ -227,6 +240,9 @@ async function ensureEventVendors(j: Journey): Promise<void> {
       j.catalog.vendorBidCompanyUuid = bidders[0].v.uuid;
       j.vendorName = bidders[0].v.name;
       j.vendorEmail = bidders[0].email;
+      // the bidder's login and name travel with the made values, so a plan can act AS this vendor (13 Nov)
+      j.made.vendorEmail = bidders[0].email;
+      j.made.vendorName = bidders[0].v.name;
       j.opts.extraBidders = bidders.slice(1).map((b) => ({ companyUuid: b.v.uuid, email: b.email, name: b.v.name }));
     } else {
       j.vendorCompanyUuid = "";
@@ -392,6 +408,8 @@ interface Journey {
   vendorEmail?: string;
   /** 0 while the first vendor acts; k while the (k+1)th vendor bids (opts.extraBidders) */
   bidderIndex: number;
+  /** the first vendor's price, kept while later bidders bid their own (opts.bidPrices) */
+  firstPrice?: number;
   /** everyone invited, when the audience is Procol's suggestion (opts.eventVendors) */
   audience?: string[];
   /** why no vendor bids, when none of the invited can sign in */
@@ -909,7 +927,8 @@ const buyerLogin: StepSpec = {
       ...(firstTry ? { alsoCalled: [firstTry] } : {}),
       reply,
       actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.${renewed ? ` ${renewed}` : ""}`,
-      produced: user.uuid ? { buyerUserUuid: String(user.uuid) } : undefined,
+      // the buyer's own company uuid too: a case about "the buying company bidding on its own event" needs it (13 Nov)
+      produced: user.uuid || cfg.company?.uuid || user.company?.uuid ? { ...(user.uuid ? { buyerUserUuid: String(user.uuid) } : {}), ...((cfg.company?.uuid ?? user.company?.uuid ?? cfg.data?.company?.uuid) ? { buyerCompanyUuid: String(cfg.company?.uuid ?? user.company?.uuid ?? cfg.data?.company?.uuid) } : {}) } : undefined,
     };
   },
 };
@@ -1033,6 +1052,8 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
             });
       if (j.audience || (j.vendorCompanyUuid && widerAudience(j))) (body as any).audience_company_uuids = audienceOf(j);
       withEveryLineItem(body, sk, ev.lineItems);
+      // the caller's variant of the round (forward / dutch / knockout / masked) — see JourneyRunOptions.stageBody
+      j.opts.stageBody?.(body as Record<string, any>, sk);
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
       const uuid = reply.data?.uuid;
@@ -1126,6 +1147,31 @@ const readBack: StepSpec = {
   },
 };
 
+/**
+ * "Are bidders allowed to revoke bid" — a round setting (trade config `is_allowed_to_revoke_bid`, backend
+ * bids_controller_helper#validate_bid_update_conditions: a vendor may set its bid to "revoke" only when the
+ * round allows it). The buyer reads the round, merges the flag into its config and saves it (PATCH /trade/:id,
+ * trade#update — ignored for a Procol-employee user, which the read-back below would show). 13 Nov, API-BID-012.
+ */
+const allowRevoke: StepSpec = {
+  kind: "allow_revoke",
+  needs: (j, ev, done) => first(needBuyer(j, done), needPublished(j, ev, done), need(j, done, "the event has no pricing round", !!tradeOf(ev, "pricing"), "add_stage_pricing")),
+  expected: () => "The pricing round's settings now allow bidders to revoke their bids.",
+  run: async (j, ev) => {
+    const trade = tradeOf(ev, "pricing")!;
+    const read = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(trade));
+    if (!read.reply.ok) return { call: read.call, reply: read.reply };
+    const d = read.reply.data ?? {};
+    const cfg = (d.trade_config ?? d.config ?? d.trade_request?.config ?? {}) as Record<string, unknown>;
+    const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", `/trade/${trade}`, { trade_config: { ...cfg, is_allowed_to_revoke_bid: true } });
+    if (!reply.ok) return { call, reply, alsoCalled: [read.call] };
+    const again = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.tradeDetails(trade));
+    const now = (again.reply.data?.trade_config ?? again.reply.data?.config ?? again.reply.data?.trade_request?.config ?? {}) as Record<string, unknown>;
+    if (now.is_allowed_to_revoke_bid !== true) return { call, reply, alsoCalled: [read.call, again.call], shortfall: "the round was saved, but reading it back the setting is still off (a Procol-employee user cannot change a round's config)" };
+    return { call, reply, alsoCalled: [read.call, again.call], actual: "The round now allows bidders to revoke their bids." };
+  },
+};
+
 const vendorLogin: StepSpec = {
   kind: "vendor_login",
   needs: (j) => (j.vendorEmail ? undefined : "this client's invited vendor has no login email"),
@@ -1151,6 +1197,9 @@ const vendorLogin: StepSpec = {
     const produced: Record<string, string> = {};
     if (login.userUuid) produced.vendorUserUuid = String(login.userUuid);
     if (login.companyUuid) produced.vendorCompanyUuid = String(login.companyUuid);
+    // the bidder's login and name travel with the made values, so a plan can act AS this vendor (13 Nov)
+    produced.vendorEmail = email;
+    if (j.vendorName) produced.vendorName = j.vendorName;
     return {
       ...fired,
       // A vendor user can belong to more than one company; the bid is placed
@@ -2007,7 +2056,7 @@ const switchVendor: StepSpec = {
         vendorName: j.vendorName,
         vendorEmail: j.vendorEmail,
         vendorApi: j.actors.vendorApi,
-        made: { bidUuid: j.made.bidUuid, templateResponseUuid: j.made.templateResponseUuid, vendorUserUuid: j.made.vendorUserUuid, vendorCompanyUuid: j.made.vendorCompanyUuid },
+        made: { bidUuid: j.made.bidUuid, templateResponseUuid: j.made.templateResponseUuid, vendorUserUuid: j.made.vendorUserUuid, vendorCompanyUuid: j.made.vendorCompanyUuid, ...(j.vendorEmail ? { vendorEmail: j.vendorEmail, vendorName: j.vendorName } : {}) },
         bidTotal: j.bidTotal,
       };
     } else {
@@ -2020,6 +2069,10 @@ const switchVendor: StepSpec = {
     j.vendorCompanyUuid = next.companyUuid;
     j.vendorName = next.name;
     j.vendorEmail = next.email;
+    // this bidder's own price, when the case gives one ("Vendor B quoted 90")
+    j.firstPrice ??= j.price;
+    const own = j.opts.bidPrices?.[j.bidderIndex];
+    if (own && own > 0) j.price = own;
     delete j.made.bidUuid;
     delete j.made.templateResponseUuid;
     j.bidTotal = undefined;
@@ -2043,6 +2096,7 @@ function restoreFirstVendor(j: Journey): void {
     else j.made[k] = v;
   }
   j.bidTotal = f.bidTotal;
+  if (j.firstPrice !== undefined) j.price = j.firstPrice;
   j.firstVendor = undefined;
   j.bidderIndex = 0;
 }
@@ -2057,6 +2111,7 @@ const SPECS: Record<StepKind, StepSpec> = {
   add_stage_pricing: addStage("add_stage_pricing"),
   publish,
   read_back: readBack,
+  allow_revoke: allowRevoke,
   vendor_login: vendorLogin,
   vendor_open_pricing: vendorOpenPricing,
   vendor_open_technical: vendorOpenTechnical,
@@ -2857,6 +2912,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     j.vendorName = ch.vendor.name ?? ch.vendor.email;
   }
   if (opts.quantity && opts.quantity > 0) j.qty = opts.quantity;
+  if (opts.bidPrices?.[0] && opts.bidPrices[0] > 0) j.price = opts.bidPrices[0];
   // From a PR: its first line is the product, unit, quantity and place every single-row body uses.
   if (opts.fromPr?.lines.length) {
     const l0 = opts.fromPr.lines[0];

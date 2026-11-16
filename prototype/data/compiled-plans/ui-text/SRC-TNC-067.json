@@ -1,0 +1,174 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-067",
+  "title": "Single stage forward auction, no clause mandatory: the vendor accepts nothing",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:20:59.995Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Select or verify a forward (sell) auction template/direction because the catalog does not expose auction direction or a known forward-template name."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "resolved: “Directly assert that the vendor accepted no clauses; the available vendor bidding step only verifies that the bid was su” — vendor_bid types the price on the open portal and reports what the sheet and Submit did (attempt{vendor_bid} for a refusal)",
+   "can only test part of this — no step for: Select or verify a forward (sell) auction template/direction because the catalog does not expose auction direction or a known forward-template name."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "ms": 18868
+ },
+ "plan": {
+  "title": "Single-stage forward auction with optional terms",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the vendor to be added during event creation."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Set the single-stage event type to Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-TNC-067 Optional Terms Auction"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template; the catalog has no verified forward-template name."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the required product with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill the pricing sheet for the added line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the first row's delivery location."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open Terms & Conditions, add the two clauses, set both clauses as optional so no clause is mandatory, and stop on the terms configuration showing both clauses as non-mandatory"
+    },
+    "note": "Configure the two clauses and their optional status, which has no dedicated domain step."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA test vendor to the auction."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published auction's pricing round as the vendor."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's bid of 100 without adding any clause acceptance."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the vendor portal shows the bid as submitted."
+   }
+  ]
+ }
+}

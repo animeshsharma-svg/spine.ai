@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "UI-XDAPR-004",
+  "title": "The approval card shows Approve/Reject only to the person whose action is pending",
+  "compiledAt": "2026-11-09T19:59:17.678Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in separately as the requester and as a step-2 approver and verify the Approve/Reject buttons are absent in both sessions.",
+   "Assert that no network request of any kind was sent after clicking Approve because no specific request path is provided."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Sign in separately as the requester and as a step-2 approver and verify the Approve/Reject buttons are absent in both sessions.; Assert that no network request of any kind was sent after clicking Approve because no specific request path is provided."
+  ],
+  "state": "awarded",
+  "screen": "proposal",
+  "technical": false,
+  "exemplars": [
+   "UI-XDNEG-002",
+   "UI-AWD-004"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Approval action visibility and empty remark validation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open the award proposal in approval state as the pending approver."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Approve",
+     "visible": true
+    },
+    "note": "Verify the pending approver sees the Approve action."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "visible": true
+    },
+    "note": "Verify the pending approver sees the Reject action."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Approve"
+    },
+    "note": "Attempt approval with the remark field empty."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Enter remarks"
+    },
+    "note": "Confirm the empty remark is rejected at the remark field."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in separately as the requester and as a step-2 approver, inspect each approval card, and verify whether Approve and Reject are absent"
+    },
+    "note": "The catalog cannot create or switch to these other approval identities."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the resulting approval screen remains free of application errors."
+   }
+  ]
+ }
+}

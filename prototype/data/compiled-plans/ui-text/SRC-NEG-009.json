@@ -1,0 +1,197 @@
+{
+ "meta": {
+  "caseId": "SRC-NEG-009",
+  "title": "Buyer revokes a pending counter offer",
+  "group": "SRC-NEG",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:02:44.226Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "expect_api_value",
+   "expect_api_value",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
+   "click",
+   "expect_visible",
+   "expect_visible",
+   "go_to",
+   "expect_qcs_cell",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "vendor_bid",
+   "expect_bid_submitted"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 16802
+ },
+ "plan": {
+  "title": "Revoke Pending Counter Offer",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared RFQ in evaluation rather than creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable counter offers on RFQs for the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Keep event withdrawal actions available as required by the setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the prepared RFQ event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab containing Vendor A's normal bid."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Vendor A"
+    },
+    "note": "Confirm the response is associated with Vendor A."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Vendor A"
+    },
+    "note": "Confirm Vendor A's original bid is present before the counter offer."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90,
+     "remark": "Best price please"
+    },
+    "note": "Send the pending counter offer against Vendor A's own bid."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer-side grid marks Vendor A's counter offer as initiated."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "within": "Vendor A"
+    },
+    "note": "Revoke the pending counter offer from Vendor A's bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer",
+     "within": "Vendor A",
+     "visible": true
+    },
+    "note": "Verify the buyer can offer a counter again after revocation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Revoke Counter Offer",
+     "within": "Vendor A",
+     "visible": false
+    },
+    "note": "Verify the pending-counter revoke action is no longer shown."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the comparison grid to verify the original bid value is active again."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "100"
+    },
+    "note": "Confirm Vendor A's active bid has returned to the original price of 100."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Inspect Vendor A's supplier-portal view after revocation."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round where a pending counter offer would be shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": false
+    },
+    "note": "Verify Vendor A no longer sees a pending counter offer."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Verify Vendor A can revise and resubmit the bid after the counter offer is revoked."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor revision was accepted and submitted."
+   }
+  ]
+ }
+}

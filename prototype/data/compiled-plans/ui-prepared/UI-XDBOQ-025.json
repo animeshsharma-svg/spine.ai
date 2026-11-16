@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "UI-XDBOQ-025",
+  "title": "BOQ PRs cannot be put in the cart with other PRs",
+  "compiledAt": "2026-11-09T19:52:39.377Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-XDBOQ-020",
+   "UI-LI-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "BOQ PR cart exclusivity validation",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen where the PR combinations are selected."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use only open PRs, which are eligible for purchase."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Select both QA BOQ purchase requisitions, click Purchase Items and purchase them, and stop with the validation message 'Multiple BOQ-based PR cannot be purchased together' visible."
+    },
+    "note": "Perform the first multi-BOQ selection and observe the product validation."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Multiple BOQ-based PR cannot be purchased together"
+    },
+    "note": "Assert the first validation message."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Select one QA BOQ purchase requisition and the QA material purchase requisition, click Purchase Items and purchase them, and stop with the validation message 'BOQ-based PR cannot pe purchased along with' visible, preserving the product's 'pe' typo."
+    },
+    "note": "Perform the mixed BOQ and material PR selection and observe the exact validation wording."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "BOQ-based PR cannot pe purchased along with"
+    },
+    "note": "Assert the second validation message, including the expected typo."
+   }
+  ]
+ }
+}

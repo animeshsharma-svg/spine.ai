@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-032",
+  "title": "Setting an active bid to active again is harmless",
+  "compiledAt": "2026-11-09T20:20:52.130Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The decisive request for setting an existing bid's status to active is not expressible because no endpoint or operation for that request is provided. HTTP 200 cannot be asserted without the request."
+  ],
+  "warnings": [
+   "verify 1: read_bid's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the invited QA vendor, read the bid and check that Data check: “status” equals active."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.839Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDRJB-032",
+  "title": "Setting an active bid to active again is harmless",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

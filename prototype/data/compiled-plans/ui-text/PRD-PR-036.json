@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "PRD-PR-036",
+  "title": "Line-Item Quantity Split: refused for a user without the Buyer role",
+  "group": "PRD-PR",
+  "compiledAt": "2026-11-10T04:25:21.406Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as a user without the Buyer role and as a Buyer in the same tenant",
+   "Observe or perform the Line-Item Quantity Split action on a PR line item",
+   "Compare whether the split action is refused or absent for the non-Buyer and available for the Buyer",
+   "Verify the tenant's Growth plan and RBAC configuration for this permission"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant; Observe or perform the Line-Item Quantity Split action on a PR line item; Compare whether the split action is refused or absent for the non-Buyer and available for the Buyer; Verify the tenant's Growth plan and RBAC configuration for this permission"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "purchase_items",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 10370
+ },
+ "plan": {
+  "title": "PR Line-Item Quantity Split RBAC",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Reach the Purchase Requisitions flow where the pre-event line-item action would be tested."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use open purchase requests, which can be selected for event preparation."
+   },
+   {
+    "step": "select_pr",
+    "args": {},
+    "note": "Select a purchase request so its line items become available."
+   },
+   {
+    "step": "purchase_items",
+    "args": {},
+    "note": "Open the selected PR's purchase items and start the event preparation flow."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the non-Buyer user and then as the Buyer in the same tenant, attempt Line-Item Quantity Split on a PR line item capped at the PR quantity, and report whether the action is refused or absent for the non-Buyer and available for the Buyer"
+    },
+    "note": "Role-specific sessions and the Line-Item Quantity Split control/action are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the session remains usable after the tester completes or reports the manual role comparison."
+   }
+  ]
+ }
+}

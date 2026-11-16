@@ -1,0 +1,50 @@
+[
+ {
+  "id": "API-EVDRJB-023",
+  "feature": "bids.submit",
+  "title": "An unknown status value is refused",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh live RFQ where QA vendor 1 submitted a bid ({{bidUuid}}); caller is the buyer.",
+  "steps": [
+   "1. Log in as the buyer.",
+   "2. PATCH /bids/update_bid_status/{{bidUuid}} with {\"status\": \"selected\"}.",
+   "3. Assert 422 code 2 and the bid unchanged."
+  ],
+  "method": "PATCH",
+  "path": "/bids/update_bid_status/{{bidUuid}}",
+  "body": {
+   "status": "selected"
+  },
+  "expected": "reject",
+  "expectedStatus": 422,
+  "expectedCode": 2,
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'; the bid is unchanged.",
+  "rationale": "Only active, rejected, revoke and in_active may be set from outside; 'selected' would be an award by the back door. app/controllers/api/bids_controller.rb update_bid_status."
+ },
+ {
+  "id": "API-EVDRJB-024",
+  "feature": "bids.submit",
+  "title": "A status call without a status is refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFQ where QA vendor 1 submitted a bid ({{bidUuid}}); caller is the buyer.",
+  "steps": [
+   "1. Log in as the buyer.",
+   "2. PATCH /bids/update_bid_status/{{bidUuid}} with only {\"rejection_remarks\": \"\u2026\"}, no status.",
+   "3. Assert 422 code 2."
+  ],
+  "method": "PATCH",
+  "path": "/bids/update_bid_status/{{bidUuid}}",
+  "body": {
+   "rejection_remarks": "QA_Platform_no_status_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedStatus": 422,
+  "expectedCode": 2,
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'.",
+  "rationale": "A call that says nothing must not be read as some default status. app/controllers/api/bids_controller.rb update_bid_status."
+ }
+]

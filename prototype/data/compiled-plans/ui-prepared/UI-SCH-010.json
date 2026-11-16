@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-010",
+  "title": "Extending a live event's window works and is visible to vendors",
+  "compiledAt": "2026-11-09T19:44:53.587Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the vendor's countdown reflects the buyer's new end time after reload."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "can only test part of this — no step for: Directly assert that the vendor's countdown reflects the buyer's new end time after reload."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-SCH-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Extend live event window for vendor visibility",
+  "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the existing live event with an invited vendor."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier session so its bidding view can be checked before and after the extension."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the vendor's live pricing round."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page to extend the submission window."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "custom",
+     "amount": 30,
+     "unit": "minutes",
+     "expect": "saved"
+    },
+    "note": "Extend the live event's submission end by exactly 30 minutes and assert Procol saves the new end time."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Return to the vendor session after the buyer-side extension."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reload the vendor's pricing round so the post-extension state is displayed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert the vendor can still submit a quote after the window extension, which verifies bidding remains available."
+   }
+  ]
+ }
+}

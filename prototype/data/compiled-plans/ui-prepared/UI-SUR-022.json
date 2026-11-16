@@ -2,15 +2,13 @@
  "meta": {
   "caseId": "UI-SUR-022",
   "title": "A surrogate bid is visibly marked as buyer-entered",
-  "compiledAt": "2026-10-04T11:42:40.113Z",
+  "compiledAt": "2026-11-09T19:46:17.438Z",
   "tier": "fast",
   "source": "llm",
-  "coverage": "partial",
-  "gaps": [
-   "An event with specifically one vendor bid and one surrogate bid concurrently in the prepared fixture state"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: An event with specifically one vendor bid and one surrogate bid concurrently in the prepared fixture state"
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`"
   ],
   "state": "bid",
   "screen": "responses",
@@ -19,21 +17,28 @@
   "crossCheckAdded": []
  },
  "plan": {
-  "title": "surrogate bid is visibly marked as buyer-entered",
+  "title": "Surrogate bid buyer-entered label",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the responses comparison grid on the prepared event"
+    "note": "Open the buyer's comparison for the prepared event with one vendor bid."
    },
    {
-    "step": "expect_text",
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Enter the second bid on behalf of another invited vendor so the comparison contains one surrogate and one direct bid."
+   },
+   {
+    "step": "expect_responses",
     "args": {
-     "text": "Buyer-entered"
+     "count": 2,
+     "surrogate": 1,
+     "direct": 1
     },
-    "note": "Assert the surrogate bid is visibly marked as buyer-entered"
+    "note": "Assert that exactly two responses appear, with exactly one marked Surrogate Bid and one unmarked vendor response."
    }
   ]
  }

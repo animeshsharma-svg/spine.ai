@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-054",
+  "title": "A null line list crashes before the controller runs",
+  "compiledAt": "2026-11-09T20:12:32.023Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot verify the HTTP 422 status or distinguish a clean 422 response from the current HTTP 500 beyond the expected rejection code."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/:id/reopen_line_items"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the trade reopen line items request, the request the case itself writes."
+   ],
+   "expected": "The app refuses the step the case is about with “Request not found”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.855Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDTME-054",
+  "title": "A null line list crashes before the controller runs",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "POST",
+     "path": "/trade/{{tradeId}}/reopen_line_items",
+     "body": {
+      "trade_product_uuids": null,
+      "reopen_time_extension": 600
+     }
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "4",
+   "message": "Request not found"
+  }
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "SRC-CVT-006",
+  "title": "End price above the L1 sum total",
+  "group": "SRC-CVT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T12:58:31.933Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert the conversion pop-up offers specific options to reuse RFQ quotes, participants, and weights."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert the conversion pop-up offers specific options to reuse RFQ quotes, participants, and weights."
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "convert_to_auction",
+   "expect_navigated",
+   "fill",
+   "publish",
+   "expect_error"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 15460
+ },
+ "plan": {
+  "title": "Reject Auction End Price Above RFQ L1",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ with bids from Vendor A and Vendor B."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Open the RFQ-to-Auction conversion flow, continue through its conversion prompt, and land on the auction create screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Confirm the conversion opened the auction create screen."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "End Price",
+     "value": "901"
+    },
+    "note": "Set an auction end price above the RFQ L1 sum total of 900."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Attempt to publish the converted auction with the invalid end price."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "End price cannot be more than the lowest RFQ (L1) Sum Total"
+    },
+    "note": "Verify Procol refuses publication with the expected L1 end-price validation message."
+   }
+  ]
+ }
+}

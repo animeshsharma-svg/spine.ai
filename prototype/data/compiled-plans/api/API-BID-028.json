@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-BID-028",
+  "title": "Rejecting a bid works only on an active bid",
+  "compiledAt": "2026-11-13T15:17:24.814Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /bids/:id/reject"
+  ],
+  "llm": {
+   "calls": 1,
+   "promptTokens": 6051,
+   "completionTokens": 340,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer the buyer rejects the vendor's bid (with a remark) with the rejection remarks set to “QA_Platform_…”.",
+    "The buyer the buyer rejects the vendor's bid (with a remark) with the rejection remarks set to “QA_Platform_…”."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-BID-028",
+  "title": "Rejecting a bid works only on an active bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "reject_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "rejection_remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ]
+   },
+   {
+    "op": "reject_bid",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "rejection_remarks",
+      "set": "QA_Platform_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

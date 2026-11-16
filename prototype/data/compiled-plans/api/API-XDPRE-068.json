@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "API-XDPRE-068",
+  "title": "Awarding alone does not close PR quantity; the purchase order does",
+  "compiledAt": "2026-11-09T19:46:21.672Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The PR cannot be read with the available operations.",
+   "Generating a purchase order is not represented by an available operation.",
+   "Waiting for the purchase-order quantity job cannot be expressed because wait only waits for a round.",
+   "The post-award in-progress quantity and post-PO closed/completed quantities cannot be verified.",
+   "the part about “purchase order” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "As the buyer, read the event and check that the event carries the award proposal."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the event carries the award proposal."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.135Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-XDPRE-068",
+  "title": "Awarding alone does not close PR quantity; the purchase order does",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals",
+      "op": "non_empty",
+      "say": "the event carries the award proposal"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

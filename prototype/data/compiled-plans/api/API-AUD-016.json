@@ -2,20 +2,19 @@
  "meta": {
   "caseId": "API-AUD-016",
   "title": "A successful rejection is written by bypassing callbacks, and still consistent",
-  "compiledAt": "2026-10-15T12:59:55.876Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T20:19:26.241Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "Cannot assert that the rejected company is listed as rejected everywhere it appears because no rejected-participant field is available in the read-back fields.",
-   "Bypassing callbacks is not expressible in the available vocabulary.",
-   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   "The available rejection case does not verify that the rejected company is listed as rejected everywhere it appears.",
+   "The available read-back fields do not expose rejected-participant listings or callback bypass behavior.",
+   "it does not read the record back to confirm what was kept or shown"
   ],
   "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id/reject_participant",
-   "GET /event_groups/:id"
+   "PATCH /event_groups/:id/reject_participant"
   ],
   "llm": {
    "calls": 0,
@@ -26,15 +25,14 @@
   "words": {
    "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
    "steps": [
-    "The buyer sends the event groups reject participant request, exactly as the matching library case writes it.",
-    "The buyer reads the event.",
-    "As the buyer, read the event and check that the read succeeds."
+    "The buyer sends the event groups reject participant request, exactly as the matching library case writes it."
    ],
-   "expected": "The app accepts it. Read back afterwards: the read succeeds."
-  }
+   "expected": "The app refuses the step the case is about with “You cannot reject a vendor that is already evaluated or awarded”, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.655Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-AUD-016",
   "title": "A successful rejection is written by bypassing callbacks, and still consistent",
   "setup": {
@@ -46,25 +44,14 @@
     "as": "buyer",
     "caseId": "EDGE-PUB-055",
     "decisive": true
-   },
-   {
-    "op": "read_event",
-    "as": "buyer"
    }
   ],
-  "verify": [
-   {
-    "op": "read_event",
-    "as": "buyer",
-    "assert": [
-     {
-      "op": "status_2xx"
-     }
-    ]
-   }
-  ],
+  "verify": [],
   "expected": {
-   "outcome": "accept"
+   "outcome": "reject",
+   "code": "750",
+   "message": "You cannot reject a vendor that is already evaluated or awarded",
+   "codeInferred": true
   }
  }
 }

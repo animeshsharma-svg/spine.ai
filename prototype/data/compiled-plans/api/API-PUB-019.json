@@ -2,14 +2,13 @@
  "meta": {
   "caseId": "API-PUB-019",
   "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
-  "compiledAt": "2026-10-15T12:07:00.727Z",
-  "planVersion": 1,
+  "compiledAt": "2026-11-09T22:52:17.728Z",
+  "planVersion": 2,
   "source": "llm-fast",
   "coverage": "partial",
   "gaps": [
-   "No setup recipe creates an active event with no draft stages, no line items, and no config.",
-   "The plan cannot verify that no service ran or distinguish an unchanged state from a silent state change.",
-   "The operation vocabulary does not expose response-body assertions for a coherent non-500 response."
+   "the decisive step tests something else than the case's point: The setup recipe includes one line item and an invited vendor, so it cannot create an event with no line_items.",
+   "The response's exact coherent status and service-execution behavior cannot be asserted with the available fields."
   ],
   "warnings": [],
   "validated": true,
@@ -26,14 +25,15 @@
   "words": {
    "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
    "steps": [
-    "The buyer updates the event with the status set to “active”.",
-    "As the buyer, read the event and check that “status” equals active."
+    "The buyer sends the request that updates (and publishes) the event, the request the case itself writes.",
+    "As the buyer, read the event and check that Data check: “status” equals active."
    ],
-   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “status” equals active."
-  }
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Data check: “status” equals active."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.024Z"
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-PUB-019",
   "title": "`status: \"active\"` on an already-active event with no draft stages runs no service",
   "setup": {
@@ -41,15 +41,15 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "request",
     "as": "buyer",
-    "change": [
-     {
-      "path": "status",
-      "set": "active",
-      "add": true
+    "request": {
+     "method": "PATCH",
+     "path": "/event_groups/{{eventGroupUuid}}",
+     "body": {
+      "status": "active"
      }
-    ],
+    },
     "decisive": true
    }
   ],

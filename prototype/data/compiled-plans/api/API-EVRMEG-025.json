@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "caseId": "API-EVRMEG-025",
+  "title": "Publishing an amendment closes every open round of the previous version",
+  "compiledAt": "2026-11-09T20:07:16.087Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "lot round and auction from previous version are outside the provided setup recipes vocabulary",
+   "background job timing check is outside the sourcing-event vocabulary"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The buyer publishes the event with the status set to “active”.",
+    "As the buyer, read the pricing round and check that Data check: “status” is one of active / closed."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Data check: “status” is one of active / closed."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.912Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMEG-025",
+  "title": "Publishing an amendment closes every open round of the previous version",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "status",
+      "set": "active"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "one_of",
+      "value": [
+       "active",
+       "closed"
+      ]
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

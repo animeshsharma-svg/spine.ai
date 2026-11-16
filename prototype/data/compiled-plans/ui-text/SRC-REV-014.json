@@ -1,0 +1,355 @@
+{
+ "meta": {
+  "caseId": "SRC-REV-014",
+  "title": "Revision needs approval when the price rises",
+  "group": "SRC-REV",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:11:37.923Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 42,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_text",
+   "attempt",
+   "go_to",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "click",
+   "expect_text",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_text",
+   "attempt",
+   "go_to",
+   "expect_text",
+   "expect_text",
+   "click",
+   "expect_text"
+  ],
+  "ms": 22556
+ },
+ "plan": {
+  "title": "RFQ bid revision approval",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start the first RFQ used to test the approval branch."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "price increases need buyer approval",
+     "value": "On"
+    },
+    "note": "Enable the company behavior required for price increases to require buyer approval."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-REV-014 Approval Branch"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ rather than the default auction stage."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor for Vendor A's bid."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the RFQ so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the RFQ is live before bidding."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submit Vendor A's initial bid of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the initial vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 110
+    },
+    "note": "Have Vendor A raise the bid to 110."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Your current bid is awaiting approval"
+    },
+    "note": "Verify the price increase is pending buyer approval."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_bid",
+     "args": {
+      "vendor": 1,
+      "price": 120
+     },
+     "expect": "refused",
+     "because": "Your current bid is awaiting approval"
+    },
+    "note": "Verify a second revision is refused while the 110 revision awaits approval."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approve"
+    },
+    "note": "Verify the buyer can approve the pending revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Reject"
+    },
+    "note": "Verify the buyer can reject the pending revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval"
+    },
+    "note": "Verify approval-related remarks or status are visible to the buyer."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Approve"
+    },
+    "note": "Approve Vendor A's 110 revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "110"
+    },
+    "note": "Verify 110 is shown as the current bid after approval."
+   },
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a separate RFQ for the rejection branch."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-REV-014 Rejection Branch"
+    },
+    "note": "Provide the mandatory event title for the second RFQ."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create the second event as an RFQ."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product for the second bid flow."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the second RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the second bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA vendor for the rejection branch."
+   },
+   {
+    "step": "publish",
+    "note": "Publish the second RFQ."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the second RFQ is live."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 100
+    },
+    "note": "Submit the initial bid of 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the initial bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1,
+     "price": 110
+    },
+    "note": "Submit the raised bid that requires approval."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Your current bid is awaiting approval"
+    },
+    "note": "Verify the raised bid is pending approval."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_bid",
+     "args": {
+      "vendor": 1,
+      "price": 120
+     },
+     "expect": "refused",
+     "because": "Your current bid is awaiting approval"
+    },
+    "note": "Verify another revision remains blocked while approval is pending."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view for the rejection branch."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approve"
+    },
+    "note": "Verify the approval action is available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Reject"
+    },
+    "note": "Verify the rejection action is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Reject"
+    },
+    "note": "Reject the pending 110 revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100"
+    },
+    "note": "Verify the original 100 bid remains current after rejection."
+   }
+  ]
+ }
+}

@@ -1,0 +1,103 @@
+{
+ "meta": {
+  "caseId": "UI-LI-014",
+  "title": "A basket auction is exempt from the line-item cap",
+  "compiledAt": "2026-11-09T19:42:00.477Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "none",
+  "gaps": [
+   "Enable or verify the isBasketAuction tenant setting.",
+   "Determine the tenant's normal line-item cap and prove that the selected item count exceeds it.",
+   "Verify that the line-item cap exemption, specifically rather than ordinary publishing, caused the absence of a max-line-items error."
+  ],
+  "warnings": [
+   "the QA memory is not built, so the plan was written without it — run `npm run rag:build`",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Enable or verify the isBasketAuction tenant setting.; Determine the tenant's normal line-item cap and prove that the selected item count exceeds it.; Verify that the line-item cap exemption, specifically rather than ordinary publishing, caused the absence of a max-line-items error."
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-LI-002",
+   "UI-LI-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Basket Auction Line-Item Cap Exemption",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start an auction create flow, the closest supported path to a basket auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-LI-014 Basket Auction Cap"
+    },
+    "note": "Provide the required event title so publishing can be attempted."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the auction pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 50
+    },
+    "note": "Use the catalog maximum to approximate exceeding the tenant's unknown normal cap."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Check that adding the high item count has not produced an error."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the added items."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Attempt publication to check whether the event proceeds without a line-item-cap refusal."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that publication proceeded successfully."
+   }
+  ]
+ }
+}

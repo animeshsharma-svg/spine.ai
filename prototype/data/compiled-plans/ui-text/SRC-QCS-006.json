@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "caseId": "SRC-QCS-006",
+  "title": "A rejected bid",
+  "group": "SRC-QCS",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:08:52.929Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify in Master QCS that Vendor A is marked rejected, excluded from ranking, and cannot be awarded."
+  ],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Directly verify in Master QCS that Vendor A is marked rejected, excluded from ranking, and cannot be awarded."
+  ],
+  "source": "llm",
+  "steps": 10,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "event_menu",
+   "expect_text",
+   "press",
+   "go_to",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 19693
+ },
+ "plan": {
+  "title": "Master QCS Rejected Bid Comparison",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the RFQ."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ's rejected-bids view to confirm the rejection-related control is available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected Bids"
+    },
+    "note": "Verify that the rejected-bids view opened."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Escape"
+    },
+    "note": "Close the rejected-bids view before navigating to Master QCS."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigate to the comparison grid requested by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Verify that both named vendor columns are rendered with real names."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor B",
+     "equals": "1"
+    },
+    "note": "Verify that Vendor B is the ranked vendor at Rank 1."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the displayed per-line amounts and vendor totals are arithmetically correct."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify that the displayed ranks follow the RFQ amounts for the available ranked bids."
+   }
+  ]
+ }
+}

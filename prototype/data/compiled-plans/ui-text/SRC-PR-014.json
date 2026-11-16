@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "SRC-PR-014",
+  "title": "Try to purchase a dormant-locked PR line",
+  "group": "SRC-PR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T21:29:13.808Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Selecting a specific dormant-locked PR line by its lock icon rather than relying on the first available PR selection",
+   "The Unlock or Request to unlock action and the resulting \"Unlock request sent successfully\" confirmation"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Selecting a specific dormant-locked PR line by its lock icon rather than relying on the first available PR selection; The Unlock or Request to unlock action and the resulting \"Unlock request sent successfully\" confirmation"
+  ],
+  "source": "llm",
+  "steps": 7,
+  "stepNames": [
+   "open_purchase_requisitions",
+   "pr_tab",
+   "select_pr",
+   "expect_disabled",
+   "hover",
+   "expect_message",
+   "attempt"
+  ],
+  "ms": 8646
+ },
+ "plan": {
+  "title": "Dormant-Locked PR Purchase Block",
+  "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen as the buyer."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use the Open tab, where a PR line can be selected for sourcing."
+   },
+   {
+    "step": "select_pr",
+    "args": {},
+    "note": "Select the available PR; the test data is expected to provide the dormant-locked line."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Purchase Items"
+    },
+    "note": "Assert that the Purchase Items control remains disabled for the selected dormant-locked line."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "button",
+     "name": "Purchase Items"
+    },
+    "note": "Hover the disabled Purchase Items control to reveal its explanation."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Purchase Items",
+     "text": "Dormant locked PR cannot be purchased"
+    },
+    "note": "Verify the exact dormant-lock tooltip message."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Purchase Items"
+     },
+     "expect": "refused"
+    },
+    "note": "Try the disabled action and verify that it is refused rather than opening sourcing."
+   }
+  ]
+ }
+}

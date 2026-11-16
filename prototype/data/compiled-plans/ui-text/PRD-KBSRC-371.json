@@ -1,0 +1,149 @@
+{
+ "meta": {
+  "caseId": "PRD-KBSRC-371",
+  "title": "Vendors see the Best Price to beat",
+  "group": "PRD-KBSRC",
+  "compiledAt": "2026-11-10T01:18:13.623Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text",
+   "expect_text"
+  ],
+  "ms": 10856
+ },
+ "plan": {
+  "title": "Vendors see best price in price-based auction",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start a single-stage event so the auction strategy can be configured."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure a live price-based auction, where the best price should be exposed to vendors."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Best Price Visibility Auction"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one item for the vendor bids."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the auction has competing bids and a current best price."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction so vendors can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the auction reached a real published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the first vendor's bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor's bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's separate supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the live auction's pricing round as the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Price"
+    },
+    "note": "Assert that the vendor screen exposes the Best Price label."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90"
+    },
+    "note": "Assert that the displayed current best price matches the lower bid submitted in the setup."
+   }
+  ]
+ }
+}

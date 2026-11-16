@@ -1,0 +1,168 @@
+{
+ "meta": {
+  "caseId": "EXP-CREATESINGLE-007",
+  "title": "Single stage create screen (RFQ with a product): with lock_vendors_addition_in_event_creation Off, \"Terms & Conditions\" can be clicked",
+  "group": "EXP-CREATESINGLE",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:43:11.566Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "source": "llm",
+  "steps": 15,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_line_items",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible"
+  ],
+  "ms": 13016
+ },
+ "plan": {
+  "title": "Single-stage RFQ Terms and Conditions",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensures vendor-locking is disabled as required for the Terms & Conditions control to be clickable."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Applies the case's read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Applies the case's Terms & Conditions configuration."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Sets the event type to RFQ and the required single-vendor awarding mode."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-CREATESINGLE-007"
+    },
+    "note": "Provides the mandatory event title required on create screens."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Chooses the available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Adds the specified product and sets its requested quantity to 10."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirms the product was added before testing Terms & Conditions."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Activates the Terms & Conditions control under the configured tenant setting."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Terms & Conditions",
+     "visible": true
+    },
+    "note": "Verifies that the Terms & Conditions editor opens rather than the control being disabled."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Your evaluation for this event will depend on Gross Total.",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Checks the expected evaluation message in the editor."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Upload",
+     "visible": true,
+     "within": "dialog"
+    },
+    "note": "Verifies the editor's Upload action is present."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "visible": true,
+     "within": "dialog"
+    },
+    "note": "Verifies the editor's Cancel action is present."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Done",
+     "visible": true,
+     "within": "dialog"
+    },
+    "note": "Verifies the editor's Done action is present without pressing it, preserving the expected unchanged event state."
+   }
+  ]
+ }
+}

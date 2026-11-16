@@ -2,17 +2,15 @@
  "meta": {
   "caseId": "API-EVDRJB-023",
   "title": "An unknown status value is refused",
-  "compiledAt": "2026-10-15T12:26:46.439Z",
-  "planVersion": 1,
-  "source": "llm-fast",
+  "compiledAt": "2026-11-13T15:16:10.446Z",
+  "planVersion": 2,
+  "source": "library-case",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "error code 2 is not in en-IN.yml (or the backend checkout is missing) — the message cannot be checked"
-  ],
+  "warnings": [],
   "validated": true,
   "endpoints": [
-   "PATCH /event_groups/:id"
+   "PATCH /bids/update_bid_status/:id"
   ],
   "llm": {
    "calls": 0,
@@ -23,13 +21,13 @@
   "words": {
    "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
    "steps": [
-    "The buyer updates the event with the status set to “selected”."
+    "The buyer sends the bid call, exactly as the matching library case writes it."
    ],
-   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
   }
  },
  "plan": {
-  "version": 1,
+  "version": 2,
   "caseId": "API-EVDRJB-023",
   "title": "An unknown status value is refused",
   "setup": {
@@ -37,22 +35,17 @@
   },
   "act": [
    {
-    "op": "update_event",
+    "op": "library",
     "as": "buyer",
-    "change": [
-     {
-      "path": "status",
-      "set": "selected",
-      "add": true
-     }
-    ],
+    "caseId": "API-EVDRJB-023",
     "decisive": true
    }
   ],
   "verify": [],
   "expected": {
    "outcome": "reject",
-   "code": "2"
+   "code": "2",
+   "message": "Insufficient parameters"
   }
  }
 }

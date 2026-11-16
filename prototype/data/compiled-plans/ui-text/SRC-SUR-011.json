@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "SRC-SUR-011",
+  "title": "Surrogate for a vendor who already bid itself",
+  "group": "SRC-SUR",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:09:53.696Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot express an assertion that accepts either a refusal or a valid revision while conditionally checking the corresponding preserved or revised bid value."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog cannot express an assertion that accepts either a refusal or a valid revision while conditionally checking the corresponding preserved or revised bid value."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "search_participants",
+   "expect_participant",
+   "attempt",
+   "open_master_qcs",
+   "expect_qcs_cell"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 13089
+ },
+ "plan": {
+  "title": "Prevent surrogate overwrite of vendor bid",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared live RFQ's pricing-stage Participants tab, as required for this prepared state."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Find Vendor A's participant row before attempting the surrogate bid."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor A",
+     "present": true,
+     "addBid": false
+    },
+    "note": "Assert that the vendor who already bid no longer offers Add Bid."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_surrogate_bid",
+     "args": {
+      "vendor": "Vendor A",
+      "price": 90
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt the buyer-side surrogate bid for the already-bidding vendor and capture the product's refusal evidence."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the comparison grid to verify the existing vendor bid remains represented."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 100
+    },
+    "note": "Assert that Vendor A's original bid of 100 was not silently overwritten."
+   }
+  ]
+ }
+}

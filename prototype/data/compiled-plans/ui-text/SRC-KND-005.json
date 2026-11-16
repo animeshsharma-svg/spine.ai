@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-005",
+  "title": "Single stage reverse auction: award it after the close",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:29:32.845Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the specific reverse-auction event is the one shown in History after PO creation because no event title or project ID is provided."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Assert that the specific reverse-auction event is the one shown in History after PO creation because no event title or project ID is provided."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "close_event",
+   "open_master_qcs",
+   "award_event",
+   "expect_awarded",
+   "create_po",
+   "filter_events",
+   "expect_events_list"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 12098
+ },
+ "plan": {
+  "title": "Single-Stage Reverse Auction Award After Close",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the live auction so its final bids can be awarded."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid to verify the bids are available for awarding."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Allocate all items to the best final bid, defined for a reverse auction as the lowest bid, and submit the award proposal."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete the approval flow and create the purchase order for the awarded vendor."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where a completed event should appear."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the History list rendered without an error, though the specific event cannot be matched without its title or ID."
+   }
+  ]
+ }
+}

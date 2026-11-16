@@ -1,0 +1,123 @@
+{
+ "meta": {
+  "caseId": "SRC-KND-010",
+  "title": "eRFX RFQ project: add a surrogate bid for Vendor A",
+  "group": "SRC-KND",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:01:09.536Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Entering or verifying a bid reference while adding the surrogate bid"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Entering or verifying a bid reference while adding the surrogate bid"
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "search_participants",
+   "expect_participant",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "participants",
+  "ms": 19120
+ },
+ "plan": {
+  "title": "Add Surrogate Bid to eRFX RFQ",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Open the prepared event directly on the RFQ Participants tab, avoiding event creation or list search."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project features required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_surrogate_bid_even_after_bid",
+     "value": "On"
+    },
+    "note": "Enable surrogate bidding after an existing bid as required by the case configuration."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Locate Vendor A's participant row."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor A",
+     "present": true,
+     "addBid": true
+    },
+    "note": "Verify Vendor A is invited and offers the Add Bid control."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Enter and submit the buyer's surrogate bid for Vendor A; the default price is used because none was specified."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the surrogate bid was accepted and submitted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "surrogate": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Verify the RFQ Responses view shows the new surrogate response alongside the existing direct bid."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid where the bid ranking is displayed."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify both bidder columns, including the surrogate bidder, are present with real vendor names."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "atLeast": 2
+    },
+    "note": "Verify the bids are ranked in Master QCS."
+   }
+  ]
+ }
+}

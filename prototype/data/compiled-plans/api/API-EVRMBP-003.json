@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVRMBP-003",
+  "title": "Line landed cost: price plus positive GST minus the line cash discount plus line freight",
+  "compiledAt": "2026-11-09T19:37:48.951Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan cannot set or verify buyer quantity 10.",
+   "The plan cannot add or quote a second line.",
+   "The plan cannot set line cash discount, line freight, or GST values through the available bid operation.",
+   "The available read-back fields do not expose the line breakup, landed cost, per-unit total, or total amount.",
+   "The available negative-GST library case expects negative GST to be rejected, not ignored."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor places a complete bid of 100 (open, price, submit).",
+    "As the invited QA vendor, read the bid and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.903Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMBP-003",
+  "title": "Line landed cost: price plus positive GST minus the line cash discount plus line freight",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 100
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_bid",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

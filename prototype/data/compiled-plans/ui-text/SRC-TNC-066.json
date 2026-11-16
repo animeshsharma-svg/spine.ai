@@ -1,0 +1,183 @@
+{
+ "meta": {
+  "caseId": "SRC-TNC-066",
+  "title": "Single stage forward auction, Mark all mandatory: the vendor accepts every clause",
+  "group": "SRC-TNC",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T22:17:19.400Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly select or verify that the auction is forward/sell rather than another auction direction.",
+   "Assert the exact buyer-side acceptance summary unless the published event page renders the quoted text."
+  ],
+  "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Explicitly select or verify that the auction is forward/sell rather than another auction direction.; Assert the exact buyer-side acceptance summary unless the published event page renders the quoted text."
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "configure_single_stage",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "do_on_screen",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "click",
+   "click",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "expect_text"
+  ],
+  "ms": 19597
+ },
+ "plan": {
+  "title": "SRC-TNC-066 Mandatory T&C Auction Bid",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start the single-stage event creation flow."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
+    },
+    "note": "Set the event type to a single-stage rank auction with whole-lot awarding."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-TNC-066 Mandatory T&C Auction"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template; the exact forward/sell template direction is not expressible."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
+    },
+    "note": "Add the requested product as one line item with quantity 10."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the single-stage create screen, set the first line item's plant or delivery location to Plant Name (LOC-0001), open Terms & Conditions, add the two requested clauses, mark all clauses mandatory, and stop with the saved terms and location visible"
+    },
+    "note": "Configure the plant location and mandatory event terms, which have no dedicated catalog steps."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the 30-minute schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite one QA test vendor without inventing a vendor name."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing reached a real event page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published auction's vendor bidding sheet."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "within": "Terms and Conditions"
+    },
+    "note": "Accept the first mandatory terms clause before bidding."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "within": "Terms and Conditions"
+    },
+    "note": "Accept the second mandatory terms clause before bidding."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the vendor's bid of 100 after accepting all mandatory clauses."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal shows the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page to check the resulting event state."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendors who have placed the bid, have accepted the Terms and Conditions.",
+     "present": true
+    },
+    "note": "Verify the buyer-side acceptance summary when it is rendered on the event page."
+   }
+  ]
+ }
+}

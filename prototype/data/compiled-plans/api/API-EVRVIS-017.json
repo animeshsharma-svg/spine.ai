@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVRVIS-017",
+  "title": "A vendor's event card carries no buyer-internal fields",
+  "compiledAt": "2026-11-09T22:55:37.287Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup cannot create a project with Clara auto-pilot stuck, an unregistered email bid pending, or a scheduled publish job.",
+   "The available list_events read-back only supports status_2xx, so absence of buyer-internal fields in the vendor event card cannot be asserted.",
+   "the part about “email” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer lists events.",
+    "As the buyer, list events and check that Status check: the reply's status code is a success (2xx — the request worked)."
+   ],
+   "expected": "The app accepts it. Read back afterwards: Status check: the reply's status code is a success (2xx — the request worked)."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.937Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRVIS-017",
+  "title": "A vendor's event card carries no buyer-internal fields",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

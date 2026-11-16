@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "SRC-EXT-019",
+  "title": "Extend during evaluation reopens bidding",
+  "group": "SRC-EXT",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-09T20:26:58.853Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "extend_time",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text"
+  ],
+  "state": "closed",
+  "screen": "summary",
+  "ms": 14394
+ },
+ "plan": {
+  "title": "Extend Submission Time During Evaluation",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "preset",
+     "preset": "15 minutes",
+     "expect": "saved"
+    },
+    "note": "Extend the submission window by 15 minutes during evaluation and verify Procol saves the new end time."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round so the vendor can revise its quote."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {},
+    "note": "Submit a revised vendor quote now that the submission window has been reopened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted"
+    },
+    "note": "Verify the vendor portal shows the pricing round as submitted after the revision."
+   }
+  ]
+ }
+}

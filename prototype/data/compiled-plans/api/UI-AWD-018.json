@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "UI-AWD-018",
+  "title": "Awarding the whole lot on a partial-lot RFQ is refused",
+  "compiledAt": "2026-11-09T22:53:25.970Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the decisive step tests something else than the case's point: The setup recipe does not guarantee a partial-lot RFQ configuration.",
+   "The exact refusal message and error code are not provided.",
+   "No verify step is included because the award is expected to be refused.",
+   "it depends on a company setting this run does not change (partial-lot RFQ) — a failure is reported as couldn't tell, not as a bug"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  },
+  "recheckedAt": "2026-11-09T22:56:37.190Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "UI-AWD-018",
+  "title": "Awarding the whole lot on a partial-lot RFQ is refused",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor"
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  },
+  "dependsOnSetting": "partial-lot RFQ"
+ }
+}

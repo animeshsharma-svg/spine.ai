@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "caseId": "API-EVDQRY-061",
+  "title": "The line-item picker for an unknown event crashes",
+  "compiledAt": "2026-11-09T22:24:16.648Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "verify 1: the request's reply shape has not been sampled; \"code\" is unverified",
+   "verify 1: the request's reply shape has not been sampled; \"status\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/chats/get_reference_options"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer sends the chats get reference options request, the request the case itself writes.",
+    "As the buyer, read the chats get reference options request and check that Data check: “code” equals 533; Data check: “status” equals 422."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: Data check: “code” equals 533; Data check: “status” equals 422."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.789Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVDQRY-061",
+  "title": "The line-item picker for an unknown event crashes",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "request",
+    "as": "buyer",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw=="
+    },
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "request",
+    "request": {
+     "method": "GET",
+     "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw=="
+    },
+    "assert": [
+     {
+      "path": "code",
+      "op": "equals",
+      "value": 533
+     },
+     {
+      "path": "status",
+      "op": "equals",
+      "value": 422
+     }
+    ],
+    "as": "buyer"
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

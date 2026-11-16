@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "DRV-EVL-001",
+  "title": "QCS ranks bids by landed price and highlights L1 per line item",
+  "group": "DRV-EVL",
+  "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
+  "compiledAt": "2026-11-09T23:04:34.785Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The case requires a live RFQ with no bid initially and multiple bids to compare ascending landed prices across each line item; the prepared state contains exactly one bid and one line item.",
+   "The case requires verifying that the lowest landed-price row has a green background indicating L1; no catalog assertion can inspect that specific highlight styling or freight-inclusive landed-price calculation."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The case requires a live RFQ with no bid initially and multiple bids to compare ascending landed prices across each line item; the prepared state contains exactly one bid and one line item.; The case requires verifying that the lowest landed-price row has a green background indicating L1; no catalog assertion can inspect that specific highlight styling or freight-inclusive landed-price calculation."
+  ],
+  "source": "llm",
+  "steps": 6,
+  "stepNames": [
+   "open_prepared",
+   "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 8837
+ },
+ "plan": {
+  "title": "DRV-EVL-001 QCS L1 Ranking by Landed Price",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the API-prepared RFQ event summary as required for prepared-state cases."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigate to the RFQ Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the QCS rendered the real bidder column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 1
+    },
+    "note": "Verify the available bid is ranked first in the QCS."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Verify the QCS amount arithmetic for the available line item and total."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify the QCS ranking follows the lowest available RFQ amount."
+   }
+  ]
+ }
+}

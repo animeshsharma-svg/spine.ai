@@ -1,0 +1,171 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-032",
+  "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"123-123\" is not offered",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:44:30.845Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
+   "click",
+   "expect_options"
+  ],
+  "ms": 16609
+ },
+ "plan": {
+  "title": "Draft vendor option lock",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX creation flow."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Set the configuration whose effect on vendor options is being tested."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional case configuration before interacting with the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-032"
+    },
+    "note": "Give the draft a stable title so it can be found in Drafts."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the draft with a pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a valid saved draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the draft schedule so the draft is otherwise complete."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft without inviting or adding a vendor."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save completed without an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the Events list to follow the requested Drafts navigation."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-032"
+    },
+    "note": "Verify the saved draft is present in Drafts."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-032"
+    },
+    "note": "Open the saved draft from the Drafts list."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Participants"
+    },
+    "note": "Open the draft's vendor-selection area."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Search vendors you want to add",
+     "absent": [
+      "123-123"
+     ]
+    },
+    "note": "Assert that vendor 123-123 is not offered when lock_vendors_addition_in_event_creation is Off."
+   }
+  ]
+ }
+}

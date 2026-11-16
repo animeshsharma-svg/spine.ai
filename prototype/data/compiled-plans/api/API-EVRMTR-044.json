@@ -1,0 +1,98 @@
+{
+ "meta": {
+  "caseId": "API-EVRMTR-044",
+  "title": "Realised and unrealised custom savings use different reference amounts",
+  "compiledAt": "2026-11-09T19:40:12.117Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The available vocabulary cannot express awarding exactly 40 units to vendor B.",
+   "No read operation or read-back field exposes the realised and unrealised custom savings references.",
+   "The gate show_custom_savings is not represented."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/trade/add_audience",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.",
+   "steps": [
+    "The buyer invites QA vendor 2 to the live pricing round.",
+    "The invited QA vendor places a complete bid of 10 (open, price, submit).",
+    "A second QA vendor places a complete bid of 9 (open, price, submit).",
+    "Wait until the round's bid end time has passed.",
+    "As the buyer, read the pricing round and check that the round counts the new bid."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the round counts the new bid."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.927Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRMTR-044",
+  "title": "Realised and unrealised custom savings use different reference amounts",
+  "setup": {
+   "recipe": "published_rfq_short"
+  },
+  "act": [
+   {
+    "op": "add_vendor",
+    "as": "buyer",
+    "params": {
+     "round": "pricing"
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "params": {
+     "price": 10
+    }
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 9
+    },
+    "decisive": true
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    }
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 1,
+      "say": "the round counts the new bid"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

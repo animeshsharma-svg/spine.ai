@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "API-EVRLIF-025",
+  "title": "Starting a technical answer reuses the vendor's draft and carries its last submitted answers",
+  "compiledAt": "2026-11-09T22:55:09.173Z",
+  "planVersion": 2,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No setup recipe or operation can create a draft award proposal with the same numeric id as the technical round.",
+   "No read operation or supported assertion field can read and compare the technical answers carried into the revision.",
+   "start_tech_response has no supported fields for supplying different extra details on the second call.",
+   "No read operation or supported assertion field can verify that the surrogate remark is added again on each call."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /template_responses",
+   "POST /template_responses/create_surrogate_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The invited QA vendor starts a technical response on the RFP round.",
+    "The invited QA vendor starts a technical response on the RFP round.",
+    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_surrogate_…”.",
+    "The buyer submits a technical response on a vendor's behalf on the RFP (technical) round (surrogate technical response) with the remarks set to “QA_Platform_surrogate_…”."
+   ],
+   "expected": "The app accepts it."
+  },
+  "recheckedAt": "2026-11-09T22:56:36.898Z"
+ },
+ "plan": {
+  "version": 2,
+  "caseId": "API-EVRLIF-025",
+  "title": "Starting a technical answer reuses the vendor's draft and carries its last submitted answers",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "start_tech_response",
+    "as": "vendor"
+   },
+   {
+    "op": "start_tech_response",
+    "as": "vendor"
+   },
+   {
+    "op": "surrogate_tech_response",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "surrogate_remarks.remarks",
+      "set": "QA_Platform_surrogate_{{stamp}}"
+     }
+    ]
+   },
+   {
+    "op": "surrogate_tech_response",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "surrogate_remarks.remarks",
+      "set": "QA_Platform_surrogate_{{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

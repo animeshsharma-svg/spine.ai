@@ -1,0 +1,176 @@
+{
+ "meta": {
+  "caseId": "EXP-DRAFT-040",
+  "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Now - 07:02 pm, 29th Oct (1 Hrs)\" is not offered",
+  "group": "EXP-DRAFT",
+  "sheet": "procol-explored-flows",
+  "compiledAt": "2026-11-12T13:45:02.504Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
+  "source": "llm",
+  "steps": 19,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
+   "click",
+   "expect_options"
+  ],
+  "ms": 17412
+ },
+ "plan": {
+  "title": "EXP-DRAFT-040 — 1-hour preset hidden on saved eRFX draft",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Apply the setting under test so vendors cannot be added during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the case's required stage configuration."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-040"
+    },
+    "note": "Give the draft a searchable title; create tests require a title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available template so line items and scheduling can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a valid draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit an initial schedule so the saved draft has a schedule control to reopen."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX event as a draft."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save completed without an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the Events list to locate the saved draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered before filtering."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab required by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-040"
+    },
+    "note": "Verify the draft created by this test is present in Drafts."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-040"
+    },
+    "note": "Open the saved draft from the Drafts list."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Schedule"
+    },
+    "note": "Open the draft's schedule drawer to inspect the available duration presets."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Duration",
+     "absent": [
+      "1 Hrs"
+     ]
+    },
+    "note": "Assert that the 1-hour duration preset is not offered on the saved draft."
+   }
+  ]
+ }
+}

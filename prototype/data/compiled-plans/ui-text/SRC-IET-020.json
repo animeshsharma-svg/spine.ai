@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "caseId": "SRC-IET-020",
+  "title": "Cancel leaves the end time unchanged",
+  "group": "SRC-IET",
+  "sheet": "procol-sourcing-test-cases-pr-to-po",
+  "compiledAt": "2026-11-12T13:01:16.050Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Whether any vendor notification was sent, because the catalog has no step to inspect vendor notifications or the underlying network payload."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether any vendor notification was sent, because the catalog has no step to inspect vendor notifications or the underlying network payload."
+  ],
+  "source": "llm",
+  "steps": 11,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "go_to",
+   "remember",
+   "event_menu",
+   "click",
+   "fill",
+   "select",
+   "click",
+   "expect_visible",
+   "expect_remembered"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 33309
+ },
+ "plan": {
+  "title": "Cancel Extend Time Keeps End Unchanged",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live RFQ summary instead of creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the current bidding end is shown and its Settings menu is available."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "original_end_time",
+     "text": "Bidding Ends At"
+    },
+    "note": "Record the current end time E before opening the extension dialog."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Custom"
+    },
+    "note": "Choose the custom duration option."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Amount",
+     "value": "60"
+    },
+    "note": "Enter the requested custom duration amount."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Unit",
+     "option": "Minutes"
+    },
+    "note": "Set the custom duration unit to Minutes."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Cancel the extension without saving it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Verify that the Increase Event Time window closes."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "original_end_time",
+     "text": "Bidding Ends At",
+     "same": true
+    },
+    "note": "Verify that the displayed bidding end time remains E."
+   }
+  ]
+ }
+}
