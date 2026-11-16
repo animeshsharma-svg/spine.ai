@@ -19,7 +19,7 @@ import { chat } from "../ai/llm.js";
 import { compileTestCase } from "../agents/planner.js";
 import { parseConfigs } from "../agents/caseStyle.js";
 import { VALUE_KEYS } from "../agents/screenModel.js";
-import { addSheetCases, findSheetCase, nextTypedId, sheetCaseProse, sheetPrep, splitSteps, TYPED_SHEET, type SheetCase } from "./sheetCases.js";
+import { addSheetCases, findSheetCase, nextTypedId, sheetCaseProse, sheetPrep, splitSteps, TYPED_SHEET, type SheetCase, compilePrepared } from "./sheetCases.js";
 import { companySetting } from "./sheetRunner.js";
 
 /** The starting states the API can build; a case that names one of these in its pre-conditions starts there. */
@@ -205,7 +205,7 @@ export async function understandCase(c: SheetCase, opts: { compile?: boolean; lo
       opts.log?.("Asking the compiler how it would run this case…");
       const compiled = await compileTestCase(sheetCaseProse(c), "events", {
         dryRun: true,
-        ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical } } : {}),
+        ...(sp?.prepared ? { prepared: compilePrepared(sp, VALUE_KEYS[sp.state] ?? []) } : {}),
       });
       const plan = compiled.plan as { steps: Array<{ step: string; args?: Record<string, unknown> }> };
       u.plannedSteps = (plan.steps ?? []).map((s) => s.step + (s.args && Object.keys(s.args).length ? ` ${JSON.stringify(s.args).slice(0, 80)}` : ""));

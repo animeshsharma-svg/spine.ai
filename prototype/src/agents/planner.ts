@@ -812,6 +812,42 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // ORDER ACTIVITY WORDING (16 Nov, Aanya's VIS-008): the Activity drawer says "You created the event" only to the
+  // creator; another user reads "<name> has created the event" / "<company> has created the event"
+  // (activity_display_formatter.rb). An event built by the API is created by the automation buyer, so a check on
+  // "You created the event" fails on a filled panel — the check is on the words every voice shares.
+  for (const st of steps) {
+    if (st.step === "expect_text" && /^\s*you created the event\s*$/i.test(String(st.args?.text ?? ""))) {
+      st.args = { ...(st.args ?? {}), text: "created the event" };
+      repairs.push('the Activity drawer says "You created the event" only to the creator ("<name> has created the event" to anyone else) — the check reads "created the event"');
+    }
+  }
+  // DOWNLOAD REPORTS → DOWNLOAD EXCEL (16 Nov, Aanya's QCS-009): the Download Reports panel offers "Download Excel";
+  // a plan that opens the panel and stops there proved nothing — the Excel is pressed and the file awaited
+  if (/download excel/i.test(testCase) && !steps.some((st) => st.step === "click" && /download excel/i.test(String(st.args?.name ?? st.args?.text ?? ""))) && !has("expect_report_matches_qcs")) {
+    const opener = steps.findIndex((st) => (st.step === "click" || st.step === "event_menu" || st.step === "do_on_screen") && /download reports?/i.test(JSON.stringify(st.args ?? {})));
+    if (opener >= 0) {
+      const after = steps[opener + 1]?.step === "expect_download" ? opener + 1 : opener;
+      steps.splice(after + 1, 0, { step: "click", args: { role: "button", name: "Download Excel" } }, ...(has("expect_download") ? [] : [{ step: "expect_download", args: {} }]));
+      // an expect_download that sat right after the opener now waits for the Excel
+      if (steps[opener + 1]?.step === "expect_download") { const [d] = steps.splice(opener + 1, 1); steps.splice(opener + 2, 0, d); }
+      repairs.push('the Download Reports panel offers "Download Excel" — it is pressed and the file awaited (a plan that only opened the panel proved nothing)');
+    }
+  }
+
+  // MASTER QCS REPORT (16 Nov, SRC-STR-010 / 006): "Download Report … the report matches the screen" is one real
+  // check, expect_report_matches_qcs — a bare click on the button plus expect_download proved only that a file came
+  if (/download report/i.test(testCase) && /report (matches|match|agrees|same as|equals)|matches the screen|matches the (master )?qcs/i.test(testCase) && !has("expect_report_matches_qcs")) {
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const st = steps[i];
+      const aboutReport = (st.step === "click" && /download report/i.test(String(st.args?.name ?? st.args?.text ?? ""))) || st.step === "expect_download" || (st.step === "do_on_screen" && /download report/i.test(JSON.stringify(st.args ?? {})));
+      if (aboutReport) steps.splice(i, 1);
+    }
+    const at = Math.max(indexOf("expect_qcs_ranks"), indexOf("open_master_qcs"), indexOf("open_prepared"));
+    steps.splice(at >= 0 ? at + 1 : steps.length, 0, { step: "expect_report_matches_qcs", args: {} });
+    repairs.push("the downloaded Master QCS report is read and compared with the grid, row by row and vendor by vendor (expect_report_matches_qcs) — a click plus a download check only proved a file came");
+  }
+
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
   // through the API and open_prepared opens the screen the case is about. No
   // create screen, no title, no search — only the steps the case is about.
@@ -1879,7 +1915,7 @@ export interface CompileOptions {
    * the plan opens `screen` with open_prepared and holds only the steps the
    * case is about. `valueKeys` are the API values expect_api_value can compare.
    */
-  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string; shape?: { lines?: number; quantity?: number; prices?: number[] } };
+  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string; shape?: { lines?: number; quantity?: number; prices?: number[] }; auction?: boolean; strategy?: { dynamic?: { triggerMinutes: number; extendByMinutes: number; topBids: number; on: string }; trafficLight?: { by: string; lower?: number; upper?: number } } };
   /**
    * The screen the case was written from (the explorer / screen cases): its path and the exact
    * names of its controls. The plan reaches it with go_to {screen:"path"} and acts on it with
@@ -2015,7 +2051,7 @@ function shapeRules(p: NonNullable<CompileOptions["prepared"]>): string {
 /** The prompt section for a case whose state the API builds (CompileOptions.prepared). */
 function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
   return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
-- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted; two_bids = live and TWO QA vendors have each submitted their own bid; closed_two_bids = the bidding window ended after TWO QA vendors each bid — Master QCS, ranks, Start Awarding and a split allocation between the two are all on screen).${shapeRules(p)}
+- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}${p.auction ? `pricing round that is a live/finished AUCTION (reverse, lowest wins)${p.strategy?.dynamic ? ` with DYNAMIC TIME EXTENSION (trigger ${p.strategy.dynamic.triggerMinutes} min, extend by ${p.strategy.dynamic.extendByMinutes} min, top ${p.strategy.dynamic.topBids} bids) in its configuration` : ""}${p.strategy?.trafficLight ? ` as a TRAFFIC LIGHT auction (by ${p.strategy.trafficLight.by})` : ""} — exactly the auction the case names, so never call the strategy a gap` : "pricing (RFQ) round"}, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and one invited vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; converted = a published RFQ with the vendor's bid that was CONVERTED into a live auction — the screens are on the auction round, where the vendor has also bid; awarded = closed and the proposal submitted; two_bids = live and TWO QA vendors have each submitted their own bid; closed_two_bids = the bidding window ended after TWO QA vendors each bid — Master QCS, ranks, Start Awarding and a split allocation between the two are all on screen).${shapeRules(p)}
 - ${/two_bids/.test(p.state) ? "The two bidders are QA vendors: vendor 1 (\"Vendor A\") bid first, vendor 2 (\"Vendor B\") second — expect_api_value{key:\"vendorName\"} / {key:\"secondVendorName\"} name them. Otherwise the" : "The"} built event has exactly ${p.shape?.lines && p.shape.lines > 1 ? `${p.shape.lines} line items` : "ONE line item"}, ${qaVendorsOnly() ? "ONE invited QA vendor (whose bid, when there is one, is the only bid)" : "the vendors Procol suggests for its product invited (often many — never assert a participant count; after select_participant use grewBy) and exactly ONE bid when the state has one, from the case's own vendor"} and default settings.${qaVendorsOnly() ? "" : `
 - A SECOND VENDOR'S BID on a live / bid state ("two vendors bid", "a second bid with a lower total", "Vendor B bids 90", "two bids with the same total", "a surrogate bid beside the vendor's own"): place_surrogate_bid{price} — the buyer enters it on the Participants tab for another invited vendor (its Add Bid row; the run picks a vendor who has not bid; a third bid is another place_surrogate_bid). After it, Master QCS / Responses show two vendor columns, so expect_qcs_vendors{count:2}, expect_qcs_ranks, expect_qcs_cell{vendor:2,…}, expect_responses{count:2, surrogate:1} and a counter offer on the vendor's own bid are all expressible — never list "a second vendor" as a gap on these states. Only a second vendor's OWN portal session (its sign-in, its view) stays a gap. Not on closed / proposal / awarded (bidding is over) and not on a technical stage.`} A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
 ${p.state === "draft" ? `- THE DRAFT OPENS ON ITS OWN CREATE SCREEN (quick-create in edit mode, title and stage already there), so the create-screen steps ARE available after open_prepared: select_template, add_line_items, fill_sheet, set_schedule, invite_vendor, save_draft, publish, expect_publish_blocked, expect_stages, expect_line_items. "Set the schedule / end time", "publish the draft", "invite a vendor to the draft" are those steps — never list them as inexpressible. After publish, expect_published / expect_event_status read the project page. A case that needs the draft in another state too gets steps for the draft only and coverage "partial".` : `- The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".`}
@@ -2073,6 +2109,19 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
   const has = (name: string, pred: (st: PlanStep) => boolean = () => true) => steps.some((st) => st.step === name && pred(st));
   const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
   const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
+    {
+      // "compare the downloaded report's values with the Master QCS screen" (16 Nov): expect_report_matches_qcs reads the xlsx
+      gap: /\b(report|download|xlsx|excel)\b[^.]{0,60}\b(match|compare|same|equal|values|screen)/i,
+      covered: () => has("expect_report_matches_qcs"),
+      by: "expect_report_matches_qcs downloads the Master QCS report and compares every grid row, vendor by vendor, with the file",
+    },
+    {
+      // "the auction used a 2-minute trigger and extended by exactly 2 minutes" on a FINISHED event (16 Nov): that is the
+      // event's own configuration, built by the API with the strategy the case names; the ranking is what is checked
+      gap: /\b(trigger|extend(ed|s|sion)?)\b[^.]{0,40}\bminutes?\b/i,
+      covered: () => has("open_prepared") && (has("expect_qcs_ranks") || has("expect_report_matches_qcs")),
+      by: "the finished auction is built by the API with the strategy the case names (dynamic time extension trigger / extension, or traffic light); this case checks its result on Master QCS, not the extension itself (SRC-STR-009 checks that live)",
+    },
     {
       // "verify the end time moves for all vendors and the buyer / the participants panel's Dynamic time extended count /
       // submit the bid one minute before the end" (14 Nov, SRC-STR-009): wait_for_end_window times the bid, and

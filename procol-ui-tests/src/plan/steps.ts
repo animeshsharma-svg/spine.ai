@@ -148,7 +148,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "event_menu",
     purpose:
-      'Open the event menu that holds an action and choose it — for ANY of these words in a case: from the project\'s ⋮ menu (beside Messages): "Send Reminders", "Withdraw Project"; from a stage tab\'s Settings ▾: "Shared With", "Extend Submission Time", "Withdraw", "Convert to Auction", "Rejected Bids", "Order Activity", "Edit Evaluation Time", "Send Bulk Counter Offer", "Recreate Order", "Reschedule Event". The step goes to a stage tab when needed. What each opens (check THESE words, not the item\'s name): Shared With → a “Participation Summary” drawer (Invited · Seen · Bid Placed · Bid Not Placed); Order Activity → an “Activity” drawer (“You created the event …”); Send Reminders → a “Send Reminders” drawer (“Offer submissions” with “N Pending” and View — never press Notify, that messages the vendor); Rejected Bids → “Rejected Bids”; Edit Evaluation Time → “Edit Evaluation Time” (“Evaluation will end at …”). What the item opens (a dialog, drawer or popover) stays open for the next steps (expect_text on its words, click on its buttons, do_on_screen for the rest) unless close:true. Prefer withdraw_event, extend_submission_time, convert_to_auction or reschedule_event where they fit; this is for the rest. A greyed-out item fails the step — to CHECK it is greyed out use expect_menu_item{enabled:false}.',
+      'Open the event menu that holds an action and choose it — for ANY of these words in a case: from the project\'s ⋮ menu (beside Messages): "Send Reminders", "Withdraw Project"; from a stage tab\'s Settings ▾: "Shared With", "Extend Submission Time", "Withdraw", "Convert to Auction", "Rejected Bids", "Order Activity", "Edit Evaluation Time", "Send Bulk Counter Offer", "Recreate Order", "Reschedule Event". The step goes to a stage tab when needed. What each opens (check THESE words, not the item\'s name): Shared With → a “Participation Summary” drawer (Invited · Seen · Bid Placed · Bid Not Placed); Order Activity → an “Activity” drawer (its first line reads “You created the event” to the creator and “<name> has created the event” to anyone else — check “created the event”); Send Reminders → a “Send Reminders” drawer (“Offer submissions” with “N Pending” and View — never press Notify, that messages the vendor); Rejected Bids → “Rejected Bids”; Edit Evaluation Time → “Edit Evaluation Time” (“Evaluation will end at …”). What the item opens (a dialog, drawer or popover) stays open for the next steps (expect_text on its words, click on its buttons, do_on_screen for the rest) unless close:true. Prefer withdraw_event, extend_submission_time, convert_to_auction or reschedule_event where they fit; this is for the rest. A greyed-out item fails the step — to CHECK it is greyed out use expect_menu_item{enabled:false}.',
     args: {
       item: 'the menu item\'s words, e.g. "Order Activity"',
       stage: '"rfq" | "rfp" | "auction" — whose Settings menu (optional)',
@@ -642,6 +642,13 @@ export const STEP_CATALOG: StepSpec[] = [
     purpose:
       'The stage\'s participants summary on the buyer\'s console (its Overview sub-tab) — "Total Participants · Active participants · Total Bids · Revised bids · Rejected bids · Counter offers · Dynamic time extended" — read and compared with the values given. "Dynamic time extended" is the minutes the event was extended by last-minute bids in all ("2 min" after one 2-minute extension, "4 min" after two). Without values it only reads the panel.',
     args: { dynamicTimeExtended: '"2 min" (or 2)', totalBids: "a number", activeParticipants: "a number", totalParticipants: "a number", revisedBids: "a number", expect: '{"<label as shown>": "<value>"} for any other row' },
+    assertion: true,
+  },
+  {
+    name: "expect_report_matches_qcs",
+    purpose:
+      'On Master QCS (open_master_qcs first): press "Download Report", read the xlsx that lands (sheet "QCS Sheet": an attribute block, "Item / Vendor" with the vendor columns, then per line item the grid\'s own rows — Rank, Qty Offer, Qty Awarded, Auction Amount, Auction rate, RFQ Amount, Final Negotiated …) and compare every row the grid shows, vendor by vendor, with the report. Use for "Download Report … the report matches the screen". A difference is reported as a product finding with the row, the vendor, both values.',
+    args: {},
     assertion: true,
   },
   {

@@ -56,7 +56,7 @@ import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGa
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, runUiExplore, readPlanResult, clampLineItems, readStuck, readLearned, runTeach, handPlan, callOffWarm, clearWarmMarker, type UiRunEvent } from "./ui/uiFlowRunner.js";
 import { buildPlanRun, deletePlanRun, listPlanRuns, savePlanRun } from "./ui/planRunStore.js";
 import { contextForPlan } from "./ui/prepareForPlan.js";
-import { findSheetCase, listSheets, sheetCaseProse, sheetPrep } from "./checks/sheetCases.js";
+import { findSheetCase, listSheets, sheetCaseProse, sheetPrep, compilePrepared } from "./checks/sheetCases.js";
 import { campaignIntent, startCampaign } from "./checks/sheetCampaign.js";
 import { VALUE_KEYS } from "./agents/screenModel.js";
 import { casesForJourney, markTested, discoverFromRun, saveJourney, type JourneyRecord as TypedJourney, type JourneyCase } from "./agents/journeyCases.js";
@@ -1503,7 +1503,7 @@ const server = createServer(async (req, res) => {
           : null;
         // "Run it again" and the same words again reuse their compiled steps (agents/compileCache.ts).
         // A sheet case compiles with the state its pre-conditions name (prepared), so its plan opens that event.
-        const compileOpts = sheetStart?.prepared ? { prepared: { state: sheetStart.state, screen: sheetStart.screen, screenWhat: sheetStart.screenWhat, valueKeys: VALUE_KEYS[sheetStart.state] ?? [], technical: sheetStart.technical } } : {};
+        const compileOpts = sheetStart?.prepared ? { prepared: compilePrepared(sheetStart, VALUE_KEYS[sheetStart.state] ?? []) } : {};
         const cachedCompile = await compileCached(caseText, (t) => compileTestCase(t, "events", compileOpts)).finally(() => outlineTimer && clearTimeout(outlineTimer));
         const compiled = cachedCompile.result;
         if (cachedCompile.reused) send("note", { line: `Reused the steps compiled for this exact case ${Math.max(1, Math.round((cachedCompile.ageMs ?? 0) / 60_000))} min ago — the compiler and its steps have not changed since.` });

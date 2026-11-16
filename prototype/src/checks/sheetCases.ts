@@ -12,6 +12,7 @@
  *
  * The sourcing sheet (docs/test-cases/Procol-Sourcing-Test-Cases-PR-to-PO.xlsx) is imported on first use.
  */
+import { strategyIn, type AuctionStrategy } from "../ui/uiCasePrep.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -329,6 +330,8 @@ export interface SheetPrep {
   unbuilt?: string;
   /** the event's shape when the pre-conditions state it: line items, quantity, each bidder's price (uiSetup StateShape) */
   shape?: { lines?: number; quantity?: number; prices?: number[] };
+  /** the auction strategy the pre-conditions name (dynamic time extension, traffic light) — built into the API-made round */
+  strategy?: AuctionStrategy;
 }
 
 const WHAT: Record<string, string> = {
@@ -386,6 +389,12 @@ function stateFromWords(pre: string): UiState | null {
   return null;
 }
 
+
+/** The compiler's view of a prepared start state — every caller composes it here, so the auction flag and the strategy never go missing (16 Nov). */
+export function compilePrepared(sp: { state: UiState; screen: string; screenWhat: string; technical?: boolean; shape?: SheetPrep["shape"]; auction?: boolean; strategy?: AuctionStrategy }, valueKeys: string[]) {
+  return { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys, technical: !!sp.technical, ...(sp.shape ? { shape: sp.shape } : {}), ...(sp.auction ? { auction: true } : {}), ...(sp.strategy ? { strategy: sp.strategy } : {}) };
+}
+
 export function sheetPrep(c: SheetCase): SheetPrep | null {
   if (c.id.startsWith("SRC-SET-")) return null; // the set-up cases build their events through the screens
   const pre = c.preconditions;
@@ -395,14 +404,18 @@ export function sheetPrep(c: SheetCase): SheetPrep | null {
   // a case that creates its event (the create screen, a PR) needs nothing built
   const creates = c.steps.some((s) => /click the blue "create event"|purchase items|^from the left menu click "purchase requisitions"/i.test(s)) && !ev;
   if (creates) return null;
-  const state = ev?.state ?? stateFromWords(pre);
+  let state = ev?.state ?? stateFromWords(pre);
   if (!state) return null;
   const t = `${pre} ${c.title}`.toLowerCase();
   const technical = !!ev?.technical || /technical stage|tech\+rfq|technical \+ rfq/.test(t);
   const auction = ev?.auction ?? (/\bauction\b/.test(t) && !/convert/.test(t));
+  // "the finished … auction: the result after it ends — Master QCS ranks the final bids" (16 Nov): a closed round
+  // with TWO bidders, so there is a ranking to judge (one bid is rank 1 whatever the rule)
+  if (!ev && state === "closed" && /ranks? (the )?(final )?bids|lowest wins|highest wins|final bids/i.test(`${c.expected} ${c.title}`)) state = "closed_two_bids";
+  const strategy = auction ? strategyIn(t) : undefined;
   const screen = screenFor(c, state);
   const shape = ev?.shape ?? shapeFromWords(`${pre} ${c.testData !== "-" ? c.testData : ""}`);
-  return { prepared: true, state, screen, screenWhat: WHAT[screen] ?? screen, technical, auction: auction || undefined, why: ev?.setup ?? pre, note: ev?.note, ...(shape ? { shape } : {}) };
+  return { prepared: true, state, screen, screenWhat: WHAT[screen] ?? screen, technical, auction: auction || undefined, why: ev?.setup ?? pre, note: ev?.note, ...(shape ? { shape } : {}), ...(strategy ? { strategy } : {}) };
 }
 
 /**

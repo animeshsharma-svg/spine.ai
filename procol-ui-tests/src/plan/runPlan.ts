@@ -52,6 +52,7 @@ import { orchestrate } from "../support/orchestrator.js";
 import { EvaluationPage } from "../pages/EvaluationPage.js";
 import { runEventMenuStep, type EventMenuState } from "./eventMenuSteps.js";
 import { MasterQcsPage } from "../pages/MasterQcsPage.js";
+import * as XLSX from "xlsx";
 import { amountLabels, cellAt, lineBlocks, qcsNumber, rowLabels, vendorIndex } from "./qcsModel.js";
 import { fillRequiredFields, fillWhatTheAppNamed, sweepSaid, MANDATORY_SAID, type SweepResult } from "../support/requiredFields.js";
 
@@ -2971,6 +2972,90 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!pick.zone) throw new Error(`${pick.vendor}'s column shows no traffic light on the buyer's Responses — the case expects ${want} (grid: ${list})`);
       if (pick.zone !== want) throw new Error(`${pick.vendor} is in the ${pick.zone} zone on the buyer's Responses; the case expects ${want} (grid: ${list})`);
       return `${pick.vendor}${pickPrice != null ? ` (bid ${pickPrice})` : ""} is in the ${pick.zone} zone on the buyer's Responses (grid: ${list})`;
+    }
+    case "expect_report_matches_qcs": {
+      // MASTER QCS REPORT (16 Nov, SRC-STR-010 / 006): "Download Report" on Master QCS saves an xlsx straight away
+      // (RFX-<n>_Master_QCS_Report_<date>.xlsx, sheet "QCS Sheet": an attribute block, then "Item / Vendor" with
+      // the vendor columns, then per line item the same rows as the grid — Rank, Auction Amount, Auction rate, Qty
+      // Offer …; on another build a "Download Reports" panel offers "Download Excel" first). The file is read
+      // and every row the grid shows is compared, vendor by vendor, with the report's row of the same name.
+      const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
+      const qcs = new MasterQcsPage(buyerPage);
+      let g = await qcs.read().catch(() => null);
+      if (!g || !g.vendors.length) {
+        if (/\/project\//.test(buyerPage.url())) await new AwardPage(buyerPage).openMasterQcs().catch(() => false);
+        g = await qcs.read().catch(() => null);
+      }
+      if (!g || !g.vendors.length) throw new Error("no Master QCS comparison grid with vendor columns is on this screen (open_master_qcs first) — nothing to compare the report with");
+      const before = s.downloads.length;
+      const btn = buyerPage.getByRole("button", { name: /^\s*download reports?\s*$/i }).first();
+      if (!(await btn.count().catch(() => 0))) throw new Error(`Master QCS offers no "Download Report" button (buttons: ${(await buyerPage.getByRole("button").allInnerTexts().catch(() => [])).map((t) => t.trim()).filter(Boolean).slice(0, 12).join(", ")})`);
+      await btn.click({ timeout: 8_000 });
+      // a panel build: "Download Reports" → "Download Excel"
+      for (let i = 0; i < 20 && s.downloads.length === before; i++) {
+        await buyerPage.waitForTimeout(500);
+        if (i === 4) {
+          const panel = buyerPage.locator(".ant-drawer:not(.ant-drawer-hidden) .ant-drawer-content, .ant-modal-content, .ant-popover, .ant-dropdown:not(.ant-dropdown-hidden)").filter({ visible: true }).last();
+          const excel = panel.getByRole("button", { name: /download excel|excel|xlsx/i }).first();
+          if (await excel.count().catch(() => 0)) await excel.click({ timeout: 5_000 }).catch(() => {});
+        }
+      }
+      for (let i = 0; i < 40 && s.downloads.length === before; i++) await buyerPage.waitForTimeout(500);
+      const file = s.downloads[s.downloads.length - 1];
+      if (s.downloads.length === before || !file) throw new Error('no file was downloaded within 30 s of pressing "Download Report"');
+      let wb: XLSX.WorkBook;
+      try {
+        wb = XLSX.readFile(file.path);
+      } catch (e) {
+        throw new Error(`the downloaded ${file.name} could not be read as a workbook: ${(e as Error).message.slice(0, 120)}`);
+      }
+      const ws = wb.Sheets[wb.SheetNames.find((n: string) => /qcs/i.test(n)) ?? wb.SheetNames[0]];
+      const rows: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" }) as string[][];
+      const norm = (t: unknown) => String(t ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      const numOf = (t: unknown) => { const m = String(t ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+      const empty = (t: unknown) => /^\s*[-–—]?\s*$/.test(String(t ?? ""));
+      // the vendor header row and the report's column per grid vendor (company name or e-mail, any case)
+      const headAt = rows.findIndex((r) => /item\s*\/\s*vendor/i.test(String(r[0] ?? "")));
+      if (headAt < 0) throw new Error(`the report ${file.name} has no "Item / Vendor" row — its first lines: ${rows.slice(0, 6).map((r) => r.filter(Boolean).join(" | ")).join(" / ").slice(0, 300)}`);
+      const head = rows[headAt].map(norm);
+      const colOf = (vendor: string) => {
+        const v = norm(vendor).replace(/\.{3}$|…$/, "");
+        let i = head.findIndex((h, k) => k > 0 && h && (h === v || h.includes(v) || v.includes(h)));
+        if (i < 0) i = head.findIndex((h, k) => k > 0 && h && v.split(/[@\s]/)[0].length > 3 && h.includes(v.split(/[@\s]/)[0]));
+        return i;
+      };
+      const attrs: Record<string, string> = {};
+      for (const r of rows.slice(0, headAt)) if (r[0] && r[1] !== undefined && String(r[1]).trim()) attrs[String(r[0]).trim()] = String(r[1]).trim();
+      const reportRows = rows.slice(headAt + 1);
+      const problems: string[] = [];
+      let compared = 0, same = 0;
+      const missingVendors = g.vendors.filter((v) => colOf(v) < 0);
+      if (missingVendors.length) problems.push(`the report has no column for ${missingVendors.map((v) => `“${v}”`).join(", ")} (its columns: ${rows[headAt].slice(1).filter(Boolean).join(" | ")})`);
+      for (const block of g.blocks) {
+        for (const row of block.rows) {
+          const label = norm(row.label);
+          if (!label || /^sum total|^pq rating/.test(label)) continue;
+          // the report's row of the same name inside the same line item's section when it has one, else the first
+          const rr = reportRows.find((r) => norm(r[0]) === label) ?? reportRows.find((r) => norm(r[0]).startsWith(label) || label.startsWith(norm(r[0])) && norm(r[0]).length > 3);
+          if (!rr) continue;
+          g.vendors.forEach((vendor, vi) => {
+            const ci = colOf(vendor);
+            if (ci < 0) return;
+            const screen = row.cells[vi] ?? "";
+            const report = rr[ci] ?? "";
+            compared++;
+            if (empty(screen) && empty(report)) { same++; return; }
+            const ns = numOf(screen), nr = numOf(report);
+            const ok = ns !== null && nr !== null ? Math.abs(ns - nr) < 0.005 : norm(screen) === norm(report);
+            if (ok) same++;
+            else problems.push(`“${row.label}” for ${vendor}: the screen shows “${String(screen).trim() || "–"}”, the report says “${String(report).trim() || "(empty)"}”`);
+          });
+        }
+      }
+      const summary = `${file.name}: ${same}/${compared} cell(s) match the grid (${g.vendors.length} vendor(s), rows ${[...new Set(g.blocks.flatMap((b) => b.rows.map((r) => r.label)))].slice(0, 8).join(", ")}); report header: ${Object.entries(attrs).filter(([k]) => /end time|duration|closed|participated|title|ref/i.test(k)).map(([k, v]) => `${k} = ${v}`).join("; ")}`;
+      if (problems.length) throw new Error(`[product] the downloaded report differs from the Master QCS screen — ${problems.slice(0, 6).join("; ")} (${summary})`);
+      if (!compared) throw new Error(`nothing could be compared: the report's rows (${reportRows.slice(0, 12).map((r) => r[0]).filter(Boolean).join(", ")}) share no name with the grid's (${g.blocks.flatMap((b) => b.rows.map((r) => r.label)).slice(0, 10).join(", ")})`);
+      return `the downloaded report matches the Master QCS screen — ${summary}`;
     }
     case "note_end_time":
     case "wait_for_end_window": {

@@ -46,6 +46,7 @@
  * Bounded: the whole build has a time limit; a build that does not finish is
  * reported as "could not build the state" (a couldn't-tell, never a failure).
  */
+import type { AuctionStrategy } from "./uiCasePrep.js";
 import { openClientContext } from "../executor.js";
 import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
@@ -340,7 +341,7 @@ async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?:
 export async function buildUiState(
   companyId: number,
   state: UiState,
-  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void; shape?: StateShape } = {},
+  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void; shape?: StateShape; strategy?: AuctionStrategy } = {},
 ): Promise<UiSetupResult> {
   const t0 = Date.now();
   if (state === "none") return { ok: true, context: { state, technical: false, companyId, made: {}, values: {}, builtInMs: 0 } };
@@ -395,14 +396,37 @@ export async function buildUiState(
   const stageSeconds = state === "closed" || state === "closed_two_bids" || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
   // The round's variant, written into the stage body just before it is sent (JourneyRunOptions.stageBody).
   const bidTotal = 100 * 50; // the sibling test data's default bid (price × quantity); strategyFor only needs the scale
+  const strategy = opts.strategy;
   const stageBody =
-    variant || state === "masked"
+    variant || state === "masked" || (wantsAuction && strategy)
       ? (body: Record<string, any>, stage: string) => {
           if (stage === "rfp") return;
           body.configurations ??= {};
           if (variant === "forward") body.configurations.order_type = "sell";
           if (variant === "dutch" || variant === "knockout") Object.assign(body.configurations, strategyFor(variant, bidTotal));
           if (state === "masked") body.configurations.is_vendor_masking_enabled = true;
+          // the case's own strategy on the auction round (16 Nov, SRC-STR-010 / 006): the keys the backend reads
+          // (trade_request.config — bid.rb dynamic_extension_needed, trade_controller_helper get_config_for_new_trade)
+          if (stage === "auction" && strategy?.dynamic) {
+            Object.assign(body.configurations, {
+              is_dynamic_closing_time_allowed: true,
+              dynamic_closing_time_strategy: strategy.dynamic.on === "rank" ? "rank_based" : "price_based",
+              last_n_minutes_for_time_extension: strategy.dynamic.triggerMinutes,
+              time_extension_value: strategy.dynamic.extendByMinutes,
+              rank_limit_for_time_extension: strategy.dynamic.topBids,
+            });
+          }
+          if (stage === "auction" && strategy?.trafficLight) {
+            body.configurations.traffic_light_config = strategy.trafficLight.by;
+            // the GREEN / YELLOW bounds on every line item (trade_product meta_data lower_bound / upper_bound);
+            // by price they are gross totals — sized around the journey's own bids (price × quantity)
+            const lower = strategy.trafficLight.lower ?? (strategy.trafficLight.by === "rank" ? 1 : Math.round(bidTotal * 0.9));
+            const upper = strategy.trafficLight.upper ?? (strategy.trafficLight.by === "rank" ? 2 : Math.round(bidTotal * 1.1));
+            for (const key of ["trade_products", "products", "line_items"]) {
+              if (Array.isArray(body[key])) for (const it of body[key]) if (it && typeof it === "object") it.meta_data = { ...(it.meta_data ?? {}), lower_bound: lower, upper_bound: upper };
+            }
+            body.configurations.traffic_light_ranges = { lower_bound: lower, upper_bound: upper };
+          }
         }
       : undefined;
   let r: any;

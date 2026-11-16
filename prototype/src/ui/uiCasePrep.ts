@@ -24,7 +24,29 @@ export interface CasePrep {
   prepared: boolean;
   /** the case is about what the VENDOR sees: after publish the plan switches to the supplier portal */
   vendorSide?: boolean;
+  /** the auction's strategy the case's own words name (16 Nov): built into the API-made round's configuration */
+  strategy?: AuctionStrategy;
   why: string;
+}
+
+/** What a case says about the auction it starts from: dynamic time extension (trigger / extend minutes, top N) and / or a traffic light (by price or rank, the GREEN / YELLOW bounds). */
+export interface AuctionStrategy {
+  dynamic?: { triggerMinutes: number; extendByMinutes: number; topBids: number; on: "price" | "rank" };
+  trafficLight?: { by: "price" | "rank"; lower?: number; upper?: number };
+}
+
+/** The strategy named in a case's words ("dynamic time extension (trigger 2 min, extend by 2 min)", "traffic light auction"). */
+export function strategyIn(text: string): AuctionStrategy | undefined {
+  const t = text.toLowerCase();
+  const num = (re: RegExp) => { const m = t.match(re); return m ? Number(m[1]) : undefined; };
+  const out: AuctionStrategy = {};
+  if (/dynamic (time|event) extension|time extension|anti.?sniping/.test(t)) {
+    const trigger = num(/trigger[^0-9]{0,30}(\d+(?:\.\d+)?)\s*min/) ?? num(/last\s+(\d+(?:\.\d+)?)\s*min/) ?? 2;
+    const extend = num(/extend(?:ed|s|ing)?(?: the time| the event)? by\s+(\d+(?:\.\d+)?)\s*min/) ?? num(/extension (?:of|by)\s+(\d+(?:\.\d+)?)\s*min/) ?? 2;
+    out.dynamic = { triggerMinutes: trigger, extendByMinutes: extend, topBids: num(/top\s+(\d+)\s+bids?/) ?? 2, on: /extension on rank|rank change/.test(t) ? "rank" : "price" };
+  }
+  if (/traffic light/.test(t)) out.trafficLight = { by: /by rank|rank[- ]based traffic/.test(t) ? "rank" : "price", lower: num(/green[^0-9]{0,30}(\d+(?:\.\d+)?)/), upper: num(/yellow[^0-9]{0,30}(\d+(?:\.\d+)?)/) };
+  return out.dynamic || out.trafficLight ? out : undefined;
 }
 
 const WHAT: Record<string, string> = {
@@ -56,8 +78,10 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
   // A case whose own setup starts from an auction (and is not a conversion — that starts from
   // an RFQ) gets a live auction round instead of an RFQ.
   const setup = String(c.setup ?? "").toLowerCase();
-  if (p.ok && p.prepared && p.state !== "draft" && !["dutch", "knockout", "forward"].includes(p.state) && /\bauction\b/.test(setup) && !/convert|conversion|rfq/.test(setup) && c.group !== "UI-CONV")
-    return { ...p, auction: true, why: `${p.why} (as a live auction round)` };
+  if (p.ok && p.prepared && p.state !== "draft" && !["dutch", "knockout", "forward"].includes(p.state) && /\bauction\b/.test(setup) && !/convert|conversion|rfq/.test(setup) && c.group !== "UI-CONV") {
+    const strategy = strategyIn(`${setup} ${c.title}`);
+    return { ...p, auction: true, ...(strategy ? { strategy } : {}), why: `${p.why} (as a ${strategy?.dynamic ? "dynamic-time-extension " : ""}${strategy?.trafficLight ? "traffic light " : ""}auction round)` };
+  }
   // Two vendors named in the setup (10 Nov): a buyer-side case on an event with two vendors' bids used to get one
   // QA vendor's bid and compare nothing. Both QA vendors are invited; with bids named, both have bid (two_bids).
   if (p.ok && p.prepared && (p.state === "bid" || p.state === "live") && /two vendors(?! closing)|\b2 vendors\b|second vendor|both vendors|two (distinct )?(vendor )?companies|vendors? a\b.*vendors? b\b|two bids|\b2 bids\b|two vendors' bids/.test(setup) && !/closing mode/.test(setup)) {
@@ -199,8 +223,12 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
     return r(/closed|after (the )?end|ended|start awarding|award/.test(t) ? "closed" : "bid", "master_qcs", technical, "an award/approval case — the event is built with a bid and closed");
   }
   if (g === "UI-XDNEG" || /counter offer|negotiat/.test(t)) return r("bid", "responses", technical, "a counter-offer case — the event is built with a vendor's bid");
-  if (g === "UI-XDQCS" || /master qcs|\bqcs\b|comparison|compare|\bl1\b|best (bid|price)|rank/.test(t))
-    return r(/closed|after (the )?end|ended/.test(t) ? "closed" : "bid", /master qcs|\bqcs\b/.test(t) ? "master_qcs" : "responses", technical, "a comparison case — the event is built with a vendor's bid");
+  if (g === "UI-XDQCS" || /master qcs|\bqcs\b|comparison|compare|\bl1\b|best (bid|price)|rank/.test(t)) {
+    // "the finished auction … ranks the final bids" (16 Nov): a closed round with TWO bidders, so there is a ranking to judge
+    const over = /closed|after (the )?end|ended|finished|completed|result after/.test(t);
+    const ranked = /final bids|ranks? (the )?(final|bids)|lowest wins|highest wins|two (vendors|bids|bidders)/.test(t);
+    return r(over ? (ranked ? "closed_two_bids" : "closed") : "bid", /master qcs|\bqcs\b/.test(t) ? "master_qcs" : "responses", technical, over && ranked ? "a ranking case on a finished event — the event is built with two vendors' bids and closed" : "a comparison case — the event is built with a vendor's bid");
+  }
 
   // Participants and surrogate bids.
   if (g === "UI-SUR" || g === "UI-PART" || /participants?|audience|add bid|surrogate|invite/.test(t))

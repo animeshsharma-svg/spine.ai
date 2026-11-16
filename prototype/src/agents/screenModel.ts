@@ -17,6 +17,7 @@
  *   knowledge/events/screens/<id>.md     the memory: `npm run rag:build` turns it into chunks the
  *                                        planner recalls when a new case names this screen
  */
+import { compilePrepared } from "../checks/sheetCases.js";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -714,7 +715,7 @@ export async function planForScreenCase(caseId: string, screenId?: string, onLin
     onLine?.(`[screen] compiling ${caseId} for ${prep.prepared ? `a ${prep.state} event, opening ${prep.screenWhat}` : prep.screenWhat}…`);
     const compiled = await compileTestCase(text, "events", {
       tier: "reason",
-      ...(prep.prepared ? { prepared: { state: prep.state, screen: prep.screen, screenWhat: prep.screenWhat, valueKeys: VALUE_KEYS[prep.state] ?? [], technical: prep.technical } } : {}),
+      ...(prep.prepared ? { prepared: compilePrepared(prep, VALUE_KEYS[prep.state] ?? []) } : {}),
     }).catch((e) => ({ why: (e as Error).message }));
     if ("why" in compiled) return { why: `could not compile ${caseId}: ${compiled.why}`, prep };
     c.prep = { state: prep.state, screen: prep.screen, technical: prep.technical, prepared: prep.prepared };

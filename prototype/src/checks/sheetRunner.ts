@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sheetCaseProse, sheetPrep, type SheetCase } from "./sheetCases.js";
+import { sheetCaseProse, sheetPrep, type SheetCase, compilePrepared } from "./sheetCases.js";
 import { compileTestCase } from "../agents/planner.js";
 import { saveTextPlan, storedTextPlan, textPlanIsFresh } from "./compiledUiText.js";
 import { compileApiPlan, applyLineItemCount } from "../agents/apiPlanner.js";
@@ -332,7 +332,7 @@ async function ensureStoredTextPlan(c: SheetCase, line: (l: string) => void): Pr
   if (stored && stored.meta.source !== "fallback" && textPlanIsFresh(stored) && (stored.meta.state ?? "none") === (sp?.prepared && !sp.unbuilt ? sp.state : "none") && stored.plan?.steps?.length) return;
   line("Compiling the case's steps first, so the company can be set up for the screen the plan opens.");
   const compiled = await compileTestCase(sheetCaseProse(c), "events", {
-    ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical, ...(sp.shape ? { shape: sp.shape } : {}) } } : {}),
+    ...(sp?.prepared ? { prepared: compilePrepared(sp, VALUE_KEYS[sp.state] ?? []) } : {}),
   }).catch(() => null as Compiled | null);
   if (compiled) savePlanFor(c, sp, compiled);
 }
@@ -353,7 +353,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     : reuse
     ? { plan: structuredClone(stored!.plan), coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
     : await compileTestCase(prose, "events", {
-        ...(sp?.prepared ? { prepared: { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys: VALUE_KEYS[sp.state] ?? [], technical: sp.technical, ...(sp.shape ? { shape: sp.shape } : {}) } } : {}),
+        ...(sp?.prepared ? { prepared: compilePrepared(sp, VALUE_KEYS[sp.state] ?? []) } : {}),
         ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
       });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
@@ -383,7 +383,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     return out.result;
   }
   line(`Plan: ${plan.steps.length} steps — ${plan.steps.map((s) => s.step).join(" → ")}`);
-  const prep = await contextForPlan(prose, plan, opts.companyId, line, sp?.prepared ? { state: sp.state, technical: sp.technical, auction: sp.auction, ...(sp.shape ? { shape: sp.shape } : {}) } : undefined);
+  const prep = await contextForPlan(prose, plan, opts.companyId, line, sp?.prepared ? { state: sp.state, technical: sp.technical, auction: sp.auction, ...(sp.shape ? { shape: sp.shape } : {}), ...(sp.strategy ? { strategy: sp.strategy } : {}) } : undefined);
   if (prep.why) return { ...base(c, "Couldn't tell", `The starting event could not be built: ${mask(prep.why)}.`, 0), startedFrom: sp?.why };
   const planRunId = `sheet-${c.id}-${Date.now().toString(36)}`;
   const toRun = prep.context ? { ...plan, context: prep.context } : plan;
