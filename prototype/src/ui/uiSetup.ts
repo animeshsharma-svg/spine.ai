@@ -324,17 +324,23 @@ async function amendEvent(
 }
 
 /** What the pricing round reads back as (strategy, side, masking) — for the build's own check. */
-async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?: string; orderType?: string; masking?: boolean; status?: string; rfxMode?: string }> {
+async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?: string; orderType?: string; masking?: boolean; status?: string; rfxMode?: string; dynamic?: { on: boolean; trigger?: number; extend?: number; top?: number; strategy?: string }; trafficLight?: string }> {
   const r = await send(api, "GET", `/trade/${tradeUuid}`);
   const d = r.data ?? {};
   const t = d.trade_request ?? d.trade ?? d;
-  const cfg = t.config ?? d.config ?? {};
+  // the app's own read puts trade_request.config under `trade_config` (16 Nov: /trade/:id → trade_config.is_dynamic_closing_time_allowed …)
+  const cfg = t.trade_config ?? d.trade_config ?? t.config ?? d.config ?? {};
+  // the strategy keys as Procol holds them (trade_request.config): the dynamic time extension and the traffic light
+  const pick = (k: string) => cfg[k] ?? t[k] ?? d[k];
+  const dteOn = pick("is_dynamic_closing_time_allowed");
   return {
     auctionConfig: t.auction_config ?? d.auction_config ?? cfg.auction_config,
     orderType: t.order_type ?? d.order_type,
     masking: cfg.is_vendor_masking_enabled ?? t.is_vendor_masking_enabled ?? d.is_vendor_masking_enabled,
     status: t.status ?? d.status,
     rfxMode: t.rfx_mode ?? d.rfx_mode,
+    ...(dteOn !== undefined ? { dynamic: { on: dteOn === true || dteOn === "true", trigger: Number(pick("last_n_minutes_for_time_extension")) || undefined, extend: Number(pick("time_extension_value")) || undefined, top: Number(pick("rank_limit_for_time_extension")) || undefined, strategy: pick("dynamic_closing_time_strategy") } } : {}),
+    ...(pick("traffic_light_based_on_rank_or_price") || pick("traffic_light_config") ? { trafficLight: String(pick("traffic_light_based_on_rank_or_price") ?? pick("traffic_light_config")) } : {}),
   };
 }
 
@@ -384,7 +390,13 @@ export async function buildUiState(
     { bidders: TWO_BIDDERS.has(state) ? 2 : 1 },
   );
   const stop = state === "two_bids" ? plan.steps.lastIndexOf(PREFIX[state] as any) : plan.steps.indexOf(PREFIX[state] as any);
-  const shape = opts.shape ?? {};
+  const shape: StateShape = { ...(opts.shape ?? {}) };
+  // two bidders with no prices named: different prices, so the round has a ranking to judge (16 Nov, SRC-STR-010:
+  // both QA vendors bid the journey's default and Master QCS showed a tie, "Rank 2 and 2")
+  if (TWO_BIDDERS.has(state) && !shape.prices?.length) {
+    shape.prices = [100, 90];
+    opts.onLine?.("the two bidders bid 100 and 90 per unit (the case names no prices; different prices give the round a ranking)");
+  }
   if (shape.prices?.length || shape.quantity || (shape.lines ?? 1) > 1)
     opts.onLine?.(`the event is built as the case describes it: ${shape.lines && shape.lines > 1 ? `${shape.lines} line items, ` : ""}${shape.quantity ? `${shape.quantity} units each, ` : ""}${shape.prices?.length ? `bids of ${shape.prices.join(" and ")} per unit, in that order` : ""}`.replace(/, $/, ""));
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
@@ -417,15 +429,18 @@ export async function buildUiState(
             });
           }
           if (stage === "auction" && strategy?.trafficLight) {
-            body.configurations.traffic_light_config = strategy.trafficLight.by;
-            // the GREEN / YELLOW bounds on every line item (trade_product meta_data lower_bound / upper_bound);
-            // by price they are gross totals — sized around the journey's own bids (price × quantity)
-            const lower = strategy.trafficLight.lower ?? (strategy.trafficLight.by === "rank" ? 1 : Math.round(bidTotal * 0.9));
-            const upper = strategy.trafficLight.upper ?? (strategy.trafficLight.by === "rank" ? 2 : Math.round(bidTotal * 1.1));
+            // the keys the backend reads on create (trade_controller_helper ~3078 / ~3204, the same names the console
+            // sends — redux/orders/helpers.js): auction_config "traffic_light", traffic_light_config "price" | "rank",
+            // traffic_light_ranges {lower_bound, upper_bound} on the lot (by price: gross totals, lower < upper on the
+            // buy side — sized around the journey's own bids, price × quantity, so the lower bidder is green)
+            const lower = strategy.trafficLight.lower ?? (strategy.trafficLight.by === "rank" ? 1 : Math.round(bidTotal * 0.92));
+            const upper = strategy.trafficLight.upper ?? (strategy.trafficLight.by === "rank" ? 2 : Math.round(bidTotal * 1.05));
+            const keys = { auction_config: "traffic_light", traffic_light_config: strategy.trafficLight.by, traffic_light_ranges: { lower_bound: lower, upper_bound: upper } };
+            Object.assign(body.configurations, keys);
+            Object.assign(body, keys);
             for (const key of ["trade_products", "products", "line_items"]) {
               if (Array.isArray(body[key])) for (const it of body[key]) if (it && typeof it === "object") it.meta_data = { ...(it.meta_data ?? {}), lower_bound: lower, upper_bound: upper };
             }
-            body.configurations.traffic_light_ranges = { lower_bound: lower, upper_bound: upper };
           }
         }
       : undefined;
@@ -536,6 +551,26 @@ export async function buildUiState(
     opts.onLine?.(`the round reads back with ${what}`);
     if (!expect && (variant || round.masking !== undefined))
       return { ok: false, why: `the API build of the ${state} state stopped: the round was created but reads back with ${what} (the app did not keep the ${variant ?? "masking"} setting)` };
+  }
+
+  // The strategy the case named must have TAKEN on the round, or the case would run on a plain auction and prove
+  // nothing about it (16 Nov: the first traffic-light build kept none of the guessed keys) — read it back and say.
+  if (strategy && stageUuid) {
+    const round = await withWatchdog(readRound(api, stageUuid), 60_000, "reading the round's strategy back").catch(() => ({} as Awaited<ReturnType<typeof readRound>>));
+    const problems: string[] = [];
+    if (strategy.dynamic) {
+      if (!round.dynamic?.on) problems.push("the dynamic time extension is not on the round");
+      else {
+        values.dynamicExtensionReadBack = `on, trigger ${round.dynamic.trigger ?? "?"} min, extend by ${round.dynamic.extend ?? "?"} min, top ${round.dynamic.top ?? "?"} bids, ${round.dynamic.strategy ?? "?"}`;
+        if (round.dynamic.trigger !== strategy.dynamic.triggerMinutes || round.dynamic.extend !== strategy.dynamic.extendByMinutes) problems.push(`the round reads back with trigger ${round.dynamic.trigger ?? "?"} / extend ${round.dynamic.extend ?? "?"} min, not the case's ${strategy.dynamic.triggerMinutes} / ${strategy.dynamic.extendByMinutes}`);
+      }
+    }
+    if (strategy.trafficLight) {
+      if (!round.trafficLight && round.auctionConfig !== "traffic_light") problems.push(`the round is not a traffic light auction (strategy "${round.auctionConfig ?? "?"}", traffic light config ${round.trafficLight ?? "none"})`);
+      else values.trafficLightReadBack = `${round.auctionConfig ?? "traffic_light"} by ${round.trafficLight ?? strategy.trafficLight.by}`;
+    }
+    opts.onLine?.(problems.length ? `the round's strategy did NOT take: ${problems.join("; ")}` : `the round reads back with the case's strategy${values.dynamicExtensionReadBack ? ` — dynamic time extension ${values.dynamicExtensionReadBack}` : ""}${values.trafficLightReadBack ? ` — traffic light (${values.trafficLightReadBack})` : ""}`);
+    if (problems.length) return { ok: false, why: `the API build of the ${state} state stopped: the round was created but ${problems.join("; ")} — the case would run on a plain auction and prove nothing about its strategy` };
   }
 
   // The name Procol shows: the API client tags a generated title as it sends it (spine-API-automation-<n>,

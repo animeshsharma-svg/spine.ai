@@ -2988,7 +2988,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (!g || !g.vendors.length) throw new Error("no Master QCS comparison grid with vendor columns is on this screen (open_master_qcs first) — nothing to compare the report with");
       const before = s.downloads.length;
-      const btn = buyerPage.getByRole("button", { name: /^\s*download reports?\s*$/i }).first();
+      // the button's accessible name carries its icon ("icon: download Download Report", 16 Nov) — match the words, not the whole name
+      const btn = buyerPage.getByRole("button", { name: /download reports?/i }).filter({ visible: true }).first();
       if (!(await btn.count().catch(() => 0))) throw new Error(`Master QCS offers no "Download Report" button (buttons: ${(await buyerPage.getByRole("button").allInnerTexts().catch(() => [])).map((t) => t.trim()).filter(Boolean).slice(0, 12).join(", ")})`);
       await btn.click({ timeout: 8_000 });
       // a panel build: "Download Reports" → "Download Excel"
@@ -3005,7 +3006,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (s.downloads.length === before || !file) throw new Error('no file was downloaded within 30 s of pressing "Download Report"');
       let wb: XLSX.WorkBook;
       try {
-        wb = XLSX.readFile(file.path);
+        // the ESM build of xlsx has no readFile (16 Nov: "XLSX.readFile is not a function") — read the bytes ourselves
+        const { readFileSync } = await import("node:fs");
+        wb = XLSX.read(readFileSync(file.path), { type: "buffer" });
       } catch (e) {
         throw new Error(`the downloaded ${file.name} could not be read as a workbook: ${(e as Error).message.slice(0, 120)}`);
       }
