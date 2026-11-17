@@ -63,7 +63,7 @@ export type UiState =
  * price per unit in bidding order — "a closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90"
  * is {quantity:10, prices:[100, 90]}. Vendor A is the first QA vendor, Vendor B the second.
  */
-export interface StateShape { lines?: number; quantity?: number; prices?: number[] }
+export interface StateShape { lines?: number; quantity?: number; prices?: number[]; /** the product the case names — resolved against the company's catalog by name */ product?: string }
 export const UI_STATES: UiState[] = [
   "none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted",
   "two_invited", "two_bids", "closed_two_bids", "uninvited", "withdrawn", "amended", "amendment", "dutch", "knockout", "forward", "masked", "pr_rfq",
@@ -444,11 +444,29 @@ export async function buildUiState(
           }
         }
       : undefined;
+  // The product the case names (shape.product, 17 Nov): the company's catalog is searched by that name and the
+  // journey builds the event on it — a flow that reads "CYLINDER WITH KEY & KNOB" on screen cannot hold on the
+  // catalog's first product. Not found: said, and the catalog's own product is used.
+  let choose: Record<string, unknown> | undefined;
+  if (shape.product) {
+    const api = client?.ctx?.buyerApi;
+    const q = shape.product.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    const r0 = api ? await withWatchdog(send(api, "GET", `/products/search?query=${encodeURIComponent(q)}`), 30_000, "searching the product by name").catch(() => ({ ok: false, data: null } as any)) : { ok: false, data: null };
+    const products: any[] = r0?.ok ? (r0.data?.products ?? (Array.isArray(r0.data) ? r0.data : [])) : [];
+    const norm = (t: unknown) => String(t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const hit = products.find((p) => norm(p?.name) === norm(q)) ?? products.find((p) => norm(p?.name).includes(norm(q)) || norm(q).includes(norm(p?.name))) ?? null;
+    const variant = hit ? (hit.variants ?? hit.product_qualities ?? [])[0] : null;
+    if (hit?.uuid && variant?.uuid) {
+      choose = { productUuid: String(hit.uuid), productQualityUuid: String(variant.uuid) };
+      opts.onLine?.(`the event is built on the product the case names: "${hit.name}"${hit.code || hit.product_code ? ` (${hit.code ?? hit.product_code})` : ""}`);
+    } else opts.onLine?.(`the company's catalog has no product named "${shape.product}" (search found ${products.length}) — the catalog's own first product is used`);
+  }
   let r: any;
   try {
     r = await withWatchdog(
       runEventJourney(client, plan, {
         stageSeconds,
+        ...(choose ? { choose } : {}),
         // upcoming: published, not yet open — and with a Delivery Date, so the Reschedule
         // dialog shows that field and its "start on or before delivery" rule can be checked
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),

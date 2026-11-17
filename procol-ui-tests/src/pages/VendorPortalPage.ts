@@ -613,9 +613,22 @@ export class VendorPortalPage extends BasePage {
     // old step filled the sheet, never ticked them, and waited 10s for a
     // button that could not enable (UI batch 2026-10-03: "submit never
     // clickable"). Ticking the terms is the vendor's own act on their own bid.
-    const submit = this.page.getByRole("button", { name: /submit quote/i }).first();
+    // the button reads "Submit Quote" on an RFQ and "Submit Bid" on an auction round (17 Nov: a traffic-light
+    // auction's "Submit Bid" sat disabled while the step looked for "Submit Quote" and then pressed nothing)
+    const submit = this.page.getByRole("button", { name: /submit (quote|bid)/i }).filter({ visible: true }).first();
     const disabled = async () => (await submit.count()) > 0 && (await submit.isDisabled().catch(() => false));
     if (await disabled()) {
+      // a sheet with a select box per line (partial closing): the line must be ticked before its price counts
+      const rowBoxes = this.page.locator(".data-grid-container tbody tr, [role='row']").locator("input[type='checkbox'], [role='checkbox']").filter({ visible: true });
+      const nRows = Math.min(await rowBoxes.count().catch(() => 0), 10);
+      let rowsTicked = 0;
+      for (let i = 0; i < nRows; i++) {
+        const box = rowBoxes.nth(i);
+        if ((await box.isChecked().catch(() => true)) || (await box.isDisabled().catch(() => true))) continue;
+        await box.check({ timeout: 3_000 }).catch(() => box.click({ timeout: 3_000, force: true }).catch(() => {}));
+        rowsTicked += 1;
+      }
+      if (rowsTicked) { console.log(`[vendor] ticked ${rowsTicked} line(s) on the sheet before submitting`); await this.pause(600); }
       const terms = this.page
         .getByText(/terms and conditions/i)
         .first()
@@ -660,7 +673,7 @@ export class VendorPortalPage extends BasePage {
           console.log(`[vendor] ${this.lastFill}`);
           return;
         }
-        throw new Error(`"Submit Quote" stays disabled after the sheet was filled and ${ticked} term(s) ticked — required columns on the sheet: ${empty.join(", ") || "(none marked)"}`);
+        throw new Error(`"${((await submit.innerText().catch(() => "")) || "Submit Quote").trim()}" stays disabled after the sheet was filled and ${ticked} term(s) ticked — required columns on the sheet: ${empty.join(", ") || "(none marked)"}`);
       }
     }
     await this.click(

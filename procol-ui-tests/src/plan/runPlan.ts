@@ -551,24 +551,15 @@ async function completeRequiredCells(s: RunState): Promise<string[]> {
     const td = g.rows.nth(1).locator("td").nth(i);
     const shown = cellText((await td.innerText().catch(() => "")) || "");
     if (shown) continue;
-    await td.dblclick({ timeout: 5_000 }).catch(async () => { await td.click({ timeout: 5_000 }).catch(() => {}); });
-    await s.page.waitForTimeout(600);
-    const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
-    if (await select.count().catch(() => 0)) {
-      const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
-      await search.fill("").catch(() => {});
-      const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
-      for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
-      const text = ((await opt.innerText().catch(() => "")) || "").trim();
-      if (text && (await opt.click({ timeout: 5_000 }).then(() => true).catch(() => false))) filled.push(`${name} = ${text}`);
-      else await s.page.keyboard.press("Escape").catch(() => {});
-      continue;
-    }
-    const input = td.locator("input, textarea").first();
-    if (await input.count().catch(() => 0)) {
-      const value = /price|amount|rate/i.test(name) ? "100" : /quantity|qty/i.test(name) ? "10" : /date/i.test(name) ? "" : "1";
-      if (value) { await input.fill(value).catch(() => {}); await s.page.keyboard.press("Tab").catch(() => {}); filled.push(`${name} = ${value}`); }
-    } else await s.page.keyboard.press("Escape").catch(() => {});
+    if (/date/i.test(name)) continue;
+    // the same setter a case's own set_sheet_cell uses (click, then double-click; the server-searched list given
+    // its time; the first option when nothing is named) — the standalone fill left Delivery location, Price and
+    // Quantity Available empty on a PRD-derived flow (17 Nov) and Publish said "Sheet partially filled"
+    const value = /price|amount|rate/i.test(name) ? "100" : /quantity|qty/i.test(name) ? "10" : /location|variant|hub|plant|unit|currency|category/i.test(name) ? "(first)" : "1";
+    const said = await runStep(s, { step: "set_sheet_cell", args: { row: 1, column: name, value } }).catch((e) => `failed: ${(e as Error).message.split("\n")[0].slice(0, 120)}`);
+    const now = cellText((await td.innerText().catch(() => "")) || "");
+    if (now) filled.push(`${name} = ${now.slice(0, 40)}`);
+    else console.log(`[single-stage] required cell "${name}" is still empty — ${said}`);
   }
   return filled;
 }
@@ -1602,6 +1593,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "set_sheet_cell": {
       const value = String(a.value ?? "");
       const clearing = value === "" || /^\(?(empty|clear|blank)\)?$/i.test(value);
+      // "(first)": whatever a dropdown cell offers first — a required cell the case says nothing about (17 Nov)
+      const wantFirst = /^\(?first( option)?\)?$/i.test(value);
       const g = await sheetGrid(s);
       const { td, rowNo, key } = await g.cell(a.row, a.column);
       const locked = /read-?only/i.test((await td.getAttribute("class").catch(() => "")) ?? "");
@@ -1615,11 +1608,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
       if (!clearing && (await select.count().catch(() => 0))) {
         const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
-        await search.fill(value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
+        await search.fill(wantFirst ? "" : value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
         // the option is matched on the value without its code in brackets, and spacing is not a difference:
         // "Plant Name (LOC-0001)" in the case is "Plant Name(LOC-0001)" on PROCOL DEMO (13 Nov)
         const esc = value.replace(/\s*\([^)]*\)\s*$/, "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
-        const opt = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc, "i") }).first();
+        const opt = wantFirst ? select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first() : select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc, "i") }).first();
         // the list is searched on the server: give the match up to 6 s to appear before deciding it is not there
         for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
         if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
@@ -2371,7 +2364,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "fill_sheet": {
       if (await isSingleStageScreen(s)) {
-        return "sheet already filled with the line item (single-stage)";
+        // the "Sheet partially filled" recovery lands here too (17 Nov, a PRD-derived flow): complete the required
+        // cells by header and the traffic-light range cells, as add_line_items does — "already filled" filled nothing
+        const completed = await completeRequiredCells(s).catch(() => [] as string[]);
+        const ranges = await s.single.fillRangeCells().catch(() => 0);
+        return completed.length || ranges
+          ? `single-stage sheet completed${completed.length ? ` — required cell(s) by header: ${completed.join(", ")}` : ""}${ranges ? `; ${ranges} traffic-light range cell(s)` : ""}`
+          : "sheet already filled with the line item (single-stage)";
       }
       if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
       await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);

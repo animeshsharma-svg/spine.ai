@@ -329,7 +329,7 @@ export interface SheetPrep {
   /** the case starts from something the API cannot build: the run says so instead of guessing */
   unbuilt?: string;
   /** the event's shape when the pre-conditions state it: line items, quantity, each bidder's price (uiSetup StateShape) */
-  shape?: { lines?: number; quantity?: number; prices?: number[] };
+  shape?: { lines?: number; quantity?: number; prices?: number[]; product?: string };
   /** the auction strategy the pre-conditions name (dynamic time extension, traffic light) — built into the API-made round */
   strategy?: AuctionStrategy;
 }
@@ -434,5 +434,9 @@ export function shapeFromWords(text: string): SheetPrep["shape"] | undefined {
   const a = price("a"), b = price("b");
   if (a && b) shape.prices = [Number(a), Number(b)];
   else if (a) shape.prices = [Number(a)];
+  // the product the words name (17 Nov): product "CYLINDER WITH KEY & KNOB" / Add CYLINDER WITH KEY & KNOB with quantity 10 —
+  // the API-built event then carries that product, so a check that reads its name on screen can hold
+  const prod = text.match(/\bproduct\s+[“"']([^”"']{3,80})[”"']/i)?.[1] ?? text.match(/\badd\s+([A-Z][A-Z0-9 &\-\/.]{3,70}?)\s+with quantity/)?.[1];
+  if (prod) shape.product = prod.trim();
   return Object.keys(shape).length ? shape : undefined;
 }

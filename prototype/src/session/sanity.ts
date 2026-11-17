@@ -105,7 +105,11 @@ export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]
       steps = [...prev.steps, ...f.steps];
       preList = prev.preconditions;
     }
-    const pre = preList.length ? preList.map((p) => p.replace(/\.?$/, ".")).join(" ") : "The buyer can create events.";
+    // The feature the PRD is about goes into the pre-conditions (17 Nov): the sheet prep reads them for the start
+    // state's kind and strategy — "Traffic Light Auction with Dynamic Time Extension" builds a live traffic-light
+    // auction round with the extension on, not a plain RFQ (sanity FL2–FL4 ran on an RFQ and could not reach the zones)
+    const about = card.title ? `This flow is part of "${card.title}". ` : "";
+    const pre = about + (preList.length ? preList.map((p) => p.replace(/\.?$/, ".")).join(" ") : "The buyer can create events.");
     return {
       id: `SAN-${String(i + 1).padStart(3, "0")}`,
       sheet,

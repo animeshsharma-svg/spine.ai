@@ -83,11 +83,12 @@ function fromJsonObject(o: any): RawTicket | null {
 /** Header → field, by exact (lower-cased) name first, then by "contains". */
 const COLUMNS: Array<{ field: keyof RawTicket | "company" | "contact" | "owner"; exact: string[]; contains?: string[] }> = [
   { field: "id", exact: ["ticket id", "record id", "hs_object_id", "id"] },
-  { field: "subject", exact: ["ticket name", "subject", "name"] },
-  { field: "content", exact: ["ticket description", "description", "content"] },
+  // the RCA retrieval export (Jul–Sep 2026, 1,033 rows) names them "Title" / "Description (CS)" / "Description (Eng)"
+  { field: "subject", exact: ["ticket name", "subject", "name", "title"] },
+  { field: "content", exact: ["ticket description", "description", "content", "description (cs)", "description (eng)"], contains: ["description"] },
   { field: "pipeline", exact: ["pipeline"] },
   { field: "pipelineStage", exact: ["ticket status", "status", "pipeline stage"] },
-  { field: "category", exact: ["category", "ticket category"] },
+  { field: "category", exact: ["category", "ticket category", "label", "module"] },
   { field: "priority", exact: ["priority"] },
   { field: "sourceType", exact: ["source", "source type"] },
   { field: "createdAt", exact: ["create date", "created date", "createdate"] },
@@ -126,7 +127,8 @@ export function fromRows(rows: Array<Record<string, unknown>>, kind: "csv" | "xl
     tickets.push({
       id,
       subject: one(r, "subject"),
-      content: one(r, "content"),
+      // every description column the export has (the RCA export carries the customer's and engineering's), joined
+      content: [...new Set((map.get("content") ?? []).map((h) => str(r[h])).filter(Boolean))].join("\n\n") || one(r, "content"),
       category: one(r, "category") || undefined,
       priority: one(r, "priority") || undefined,
       pipeline: one(r, "pipeline") || undefined,
@@ -164,7 +166,7 @@ export function loadTicketFile(path: string): LoadResult {
   }
   if (ext === ".csv" || ext === ".xlsx" || ext === ".xls") {
     // SheetJS reads both; for CSV it keeps every cell as text (raw), so ids and dates are not reinterpreted.
-    const wb = ext === ".csv" ? XLSX.read(readFileSync(path, "utf8"), { type: "string", raw: true }) : XLSX.readFile(path, { cellDates: false });
+    const wb = ext === ".csv" ? XLSX.read(readFileSync(path, "utf8"), { type: "string", raw: true }) : XLSX.read(readFileSync(path), { type: "buffer", cellDates: false });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false });
     const kind = ext === ".csv" ? "csv" : "xlsx";
