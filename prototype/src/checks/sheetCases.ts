@@ -412,7 +412,7 @@ export function sheetPrep(c: SheetCase): SheetPrep | null {
   // "the finished … auction: the result after it ends — Master QCS ranks the final bids" (16 Nov): a closed round
   // with TWO bidders, so there is a ranking to judge (one bid is rank 1 whatever the rule)
   if (!ev && state === "closed" && /ranks? (the )?(final )?bids|lowest wins|highest wins|final bids/i.test(`${c.expected} ${c.title}`)) state = "closed_two_bids";
-  const strategy = auction ? strategyIn(t) : undefined;
+  const strategy = auction ? strategyIn(`${t} ${c.testData !== "-" ? c.testData : ""}`.toLowerCase()) : undefined;
   const screen = screenFor(c, state);
   const shape = ev?.shape ?? shapeFromWords(`${pre} ${c.testData !== "-" ? c.testData : ""}`);
   return { prepared: true, state, screen, screenWhat: WHAT[screen] ?? screen, technical, auction: auction || undefined, why: ev?.setup ?? pre, note: ev?.note, ...(shape ? { shape } : {}), ...(strategy ? { strategy } : {}) };

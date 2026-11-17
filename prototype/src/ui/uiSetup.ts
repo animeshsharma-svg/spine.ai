@@ -420,7 +420,9 @@ export async function buildUiState(
     else if (stageSeconds >= 3600) { stageSeconds = need + 60; opts.onLine?.(`the bidding window is ${Math.round(stageSeconds / 60)} min (the extension's last minutes come inside the run)`); }
   }
   // The round's variant, written into the stage body just before it is sent (JourneyRunOptions.stageBody).
-  const bidTotal = 100 * 50; // the sibling test data's default bid (price × quantity); strategyFor only needs the scale
+  // the case's own quantity and first price when it names them (17 Nov: traffic-light bounds sized on 100 × 50 put a
+  // bid of 100 on quantity 10 in the green zone where the PRD said yellow); else the sibling test data's default
+  const bidTotal = (shape.prices?.[0] ?? 100) * (shape.quantity ?? 50);
   const strategy = opts.strategy;
   const stageBody =
     variant || state === "masked" || (wantsAuction && strategy)

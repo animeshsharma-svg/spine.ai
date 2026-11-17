@@ -615,7 +615,8 @@ export class VendorPortalPage extends BasePage {
     // clickable"). Ticking the terms is the vendor's own act on their own bid.
     // the button reads "Submit Quote" on an RFQ and "Submit Bid" on an auction round (17 Nov: a traffic-light
     // auction's "Submit Bid" sat disabled while the step looked for "Submit Quote" and then pressed nothing)
-    const submit = this.page.getByRole("button", { name: /submit (quote|bid)/i }).filter({ visible: true }).first();
+    // …and "Revise Bid" / "Revise Quote" when the vendor already has a bid in and is changing it (17 Nov, FL3)
+    const submit = this.page.getByRole("button", { name: /(submit|revise) (quote|bid)/i }).filter({ visible: true }).first();
     const disabled = async () => (await submit.count()) > 0 && (await submit.isDisabled().catch(() => false));
     if (await disabled()) {
       // a sheet with a select box per line (partial closing): the line must be ticked before its price counts
@@ -681,6 +682,7 @@ export class VendorPortalPage extends BasePage {
         this.page.getByRole("button", { name: /submit quote/i }),
         this.page.locator('[data-testid="submit-bid-button"]'),
         this.page.getByRole("button", { name: /submit (your )?bid|^submit$/i }),
+        this.page.getByRole("button", { name: /revise (quote|bid)/i }),
         this.page.getByText(/^submit (quote|bid)$/i),
       ],
       { label: "submit-bid", timeout: TIMEOUTS.MEDIUM },
