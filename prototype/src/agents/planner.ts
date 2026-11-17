@@ -843,7 +843,13 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // dynamic extension), or what that vendor's zone shows (it bids above the green bidder first, so it is outside
   // the allowed zone).
   {
-    const OTHER = /\b(other|another|every other|each other|second|remaining|yellow|red|non-?green)[^.]{0,60}\b(vendors?|participants?|bidders?)[^.]{0,40}\b(sessions?|portals?|supplier[- ]portal|own (supplier )?(sessions?|screens?|view))\b|\b(vendors?|participants?|bidders?)'?s? own (supplier[- ]portal |supplier )?(sessions?|screens?|views?)\b/i;
+    const OTHER = new RegExp([
+      String.raw`\b(other|another|every other|each other|second|remaining|yellow|red|non-?green)[^.]{0,60}\b(vendors?|participants?|bidders?)[^.]{0,40}\b(sessions?|portals?|supplier[- ]portal|own (supplier )?(sessions?|screens?|view))\b`,
+      String.raw`\b(vendors?|participants?|bidders?)'?s? own (supplier[- ]portal |supplier )?(sessions?|screens?|views?)\b`,
+      // "in separate vendor sessions, submit 100 and 120 …" / "the yellow-zone and red-zone vendors see neither …" (17 Nov)
+      String.raw`\bseparate\b[^.]{0,30}\b(vendor|supplier|bidder)s?\b[^.]{0,20}\b(sessions?|portals?|logins?|browsers?)\b`,
+      String.raw`\b(yellow|red|non-?green)[- ]zone\b[^.]{0,40}\b(vendors?|bidders?)\b[^.]{0,40}\b(see|sees|shown|show|visible)\b`,
+    ].join("|"), "i");
     for (let i = steps.length - 1; i >= 0; i--) {
       const st = steps[i];
       if (st.step !== "ask_tester") continue;
@@ -857,7 +863,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       } else if (/zone|rank|best[- ]?price/i.test(need)) {
         // the other vendor bids above every price in the plan, so it is outside the green zone; then what it sees
         const prices = steps.filter((x) => (x.step === "vendor_bid" || x.step === "place_bid" || x.step === "place_surrogate_bid") && x.args?.price !== undefined).map((x) => Number(x.args!.price)).filter((n) => Number.isFinite(n));
-        const price = Math.ceil((prices.length ? Math.max(...prices) : 100) * 1.3);
+        // a price the words give for the other vendor (the first one above every price already in the plan), else 30% above
+        const top = prices.length ? Math.max(...prices) : 100;
+        const named = (need.match(/\b\d{2,6}(?:\.\d+)?\b/g) ?? []).map(Number).filter((n) => n > top);
+        const price = named.length ? named[0] : Math.ceil(top * 1.3);
         const hidden = /\b(neither|not|no|hidden|cannot|can't)\b/i.test(need);
         out.push({ step: "vendor_bid", args: { price } }, { step: "expect_bid_submitted" }, { step: "expect_zone", args: { zone: "not green", side: "vendor", ...(/rank/i.test(need) ? { rank: !hidden } : {}), ...(/best[- ]?price/i.test(need) ? { bestPrice: !hidden } : {}) } });
       } else continue;
