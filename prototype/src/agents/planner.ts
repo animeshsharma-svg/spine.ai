@@ -843,43 +843,46 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // dynamic extension), or what that vendor's zone shows (it bids above the green bidder first, so it is outside
   // the allowed zone).
   {
-    const OTHER = new RegExp([
-      String.raw`\b(other|another|every other|each other|second|remaining|yellow|red|non-?green)[^.]{0,60}\b(vendors?|participants?|bidders?)[^.]{0,40}\b(sessions?|portals?|supplier[- ]portal|own (supplier )?(sessions?|screens?|view))\b`,
-      String.raw`\b(vendors?|participants?|bidders?)'?s? own (supplier[- ]portal |supplier )?(sessions?|screens?|views?)\b`,
-      // "in separate vendor sessions, submit 100 and 120 …" / "the yellow-zone and red-zone vendors see neither …" (17 Nov)
-      String.raw`\bseparate\b[^.]{0,30}\b(vendor|supplier|bidder)s?\b[^.]{0,20}\b(sessions?|portals?|logins?|browsers?)\b`,
-      String.raw`\b(yellow|red|non-?green)[- ]zone\b[^.]{0,40}\b(vendors?|bidders?)\b[^.]{0,40}\b(see|sees|shown|show|visible)\b`,
-    ].join("|"), "i");
+    // ANY question about a vendor's own session / portal / sign-in, however it is worded (the model rewords it every
+    // compile: "the other participants' portals", "separate vendor sessions", "in samplevendor@… and …@… supplier
+    // sessions"). Named vendors (e-mails) are signed in as themselves, in order, each with the price the words give
+    // them ("100 and 120 respectively"); none named → a vendor on the event this run has not used ("other").
+    const SESSION = /\b(sessions?|portals?|sign(?:ed|s)? in|log(?:ged|s)? in|logins?|own (?:screens?|views?))\b/i;
+    const WHO = /\b(vendors?|suppliers?|bidders?|participants?)\b|[\w.+-]+@[\w.-]+\.\w+/i;
     for (let i = steps.length - 1; i >= 0; i--) {
       const st = steps[i];
       if (st.step !== "ask_tester") continue;
       const need = String(st.args?.need ?? st.args?.question ?? st.args?.ask ?? JSON.stringify(st.args ?? {}));
-      if (!OTHER.test(need)) continue;
-      const out: PlanStep[] = [{ step: "switch_portal", args: { to: "vendor", vendor: "other" } }, { step: "vendor_open_event" }];
-      if (/end time|closing time|extend|extension|end of (the )?(auction|bidding)/i.test(need)) {
-        const prior = steps.find((x) => x.step === "expect_time_extended" && x.args?.byMinutes !== undefined);
-        const by = prior?.args?.byMinutes ?? (testCase.match(/extend(?:ed|s)?(?: the time)? by\s+(\d+)/i)?.[1] ? Number(testCase.match(/extend(?:ed|s)?(?: the time)? by\s+(\d+)/i)![1]) : undefined);
-        out.push({ step: "expect_time_extended", args: { ...(by !== undefined ? { byMinutes: by } : {}), side: "vendor" } });
-      } else if (/zone|rank|best[- ]?price/i.test(need)) {
-        // the other vendor bids above every price in the plan, so it is outside the green zone; then what it sees
-        const prices = steps.filter((x) => (x.step === "vendor_bid" || x.step === "place_bid" || x.step === "place_surrogate_bid") && x.args?.price !== undefined).map((x) => Number(x.args!.price)).filter((n) => Number.isFinite(n));
-        // a price the words give for the other vendor (the first one above every price already in the plan), else 30% above
-        const top = prices.length ? Math.max(...prices) : 100;
-        const named = (need.match(/\b\d{2,6}(?:\.\d+)?\b/g) ?? []).map(Number).filter((n) => n > top);
-        const price = named.length ? named[0] : Math.ceil(top * 1.3);
-        const hidden = /\b(neither|not|no|hidden|cannot|can't)\b/i.test(need);
-        out.push({ step: "vendor_bid", args: { price } }, { step: "expect_bid_submitted" }, { step: "expect_zone", args: { zone: "not green", side: "vendor", ...(/rank/i.test(need) ? { rank: !hidden } : {}), ...(/best[- ]?price/i.test(need) ? { bestPrice: !hidden } : {}) } });
-      } else continue;
-      // back on the buyer's side when the next step is the buyer's (a switch the plan already has is kept)
+      if (!SESSION.test(need) || !WHO.test(need)) continue;
+      const aboutTime = /end time|closing time|extend|extension|end of (the )?(auction|bidding)/i.test(need);
+      const aboutZone = /zone|rank|best[- ]?price/i.test(need);
+      if (!aboutTime && !aboutZone) continue;
+      const emails = [...new Set(need.match(/[\w.+-]+@[\w.-]+\.\w+/g) ?? [])];
+      const prices = steps.filter((x) => (x.step === "vendor_bid" || x.step === "place_bid" || x.step === "place_surrogate_bid") && x.args?.price !== undefined).map((x) => Number(x.args!.price)).filter((n) => Number.isFinite(n));
+      const top = prices.length ? Math.max(...prices) : 100;
+      const named = (need.match(/\b\d{2,6}(?:\.\d+)?\b/g) ?? []).map(Number).filter((n) => n > top);
+      // no vendor named but two prices for two zones ("submit 100 and 120"): two other vendors, one per price
+      const targets: Array<string> = emails.length ? emails : aboutZone && named.length > 1 && /\b(vendors|sessions|bidders)\b/i.test(need) ? named.slice(0, 2).map(() => "other") : ["other"];
+      const hidden = /\b(neither|not|no|hidden|cannot|can't)\b/i.test(need);
+      const by = steps.find((x) => x.step === "expect_time_extended" && x.args?.byMinutes !== undefined)?.args?.byMinutes;
+      const out: PlanStep[] = [];
+      targets.forEach((who, k) => {
+        out.push({ step: "switch_portal", args: { to: "vendor", vendor: who } }, { step: "vendor_open_event" });
+        if (aboutTime) out.push({ step: "expect_time_extended", args: { ...(by !== undefined ? { byMinutes: by } : {}), side: "vendor" } });
+        else {
+          const price = named[k] ?? named[0] ?? Math.ceil(top * (1.3 + 0.2 * k));
+          out.push({ step: "vendor_bid", args: { price } }, { step: "expect_bid_submitted" }, { step: "expect_zone", args: { zone: "not green", side: "vendor", ...(/rank/i.test(need) ? { rank: !hidden } : {}), ...(/best[- ]?price/i.test(need) ? { bestPrice: !hidden } : {}) } });
+        }
+      });
       const next = steps[i + 1];
       if (next && next.step !== "switch_portal" && !/^(vendor_|expect_zone$)/.test(next.step)) out.push({ step: "switch_portal", args: { to: "buyer" } });
       steps.splice(i, 1, ...out);
-      repairs.push(`"${need.slice(0, 90)}" is checked by signing in as another vendor on the event (switch_portal{vendor:"other"}), not asked of a person`);
+      repairs.push(`"${need.slice(0, 90)}" is checked by signing in as ${emails.length ? emails.join(" and ") : "another vendor on the event"} (switch_portal), not asked of a person`);
     }
     // a later switch_portal{to:"vendor"} with no vendor named after an "other" sign-in means the FIRST vendor again
     let seenOther = false;
     for (const st of steps) {
-      if (st.step === "switch_portal" && st.args?.vendor === "other") { seenOther = true; continue; }
+      if (st.step === "switch_portal" && (st.args?.vendor === "other" || /@/.test(String(st.args?.vendor ?? "")))) { seenOther = true; continue; }
       if (seenOther && st.step === "switch_portal" && String(st.args?.to ?? "vendor") === "vendor" && st.args?.vendor === undefined) st.args = { ...(st.args ?? {}), vendor: 1 };
     }
   }
