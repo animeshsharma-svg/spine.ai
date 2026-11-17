@@ -220,6 +220,7 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Auction STRATEGY (rank / price / traffic light / knockout / dutch) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
 - TRAFFIC LIGHT and DYNAMIC TIME EXTENSION are fields of that same drawer, so they are ARGS of configure_single_stage, never do_on_screen: traffic light → auctionSubtype "traffic_light" with trafficBy ("price" | "rank") and rangeLower / rangeUpper (the GREEN / YELLOW bounds; "" for a case that leaves them empty); dynamic time extension → dynamicExtension true with extendByMinutes, triggerMinutes (the "trigger … on last N minutes") and topBids. Both are set on a FRESH single-stage auction (no conversion). The refusals come at Publish Event: configure → template → line items → vendors → schedule → publish → expect_publish_blocked / expect_error with the app's words.
 - WHAT EACH SIDE SEES in a DYNAMIC TIME EXTENSION auction (a bid in the last minutes moves the end) is a real check too: configure_single_stage{eventType:"auction", dynamicExtension:true, extensionOn:"price", extendByMinutes:N, triggerMinutes:N, topBids:2} (the "Time extension on change in" list starts at Top 2 bids) → … → set_schedule{minutes:5} (a short window so the run reaches the last minutes; the trigger must stay under half the window) → publish → expect_published → place_bid{vendor:1, price:100} (Vendor A) → switch_portal{to:"vendor", vendor:2} → vendor_open_event → wait_for_end_window{minutesBefore:1} → vendor_bid{price:95} (Vendor B's last-minute bid) → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"vendor", vendor:1} → vendor_open_event → expect_time_extended{byMinutes:N, side:"vendor"} → switch_portal{to:"buyer"} → expect_time_extended{byMinutes:N, side:"buyer"} → expect_participants_summary{dynamicTimeExtended:"N min"} → event_menu{item:"Order Activity"} → expect_text{text:"Due to a quote revision, the Dynamic Time Extension has been triggered."}. Never ask_tester for the end time, the participants count or the activity log.
+- ANOTHER VENDOR'S OWN SESSION ("in the other participants' portals", "in the yellow-zone vendor's own session") is a real sign-in: switch_portal{to:"vendor", vendor:"other"} → vendor_open_event → the check there (expect_time_extended{side:"vendor"}, expect_zone{zone:"not green", side:"vendor", rank:false, bestPrice:false} after a vendor_bid above the green price). Never ask_tester for it.
 - WHAT EACH SIDE SEES in a traffic light auction is a real check, never ask_tester: after the bids, switch_portal{to:"vendor", vendor:N} → vendor_open_event → expect_zone{zone, side:"vendor"} for each bidder N, then switch_portal{to:"buyer"} → expect_zone{bid:<price>, zone} per bidder. The zone follows the bounds (gross ≤ GREEN → green, ≤ YELLOW → yellow, else red); leave rangeLower/rangeUpper out and the lint sets them from the bids so the lowest bidder is green, the next yellow, the rest red. "Zones the buyer allowed to see the best price / rank" is set_zone_visibility{bestPriceZones:["green"], bestPrices:1, rankZones:["green"]} on the buyer's side (the live stage's Actions ▾ menu), then expect_zone{side:"vendor", rank:true, bestPrice:true} as the green bidder and {rank:false, bestPrice:false} as another.
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion (on a fresh single-stage screen their cards are greyed out: "Knockout auctions can be created only when converting an RFQ to an auction"). A case about a Dutch / Knockout field ("start price lower than end price", "base price empty", "tick size 0", "Knockout with base price 0") is reached THIS way, whatever screen its words start on: open_create single-stage → configure_single_stage{eventType:"rfq"} → select_template → add_line_items → invite_vendor → publish → expect_published → convert_to_auction → configure_single_stage{eventType:"auction", auctionSubtype:"dutch"|"knockout", startPrice (the case's "base price"; "" = left empty), endPrice (dutch), tickSize, offersOn?} → publish → the refusal the case quotes (expect_error / expect_publish_blocked) or expect_published. Only a case ABOUT the greyed-out card itself is attempt{configure_single_stage{auctionSubtype:"dutch"}, expect:"refused"} on the fresh screen. Never compose_stages ["rfq","auction"] — the screen forbids it. "Sealed bid" is not a strategy on the create screen (cannotExpress). A second bidding currency is added with add_bidding_currency{currencies:["USD"]} on the RFQ's create screen BEFORE publish (the footer's "Edit Currencies"; greyed out on the converted screen): "currency configuration cannot be added in Knockout / Dutch Auction" = add the currency on the RFQ → publish → convert_to_auction → configure dutch/knockout → publish → expect_publish_blocked{because:"Currency configuration cannot be added in Knockout / Dutch Auction"}.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
@@ -832,6 +833,45 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       // an expect_download that sat right after the opener now waits for the Excel
       if (steps[opener + 1]?.step === "expect_download") { const [d] = steps.splice(opener + 1, 1); steps.splice(opener + 2, 0, d); }
       repairs.push('the Download Reports panel offers "Download Excel" — it is pressed and the file awaited (a plan that only opened the panel proved nothing)');
+    }
+  }
+
+  // ANOTHER VENDOR'S OWN SESSION (17 Nov): "verify in the other participants' / every other invited vendor's /
+  // the yellow- and red-zone vendors' own supplier sessions that …" is a real sign-in as a different vendor on the
+  // event (switch_portal{vendor:"other"} — the runner picks one this run has not used), never ask_tester: an
+  // unattended run turned it into "not tested". What is checked there follows the words: the end time moved (the
+  // dynamic extension), or what that vendor's zone shows (it bids above the green bidder first, so it is outside
+  // the allowed zone).
+  {
+    const OTHER = /\b(other|another|every other|each other|second|remaining|yellow|red|non-?green)[^.]{0,60}\b(vendors?|participants?|bidders?)[^.]{0,40}\b(sessions?|portals?|supplier[- ]portal|own (supplier )?(sessions?|screens?|view))\b|\b(vendors?|participants?|bidders?)'?s? own (supplier[- ]portal |supplier )?(sessions?|screens?|views?)\b/i;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const st = steps[i];
+      if (st.step !== "ask_tester") continue;
+      const need = String(st.args?.need ?? st.args?.question ?? st.args?.ask ?? JSON.stringify(st.args ?? {}));
+      if (!OTHER.test(need)) continue;
+      const out: PlanStep[] = [{ step: "switch_portal", args: { to: "vendor", vendor: "other" } }, { step: "vendor_open_event" }];
+      if (/end time|closing time|extend|extension|end of (the )?(auction|bidding)/i.test(need)) {
+        const prior = steps.find((x) => x.step === "expect_time_extended" && x.args?.byMinutes !== undefined);
+        const by = prior?.args?.byMinutes ?? (testCase.match(/extend(?:ed|s)?(?: the time)? by\s+(\d+)/i)?.[1] ? Number(testCase.match(/extend(?:ed|s)?(?: the time)? by\s+(\d+)/i)![1]) : undefined);
+        out.push({ step: "expect_time_extended", args: { ...(by !== undefined ? { byMinutes: by } : {}), side: "vendor" } });
+      } else if (/zone|rank|best[- ]?price/i.test(need)) {
+        // the other vendor bids above every price in the plan, so it is outside the green zone; then what it sees
+        const prices = steps.filter((x) => (x.step === "vendor_bid" || x.step === "place_bid" || x.step === "place_surrogate_bid") && x.args?.price !== undefined).map((x) => Number(x.args!.price)).filter((n) => Number.isFinite(n));
+        const price = Math.ceil((prices.length ? Math.max(...prices) : 100) * 1.3);
+        const hidden = /\b(neither|not|no|hidden|cannot|can't)\b/i.test(need);
+        out.push({ step: "vendor_bid", args: { price } }, { step: "expect_bid_submitted" }, { step: "expect_zone", args: { zone: "not green", side: "vendor", ...(/rank/i.test(need) ? { rank: !hidden } : {}), ...(/best[- ]?price/i.test(need) ? { bestPrice: !hidden } : {}) } });
+      } else continue;
+      // back on the buyer's side when the next step is the buyer's (a switch the plan already has is kept)
+      const next = steps[i + 1];
+      if (next && next.step !== "switch_portal" && !/^(vendor_|expect_zone$)/.test(next.step)) out.push({ step: "switch_portal", args: { to: "buyer" } });
+      steps.splice(i, 1, ...out);
+      repairs.push(`"${need.slice(0, 90)}" is checked by signing in as another vendor on the event (switch_portal{vendor:"other"}), not asked of a person`);
+    }
+    // a later switch_portal{to:"vendor"} with no vendor named after an "other" sign-in means the FIRST vendor again
+    let seenOther = false;
+    for (const st of steps) {
+      if (st.step === "switch_portal" && st.args?.vendor === "other") { seenOther = true; continue; }
+      if (seenOther && st.step === "switch_portal" && String(st.args?.to ?? "vendor") === "vendor" && st.args?.vendor === undefined) st.args = { ...(st.args ?? {}), vendor: 1 };
     }
   }
 
@@ -2109,6 +2149,12 @@ export function resolveCoveredGaps(gaps: string[], steps: PlanStep[]): { gaps: s
   const has = (name: string, pred: (st: PlanStep) => boolean = () => true) => steps.some((st) => st.step === name && pred(st));
   const otherVendor = /\b(second|another|other|different|two|2|b|uninvited|un-invited|non-invited|competing)\b[^.]{0,30}\bvendors?\b|\bvendors? (b|2|two)\b|\bvendor b\b/i;
   const RULES: Array<{ gap: RegExp; covered: (g: string) => boolean; by: string }> = [
+    {
+      // "verify in the other vendors' own supplier-portal sessions" (17 Nov): covered by the sign-in as another vendor
+      gap: /\b(other|another|second|every other|yellow|red)[^.]{0,60}\b(vendors?|participants?|bidders?)[^.]{0,40}\b(sessions?|portals?|own)\b/i,
+      covered: () => has("switch_portal", (st) => st.args?.vendor === "other"),
+      by: 'switch_portal{vendor:"other"} signs in as another vendor on the event this run has not used, and the check runs on its own portal',
+    },
     {
       // "compare the downloaded report's values with the Master QCS screen" (16 Nov): expect_report_matches_qcs reads the xlsx
       gap: /\b(report|download|xlsx|excel)\b[^.]{0,60}\b(match|compare|same|equal|values|screen)/i,

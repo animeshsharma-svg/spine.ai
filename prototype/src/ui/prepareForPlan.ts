@@ -52,5 +52,5 @@ export async function contextForPlan(
   const x = b.ok ? b.context : null;
   if (!x) return { state: need.state, why: `the API could not build the ${need.state} state this case starts from: ${b.why}` };
   onLine?.(`event ready: "${x.title ?? x.eventGroupUuid}" (${need.state})${x.vendorName ? ` · vendor ${x.vendorName}` : ""}`);
-  return { state: need.state, context: { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId } };
+  return { state: need.state, context: { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, ...(x.otherVendorEmail ? { otherVendorEmail: x.otherVendorEmail, otherVendorName: x.otherVendorName } : {}), vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId } };
 }

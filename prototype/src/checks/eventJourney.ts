@@ -204,9 +204,12 @@ export interface JourneyRunOptions {
 
 /** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees and bidders. */
 function audienceOf(j: Journey): string[] {
-  if (j.audience) return j.audience;
-  const first = j.firstVendor?.vendorCompanyUuid ?? j.vendorCompanyUuid;
   const rest = [...(j.opts.alsoInvite ?? []), ...(j.opts.extraBidders ?? []).map((b) => b.companyUuid)];
+  // an event sent to a fixed list (the vendors Procol suggests) still gets the extra invitees and bidders the caller
+  // named (17 Nov: a traffic-light round went to the 168 suggested vendors and its second QA vendor was left out, so
+  // that vendor's portal never listed the event)
+  if (j.audience) return [...j.audience, ...rest.filter((u, i) => u && !j.audience!.includes(u) && rest.indexOf(u) === i)];
+  const first = j.firstVendor?.vendorCompanyUuid ?? j.vendorCompanyUuid;
   return [first, ...rest.filter((u, i) => u && u !== first && rest.indexOf(u) === i)];
 }
 
@@ -1098,7 +1101,7 @@ const publish: StepSpec = {
       // Procol's suggested vendors (eventVendors), else the QA vendor(s); with
       // neither, publish to nobody rather than to a blank id.
       ...(j.audience
-        ? { audience_company_uuids: j.audience }
+        ? { audience_company_uuids: audienceOf(j) }
         : j.vendorCompanyUuid
           ? widerAudience(j) ? { audience_company_uuids: audienceOf(j) } : {}
           : { audience_company_uuids: [] }),

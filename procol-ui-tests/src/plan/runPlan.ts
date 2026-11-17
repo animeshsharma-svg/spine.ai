@@ -1085,6 +1085,32 @@ async function topUpInvitedFromDb(s: RunState, cid: number | null): Promise<void
   }
 }
 
+/**
+ * ANOTHER VENDOR ON THE EVENT (17 Nov): "check it in the other vendor's own session" is a real sign-in, never a
+ * question for a person. A vendor that is on this event (the database's audience for the event's title), has a
+ * login this run may use, and is not one already used in this run (the signed-in one, the API-built state's
+ * vendor, a bidder of this plan). QA test vendors first (qa_…@example.com); with real vendors allowed, then the
+ * event's other vendors with a login.
+ */
+async function otherVendorOnEvent(s: RunState): Promise<{ email: string; name: string }> {
+  const title = String(s.context.title ?? s.title ?? "").trim();
+  const cid = Number(process.env.COMPANY_ID) || null;
+  const used = new Set([s.portal?.email, s.context.vendorEmail, s.context.otherVendorEmail && s.portalBids?.some((b) => b.email === s.context.otherVendorEmail) ? s.context.otherVendorEmail : undefined, ...biddersUsed].filter(Boolean).map((e) => String(e).toLowerCase()));
+  const onEvent = title ? (await invitedVendorNames(title, cid).catch(() => null)) ?? [] : [];
+  const qa = await qaVendorLogins().catch(() => [] as Array<{ name: string; email: string }>);
+  const pick = (list: Array<{ name: string; email: string }>) => list.find((v) => !used.has(v.email.toLowerCase()) && (!onEvent.length || onEvent.some((n) => isQaVendorName(n, [v.name]) || n.toLowerCase() === v.name.toLowerCase())));
+  // the API-built state's own second QA vendor first: it is on the event by construction
+  const onIt = (name: string) => !onEvent.length || onEvent.some((n) => isQaVendorName(n, [name]) || n.toLowerCase() === name.toLowerCase());
+  if (s.context.otherVendorEmail && !used.has(String(s.context.otherVendorEmail).toLowerCase()) && onIt(String(s.context.otherVendorName ?? ""))) return { email: String(s.context.otherVendorEmail), name: String(s.context.otherVendorName ?? s.context.otherVendorEmail) };
+  const q = pick(qa);
+  if (q) return q;
+  if (allowRealVendors()) {
+    const r = pick(await vendorLogins().catch(() => [] as Array<{ name: string; email: string }>));
+    if (r) return r;
+  }
+  throw new Error(`no other vendor on “${title || "this event"}” that this run can sign in as (on the event: ${onEvent.slice(0, 5).join(", ") || "unknown"}${onEvent.length > 5 ? ", …" : ""}; already used: ${[...used].join(", ") || "none"}) — invite a second QA vendor to the event`);
+}
+
 async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknown): Promise<string> {
   if (to === "buyer") {
     if (!s.portal || s.portal.on === "buyer") return "on the buyer's console already";
@@ -1094,7 +1120,13 @@ async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknow
     await s.page.bringToFront().catch(() => {});
     return `back on the buyer's console at ${new URL(s.page.url()).pathname}`;
   }
-  const named = vendor ? String(vendor).trim() : "";
+  let named = vendor ? String(vendor).trim() : "";
+  // "other" / "another" / "second": a different vendor on the event than any this run has used (otherVendorOnEvent)
+  if (/^(an?other|other|next|second|different)( vendor)?$/i.test(named)) {
+    const o = await otherVendorOnEvent(s);
+    console.log(`[portal] "${named}" vendor → ${o.name} <${o.email}>`);
+    named = o.email;
+  }
   // vendor: 2 after place_bid steps = the second vendor that BID in this plan (the same person comes back to look at
   // its zone, 14 Nov); before any bid it is the second vendor on the event, as place_bid{vendor:2} counts
   const knownEmail = /@/.test(named) ? named : /^\d+$/.test(named) && biddersUsed[Number(named) - 1] ? biddersUsed[Number(named) - 1] : "";
@@ -2869,8 +2901,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // allowed that zone to see them); the buyer's Responses grid puts a light icon in every vendor's column
       // header (<img alt="green lighticon">). The rule (bids_group.rb get_color_within_range, a reverse auction):
       // gross total ≤ GREEN bound → green; ≤ YELLOW bound → yellow; above → red.
-      const want = String(a.zone ?? "").toLowerCase().trim();
-      if (!/^(green|yellow|red)$/.test(want)) throw new Error(`expect_zone: zone must be green, yellow or red (got "${a.zone}")`);
+      // "any": only the indicators matter (what a vendor outside the allowed zones sees); "not green": yellow or red
+      const want = String(a.zone ?? "").toLowerCase().trim().replace(/[\s_]+/g, "-");
+      if (!/^(green|yellow|red|any|not-green)$/.test(want)) throw new Error(`expect_zone: zone must be green, yellow, red, "not green" or "any" (got "${a.zone}")`);
       const side = a.side ? String(a.side).toLowerCase() : s.portal?.on === "vendor" ? "vendor" : "buyer";
       if (side === "vendor") {
         if (!s.portal || s.portal.on !== "vendor") throw new Error('expect_zone{side:"vendor"} needs the supplier portal open — switch_portal{to:"vendor"} + vendor_open_event first');
@@ -2896,7 +2929,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (!text) throw new Error(`the supplier portal shows no zone tag for ${s.portal.email} on this round — the case expects the ${want} zone (the page reads: “${body.slice(0, 160)}”)`);
         const got = (text.toLowerCase().match(/green|yellow|red/) ?? [""])[0];
         const seen = `${s.portal.email} sees “${text}” on the supplier portal — ${rankShown ? "a rank is shown" : "no rank shown"}, ${bestShown ? "a best price is shown" : "no best price shown"}${row ? ` (the indicators read: “${row}”)` : ""}`;
-        if (got !== want) throw new Error(`${seen}; the case expects the ${want} zone`);
+        const zoneOk = want === "any" || (want === "not-green" ? got !== "green" && !!got : got === want);
+        if (!zoneOk) throw new Error(`${seen}; the case expects ${want === "not-green" ? "a zone other than green" : `the ${want} zone`}`);
         const wantRank = a.rank === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.rank));
         const wantBest = a.bestPrice === undefined ? undefined : !/^(false|no|hidden|0)$/i.test(String(a.bestPrice));
         if (wantRank !== undefined && wantRank !== rankShown) throw new Error(`${seen}; the case expects the rank ${wantRank ? "shown" : "hidden"} for this zone`);

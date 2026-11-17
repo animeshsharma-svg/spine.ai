@@ -396,6 +396,12 @@ export async function buildUiState(
   const shape: StateShape = { ...(opts.shape ?? {}) };
   // two bidders with no prices named: different prices, so the round has a ranking to judge (16 Nov, SRC-STR-010:
   // both QA vendors bid the journey's default and Master QCS showed a tie, "Rank 2 and 2")
+  // a dynamic-extension round's first bid is 100 when the case names none: a later "late bid" (95 in the cases) must
+  // IMPROVE it to trigger the extension (17 Nov: the API bid was 73, the late 95 was higher, nothing extended)
+  if (opts.strategy?.dynamic && !TWO_BIDDERS.has(state) && !shape.prices?.length && ["bid", "closed", "proposal", "awarded"].includes(state)) {
+    shape.prices = [100];
+    opts.onLine?.("the vendor's first bid is 100 per unit (a later late bid below it is an improvement, which is what triggers the extension)");
+  }
   if (TWO_BIDDERS.has(state) && !shape.prices?.length) {
     shape.prices = [100, 90];
     opts.onLine?.("the two bidders bid 100 and 90 per unit (the case names no prices; different prices give the round a ranking)");
@@ -523,7 +529,7 @@ export async function buildUiState(
   let otherVendorEmail: string | undefined;
 
   // ── the states built on top of the journey (10 Nov) ──
-  if (second && WANTS_SECOND_VENDOR.has(state)) {
+  if (second && wantsSecond) {
     otherVendorName = second.name;
     otherVendorEmail = second.email;
     values.secondVendorName = second.name;

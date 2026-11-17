@@ -17,7 +17,7 @@ export const VENDOR_PORTAL_CATALOG: StepSpec[] = [
     name: "switch_portal",
     purpose:
       "Change which side of Procol the next steps act on. to:\"vendor\" signs in to the SUPPLIER portal as the event's invited QA vendor (a second browser beside the buyer's, streamed and photographed like it) and every later generic step (click, fill, select, expect_text, expect_visible, expect_count, expect_value) acts there; to:\"buyer\" returns to the buyer's console on the page it was left at. Use for any case about what the vendor sees or can do.",
-    args: { to: '"vendor" | "buyer"', vendor: "the vendor to sign in as — an email or the name the case gives (optional: the event's QA vendor, or the one that bid in this plan)" },
+    args: { to: '"vendor" | "buyer"', vendor: 'the vendor to sign in as — an email or the name the case gives; N = the N-th bidder of this plan; "other" = a DIFFERENT vendor on the event this run has not used yet (for "check it in another vendor\'s own session"); optional: the event\'s QA vendor, or the one that bid in this plan' },
   },
   {
     name: "vendor_open_event",
