@@ -69,6 +69,24 @@ What the replay proves: a case written from a ticket tells "fixed" from "still b
 - docs/METRICS.md defines precision (real), recall, false-alarm rate, mutation score, flaky rate, DDP and leakage, with the 3 Oct bug sheet as the truth for "known bug". The evaluation harness and its planted-bug hooks exist; the last results are not stored in the repo (prototype/data/eval holds the config and labels only), so no precision figure is claimed here.
 - Routing eval (docs/PLATFORM-REPORT.md): 102 instructions, journey accuracy 98.0 %, parameters 100 %.
 
+## 6. Proof made by the platform itself (17 Nov, afternoon)
+
+No case below was written by hand or by Claude; the platform wrote and ran them.
+
+**A feature described in words → flows → live runs on PROCOL DEMO.** One plain-language description of "Traffic light auction with dynamic time extension" was given to the guided session. The platform read it into 5 flows, 7 rules and 5 questions of its own, built each start state through the API on the product the description names ("CYLINDER WITH KEY & KNOB", 1100001325, quantity 10, bounds 950 / 1,000), and ran each flow on the real screens:
+
+| Flow the platform found | Verdict | What it showed |
+|---|---|---|
+| Create a traffic-light auction with dynamic extension | works (12/12) | published from the single-stage screen |
+| Vendor bidding and zone tags | works (14/14) | test@dummy.com bid 120 → "Red Zone" (₹1,200), 100 → "Yellow Zone" (₹1,000), 95 → "Green Zone" (₹950) on its own portal |
+| Dynamic extension trigger | 14/15, twice | a late bid moved the end +2 min on the vendor's portal and the buyer's console (05:01:13 → 05:03:13; 05:16:23 → 05:18:23); Overview "Dynamic time extended: 2 min"; Order Activity line missing — see below |
+| Zone visibility | works (18/18) | bid 100 yellow and 120 red on the buyer's lights; the green bidder sees "1 ₹ 950 Green Zone Rank: 1" |
+| Finished auction on Master QCS | works | ranks and the downloaded report match the screen |
+
+**A candidate bug the platform found this way:** on two fresh events (99080 / RFX-21265 and 99214 / RFX-21389) the extension happened — the database holds the dynamic_extra_time schedule and the extension count 1 — but Order Activity does not log it. One difference from the 14 Nov run where it did log is still to be ruled out (docs/bugs/platform-fixes-needed.md).
+
+**The real HubSpot export through the platform's own pipeline.** The RCA retrieval export (1,033 real tickets, Jul–Sep 2026) went through `hubspot:ingest` on the platform's fast model: personal data removed (502 names, 147 phone numbers, 112 company names …), 872 sorted as defects. Against the team's own "Is Defect" column: 700 agree, 172 extra, 40 missed — precision 80.3 %, recall 94.6 %. The platform wrote 527 regression cases (test-cases/hubspot-regressions.md, ids HS-<ticket>-N). The 153 tickets the team marks as defects and not yet closed have 79 platform cases; 14 of them were replayed on fresh PROCOL DEMO events through the API: 8 no longer reproduce, 3 failed the same way on a second fresh event and are flagged for confirmation (HS-318440667838-1, HS-318541871855-1, HS-320401698541-1), 2 couldn't tell (a company setting the run does not switch), 1 no verdict.
+
 ## 5. The one-paragraph version
 
 Across the events module, vendor bulk upload, approval routing, Template Studio, vendor onboarding and revalidation, the platform has 151 bugs confirmed by people on fresh UAT test events and delivered on bug sheets, 30 more reproduced twice with evidence awaiting sign-off, and 23 observations in the hand-check queue. From HubSpot tickets it has written 78 regression cases (38 from 36 Jul–Sep tickets, 40 from the full 1,033-row export); replaying the 38 confirmed 13 tickets fixed and 1 still open on UAT with evidence, and the 40 gave the honest list of what the runner still needs to start them.
