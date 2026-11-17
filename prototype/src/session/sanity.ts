@@ -18,6 +18,7 @@
  * Cases written on a broken or unreachable flow are noise, so the session moves on to "cases" only when
  * at least one flow works; the card shows the rest so the user decides what to fix or skip.
  */
+import { prdTextOf } from "./intake.js";
 import { addSheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { runSheetCases, type SheetEvent, type SheetRunCase } from "../checks/sheetRunner.js";
 import { advance, updateSession, type Session } from "./store.js";
@@ -109,6 +110,11 @@ export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]
     // state's kind and strategy — "Traffic Light Auction with Dynamic Time Extension" builds a live traffic-light
     // auction round with the extension on, not a plain RFQ (sanity FL2–FL4 ran on an RFQ and could not reach the zones)
     const about = card.title ? `This flow is part of "${card.title}". ` : "";
+    // the PRD's own test data (its product, quantity, location, vendors) travels with every flow case (17 Nov): the
+    // sheet prep reads it for the event's shape — the API-built event is then on the product the words name
+    const prdText = (() => { try { return prdTextOf(s) ?? ""; } catch { return ""; } })();
+    const dataLines = prdText.split(/\n+/).map((l) => l.trim()).filter((l) => /test data|\bproduct\b|quantity|delivery location|\bvendors?\b.*@/i.test(l)).slice(0, 4);
+    const testData = dataLines.join(" ").slice(0, 700) || "-";
     const pre = about + (preList.length ? preList.map((p) => p.replace(/\.?$/, ".")).join(" ") : "The buyer can create events.");
     return {
       id: `SAN-${String(i + 1).padStart(3, "0")}`,
@@ -120,7 +126,7 @@ export function flowsAsCases(s: Session, card: Understanding, flowIds?: string[]
       portal: vendorSide ? "Supplier portal" : f.layer === "api" ? "API" : "Buyer portal",
       preconditions: pre,
       configs: configsFor({ ...f, steps, preconditions: preList }, card.rules, s),
-      testData: "-",
+      testData,
       steps,
       expected: f.endState || "The flow completes as the PRD describes.",
       priority: "P1",

@@ -3069,7 +3069,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const buyerPage = s.portal?.on === "vendor" ? s.portal.buyer.page : s.page;
       if (!/\/project\//.test(buyerPage.url())) throw new Error(`${step.step} needs the published event's page on the buyer's side — publish and expect_published first`);
       const before = Number(a.minutesBefore ?? a.before ?? 1);
-      const cap = Number(a.maxWaitMinutes ?? 12) * 60;
+      // the browser test itself stops at 12 minutes, so no wait may be longer than 11 (17 Nov: a 58-minute wait on an
+      // hour-long round hit "Test timeout of 720000ms" instead of this step's own honest refusal)
+      const cap = Math.min(Number(a.maxWaitMinutes ?? 11), 11) * 60;
       // the event is read on its STAGE page (the project page reads other records first — 14 Nov: nothing to read)
       await new EventActionsPage(buyerPage).gotoStage("auction").catch(() => "");
       const read = await readEnd(buyerPage, { any: true });

@@ -368,7 +368,10 @@ export async function buildUiState(
   // A second QA vendor, where the state needs one (invited beside the first; for two_bids it bids too).
   // Only QA vendors: these states never go to Procol's suggested (real) vendors.
   let second: { companyUuid: string; email: string; name: string } | null = null;
-  if (WANTS_SECOND_VENDOR.has(state) || state === "uninvited") {
+  // a traffic-light round is about what EACH vendor's zone shows: a second QA vendor is invited so a flow can sign in
+  // as another bidder (17 Nov, FL4: "a second vendor's own portal session is unavailable")
+  const wantsSecond = WANTS_SECOND_VENDOR.has(state) || (!!opts.strategy?.trafficLight && ["live", "bid", "closed"].includes(state));
+  if (wantsSecond || state === "uninvited") {
     second = await secondQaVendor(companyId, client);
     if (!second && (TWO_BIDDERS.has(state) || state === "two_invited" || state === "uninvited"))
       return { ok: false, why: `client ${companyId} has only one QA test vendor with a login — the ${state} state needs a second one (QA vendors only; a real supplier is never invited)` };
@@ -405,7 +408,17 @@ export async function buildUiState(
   // States that must stay open get an hour; closed/awarded get a short window the run can wait out
   // — 3 minutes, not 75 s: on 23 Oct (C04) one vendor GET took 30 s on UAT and the bid arrived after
   // a 75 s round had closed ("Order not active"), so the state was never built.
-  const stageSeconds = state === "closed" || state === "closed_two_bids" || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
+  let stageSeconds = state === "closed" || state === "closed_two_bids" || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
+  // a dynamic time extension's trigger must stay under HALF the bidding time (trade_controller_helper ~3085, 501
+  // "Invalid Trigger Time for Dynamic Time Extension."): a short closed-state window grows to fit it (17 Nov, FL5)
+  if (opts.strategy?.dynamic) {
+    const need = opts.strategy.dynamic.triggerMinutes * 2 * 60 + 60;
+    if (stageSeconds < need) { opts.onLine?.(`the bidding window is ${Math.round(need / 60)} min so the ${opts.strategy.dynamic.triggerMinutes}-minute trigger stays under half of it`); stageSeconds = need; }
+    // a LIVE round with the extension on is there to be bid on in its last minutes: an hour-long window would make
+    // the run wait out most of an hour (17 Nov, FL3 hit the browser test's own 12-minute limit) — a short one, just
+    // over twice the trigger, keeps the trigger valid and the wait minutes long
+    else if (stageSeconds >= 3600) { stageSeconds = need + 60; opts.onLine?.(`the bidding window is ${Math.round(stageSeconds / 60)} min (the extension's last minutes come inside the run)`); }
+  }
   // The round's variant, written into the stage body just before it is sent (JourneyRunOptions.stageBody).
   const bidTotal = 100 * 50; // the sibling test data's default bid (price × quantity); strategyFor only needs the scale
   const strategy = opts.strategy;
@@ -472,7 +485,7 @@ export async function buildUiState(
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
         eventVendors,
-        ...(second && TWO_BIDDERS.has(state) ? { extraBidders: [second] } : second && WANTS_SECOND_VENDOR.has(state) ? { alsoInvite: [second.companyUuid] } : {}),
+        ...(second && TWO_BIDDERS.has(state) ? { extraBidders: [second] } : second && wantsSecond ? { alsoInvite: [second.companyUuid] } : {}),
         ...(shape.prices?.length ? { bidPrices: shape.prices } : {}),
         ...(shape.quantity ? { quantity: shape.quantity } : {}),
         ...((shape.lines ?? 1) > 1 ? { lineItemCount: shape.lines } : {}),
